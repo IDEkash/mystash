@@ -1,0 +1,6 @@
+# Default alias map for myengine
+# Format: stable.path = internal.path
+
+# Examples
+# player.physics.gravity = player_physics_component.gravity_value
+# stable.path.example = real.internal.path.example

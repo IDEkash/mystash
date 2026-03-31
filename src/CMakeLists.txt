@@ -414,6 +414,7 @@ add_subdirectory(network)
 add_subdirectory(script)
 add_subdirectory(util)
 add_subdirectory(server)
+add_subdirectory(myengine)
 
 # Source files that are identical between server & client builds.
 # This means they don't use or include anything that depends on the
@@ -446,6 +447,7 @@ set(independent_SRCS
 	settings.cpp
 	sound_spec.cpp
 	staticobject.cpp
+	${myengine_SRCS}
 	terminal_chat_console.cpp
 	texture_override.cpp
 	tileanimation.cpp

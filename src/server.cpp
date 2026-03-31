@@ -55,6 +55,7 @@
 #include "modchannels.h"
 #include "script/common/c_types.h" // LuaError
 #include "scripting_server.h"
+#include "myengine/aliases.h"
 #include "server/mods.h" // ServerModManager
 
 // Network
@@ -494,6 +495,10 @@ void Server::init()
 	m_mod_storage_database->beginSave();
 
 	m_modmgr = std::make_unique<ServerModManager>(m_path_world, m_gamespec);
+
+	// Load engine-wide aliases then world-specific ones
+	g_myengine_aliases.load_from_file(porting::path_share + DIR_DELIM + "myengine" + DIR_DELIM + "alias_map.txt");
+	g_myengine_aliases.load_from_file(m_path_world + DIR_DELIM + "myengine" + DIR_DELIM + "alias_map.txt");
 
 	// complain about mods with unsatisfied dependencies
 	if (!m_modmgr->isConsistent()) {

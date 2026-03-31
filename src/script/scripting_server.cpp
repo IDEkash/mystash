@@ -34,6 +34,8 @@
 #include "lua_api/l_storage.h"
 #include "lua_api/l_ipc.h"
 #include "lua_api/l_htmlview.h"
+#include "myengine/myengine.h"
+#include "myengine/aliases.h"
 
 extern "C" {
 #include <lualib.h>
@@ -72,6 +74,8 @@ ServerScripting::ServerScripting(Server* server):
 
 	// Initialize our lua_api modules
 	InitializeModApi(L, top);
+
+	MyEngine::initialize(L);
 	lua_pop(L, 1);
 
 	// Push builtin initialization type
