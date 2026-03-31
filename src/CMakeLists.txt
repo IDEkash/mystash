@@ -447,7 +447,6 @@ set(independent_SRCS
 	settings.cpp
 	sound_spec.cpp
 	staticobject.cpp
-	${myengine_SRCS}
 	terminal_chat_console.cpp
 	texture_override.cpp
 	tileanimation.cpp
@@ -556,6 +555,7 @@ list(APPEND client_SRCS
 	${client_network_SRCS}
 	${client_irrlicht_changes_SRCS}
 	${client_SCRIPT_SRCS}
+	${myengine_SRCS}
 )
 
 if(BUILD_UNITTESTS)
@@ -570,6 +570,7 @@ endif()
 # (nothing here because a client always comes with a server)
 set(server_SRCS
 	${common_SRCS}
+	${myengine_SRCS}
 )
 
 # Avoid source_group on broken CMake version.
