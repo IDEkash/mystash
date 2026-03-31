@@ -143,10 +143,14 @@ static int l_add(lua_State *L) {
 	infostream << "myengine.add: Adding " << type << std::endl;
 
 	std::string reg_func;
+	bool needs_name = true;
+
 	if (type == "node") reg_func = "register_node";
-	else if (type == "entity") reg_func = "register_entity";
-	else if (type == "item") reg_func = "register_craftitem";
-	else if (type == "tool") reg_func = "register_tool";
+	else if (type == "entity") { reg_func = "register_entity"; needs_name = true; }
+	else if (type == "item") { reg_func = "register_item"; needs_name = true; }
+	else if (type == "craftitem") { reg_func = "register_craftitem"; needs_name = true; }
+	else if (type == "tool") { reg_func = "register_tool"; needs_name = true; }
+	else if (type == "alias") { reg_func = "register_alias"; needs_name = true; }
 
 	if (!reg_func.empty()) {
 		lua_getglobal(L, "core");
@@ -165,16 +169,23 @@ static int l_add(lua_State *L) {
 				}
 			} else {
 				lua_pop(L, 1); // pop nil/non-string
-				lua_pushvalue(L, 2);
-				if (lua_pcall(L, 1, 0, 0) != 0) {
-					errorstream << "myengine.add: Error calling core." << reg_func << ": " << lua_tostring(L, -1) << std::endl;
-					lua_pop(L, 1);
+				if (needs_name) {
+					warningstream << "myengine.add: Registration of type '" << type << "' requires a 'name' field in definition table." << std::endl;
+				} else {
+					lua_pushvalue(L, 2);
+					if (lua_pcall(L, 1, 0, 0) != 0) {
+						errorstream << "myengine.add: Error calling core." << reg_func << ": " << lua_tostring(L, -1) << std::endl;
+						lua_pop(L, 1);
+					}
 				}
 			}
 		} else {
+			warningstream << "myengine.add: core." << reg_func << " is not a function." << std::endl;
 			lua_pop(L, 1); // pop nil/non-function
 		}
 		lua_pop(L, 1); // pop core
+	} else {
+		warningstream << "myengine.add: Unknown type '" << type << "'" << std::endl;
 	}
 
 	return 0;
@@ -188,8 +199,27 @@ static int l_remove(lua_State *L) {
 
 	lua_getglobal(L, "core");
 	std::string unreg_func;
-	if (type == "node") unreg_func = "unregister_item"; // Minetest uses unregister_item for nodes too
-	else if (type == "item") unreg_func = "unregister_item";
+	if (type == "node" || type == "item" || type == "craftitem" || type == "tool") {
+		unreg_func = "unregister_item";
+	} else if (type == "alias") {
+		// Minetest doesn't have unregister_alias, but we can clear it from registered_aliases
+		lua_getfield(L, -1, "registered_aliases");
+		if (lua_istable(L, -1)) {
+			lua_pushstring(L, name.c_str());
+			lua_pushnil(L);
+			lua_settable(L, -3);
+		}
+		lua_pop(L, 1);
+		// Note: No engine function to unregister from C++ side alias map easily without itemdef ref.
+	} else if (type == "entity") {
+		lua_getfield(L, -1, "registered_entities");
+		if (lua_istable(L, -1)) {
+			lua_pushstring(L, name.c_str());
+			lua_pushnil(L);
+			lua_settable(L, -3);
+		}
+		lua_pop(L, 1);
+	}
 
 	if (!unreg_func.empty()) {
 		lua_getfield(L, -1, unreg_func.c_str());
@@ -200,10 +230,13 @@ static int l_remove(lua_State *L) {
 				lua_pop(L, 1);
 			}
 		} else {
+			warningstream << "myengine.remove: core." << unreg_func << " is not a function." << std::endl;
 			lua_pop(L, 1);
 		}
+	} else {
+		warningstream << "myengine.remove: Unknown type '" << type << "'" << std::endl;
 	}
-	lua_pop(L, 1);
+	lua_pop(L, 1); // pop core
 	return 0;
 }
 

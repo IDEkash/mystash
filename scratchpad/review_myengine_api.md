@@ -28,3 +28,8 @@ It provides a set of functions (`get`, `set`, `hook`, `modify`, `add`, `remove`)
 - **Path Syntax**: Paths use dot notation (e.g., `player.physics.gravity`).
 - **Hook Mapping**: `myengine.hook("event")` automatically tries to call `core.register_on_<event>`.
 - **Mod Loading**: The alias map is loaded before mods are loaded, so aliases are available during mod initialization.
+- **Naming Conventions**: In `myengine.add(type, def)`, the `def` table MUST contain a `name` field. Because `myengine` calls register functions from a global context, modders should use the `":"` prefix (e.g., `":modname:itemname"`) to bypass mod name validation or ensure the full name is provided.
+- **Supported Types**:
+  - `add`: `node`, `entity`, `item`, `craftitem`, `tool`, `alias`.
+  - `remove`: `node`, `item`, `craftitem`, `tool`, `entity`, `alias`.
+  - `modify`: `node`, `item`, `craftitem`.
