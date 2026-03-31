@@ -1,5 +1,9 @@
 #pragma once
-#include "lua.h"
+
+extern "C" {
+#include <lua.h>
+}
+
 #include <string>
 #include <unordered_map>
 

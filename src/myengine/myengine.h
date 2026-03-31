@@ -1,7 +1,10 @@
 #pragma once
-#include "lua.h"
 
-struct lua_State;
+#include "config.h"
+
+extern "C" {
+#include <lua.h>
+}
 
 namespace MyEngine {
 	void initialize(lua_State *L);
