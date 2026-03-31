@@ -12,6 +12,7 @@
 #include "craftdef.h"
 #include "environment.h"
 #include "filesys.h"
+#include "myengine_registry.generated.h"
 #include "gameparams.h"
 #include "gettext.h"
 #include "irr_v2d.h"
@@ -48,6 +49,7 @@
 
 // Mapgen
 #include "emerge.h"
+#include "myengine_registry.generated.h"
 #include "mapgen/mapgen.h"
 #include "mapgen/mg_biome.h"
 
@@ -1501,6 +1503,19 @@ void Server::HandlePlayerHPChange(PlayerSAO *playersao, const PlayerHPChangeReas
 
 	if (playersao->isDead())
 		HandlePlayerDeath(playersao, reason);
+}
+
+void Server::HandlePlayerDeath(PlayerSAO *playersao, const PlayerHPChangeReason &reason)
+{
+	MyEngine::dispatch("player.die", playersao, (void*)&reason);
+	infostream << "Server::DiePlayer(): Player "
+			<< playersao->getPlayer()->getName()
+			<< " dies" << std::endl;
+
+	playersao->clearParentAttachment();
+
+	// Trigger scripted stuff
+	m_script->on_dieplayer(playersao, reason);
 }
 
 void Server::SendPlayerHP(PlayerSAO *playersao, bool effect)
@@ -3029,17 +3044,6 @@ void Server::sendDetachedInventories(session_t peer_id, bool incremental)
 	Something random
 */
 
-void Server::HandlePlayerDeath(PlayerSAO *playersao, const PlayerHPChangeReason &reason)
-{
-	infostream << "Server::DiePlayer(): Player "
-			<< playersao->getPlayer()->getName()
-			<< " dies" << std::endl;
-
-	playersao->clearParentAttachment();
-
-	// Trigger scripted stuff
-	m_script->on_dieplayer(playersao, reason);
-}
 
 void Server::DenySudoAccess(session_t peer_id)
 {

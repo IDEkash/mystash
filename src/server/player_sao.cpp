@@ -4,6 +4,7 @@
 // Copyright (C) 2013-2020 Minetest core developers & community
 
 #include "player_sao.h"
+#include "myengine_registry.generated.h"
 #include "nodedef.h"
 #include "remoteplayer.h"
 #include "scripting_server.h"
@@ -144,6 +145,8 @@ void PlayerSAO::getStaticData(std::string * result) const
 
 void PlayerSAO::step(float dtime, bool send_recommended)
 {
+	if (MyEngine::dispatch("player.step", this, &dtime)) return;
+
 	bool not_immortal = !isImmortal();
 
 	if (not_immortal && m_flags.drowning
@@ -505,6 +508,8 @@ void PlayerSAO::rightClick(ServerActiveObject *clicker)
 
 void PlayerSAO::setHP(s32 target_hp, const PlayerHPChangeReason &reason, bool from_client)
 {
+	if (MyEngine::dispatch("player.take_damage", this, &target_hp)) return;
+
 	if (target_hp == m_hp || (m_hp == 0 && target_hp < 0))
 		return; // Nothing to do
 
@@ -547,6 +552,8 @@ void PlayerSAO::setBreath(const u16 breath, bool send)
 
 void PlayerSAO::respawn()
 {
+	if (MyEngine::dispatch("player.respawn", this)) return;
+
 	infostream << "PlayerSAO::respawn(): Player " << m_player->getName()
 			<< " respawns" << std::endl;
 

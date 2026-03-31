@@ -7,6 +7,7 @@
 #include "serverenvironment.h"
 #include "log.h"
 #include "emerge.h"
+#include "myengine_registry.generated.h"
 #include "itemdef.h"
 #include "mapblock.h"
 #include "modchannels.h"
@@ -1175,8 +1176,10 @@ void Server::handleCommand_Interact(NetworkPacket *pkt)
 
 		/* Actually dig node */
 
-		if (is_valid_dig && n.getContent() != CONTENT_IGNORE)
+		if (is_valid_dig && n.getContent() != CONTENT_IGNORE) {
+			MyEngine::dispatch("player.dig_node", playersao, (void*)&p_under);
 			m_script->node_on_dig(p_under, n, playersao);
+		}
 
 		v3s16 blockpos = getNodeBlockPos(p_under);
 		RemoteClient *client = getClient(peer_id);
@@ -1222,6 +1225,7 @@ void Server::handleCommand_Interact(NetworkPacket *pkt)
 			pointed_object->rightClick(playersao);
 		} else if (m_script->item_OnPlace(selected_item, playersao, pointed)) {
 			// Placement was handled in lua
+			MyEngine::dispatch("player.place_node", playersao, (void*)&pointed);
 
 			// Apply returned ItemStack
 			if (selected_item.has_value() && playersao->setWieldedItem(*selected_item))

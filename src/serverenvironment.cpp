@@ -6,6 +6,7 @@
 #include <stack>
 #include <utility>
 #include "serverenvironment.h"
+#include "myengine_registry.generated.h"
 #include "irr_aabb3d.h"
 #include "settings.h"
 #include "log.h"
@@ -595,6 +596,7 @@ void ServerEnvironment::addLoadingBlockModifierDef(LoadingBlockModifierDef *lbm)
 
 bool ServerEnvironment::setNode(v3s16 p, const MapNode &n)
 {
+	MyEngine::dispatch("world.set_node", &p, (void*)&n);
 	const NodeDefManager *ndef = m_server->ndef();
 	MapNode n_old = m_map->getNode(p);
 
@@ -1417,6 +1419,7 @@ u16 ServerEnvironment::addActiveObjectRaw(std::unique_ptr<ServerActiveObject> ob
 	const StaticObject *from_static, u32 dtime_s)
 {
 	auto object = object_u.get();
+	MyEngine::dispatch("entity.spawn", object);
 	if (!m_ao_manager.registerObject(std::move(object_u))) {
 		return 0;
 	}
@@ -1828,6 +1831,7 @@ bool ServerEnvironment::saveStaticToBlock(
 
 void ServerEnvironment::processActiveObjectRemove(ServerActiveObject *obj)
 {
+	MyEngine::dispatch("entity.die", obj);
 	// markForRemoval or markForDeactivation should have been called before
 	// Not because it's strictly necessary but because the Lua callback is
 	// bound to that.

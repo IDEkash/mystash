@@ -277,6 +277,8 @@ if(HAIKU)
 	add_compile_definitions(_BSD_SOURCE)
 endif()
 
+include(myengine.cmake)
+
 # Use cmake_config.h
 add_compile_definitions(USE_CMAKE_CONFIG_H)
 
@@ -568,6 +570,7 @@ endif()
 # (nothing here because a client always comes with a server)
 set(server_SRCS
 	${common_SRCS}
+	myengine_registry.generated.cpp
 )
 
 # Avoid source_group on broken CMake version.
@@ -624,7 +627,7 @@ endif()
 add_library(EngineCommon OBJECT
 	${independent_SRCS}
 )
-add_dependencies(EngineCommon GenerateVersion)
+add_dependencies(EngineCommon GenerateVersion GenerateMyEngineRegistry)
 target_link_libraries(EngineCommon
 	sha256
 )
@@ -795,7 +798,7 @@ if(BUILD_SERVER)
 	# don't link the irrlicht library
 	get_target_property(
 		IRRLICHT_INCLUDES IrrlichtMt::IrrlichtMt INTERFACE_INCLUDE_DIRECTORIES)
-	target_include_directories(${PROJECT_NAME}server PRIVATE ${IRRLICHT_INCLUDES})
+	target_include_directories(${PROJECT_NAME}server PRIVATE ${IRRLICHT_INCLUDES} "${CMAKE_SOURCE_DIR}/lib/tiniergltf")
 	target_link_libraries(
 		${PROJECT_NAME}server
 		${ZLIB_LIBRARIES}

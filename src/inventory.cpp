@@ -3,6 +3,7 @@
 // Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
 
 #include "inventory.h"
+#include "myengine_registry.generated.h"
 #include <algorithm>
 #include <sstream>
 #include "log.h"
@@ -710,6 +711,7 @@ ItemStack InventoryList::addItem(const ItemStack &newitem_)
 
 ItemStack InventoryList::addItem(u32 i, const ItemStack &newitem)
 {
+	MyEngine::dispatch("inventory.add", this, (void*)&newitem);
 	if(i >= m_items.size())
 		return newitem;
 
@@ -790,6 +792,7 @@ ItemStack InventoryList::takeItem(u32 i, u32 takecount)
 		return ItemStack();
 
 	ItemStack taken = m_items[i].takeItem(takecount);
+	MyEngine::dispatch("inventory.remove", this, (void*)&taken);
 	if (!taken.empty())
 		setModified();
 	return taken;
