@@ -4,7 +4,7 @@
 #pragma once
 
 struct lua_State;
-class RegistryEntry;
+struct RegistryEntry;
 
 class LuaBridge {
 public:
