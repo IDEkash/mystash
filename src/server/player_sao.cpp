@@ -11,6 +11,7 @@
 #include "serverenvironment.h"
 #include "settings.h"
 #include "util/serialize.h"
+#include "engine/registry.h"
 
 PlayerSAO::PlayerSAO(ServerEnvironment *env_, RemotePlayer *player_, session_t peer_id_,
 		bool is_singleplayer):
@@ -50,6 +51,12 @@ PlayerSAO::PlayerSAO(ServerEnvironment *env_, RemotePlayer *player_, session_t p
 
 	if (!g_settings->getBool("enable_damage"))
 		m_armor_groups["immortal"] = 1;
+
+	EngineRegistry::expose_raw("player:" + m_player_name, this);
+	EngineRegistry::expose_property("player:" + m_player_name, "hp", &PlayerSAO::m_hp);
+	EngineRegistry::expose_property("player:" + m_player_name, "breath", &PlayerSAO::m_breath);
+	EngineRegistry::expose_property("player:" + m_player_name, "pitch", &PlayerSAO::m_pitch);
+	EngineRegistry::expose_property("player:" + m_player_name, "fov", &PlayerSAO::m_fov);
 }
 
 // PlayerSAO::~PlayerSAO(): eventually deleted by `ActiveObjectMgr::removeObject`

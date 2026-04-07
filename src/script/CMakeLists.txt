@@ -8,6 +8,7 @@ file(GLOB common_SCRIPT_HDRS "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
 
 set(common_SCRIPT_SRCS
 	${common_SCRIPT_HDRS}
+	${CMAKE_CURRENT_SOURCE_DIR}/lua_bridge.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/scripting_server.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/scripting_emerge.cpp
 

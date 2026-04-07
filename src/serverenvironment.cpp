@@ -36,6 +36,7 @@
 #endif
 #include "server/luaentity_sao.h"
 #include "server/player_sao.h"
+#include "engine/registry.h"
 
 // A number that is much smaller than the timeout for particle spawners should/could ever be
 #define PARTICLE_SPAWNER_NO_EXPIRY -1024.f
@@ -196,6 +197,9 @@ ServerEnvironment::ServerEnvironment(std::unique_ptr<ServerMap> map,
 
 	m_active_object_gauge = mb->addGauge(
 		"minetest_env_active_objects", "Number of active objects");
+
+	EngineRegistry::expose_raw("world", this);
+	EngineRegistry::expose_property("world", "game_time", &ServerEnvironment::m_game_time);
 }
 
 void ServerEnvironment::init()

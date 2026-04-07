@@ -421,6 +421,7 @@ add_subdirectory(server)
 # a compiler error and you need to instead add it to client_SRCS or common_SRCS.
 set(independent_SRCS
 	chat.cpp
+	engine/registry.cpp
 	content_nodemeta.cpp
 	convert_json.cpp
 	craftdef.cpp
