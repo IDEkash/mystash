@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
 #include "engine/registry.h"
-#include <lua.hpp>
 
 std::map<std::string, std::unique_ptr<RegistryEntry>> EngineRegistry::m_entries;
 

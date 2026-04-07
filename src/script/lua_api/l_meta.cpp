@@ -4,7 +4,6 @@
 #include "lua_api/l_meta.h"
 #include "engine/registry.h"
 #include "script/lua_bridge.h"
-#include <lua.hpp>
 
 void ModApiMeta::Initialize(lua_State *L, int top) {
 	lua_getglobal(L, "core");

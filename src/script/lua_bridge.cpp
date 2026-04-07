@@ -3,7 +3,6 @@
 
 #include "script/lua_bridge.h"
 #include "engine/registry.h"
-#include <lua.hpp>
 
 static int l_index_metamethod(lua_State *L) {
 	RegistryEntry *entry = (RegistryEntry *)lua_touserdata(L, lua_upvalueindex(1));
