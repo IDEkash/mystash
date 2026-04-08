@@ -54,6 +54,7 @@
 // Modding
 #include "modchannels.h"
 #include "script/common/c_types.h" // LuaError
+#include "engine/registry.h"
 #include "scripting_server.h"
 #include "server/mods.h" // ServerModManager
 
@@ -519,6 +520,7 @@ void Server::init()
 	infostream << "Server: Initializing Lua" << std::endl;
 
 	m_script = std::make_unique<ServerScripting>(this);
+	EngineRegistry::set_script_api(m_script.get());
 
 	// Must be created before mod loading because we have some inventory creation
 	m_inventory_mgr = std::make_unique<ServerInventoryManager>();

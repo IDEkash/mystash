@@ -57,6 +57,7 @@ PlayerSAO::PlayerSAO(ServerEnvironment *env_, RemotePlayer *player_, session_t p
 	EngineRegistry::expose_property("player:" + m_player_name, "breath", &PlayerSAO::m_breath);
 	EngineRegistry::expose_property("player:" + m_player_name, "pitch", &PlayerSAO::m_pitch);
 	EngineRegistry::expose_property("player:" + m_player_name, "fov", &PlayerSAO::m_fov);
+	EngineRegistry::expose_property("player:" + m_player_name, "speed", &PlayerSAO::m_speed);
 }
 
 // PlayerSAO::~PlayerSAO(): eventually deleted by `ActiveObjectMgr::removeObject`

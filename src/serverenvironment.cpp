@@ -200,6 +200,11 @@ ServerEnvironment::ServerEnvironment(std::unique_ptr<ServerMap> map,
 
 	EngineRegistry::expose_raw("world", this);
 	EngineRegistry::expose_property("world", "game_time", &ServerEnvironment::m_game_time);
+	EngineRegistry::expose_property("world", "time_of_day", &ServerEnvironment::m_time_of_day);
+
+	EngineRegistry::expose_raw("physics", this);
+	// We can't easily expose gravity if it's not a member of ServerEnvironment.
+	// But many physics settings are in g_settings.
 }
 
 void ServerEnvironment::init()

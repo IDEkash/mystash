@@ -11,6 +11,7 @@
 #include "network/networkprotocol.h"
 #include "unit_sao.h"
 #include "util/numeric.h"
+#include "engine/meta_macros.h"
 #include <set>
 
 /*
@@ -56,6 +57,7 @@ class RemotePlayer;
 
 class PlayerSAO : public UnitSAO
 {
+	REFLECT_CLASS()
 public:
 	PlayerSAO(ServerEnvironment *env_, RemotePlayer *player_, session_t peer_id_,
 			bool is_singleplayer);
@@ -212,12 +214,12 @@ private:
 	const bool m_is_singleplayer;
 	bool m_is_new_player = false;
 
-	u16 m_breath = PLAYER_MAX_BREATH_DEFAULT;
-	f32 m_pitch = 0.0f;
-	f32 m_fov = 0.0f;
-	s16 m_wanted_range = 0.0f;
+	REFLECT_FIELD() u16 m_breath = PLAYER_MAX_BREATH_DEFAULT;
+	REFLECT_FIELD() f32 m_pitch = 0.0f;
+	REFLECT_FIELD() f32 m_fov = 0.0f;
+	REFLECT_FIELD() s16 m_wanted_range = 0.0f;
 
-	bool m_camera_inverted = false; // this is not store in the player db
+	REFLECT_FIELD() bool m_camera_inverted = false; // this is not store in the player db
 
 	SimpleMetadata m_meta;
 

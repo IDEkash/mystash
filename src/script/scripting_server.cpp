@@ -35,6 +35,8 @@
 #include "lua_api/l_ipc.h"
 #include "lua_api/l_htmlview.h"
 #include "lua_api/l_meta.h"
+#include "android/webview_bridge.h"
+#include "world/dimension_manager.h"
 
 extern "C" {
 #include <lualib.h>
@@ -161,6 +163,9 @@ void ServerScripting::InitializeModApi(lua_State *L, int top)
 	ModApiIPC::Initialize(L, top);
 	ModApiHTMLView::Initialize(L, top);
 	ModApiMeta::Initialize(L, top);
+
+	DimensionManager::Initialize();
+	EngineRegistry::register_all_reflected();
 }
 
 void ServerScripting::InitializeAsync(lua_State *L, int top)

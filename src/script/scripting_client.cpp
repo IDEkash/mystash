@@ -22,6 +22,8 @@
 #include "lua_api/l_camera.h"
 #include "lua_api/l_settings.h"
 #include "lua_api/l_client_sound.h"
+#include "lua_api/l_meta.h"
+#include "android/webview_bridge.h"
 
 ClientScripting::ClientScripting(Client *client):
 	ScriptApiBase(ScriptingType::Client)
@@ -41,6 +43,8 @@ ClientScripting::ClientScripting(Client *client):
 
 	InitializeModApi(L, top);
 	lua_pop(L, 1);
+
+	WebViewBridge::Initialize();
 
 	// Push builtin initialization type
 	lua_pushstring(L, "client");
@@ -72,6 +76,7 @@ void ClientScripting::InitializeModApi(lua_State *L, int top)
 	ModApiChannels::Initialize(L, top);
 	ModApiParticlesLocal::Initialize(L, top);
 	ModApiClientSound::Initialize(L, top);
+	ModApiMeta::Initialize(L, top);
 }
 
 void ClientScripting::on_client_ready(LocalPlayer *localplayer)

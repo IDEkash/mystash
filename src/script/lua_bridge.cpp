@@ -14,7 +14,9 @@ static int l_index_metamethod(lua_State *L) {
 static int l_newindex_metamethod(lua_State *L) {
 	RegistryEntry *entry = (RegistryEntry *)lua_touserdata(L, lua_upvalueindex(1));
 	const char *key = luaL_checkstring(L, 2);
-	entry->set_property(L, key, 3);
+	if (!entry->set_property(L, key, 3)) {
+		luaL_error(L, "Cannot write to field '%s' (not a property of system '%s')", key, entry->name.c_str());
+	}
 	return 0;
 }
 

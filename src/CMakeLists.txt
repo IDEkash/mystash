@@ -405,6 +405,14 @@ add_custom_target(GenerateVersion
 	-P "${CMAKE_SOURCE_DIR}/cmake/Modules/GenerateVersion.cmake"
 	WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 
+# Automated Reflection Codegen
+add_custom_command(
+	OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/engine/meta_generated.cpp"
+	COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/util/meta_codegen.py" "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/engine/meta_generated.cpp"
+	DEPENDS "${CMAKE_SOURCE_DIR}/util/meta_codegen.py"
+	COMMENT "Generating reflection code..."
+)
+
 
 add_subdirectory(threading)
 add_subdirectory(content)
@@ -422,6 +430,8 @@ add_subdirectory(server)
 set(independent_SRCS
 	chat.cpp
 	engine/registry.cpp
+	engine/meta_generated.cpp
+	engine/physics_system.cpp
 	content_nodemeta.cpp
 	convert_json.cpp
 	craftdef.cpp
@@ -492,6 +502,7 @@ set(common_SRCS
 	server.cpp
 	serverenvironment.cpp
 	servermap.cpp
+	world/dimension_manager.cpp
 	translation.cpp
 	version.cpp
 	voxel.cpp
@@ -505,6 +516,7 @@ set(common_SRCS
 if(ANDROID)
 	list(APPEND common_SRCS porting_android.cpp)
 	list(APPEND common_SRCS htmlview_jni.cpp)
+	list(APPEND common_SRCS android/webview_bridge.cpp)
 endif()
 
 if(BUILD_UNITTESTS)

@@ -17,6 +17,7 @@
 #include "server/blockmodifier.h"
 #include "util/numeric.h"
 #include "util/metricsbackend.h"
+#include "engine/meta_macros.h"
 
 class AuthDatabase;
 class ActiveObject;
@@ -111,6 +112,7 @@ enum ClearObjectsMode {
 
 class ServerEnvironment final : public Environment
 {
+	REFLECT_CLASS()
 public:
 	ServerEnvironment(std::unique_ptr<ServerMap> map, Server *server, MetricsBackend *mb);
 	~ServerEnvironment();
@@ -389,9 +391,11 @@ private:
 	bool m_shutting_down = false;
 	// Time from the beginning of the game in seconds.
 	// Incremented in step().
-	u32 m_game_time = 0;
+	REFLECT_FIELD() u32 m_game_time = 0;
 	// A helper variable for incrementing the latter
 	float m_game_time_fraction_counter = 0.0f;
+
+	REFLECT_FIELD() u32 m_time_of_day = 0;
 	// Time of last clearObjects call (game time).
 	// When a mapblock older than this is loaded, its objects are cleared.
 	u32 m_last_clear_objects_time = 0;
