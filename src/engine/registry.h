@@ -10,6 +10,8 @@
 #include <functional>
 #include <variant>
 #include <atomic>
+#include <tuple>
+#include <type_traits>
 #include "irrlichttypes.h"
 #include "irr_v3d.h"
 
@@ -116,7 +118,7 @@ public:
 	DirectPropertyAccessor(V T::*field) : m_field(field) {}
 	void push(lua_State *L, void *instance) override {
 		T *obj = static_cast<T*>(instance);
-		push_to_lua(L, (obj->*m_field));
+		push_to_lua(L, (V)(obj->*m_field));
 	}
 	bool set(lua_State *L, void *instance, int index) override {
 		T *obj = static_cast<T*>(instance);
@@ -172,8 +174,6 @@ public:
 	}
 
 	int call_from_lua(lua_State *L) override {
-		// Calling a hook point from Lua means executing the chain
-		// For simplicity, we just trigger the C++ point if we can't easily proxy back
 		return 0;
 	}
 
@@ -187,16 +187,12 @@ public:
 
 		if (m_lua_override != -1) {
 			lua_rawgeti(L, LUA_REGISTRYINDEX, m_lua_override);
-			// Push a wrapper for 'original' as first arg
 			lua_pushlightuserdata(L, this);
 			lua_pushcclosure(L, [](lua_State *L) {
-				// This is tricky without storing args.
-				// For now, original is just skipped or called if no args.
 				return 0;
 			}, 1);
 			push_args(L, args...);
 			if (lua_pcall(L, 1 + sizeof...(Args), 0, 0) != 0) {
-				// log error
 				lua_pop(L, 1);
 			}
 			return;
@@ -208,7 +204,7 @@ public:
 			if (lua_pcall(L, sizeof...(Args), 1, 0) == 0) {
 				if (lua_isboolean(L, -1) && !lua_toboolean(L, -1)) {
 					lua_pop(L, 1);
-					return; // Hook cancelled the chain
+					return;
 				}
 				lua_pop(L, 1);
 			} else {
@@ -238,7 +234,6 @@ void EngineRegistry::expose_hook(const std::string &system_name, const std::stri
 template<typename T> T read_arg(lua_State *L, int index);
 template<> inline std::string read_arg<std::string>(lua_State *L, int index) { return read_lua_string(L, index); }
 template<> inline int read_arg<int>(lua_State *L, int index) { return read_lua_int(L, index); }
-// ... add more as needed
 
 template<typename T, typename R, typename ...Args>
 void EngineRegistry::expose_method(const std::string &system_name, const std::string &method_name, R (T::*method)(Args...))
@@ -249,18 +244,26 @@ void EngineRegistry::expose_method(const std::string &system_name, const std::st
 		T *obj = static_cast<T*>(entry->instance);
 		if (!obj) return 0;
 
-		// Very simplified dispatcher for common method signatures
-		if constexpr (sizeof...(Args) == 1) {
-			using Arg1 = typename std::tuple_element<0, std::tuple<Args...>>::type;
-			if constexpr (std::is_same_v<Arg1, std::string>) {
-				(obj->*method)(read_lua_string(L, 1));
+		auto call_and_push = [&](auto... args) {
+			if constexpr (std::is_void_v<R>) {
+				(obj->*method)(args...);
+				return 0;
+			} else {
+				R res = (obj->*method)(args...);
+				push_to_lua(L, res);
+				return 1;
 			}
+		};
+
+		if constexpr (sizeof...(Args) == 0) {
+			return call_and_push();
+		} else if constexpr (sizeof...(Args) == 1) {
+			using Arg1 = typename std::tuple_element<0, std::tuple<Args...>>::type;
+			return call_and_push(read_arg<std::decay_t<Arg1>>(L, 1));
 		} else if constexpr (sizeof...(Args) == 2) {
 			using Arg1 = typename std::tuple_element<0, std::tuple<Args...>>::type;
 			using Arg2 = typename std::tuple_element<1, std::tuple<Args...>>::type;
-			if constexpr (std::is_same_v<Arg1, std::string> && std::is_same_v<Arg2, std::string>) {
-				(obj->*method)(read_lua_string(L, 1), read_lua_string(L, 2));
-			}
+			return call_and_push(read_arg<std::decay_t<Arg1>>(L, 1), read_arg<std::decay_t<Arg2>>(L, 2));
 		}
 		return 0;
 	};

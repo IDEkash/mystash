@@ -15,6 +15,7 @@ public:
 	static void Initialize();
 
 	void send_player(PlayerSAO *player, const std::string &dimension_id);
+	void register_dimension(const std::string &id, const std::string &config);
 
 	REFLECT_FIELD() std::string m_active_dimension = "overworld";
 	REFLECT_FIELD() std::vector<std::string> m_dimension_list;

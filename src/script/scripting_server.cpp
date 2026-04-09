@@ -35,7 +35,6 @@
 #include "lua_api/l_ipc.h"
 #include "lua_api/l_htmlview.h"
 #include "lua_api/l_meta.h"
-#include "android/webview_bridge.h"
 #include "world/dimension_manager.h"
 
 extern "C" {

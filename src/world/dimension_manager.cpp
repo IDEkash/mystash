@@ -12,7 +12,13 @@ void DimensionManager::Initialize() {
 	EngineRegistry::expose_raw("dimensions", m_instance);
 
 	EngineRegistry::expose_method("dimensions", "send_player", &DimensionManager::send_player);
+	EngineRegistry::expose_method("dimensions", "register_dimension", &DimensionManager::register_dimension);
 	EngineRegistry::expose_property("dimensions", "active_dimension", &DimensionManager::m_active_dimension);
+}
+
+void DimensionManager::register_dimension(const std::string &id, const std::string &config) {
+	infostream << "DimensionManager: Registering dimension " << id << std::endl;
+	m_dimension_list.push_back(id);
 }
 
 void DimensionManager::send_player(PlayerSAO *player, const std::string &dimension_id) {

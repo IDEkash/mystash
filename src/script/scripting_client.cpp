@@ -77,6 +77,8 @@ void ClientScripting::InitializeModApi(lua_State *L, int top)
 	ModApiParticlesLocal::Initialize(L, top);
 	ModApiClientSound::Initialize(L, top);
 	ModApiMeta::Initialize(L, top);
+
+	EngineRegistry::register_all_reflected();
 }
 
 void ClientScripting::on_client_ready(LocalPlayer *localplayer)
