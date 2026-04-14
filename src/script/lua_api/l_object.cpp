@@ -756,34 +756,50 @@ int ObjectRef::l_set_animation_frame_speed(lua_State *L)
 	return 1;
 }
 
-// set_bone_position(self, bone, position, rotation)
+// set_bone_position(self, bone, position, opts?)
+// set_bone_position(self, bone, x, y, z, opts?)
 int ObjectRef::l_set_bone_position(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-
-	log_deprecated(L, "Deprecated call to set_bone_position, use set_bone_override instead", 1, true);
-
 	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
 	ServerActiveObject *sao = getobject(ref);
 	if (sao == nullptr)
 		return 0;
 
-	std::string bone;
-	if (!lua_isnoneornil(L, 2))
-		bone = readParam<std::string>(L, 2);
-	BoneOverride props;
-	if (!lua_isnoneornil(L, 3))
-		props.position.vector = check_v3f(L, 3);
-	if (!lua_isnoneornil(L, 4)) {
-		props.rotation.next_radians = check_v3f(L, 4) * core::DEGTORAD;
-		props.rotation.next = core::quaternion(props.rotation.next_radians);
+	std::string bone = readParam<std::string>(L, 2);
+
+	v3f pos;
+	int opts_index = 6;
+	if (lua_istable(L, 3)) {
+		pos = check_v3f(L, 3);
+		opts_index = 4;
+	} else {
+		pos = v3f(readParam<float>(L, 3), readParam<float>(L, 4), readParam<float>(L, 5));
 	}
-	props.position.absolute = true;
-	props.rotation.absolute = true;
+
+	bool absolute = false;
+	float interpolation = 0.0f;
+	if (!lua_isnoneornil(L, opts_index)) {
+		luaL_checktype(L, opts_index, LUA_TTABLE);
+		lua_getfield(L, opts_index, "absolute");
+		absolute = lua_toboolean(L, -1);
+		lua_pop(L, 1);
+		lua_getfield(L, opts_index, "interpolation");
+		if (lua_isnumber(L, -1))
+			interpolation = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+	}
+
+	BoneOverride props = sao->getBoneOverride(bone);
+	props.position.vector = pos;
+	props.position.absolute = absolute;
+	props.position.interp_duration = interpolation;
 	sao->setBoneOverride(bone, props);
 	return 0;
 }
 
+// set_bone_rotation(self, bone, rotation, opts?)
+// set_bone_rotation(self, bone, x, y, z, opts?)
 int ObjectRef::l_set_bone_rotation(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
@@ -825,13 +841,56 @@ int ObjectRef::l_set_bone_rotation(lua_State *L)
 	return 0;
 }
 
+// set_bone_scale(self, bone, scale, opts?)
+// set_bone_scale(self, bone, x, y, z, opts?)
+int ObjectRef::l_set_bone_scale(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	std::string bone = readParam<std::string>(L, 2);
+
+	v3f scale;
+	int opts_index = 6;
+	if (lua_istable(L, 3)) {
+		scale = check_v3f(L, 3);
+		opts_index = 4;
+	} else if (lua_isnumber(L, 3) && lua_isnumber(L, 4) && lua_isnumber(L, 5)) {
+		scale = v3f(readParam<float>(L, 3), readParam<float>(L, 4), readParam<float>(L, 5));
+	} else {
+		float s = readParam<float>(L, 3, 1.0f);
+		scale = v3f(s, s, s);
+		opts_index = 4;
+	}
+
+	bool absolute = false;
+	float interpolation = 0.0f;
+	if (!lua_isnoneornil(L, opts_index)) {
+		luaL_checktype(L, opts_index, LUA_TTABLE);
+		lua_getfield(L, opts_index, "absolute");
+		absolute = lua_toboolean(L, -1);
+		lua_pop(L, 1);
+		lua_getfield(L, opts_index, "interpolation");
+		if (lua_isnumber(L, -1))
+			interpolation = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+	}
+
+	BoneOverride props = sao->getBoneOverride(bone);
+	props.scale.vector = scale;
+	props.scale.absolute = absolute;
+	props.scale.interp_duration = interpolation;
+	sao->setBoneOverride(bone, props);
+	return 0;
+}
+
 // get_bone_position(self, bone)
 int ObjectRef::l_get_bone_position(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-
-	log_deprecated(L, "Deprecated call to get_bone_position, use get_bone_override instead", 1, true);
-
 	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
 	ServerActiveObject *sao = getobject(ref);
 	if (sao == nullptr)
@@ -844,6 +903,38 @@ int ObjectRef::l_get_bone_position(lua_State *L)
 	// this **must not** compute equivalent euler angles from the quaternion
 	push_v3f(L, props.rotation.next_radians * core::RADTODEG);
 	return 2;
+}
+
+// get_bone_rotation(self, bone)
+int ObjectRef::l_get_bone_rotation(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	std::string bone = readParam<std::string>(L, 2, "");
+	BoneOverride props = sao->getBoneOverride(bone);
+	// In order to give modders back the euler angles they passed in,
+	// this **must not** compute equivalent euler angles from the quaternion
+	push_v3f(L, props.rotation.next_radians * core::RADTODEG);
+	return 1;
+}
+
+// get_bone_scale(self, bone)
+int ObjectRef::l_get_bone_scale(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	std::string bone = readParam<std::string>(L, 2, "");
+	BoneOverride props = sao->getBoneOverride(bone);
+	push_v3f(L, props.scale.vector);
+	return 1;
 }
 
 // set_bone_override(self, bone, override)
@@ -3081,9 +3172,12 @@ luaL_Reg ObjectRef::methods[] = {
 		luamethod(ObjectRef, get_animation),
 		luamethod(ObjectRef, get_animation_info),
 		luamethod(ObjectRef, set_animation_frame_speed),
-	luamethod(ObjectRef, set_bone_position),
-	luamethod(ObjectRef, set_bone_rotation),
-	luamethod(ObjectRef, get_bone_position),
+	luamethod_aliased(ObjectRef, set_bone_position, setboneposition),
+	luamethod_aliased(ObjectRef, set_bone_rotation, setbonerotation),
+	luamethod_aliased(ObjectRef, set_bone_scale, setbonescale),
+	luamethod_aliased(ObjectRef, get_bone_position, getboneposition),
+	luamethod_aliased(ObjectRef, get_bone_rotation, getbonerotation),
+	luamethod_aliased(ObjectRef, get_bone_scale, getbonescale),
 	luamethod(ObjectRef, set_bone_override),
 	luamethod(ObjectRef, get_bone_override),
 	luamethod(ObjectRef, get_bone_overrides),

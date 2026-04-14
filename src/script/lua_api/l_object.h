@@ -136,8 +136,17 @@ private:
 	// set_bone_rotation(self, bone, x, y, z, opts?)
 	static int l_set_bone_rotation(lua_State *L);
 
+	// set_bone_scale(self, bone, x, y, z, opts?)
+	static int l_set_bone_scale(lua_State *L);
+
 	// get_bone_position(self, bone)
 	static int l_get_bone_position(lua_State *L);
+
+	// get_bone_rotation(self, bone)
+	static int l_get_bone_rotation(lua_State *L);
+
+	// get_bone_scale(self, bone)
+	static int l_get_bone_scale(lua_State *L);
 
 	// set_bone_override(self, bone)
 	static int l_set_bone_override(lua_State *L);
