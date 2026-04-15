@@ -664,9 +664,11 @@ void LocalPlayer::move(f32 dtime, Environment *env,
 		if (is_valid_position) {
 			const ContentFeatures &cf = nodemgr->get(node.getContent());
 			in_liquid = cf.liquid_move_physics;
+			in_lava = itemgroup_get(cf.groups, "lava") != 0;
 			move_resistance = cf.move_resistance;
 		} else {
 			in_liquid = false;
+			in_lava = false;
 		}
 	} else {
 		// If not in liquid, the threshold of going in is at lower y
@@ -676,9 +678,11 @@ void LocalPlayer::move(f32 dtime, Environment *env,
 		if (is_valid_position) {
 			const ContentFeatures &cf = nodemgr->get(node.getContent());
 			in_liquid = cf.liquid_move_physics;
+			in_lava = itemgroup_get(cf.groups, "lava") != 0;
 			move_resistance = cf.move_resistance;
 		} else {
 			in_liquid = false;
+			in_lava = false;
 		}
 	}
 
@@ -709,6 +713,17 @@ void LocalPlayer::move(f32 dtime, Environment *env,
 	} else {
 		is_climbing = (nodemgr->get(node.getContent()).climbable ||
 			nodemgr->get(node2.getContent()).climbable) && !free_move;
+	}
+
+	if (is_climbing) {
+		if (m_speed.Y < -0.15f * BS)
+			m_speed.Y = -0.15f * BS;
+
+		if (control.direction_keys & 1) { // Up/Forward
+			float climb_speed = movement_speed_climb * physics_override.speed_climb;
+			if (m_speed.Y < climb_speed)
+				m_speed.Y = climb_speed;
+		}
 	}
 
 	// Player object property step height is multiplied by BS in
@@ -794,9 +809,9 @@ void LocalPlayer::move(f32 dtime, Environment *env,
 				bmin.Z - sneak_max.Z, bmax.Z + sneak_max.Z);
 
 			if (position.X != old_pos.X)
-				m_speed.X = 0.0f;
+				m_speed.X *= 0.5f;
 			if (position.Z != old_pos.Z)
-				m_speed.Z = 0.0f;
+				m_speed.Z *= 0.5f;
 		}
 
 		if (y_diff > 0 && m_speed.Y <= 0.0f) {
@@ -951,8 +966,11 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 	// Whether superspeed mode is used or not
 	bool superspeed = false;
 
-	const f32 speed_walk = movement_speed_walk * physics_override.speed_walk;
+	f32 speed_walk = movement_speed_walk * physics_override.speed_walk;
 	const f32 speed_fast = movement_speed_fast * physics_override.speed_fast;
+
+	if (control.movement_speed >= 0.95f)
+		speed_walk *= 1.3f;
 
 	if (always_fly_fast && free_move && fast_move)
 		superspeed = true;

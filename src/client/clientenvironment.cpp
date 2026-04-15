@@ -129,44 +129,50 @@ void ClientEnvironment::step(float dtime)
 		if (!free_move) {
 			// Gravity
 			if (!is_climbing && !lplayer->in_liquid)
-				// HACK the factor 2 for gravity is arbitrary and should be removed eventually
-				lplayer->gravity = 2 * lplayer->movement_gravity * lplayer->physics_override.gravity;
+				lplayer->gravity = lplayer->movement_gravity * lplayer->physics_override.gravity;
 
 			// Liquid floating / sinking
 			if (!is_climbing && lplayer->in_liquid &&
 					!lplayer->swimming_vertical &&
 					!lplayer->swimming_pitch)
-				// HACK the factor 2 for gravity is arbitrary and should be removed eventually
-				lplayer->gravity = 2 * lplayer->movement_liquid_sink * lplayer->physics_override.liquid_sink;
+				lplayer->gravity = lplayer->movement_liquid_sink * lplayer->physics_override.liquid_sink;
 
 			// Movement resistance
 			if (lplayer->move_resistance > 0) {
 				v3f speed = lplayer->getSpeed();
 
-				// How much the node's move_resistance blocks movement, ranges
-				// between 0 and 1. Should match the scale at which liquid_viscosity
-				// increase affects other liquid attributes.
-				static const f32 resistance_factor = 0.3f;
-				float fluidity = lplayer->movement_liquid_fluidity;
-				fluidity *= MYMAX(1.0f, lplayer->physics_override.liquid_fluidity);
-				fluidity = MYMAX(0.001f, fluidity); // prevent division by 0
-				float fluidity_smooth = lplayer->movement_liquid_fluidity_smooth;
-				fluidity_smooth *= lplayer->physics_override.liquid_fluidity_smooth;
-				fluidity_smooth = MYMAX(0.0f, fluidity_smooth);
+				if (lplayer->in_lava) {
+					float factor = std::exp(-5.0f * dtime_part); // Exponential decay for 50% velocity kill
+					speed.X *= factor;
+					speed.Y *= factor;
+					speed.Z *= factor;
+					speed.Y -= 0.5f * BS * dtime_part; // Scale sink by dtime
+				} else {
+					// How much the node's move_resistance blocks movement, ranges
+					// between 0 and 1. Should match the scale at which liquid_viscosity
+					// increase affects other liquid attributes.
+					static const f32 resistance_factor = 0.3f;
+					float fluidity = lplayer->movement_liquid_fluidity;
+					fluidity *= MYMAX(1.0f, lplayer->physics_override.liquid_fluidity);
+					fluidity = MYMAX(0.001f, fluidity); // prevent division by 0
+					float fluidity_smooth = lplayer->movement_liquid_fluidity_smooth;
+					fluidity_smooth *= lplayer->physics_override.liquid_fluidity_smooth;
+					fluidity_smooth = MYMAX(0.0f, fluidity_smooth);
 
-				v3f d_wanted;
-				bool in_liquid_stable = lplayer->in_liquid_stable || lplayer->in_liquid;
-				if (in_liquid_stable)
-					d_wanted = -speed / fluidity;
-				else
-					d_wanted = -speed / BS;
-				f32 dl = d_wanted.getLength();
-				if (in_liquid_stable)
-					dl = MYMIN(dl, fluidity_smooth);
-				dl *= (lplayer->move_resistance * resistance_factor) +
-					(1 - resistance_factor);
-				v3f d = d_wanted.normalize() * (dl * dtime_part * 100.0f);
-				speed += d;
+					v3f d_wanted;
+					bool in_liquid_stable = lplayer->in_liquid_stable || lplayer->in_liquid;
+					if (in_liquid_stable)
+						d_wanted = -speed / fluidity;
+					else
+						d_wanted = -speed / BS;
+					f32 dl = d_wanted.getLength();
+					if (in_liquid_stable)
+						dl = MYMIN(dl, fluidity_smooth);
+					dl *= (lplayer->move_resistance * resistance_factor) +
+						(1 - resistance_factor);
+					v3f d = d_wanted.normalize() * (dl * dtime_part * 100.0f);
+					speed += d;
+				}
 
 				lplayer->setSpeed(speed);
 			}

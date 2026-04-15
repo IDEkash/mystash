@@ -63,6 +63,7 @@ public:
 	bool in_liquid_stable = false;
 	// Slows down the player when moving through
 	u8 move_resistance = 0;
+	bool in_lava = false;
 	bool is_climbing = false;
 	bool swimming_vertical = false;
 	bool swimming_pitch = false;
