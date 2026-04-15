@@ -67,12 +67,17 @@ struct BoneOverride
 		v3f vector;
 		bool absolute = false;
 		f32 interp_duration = 0.0f;
+		bool interpolate = false;
 	} position;
 
-	v3f getPosition(v3f anim_pos) const {
-		f32 progress = dtime_passed / position.interp_duration;
-		if (progress > 1.0f || position.interp_duration == 0.0f)
-			progress = 1.0f;
+	v3f getPosition(v3f anim_pos, f32 update_interval = 0.0f) const {
+		f32 duration = position.interpolate ? update_interval : position.interp_duration;
+		f32 progress = duration > 0.001f ? dtime_passed / duration : 1.0f;
+		if (position.interpolate)
+			progress = std::min(progress * 0.8f, 1.5f);
+		else
+			progress = std::min(progress, 1.0f);
+
 		return position.vector.getInterpolated(position.previous, progress)
 				+ (position.absolute ? v3f() : anim_pos);
 	}
@@ -86,14 +91,19 @@ struct BoneOverride
 		v3f next_radians;
 		bool absolute = false;
 		f32 interp_duration = 0.0f;
+		bool interpolate = false;
 	} rotation;
 
-	v3f getRotationEulerDeg(v3f anim_rot_euler) const {
+	v3f getRotationEulerDeg(v3f anim_rot_euler, f32 update_interval = 0.0f) const {
 		core::quaternion rot;
 
-		f32 progress = dtime_passed / rotation.interp_duration;
-		if (progress > 1.0f || rotation.interp_duration == 0.0f)
-			progress = 1.0f;
+		f32 duration = rotation.interpolate ? update_interval : rotation.interp_duration;
+		f32 progress = duration > 0.001f ? dtime_passed / duration : 1.0f;
+		if (rotation.interpolate)
+			progress = std::min(progress * 0.8f, 1.5f);
+		else
+			progress = std::min(progress, 1.0f);
+
 		rot.slerp(rotation.previous, rotation.next, progress);
 		if (!rotation.absolute) {
 			core::quaternion anim_rot(anim_rot_euler * core::DEGTORAD);
@@ -111,20 +121,28 @@ struct BoneOverride
 		v3f vector = v3f(1.0f);
 		bool absolute = false;
 		f32 interp_duration = 0.0f;
+		bool interpolate = false;
 	} scale;
 
-	v3f getScale(v3f anim_scale) const {
-		f32 progress = dtime_passed / scale.interp_duration;
-		if (progress > 1.0f || scale.interp_duration == 0.0f)
-			progress = 1.0f;
+	v3f getScale(v3f anim_scale, f32 update_interval = 0.0f) const {
+		f32 duration = scale.interpolate ? update_interval : scale.interp_duration;
+		f32 progress = duration > 0.001f ? dtime_passed / duration : 1.0f;
+		if (scale.interpolate)
+			progress = std::min(progress * 0.8f, 1.5f);
+		else
+			progress = std::min(progress, 1.0f);
+
 		return scale.vector.getInterpolated(scale.previous, progress)
 				* (scale.absolute ? v3f(1.0f) : anim_scale);
 	}
 
 	f32 dtime_passed = 0.0f;
+	f32 update_interval = 0.0f;
 
 	bool finishedInterpolation() const
 	{
+		if (position.interpolate || rotation.interpolate || scale.interpolate)
+			return false;
 		return dtime_passed >= std::max(std::max(
 				position.interp_duration, rotation.interp_duration),
 				scale.interp_duration);
@@ -135,7 +153,8 @@ struct BoneOverride
 		return finishedInterpolation()
 				&& !position.absolute && position.vector == v3f()
 				&& !rotation.absolute && rotation.next == core::quaternion()
-				&& !scale.absolute && scale.vector == v3f(1.0f);
+				&& !scale.absolute && scale.vector == v3f(1.0f)
+				&& !position.interpolate && !rotation.interpolate && !scale.interpolate;
 	}
 };
 

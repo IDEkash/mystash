@@ -718,9 +718,9 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 					}
 
 					if (auto *bone = m_animated_meshnode->getJointNode(it->first.c_str())) {
-						bone->setPosition(props.getPosition(bone->getPosition()));
-						bone->setRotation(props.getRotationEulerDeg(bone->getRotation()));
-						bone->setScale(props.getScale(bone->getScale()));
+						bone->setPosition(props.getPosition(bone->getPosition(), props.update_interval));
+						bone->setRotation(props.getRotationEulerDeg(bone->getRotation(), props.update_interval));
+						bone->setScale(props.getScale(bone->getScale(), props.update_interval));
 					}
 					++it;
 				}
@@ -1668,6 +1668,13 @@ void GenericCAO::processMessage(const std::string &data)
 		BoneOverride props;
 		if (it != m_bone_override.end()) {
 			props = it->second;
+
+			// Handle update interval for client-side interpolation
+			if (props.dtime_passed < 0.001 || props.dtime_passed > 1.0)
+				props.update_interval = props.dtime_passed;
+			else
+				props.update_interval = props.update_interval * 0.9 + props.dtime_passed * 0.1;
+
 			// Reset timer
 			props.dtime_passed = 0;
 			// Save previous values for interpolation
@@ -1699,6 +1706,9 @@ void GenericCAO::processMessage(const std::string &data)
 			props.position.absolute = (absoluteFlag & 1) > 0;
 			props.rotation.absolute = (absoluteFlag & 2) > 0;
 			props.scale.absolute = (absoluteFlag & 4) > 0;
+			props.position.interpolate = (absoluteFlag & 8) > 0;
+			props.rotation.interpolate = (absoluteFlag & 16) > 0;
+			props.scale.interpolate = (absoluteFlag & 32) > 0;
 		}
 		m_bone_override[bone] = props;
 	} else if (cmd == AO_CMD_ATTACH_TO) {

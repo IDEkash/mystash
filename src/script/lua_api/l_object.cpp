@@ -779,6 +779,7 @@ int ObjectRef::l_set_bone_position(lua_State *L)
 
 	bool absolute = false;
 	float interpolation = 0.0f;
+	bool interpolate = false;
 	if (!lua_isnoneornil(L, opts_index)) {
 		luaL_checktype(L, opts_index, LUA_TTABLE);
 		lua_getfield(L, opts_index, "absolute");
@@ -788,12 +789,16 @@ int ObjectRef::l_set_bone_position(lua_State *L)
 		if (lua_isnumber(L, -1))
 			interpolation = lua_tonumber(L, -1);
 		lua_pop(L, 1);
+		lua_getfield(L, opts_index, "interpolate");
+		interpolate = lua_toboolean(L, -1);
+		lua_pop(L, 1);
 	}
 
 	BoneOverride props = sao->getBoneOverride(bone);
 	props.position.vector = pos;
 	props.position.absolute = absolute;
 	props.position.interp_duration = interpolation;
+	props.position.interpolate = interpolate;
 	sao->setBoneOverride(bone, props);
 	return 0;
 }
@@ -821,6 +826,7 @@ int ObjectRef::l_set_bone_rotation(lua_State *L)
 
 	bool absolute = false;
 	float interpolation = 0.0f;
+	bool interpolate = false;
 	if (!lua_isnoneornil(L, opts_index)) {
 		luaL_checktype(L, opts_index, LUA_TTABLE);
 		lua_getfield(L, opts_index, "absolute");
@@ -830,6 +836,9 @@ int ObjectRef::l_set_bone_rotation(lua_State *L)
 		if (lua_isnumber(L, -1))
 			interpolation = lua_tonumber(L, -1);
 		lua_pop(L, 1);
+		lua_getfield(L, opts_index, "interpolate");
+		interpolate = lua_toboolean(L, -1);
+		lua_pop(L, 1);
 	}
 
 	BoneOverride props = sao->getBoneOverride(bone);
@@ -837,6 +846,7 @@ int ObjectRef::l_set_bone_rotation(lua_State *L)
 	props.rotation.next = core::quaternion(props.rotation.next_radians);
 	props.rotation.absolute = absolute;
 	props.rotation.interp_duration = interpolation;
+	props.rotation.interpolate = interpolate;
 	sao->setBoneOverride(bone, props);
 	return 0;
 }
@@ -868,6 +878,7 @@ int ObjectRef::l_set_bone_scale(lua_State *L)
 
 	bool absolute = false;
 	float interpolation = 0.0f;
+	bool interpolate = false;
 	if (!lua_isnoneornil(L, opts_index)) {
 		luaL_checktype(L, opts_index, LUA_TTABLE);
 		lua_getfield(L, opts_index, "absolute");
@@ -877,12 +888,16 @@ int ObjectRef::l_set_bone_scale(lua_State *L)
 		if (lua_isnumber(L, -1))
 			interpolation = lua_tonumber(L, -1);
 		lua_pop(L, 1);
+		lua_getfield(L, opts_index, "interpolate");
+		interpolate = lua_toboolean(L, -1);
+		lua_pop(L, 1);
 	}
 
 	BoneOverride props = sao->getBoneOverride(bone);
 	props.scale.vector = scale;
 	props.scale.absolute = absolute;
 	props.scale.interp_duration = interpolation;
+	props.scale.interpolate = interpolate;
 	sao->setBoneOverride(bone, props);
 	return 0;
 }
@@ -963,6 +978,10 @@ int ObjectRef::l_set_bone_override(lua_State *L)
 		if (lua_isnumber(L, -1))
 			prop.interp_duration = lua_tonumber(L, -1);
 		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "interpolate");
+		prop.interpolate = lua_toboolean(L, -1);
+		lua_pop(L, 1);
 	};
 
 	lua_getfield(L, 3, "position");
@@ -1015,6 +1034,8 @@ static void push_bone_override(lua_State *L, const BoneOverride &props)
 		lua_setfield(L, -2, "interpolation");
 		lua_pushboolean(L, prop.absolute);
 		lua_setfield(L, -2, "absolute");
+		lua_pushboolean(L, prop.interpolate);
+		lua_setfield(L, -2, "interpolate");
 		lua_setfield(L, -2, name);
 	};
 
