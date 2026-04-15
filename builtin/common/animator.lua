@@ -2,8 +2,12 @@ local M = {}
 core.animator = M
 
 M._event_listeners = {}
-
 M._end_watchers = {}
+
+M._state_start_watchers = {}
+M._state_end_watchers = {}
+M._state_frame_watchers = {}
+M._animators = setmetatable({}, { __mode = "k" })
 
 function M.register_on_event(cb)
 	assert(type(cb) == "function")
@@ -30,18 +34,54 @@ local function anim_sig(obj)
 	return table.concat({tostring(rx), tostring(ry), tostring(speed), tostring(blend), tostring(loop), tostring(clip)}, ":")
 end
 
-function M.on_animation_end(obj, cb)
+function M.on_animation_start(obj, state, cb)
 	assert(obj and obj.is_valid and obj:is_valid())
+	if type(state) == "function" then
+		cb = state
+		state = "*"
+	end
 	assert(type(cb) == "function")
-	local now = core.get_us_time and core.get_us_time() or 0
-	M._end_watchers[obj] = {
-		cb = cb,
-		sig = anim_sig(obj),
-		start_us = now,
-		end_us = nil,
-	}
+	M._state_start_watchers[obj] = M._state_start_watchers[obj] or {}
+	M._state_start_watchers[obj][state] = M._state_start_watchers[obj][state] or {}
+	table.insert(M._state_start_watchers[obj][state], cb)
 	return obj
 end
+M.onanimationstart = M.on_animation_start
+
+function M.on_animation_end(obj, state, cb)
+	assert(obj and obj.is_valid and obj:is_valid())
+	if type(state) == "function" then
+		cb = state
+		local now = core.get_us_time and core.get_us_time() or 0
+		M._end_watchers[obj] = {
+			cb = cb,
+			sig = anim_sig(obj),
+			start_us = now,
+			end_us = nil,
+		}
+		return obj
+	end
+	assert(type(cb) == "function")
+	M._state_end_watchers[obj] = M._state_end_watchers[obj] or {}
+	M._state_end_watchers[obj][state] = M._state_end_watchers[obj][state] or {}
+	table.insert(M._state_end_watchers[obj][state], cb)
+	return obj
+end
+M.onanimationend = M.on_animation_end
+
+function M.on_animation_frame(obj, state, cb)
+	assert(obj and obj.is_valid and obj:is_valid())
+	if type(state) == "function" then
+		cb = state
+		state = "*"
+	end
+	assert(type(cb) == "function")
+	M._state_frame_watchers[obj] = M._state_frame_watchers[obj] or {}
+	M._state_frame_watchers[obj][state] = M._state_frame_watchers[obj][state] or {}
+	table.insert(M._state_frame_watchers[obj][state], cb)
+	return obj
+end
+M.onanimationframe = M.on_animation_frame
 
 function M.cancel_on_animation_end(obj)
 	M._end_watchers[obj] = nil
@@ -72,6 +112,10 @@ local function to_v2(r)
 		return v2(0, 0)
 	end
 	return v2(r.x or r[1] or 0, r.y or r[2] or 0)
+end
+
+local function get_range(state)
+	return to_v2(state.range or state.frames)
 end
 
 local function clamp01(x)
@@ -216,6 +260,23 @@ local function crossed(prev_frame, cur_frame, marker_frame, loop, range_start, r
 	return marker_frame < prev_frame or marker_frame >= cur_frame
 end
 
+local function trigger_watchers(watchers, obj, state, ...)
+	local w = watchers[obj]
+	if not w then return end
+	local function call_list(list)
+		if not list then return end
+		for _, cb in ipairs(list) do
+			cb(obj, state, ...)
+		end
+	end
+	call_list(w[state])
+	if state ~= "*" then
+		call_list(w["*"])
+	end
+end
+
+local metatable_patched = {}
+
 local Animator = {}
 Animator.__index = Animator
 
@@ -234,6 +295,9 @@ function Animator:new(object, def)
 		_last_bone_rot = {},
 		_last_anim_sig = nil,
 	}
+	for _, state in pairs(o.states) do
+		ensure_sorted_events(state)
+	end
 	return setmetatable(o, self)
 end
 
@@ -243,7 +307,7 @@ end
 
 function Animator:_apply_animation(state, blend)
 	local obj = self.object
-	local range = to_v2(state.range)
+	local range = get_range(state)
 	local speed = state.speed or 15
 	local loop = state.loop
 	if loop == nil then
@@ -258,10 +322,22 @@ function Animator:_apply_animation(state, blend)
 	end
 	self._last_anim_sig = sig
 
+	local mt = getmetatable(obj)
+	local real_set_animation = mt and metatable_patched[mt] and metatable_patched[mt].real_set_animation
+	local real_set_animation_clip = mt and metatable_patched[mt] and metatable_patched[mt].real_set_animation_clip
+
 	if clip == nil then
-		obj:set_animation(range, speed, blend, loop)
+		if real_set_animation then
+			real_set_animation(obj, range, speed, blend, loop)
+		else
+			obj:set_animation(range, speed, blend, loop)
+		end
 	else
-		obj:set_animation_clip(clip, range, speed, blend, loop)
+		if real_set_animation_clip then
+			real_set_animation_clip(obj, clip, range, speed, blend, loop)
+		else
+			obj:set_animation_clip(clip, range, speed, blend, loop)
+		end
 	end
 end
 
@@ -271,12 +347,22 @@ function Animator:set_state(name, opts)
 	opts = opts or {}
 
 	local old_state = self.current
-	local blend = opts.blend
+	if old_state == name then
+		return
+	end
+
+	if old_state then
+		trigger_watchers(M._state_end_watchers, self.object, old_state)
+	end
+
 	self.current = name
 	self.time_in_state = 0
 	self.prev_frame = nil
-	ensure_sorted_events(state)
+
+	local blend = opts.blend
 	self:_apply_animation(state, blend)
+
+	trigger_watchers(M._state_start_watchers, self.object, name)
 
 	if old_state ~= name then
 		local payload = {
@@ -345,11 +431,7 @@ function Animator:_step_events(dtime, ctx)
 	end
 	local state = self.states[cur]
 	local events = state.events
-	if type(events) ~= "table" or #events == 0 then
-		return
-	end
-
-	local range = to_v2(state.range)
+	local range = get_range(state)
 	local speed = state.speed or 15
 	local loop = state.loop
 	if loop == nil then
@@ -361,10 +443,10 @@ function Animator:_step_events(dtime, ctx)
 	local endf = range.y
 	local len = endf - start
 	if len <= 0 then
+		if self.prev_frame == nil then self.prev_frame = start end
 		return
 	end
 
-	local prev = self.prev_frame
 	local cur_frame = start + self.time_in_state * speed
 	if loop then
 		if dir >= 0 then
@@ -388,25 +470,27 @@ function Animator:_step_events(dtime, ctx)
 		end
 	end
 
+	local prev = self.prev_frame
 	if prev == nil then
 		self.prev_frame = cur_frame
 		return
 	end
 
-	local cb = self.def.on_event
-	for _, ev in ipairs(events) do
-		local f = ev.frame
-		if type(f) == "number" then
-			if crossed(prev, cur_frame, f, loop, start, endf, dir) then
-				local payload = {
-					name = ev.name,
-					state = cur,
-					clip = state.clip,
-					frame = f,
-					time = self.time_in_state,
-					ctx = ctx,
-					data = ev.data,
-				}
+	if type(events) == "table" and #events > 0 then
+		local cb = self.def.on_event
+		for _, ev in ipairs(events) do
+			local f = ev.frame
+			if type(f) == "number" then
+				if crossed(prev, cur_frame, f, loop, start, endf, dir) then
+					local payload = {
+						name = ev.name,
+						state = cur,
+						clip = state.clip,
+						frame = f,
+						time = self.time_in_state,
+						ctx = ctx,
+						data = ev.data,
+					}
 					if type(ev.callback) == "function" then
 						ev.callback(self, self.object, payload)
 					end
@@ -421,6 +505,7 @@ function Animator:_step_events(dtime, ctx)
 				end
 			end
 		end
+	end
 
 	self.prev_frame = cur_frame
 end
@@ -520,6 +605,12 @@ function Animator:update(dtime)
 	end
 
 	self:_step_events(dtime, ctx)
+
+	local cur_state = self.current
+	if cur_state then
+		trigger_watchers(M._state_frame_watchers, self.object, cur_state, self.prev_frame)
+	end
+
 	self:_apply_additive_layers()
 
 	local cb = self.def.on_step
@@ -543,6 +634,75 @@ end
 function M.unregister(anim)
 	registry[anim] = nil
 end
+
+local function patch_metatable(obj)
+	local mt = getmetatable(obj)
+	if not mt or metatable_patched[mt] then
+		return
+	end
+	local index = mt.__index
+	if type(index) == "table" then
+		local real_set_animation = index.set_animation
+		local real_set_animation_clip = index.set_animation_clip
+
+		metatable_patched[mt] = {
+			real_set_animation = real_set_animation,
+			real_set_animation_clip = real_set_animation_clip,
+		}
+
+		index.setanimationcontroller = function(self, def)
+			return M.set_controller(self, def)
+		end
+		index.set_animation_controller = index.setanimationcontroller
+		index.getanimationcontroller = function(self)
+			return M.get_controller(self)
+		end
+		index.get_animation_controller = index.getanimationcontroller
+
+		-- Patch legacy calls to override if controller is active
+		index.set_animation = function(self, ...)
+			local anim = M._animators[self]
+			if anim then
+				M.unregister(anim)
+				M._animators[self] = nil
+			end
+			if real_set_animation then
+				return real_set_animation(self, ...)
+			end
+		end
+		index.set_animation_clip = function(self, ...)
+			local anim = M._animators[self]
+			if anim then
+				M.unregister(anim)
+				M._animators[self] = nil
+			end
+			if real_set_animation_clip then
+				return real_set_animation_clip(self, ...)
+			end
+		end
+	else
+		metatable_patched[mt] = true
+	end
+end
+
+function M.set_controller(obj, def)
+	assert(obj and obj.is_valid and obj:is_valid())
+	patch_metatable(obj)
+	local old = M._animators[obj]
+	if old then
+		M.unregister(old)
+	end
+	local anim = M.create(obj, def)
+	M._animators[obj] = anim
+	M.register(anim)
+	return anim
+end
+M.setanimationcontroller = M.set_controller
+
+function M.get_controller(obj)
+	return M._animators[obj]
+end
+M.getanimationcontroller = M.get_controller
 
 if INIT == "game" and core.register_globalstep then
 	core.register_globalstep(function(dtime)
@@ -576,6 +736,15 @@ if INIT == "game" and core.register_globalstep then
 				end
 			end
 		end
+		-- Clean up other watchers for invalid objects
+		for _, watchers in ipairs({M._state_start_watchers, M._state_end_watchers, M._state_frame_watchers}) do
+			for obj, _ in pairs(watchers) do
+				if not obj or not obj.is_valid or not obj:is_valid() then
+					watchers[obj] = nil
+				end
+			end
+		end
+
 		for anim, _ in pairs(registry) do
 			if not anim:is_valid() then
 				registry[anim] = nil
@@ -614,6 +783,7 @@ function M.humanoid(object, clips, opts)
 			return {
 				clip = v.clip,
 				range = v.range,
+				frames = v.frames,
 				speed = v.speed,
 				loop = v.loop,
 				blend = v.blend,
