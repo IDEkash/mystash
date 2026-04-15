@@ -21,7 +21,7 @@
 
 const static std::string PlayerSettings_names[] = {
 	"free_move", "pitch_move", "fast_move", "continuous_forward", "always_fly_fast",
-	"aux1_descends", "noclip", "autojump"
+	"aux1_descends", "noclip", "autojump", "accessibilitysprintenabled"
 };
 
 void PlayerSettings::readGlobalSettings()
@@ -34,6 +34,7 @@ void PlayerSettings::readGlobalSettings()
 	aux1_descends = g_settings->getBool("aux1_descends");
 	noclip = g_settings->getBool("noclip");
 	autojump = g_settings->getBool("autojump");
+	accessibility_sprint_enabled = g_settings->getBool("accessibilitysprintenabled");
 }
 
 
@@ -969,7 +970,7 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 	f32 speed_walk = movement_speed_walk * physics_override.speed_walk;
 	const f32 speed_fast = movement_speed_fast * physics_override.speed_fast;
 
-	if (control.movement_speed >= 0.95f)
+	if (player_settings.accessibility_sprint_enabled && control.movement_speed >= 0.95f)
 		speed_walk *= 1.3f;
 
 	if (always_fly_fast && free_move && fast_move)

@@ -502,6 +502,10 @@ arm_inertia (Arm inertia) bool true
 #    For example: 0 for no view bobbing; 1.0 for normal; 2.0 for double.
 view_bobbing_amount (View bobbing factor) float 1.0 0.0 7.9
 
+#    Enable sprint behavior when the joystick is pushed to its maximum.
+#    This is an accessibility feature to keep walking speed consistent.
+accessibilitysprintenabled (Enable Sprint) bool true
+
 [**Damage]
 
 #    Flashing of the screen when taking damage.

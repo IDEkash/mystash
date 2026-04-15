@@ -37,6 +37,7 @@ struct PlayerSettings
 	bool aux1_descends = false;
 	bool noclip = false;
 	bool autojump = false;
+	bool accessibility_sprint_enabled = true;
 
 	void readGlobalSettings();
 	void registerSettingsCallback();
