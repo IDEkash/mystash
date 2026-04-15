@@ -221,9 +221,9 @@ private:
 
 	SimpleMetadata m_meta;
 
+public:
 	std::unordered_map<std::string, u16> m_attached_items;
 
-public:
 	struct {
 		bool breathing : 1;
 		bool drowning : 1;

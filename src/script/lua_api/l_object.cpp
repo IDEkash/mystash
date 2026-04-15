@@ -3395,8 +3395,8 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod(ObjectRef, get_flags),
 	luamethod(ObjectRef, set_camera),
 	luamethod(ObjectRef, get_camera),
-	luamethod_aliased(ObjectRef, l_attach_item, attachitem),
-	luamethod_aliased(ObjectRef, l_detach_item, detachitem),
+	luamethod_aliased(ObjectRef, attach_item, attachitem),
+	luamethod_aliased(ObjectRef, detach_item, detachitem),
 
 	{0,0}
 };
