@@ -22,6 +22,7 @@
 #include "gettext.h"
 
 #include <ICameraSceneNode.h>
+#include <AnimatedMeshSceneNode.h>
 #include <IGUIFont.h>
 #include <ISceneNode.h>
 #include <IVideoDriver.h>
@@ -671,14 +672,14 @@ void Camera::drawWieldedTool(core::matrix4* translation)
 				if (cao->getParent()) {
 					GenericCAO *parent = dynamic_cast<GenericCAO*>(cao->getParent());
 					scene::AnimatedMeshSceneNode *parent_mesh = parent->getAnimatedMeshSceneNode();
-					object_t parent_id;
+					ActiveObject::object_t parent_id;
 					std::string bone_name;
 					v3f pos, rot;
 					bool force;
 					cao->getAttachment(&parent_id, &bone_name, &pos, &rot, &force);
 
 					if (parent_mesh && !bone_name.empty()) {
-						scene::IBoneSceneNode *bone = parent_mesh->getJointNode(bone_name.c_str());
+						scene::ISceneNode *bone = parent_mesh->getJointNode(bone_name.c_str());
 						if (bone) {
 							bone->updateAbsolutePosition();
 							core::matrix4 mat = bone->getAbsoluteTransformation();

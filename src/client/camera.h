@@ -14,6 +14,7 @@
 #include <optional>
 
 class LocalPlayer;
+class GenericCAO;
 struct MapDrawControl;
 class Client;
 class RenderingEngine;
