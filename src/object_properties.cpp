@@ -90,6 +90,13 @@ std::string ObjectProperties::dump() const
 	os << ", shaded=" << shaded;
 	os << ", show_on_minimap=" << show_on_minimap;
 	os << ", nametag_scale_z=" << nametag_scale_z;
+	os << ", is_wield_item=" << is_wield_item;
+	os << ", auto_align=" << auto_align;
+	os << ", skin_tone=" << skin_tone;
+	os << ", hidedefaultparts=[";
+	for (const std::string &part : hidedefaultparts)
+		os << "\"" << part << "\" ";
+	os << "]";
 	return os.str();
 }
 
@@ -106,7 +113,8 @@ static inline auto tie(const ObjectProperties &o)
 	o.node, o.hp_max, o.breath_max, o.glow, o.pointable, o.physical,
 	o.collideWithObjects, o.rotate_selectionbox, o.is_visible, o.makes_footstep_sound,
 	o.automatic_face_movement_dir, o.backface_culling, o.static_save, o.use_texture_alpha,
-	o.shaded, o.show_on_minimap, o.nametag_scale_z
+	o.shaded, o.show_on_minimap, o.nametag_scale_z, o.is_wield_item,
+	o.auto_align, o.skin_tone, o.hidedefaultparts
 	);
 }
 
@@ -217,6 +225,13 @@ void ObjectProperties::serialize(std::ostream &os) const
 
 	writeU8(os, nametag_scale_z);
 
+	writeU8(os, is_wield_item);
+	writeU8(os, auto_align);
+	writeU8(os, skin_tone);
+	writeU16(os, hidedefaultparts.size());
+	for (const std::string &part : hidedefaultparts)
+		os << serializeString16(part);
+
 	// Add stuff only at the bottom.
 	// Never remove anything, because we don't want new versions of this!
 }
@@ -318,6 +333,18 @@ void ObjectProperties::deSerialize(std::istream &is)
 	else
 		nametag_fontsize = std::nullopt;
 	nametag_scale_z = readU8(is);
+
+	if (!canRead(is))
+		return;
+	// >= 5.15.0-dev
+
+	is_wield_item = readU8(is);
+	auto_align = readU8(is);
+	skin_tone = readU8(is);
+	u32 hidedefaultparts_count = readU16(is);
+	hidedefaultparts.clear();
+	for (u32 i = 0; i < hidedefaultparts_count; i++)
+		hidedefaultparts.push_back(deSerializeString16(is));
 
 	//if (!canRead(is))
 	//	return;

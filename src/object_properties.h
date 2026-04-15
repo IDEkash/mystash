@@ -75,6 +75,10 @@ struct ObjectProperties
 	bool shaded = true;
 	bool show_on_minimap = false;
 	bool nametag_scale_z = false;
+	bool is_wield_item = false;
+	bool auto_align = false;
+	bool skin_tone = false;
+	std::vector<std::string> hidedefaultparts;
 
 	ObjectProperties();
 

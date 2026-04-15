@@ -219,6 +219,124 @@ int ObjectRef::l_punch(lua_State *L)
 	return 1;
 }
 
+int ObjectRef::l_attach_item(lua_State *L)
+{
+	GET_ENV_PTR;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	PlayerSAO *playersao = getplayersao(ref);
+	if (playersao == nullptr)
+		return 0;
+
+	std::string tag = readParam<std::string>(L, 2);
+	std::string model = readParam<std::string>(L, 3);
+
+	// Remove existing item with this tag if any
+	auto it = playersao->m_attached_items.find(tag);
+	if (it != playersao->m_attached_items.end()) {
+		ServerActiveObject *old_obj = env->getActiveObject(it->second);
+		if (old_obj)
+			old_obj->markForRemoval();
+		playersao->m_attached_items.erase(it);
+	}
+
+	// Create specialized entity
+	v3f pos = playersao->getBasePosition();
+	std::unique_ptr<ServerActiveObject> obj_u =
+			std::make_unique<LuaEntitySAO>(env, pos, "__builtin:3d_item", "");
+	auto obj = dynamic_cast<LuaEntitySAO*>(obj_u.get());
+	u16 id = env->addActiveObject(std::move(obj_u));
+	if (id == 0)
+		return 0;
+
+	playersao->m_attached_items[tag] = id;
+
+	// Set properties
+	ObjectProperties *prop = obj->accessObjectProperties();
+	prop->mesh = model;
+	prop->is_wield_item = true;
+	prop->is_visible = true;
+
+	std::string bone = "";
+	v3f offset(0, 0, 0);
+	v3f rotation(0, 0, 0);
+	bool force_visible = true;
+
+	if (lua_istable(L, 4)) {
+		prop->auto_align = getboolfield_default(L, 4, "auto_align", false);
+		prop->skin_tone = getboolfield_default(L, 4, "skin_tone", false);
+
+		lua_getfield(L, 4, "hidedefaultparts");
+		if (lua_istable(L, -1)) {
+			prop->hidedefaultparts.clear();
+			int table = lua_gettop(L);
+			lua_pushnil(L);
+			while (lua_next(L, table) != 0) {
+				if (lua_isstring(L, -1))
+					prop->hidedefaultparts.emplace_back(lua_tostring(L, -1));
+				lua_pop(L, 1);
+			}
+		}
+		lua_pop(L, 1);
+
+		lua_getfield(L, 4, "manual_align");
+		if (lua_istable(L, -1)) {
+			lua_getfield(L, -1, "offset");
+			if (lua_istable(L, -1))
+				offset = check_v3f(L, -1) * BS;
+			lua_pop(L, 1);
+
+			lua_getfield(L, -1, "rotation");
+			if (lua_istable(L, -1))
+				rotation = check_v3f(L, -1);
+			lua_pop(L, 1);
+
+			lua_getfield(L, -1, "scale");
+			if (lua_isnumber(L, -1)) {
+				float s = lua_tonumber(L, -1);
+				prop->visual_size = v3f(s, s, s);
+			}
+			lua_pop(L, 1);
+		}
+		lua_pop(L, 1);
+
+		lua_getfield(L, 4, "clip");
+		if (lua_isstring(L, -1)) {
+			obj->setAnimationClipByName(lua_tostring(L, -1), v2f(0, 0), 15.0f, 0.0f, true);
+		}
+		lua_pop(L, 1);
+	}
+
+	bone = tag; // Use tag as bone name by default (e.g. "handr")
+
+	obj->setAttachment(playersao->getId(), bone, offset, rotation, force_visible);
+	obj->notifyObjectPropertiesModified();
+
+	getScriptApiBase(L)->objectrefGetOrCreate(L, obj);
+	return 1;
+}
+
+int ObjectRef::l_detach_item(lua_State *L)
+{
+	GET_ENV_PTR;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	PlayerSAO *playersao = getplayersao(ref);
+	if (playersao == nullptr)
+		return 0;
+
+	std::string tag = readParam<std::string>(L, 2);
+	auto it = playersao->m_attached_items.find(tag);
+	if (it != playersao->m_attached_items.end()) {
+		ServerActiveObject *obj = env->getActiveObject(it->second);
+		if (obj)
+			obj->markForRemoval();
+		playersao->m_attached_items.erase(it);
+		lua_pushboolean(L, true);
+	} else {
+		lua_pushboolean(L, false);
+	}
+	return 1;
+}
+
 // right_click(self, clicker)
 int ObjectRef::l_right_click(lua_State *L)
 {
@@ -3277,6 +3395,8 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod(ObjectRef, get_flags),
 	luamethod(ObjectRef, set_camera),
 	luamethod(ObjectRef, get_camera),
+	luamethod_aliased(ObjectRef, l_attach_item, attachitem),
+	luamethod_aliased(ObjectRef, l_detach_item, detachitem),
 
 	{0,0}
 };

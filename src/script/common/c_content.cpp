@@ -319,6 +319,10 @@ const std::array<const char *, 35> object_property_keys = {
 	// "node" is intentionally not here as it's gated behind `fallback` below!
 	"nametag_fontsize",
 	"nametag_scale_z",
+	"is_wield_item",
+	"auto_align",
+	"skin_tone",
+	"hidedefaultparts",
 };
 
 /******************************************************************************/
@@ -519,6 +523,23 @@ void read_object_properties(lua_State *L, int index,
 
 	getstringfield(L, -1, "damage_texture_modifier", prop->damage_texture_modifier);
 
+	getboolfield(L, -1, "is_wield_item", prop->is_wield_item);
+	getboolfield(L, -1, "auto_align", prop->auto_align);
+	getboolfield(L, -1, "skin_tone", prop->skin_tone);
+
+	lua_getfield(L, -1, "hidedefaultparts");
+	if (lua_istable(L, -1)) {
+		prop->hidedefaultparts.clear();
+		int table = lua_gettop(L);
+		lua_pushnil(L);
+		while (lua_next(L, table) != 0) {
+			if (lua_isstring(L, -1))
+				prop->hidedefaultparts.emplace_back(lua_tostring(L, -1));
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+
 	// Remember to update object_property_keys above
 	// when adding a new property
 }
@@ -625,6 +646,21 @@ void push_object_properties(lua_State *L, const ObjectProperties *prop)
 	lua_setfield(L, -2, "damage_texture_modifier");
 	lua_pushboolean(L, prop->show_on_minimap);
 	lua_setfield(L, -2, "show_on_minimap");
+
+	lua_pushboolean(L, prop->is_wield_item);
+	lua_setfield(L, -2, "is_wield_item");
+	lua_pushboolean(L, prop->auto_align);
+	lua_setfield(L, -2, "auto_align");
+	lua_pushboolean(L, prop->skin_tone);
+	lua_setfield(L, -2, "skin_tone");
+
+	lua_createtable(L, prop->hidedefaultparts.size(), 0);
+	i = 1;
+	for (const std::string &part : prop->hidedefaultparts) {
+		lua_pushlstring(L, part.c_str(), part.size());
+		lua_rawseti(L, -2, i++);
+	}
+	lua_setfield(L, -2, "hidedefaultparts");
 
 	// Remember to update object_property_keys above
 	// when adding a new property

@@ -225,6 +225,21 @@ static inline v2f dir(const v2f &pos_dist)
 	return v2f(std::fabs(x), std::fabs(y));
 }
 
+void Camera::addWieldMeshCAO(GenericCAO *cao)
+{
+	m_wield_caos.push_back(cao);
+}
+
+void Camera::removeWieldMeshCAO(GenericCAO *cao)
+{
+	for (auto it = m_wield_caos.begin(); it != m_wield_caos.end(); ++it) {
+		if (*it == cao) {
+			m_wield_caos.erase(it);
+			break;
+		}
+	}
+}
+
 void Camera::addArmInertia(f32 player_yaw)
 {
 	m_cam_vel.X = std::fabs(rangelim(m_last_cam_pos.X - player_yaw,
@@ -611,8 +626,15 @@ void Camera::drawWieldedTool(core::matrix4* translation)
 	// Clear Z buffer so that the wielded tool stays in front of world geometry
 	m_wieldmgr->getVideoDriver()->clearBuffers(video::ECBF_DEPTH);
 
-	// Draw the wielded node (in a separate scene manager)
 	scene::ICameraSceneNode* cam = m_wieldmgr->getActiveCamera();
+
+	// 1. Draw traditional wielded item
+	m_wieldnode->setVisible(true);
+	for (GenericCAO *cao : m_wield_caos) {
+		if (cao->getSceneNode())
+			cao->getSceneNode()->getParent()->setVisible(false);
+	}
+
 	cam->setAspectRatio(m_cameranode->getAspectRatio());
 	cam->setFOV(72.0*M_PI/180.0);
 	cam->setNearValue(10);
@@ -631,6 +653,50 @@ void Camera::drawWieldedTool(core::matrix4* translation)
 		cam->setTarget(focusPoint);
 	}
 	m_wieldmgr->drawAll();
+
+	// 2. Draw immersive 3D items
+	if (!m_wield_caos.empty()) {
+		m_wieldnode->setVisible(false);
+		cam->setPosition(m_cameranode->getPosition());
+		cam->setTarget(m_cameranode->getTarget());
+		cam->setUpVector(m_cameranode->getUpVector());
+		cam->setFOV(m_cameranode->getFOV());
+		cam->setAspectRatio(m_cameranode->getAspectRatio());
+		cam->updateAbsolutePosition();
+
+		for (GenericCAO *cao : m_wield_caos) {
+			scene::ISceneNode *node = cao->getSceneNode();
+			if (node) {
+				node->getParent()->setVisible(true);
+				if (cao->getParent()) {
+					GenericCAO *parent = dynamic_cast<GenericCAO*>(cao->getParent());
+					scene::AnimatedMeshSceneNode *parent_mesh = parent->getAnimatedMeshSceneNode();
+					object_t parent_id;
+					std::string bone_name;
+					v3f pos, rot;
+					bool force;
+					cao->getAttachment(&parent_id, &bone_name, &pos, &rot, &force);
+
+					if (parent_mesh && !bone_name.empty()) {
+						scene::IBoneSceneNode *bone = parent_mesh->getJointNode(bone_name.c_str());
+						if (bone) {
+							bone->updateAbsolutePosition();
+							core::matrix4 mat = bone->getAbsoluteTransformation();
+							if (!cao->getProperties().auto_align) {
+								core::matrix4 offset;
+								offset.setRotationDegrees(rot);
+								offset.setTranslation(pos);
+								mat *= offset;
+							}
+							cao->getPosRotMatrix() = mat;
+							node->getParent()->updateAbsolutePosition();
+						}
+					}
+				}
+			}
+		}
+		m_wieldmgr->drawAll();
+	}
 }
 
 void Camera::toggleCameraMode()

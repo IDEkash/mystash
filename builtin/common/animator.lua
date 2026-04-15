@@ -50,6 +50,7 @@ end
 if not core.on_animation_end then
 	core.on_animation_end = M.on_animation_end
 end
+core.onitemanimation_end = M.on_animation_end
 
 local RAD = math.rad
 local DEG = math.deg

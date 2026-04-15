@@ -181,6 +181,11 @@ public:
 
 	inline void addArmInertia(f32 player_yaw);
 
+	void addWieldMeshCAO(GenericCAO *cao);
+	void removeWieldMeshCAO(GenericCAO *cao);
+
+	scene::ISceneManager *m_wieldmgr = nullptr;
+
 private:
 	// Use getFrustumCuller().
 	// This helper just exists to decrease the header's number of includes.
@@ -191,7 +196,6 @@ private:
 	scene::ISceneNode *m_headnode = nullptr;
 	scene::ICameraSceneNode *m_cameranode = nullptr;
 
-	scene::ISceneManager *m_wieldmgr = nullptr;
 	WieldMeshSceneNode *m_wieldnode = nullptr;
 
 	// draw control
@@ -257,6 +261,8 @@ private:
 
 	std::vector<Nametag*> m_nametags;
 	bool m_show_nametag_backgrounds;
+
+	std::vector<GenericCAO*> m_wield_caos;
 
 	// Last known light color of the player
 	video::SColor m_player_light_color;

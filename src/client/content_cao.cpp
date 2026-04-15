@@ -331,6 +331,9 @@ void GenericCAO::processInitData(const std::string &data)
 
 GenericCAO::~GenericCAO()
 {
+	if (m_prop.is_wield_item && m_attached_to_local) {
+		m_client->getCamera()->removeWieldMeshCAO(this);
+	}
 	removeFromScene(true);
 }
 
@@ -568,6 +571,9 @@ void GenericCAO::removeFromScene(bool permanent)
 
 void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 {
+	if (m_prop.is_wield_item && m_attached_to_local) {
+		smgr = m_client->getCamera()->m_wieldmgr;
+	}
 	m_smgr = smgr;
 
 	if (getSceneNode() != NULL) {
@@ -724,6 +730,44 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 					}
 					++it;
 				}
+
+				if (m_is_local_player) {
+					std::unordered_set<std::string> bones_to_hide;
+					for (const std::string &part : m_prop.hidedefaultparts)
+						bones_to_hide.insert(part);
+
+					for (u16 id : m_attachment_child_ids) {
+						GenericCAO *child = m_env->getGenericCAO(id);
+						if (child && child->getProperties().is_wield_item) {
+							for (const std::string &part : child->getProperties().hidedefaultparts)
+								bones_to_hide.insert(part);
+						}
+					}
+
+					// Reset bones that were hidden but shouldn't be anymore
+					for (const std::string &bone_name : m_last_hidden_bones) {
+						if (bones_to_hide.find(bone_name) == bones_to_hide.end()) {
+							if (auto *bone = m_animated_meshnode->getJointNode(bone_name.c_str())) {
+								bone->setScale(v3f(1, 1, 1));
+							}
+						}
+					}
+
+					for (const std::string &bone_name : bones_to_hide) {
+						if (auto *bone = m_animated_meshnode->getJointNode(bone_name.c_str())) {
+							bone->setScale(v3f(0, 0, 0));
+						}
+					}
+					m_last_hidden_bones = std::move(bones_to_hide);
+				} else if (m_attached_to_local && m_prop.is_wield_item) {
+					// Also support part hiding for the immersive item itself
+					// e.g. hide extra hands if not needed for some animations
+					for (const std::string &part : m_prop.hidedefaultparts) {
+						if (auto *bone = m_animated_meshnode->getJointNode(part.c_str())) {
+							bone->setScale(v3f(0, 0, 0));
+						}
+					}
+				}
 			});
 		} else
 			errorstream<<"GenericCAO::addToScene(): Could not load mesh "<<m_prop.mesh<<std::endl;
@@ -800,6 +844,10 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 	updateAttachments();
 	setNodeLight(m_last_light);
 	updateMeshCulling();
+
+	if (m_prop.is_wield_item && m_attached_to_local) {
+		m_client->getCamera()->addWieldMeshCAO(this);
+	}
 
 	if (m_animated_meshnode) {
 		u32 mat_count = m_animated_meshnode->getMaterialCount();
@@ -973,6 +1021,11 @@ void GenericCAO::updateNodePos()
 
 void GenericCAO::step(float dtime, ClientEnvironment *env)
 {
+	if (m_prop.auto_align && getParent()) {
+		updateAnimation();
+		updateAnimationSpeed();
+	}
+
 	// Handle model animations and update positions instantly to prevent lags
 	if (m_is_local_player) {
 		LocalPlayer *player = m_env->getLocalPlayer();
@@ -1288,6 +1341,13 @@ void GenericCAO::updateTextures(std::string mod)
 {
 	ITextureSource *tsrc = m_client->tsrc();
 
+	if (m_prop.skin_tone && getParent()) {
+		const ObjectProperties &parent_prop = dynamic_cast<GenericCAO*>(getParent())->getProperties();
+		if (!parent_prop.textures.empty()) {
+			m_prop.textures[0] = parent_prop.textures[0];
+		}
+	}
+
 	m_previous_texture_modifier = m_current_texture_modifier;
 	m_current_texture_modifier = mod;
 
@@ -1376,6 +1436,19 @@ void GenericCAO::updateAnimation()
 	if (!m_animated_meshnode)
 		return;
 
+	if (m_prop.auto_align && getParent()) {
+		GenericCAO *parent = dynamic_cast<GenericCAO*>(getParent());
+		if (parent) {
+			m_animation_range = parent->m_animation_range;
+			m_animation_speed = parent->m_animation_speed;
+			m_animation_blend = parent->m_animation_blend;
+			m_animation_loop = parent->m_animation_loop;
+			m_animation_clip_type = parent->m_animation_clip_type;
+			m_animation_clip_index = parent->m_animation_clip_index;
+			m_animation_clip_name = parent->m_animation_clip_name;
+		}
+	}
+
 	v2f range = m_animation_range;
 	if (auto *skinned = dynamic_cast<scene::SkinnedMesh *>(m_animated_meshnode->getMesh())) {
 		const scene::SkinnedMesh::AnimationClip *clip = nullptr;
@@ -1406,6 +1479,7 @@ void GenericCAO::updateAttachments()
 {
 	ClientActiveObject *parent = getParent();
 
+	bool was_attached_to_local = m_attached_to_local;
 	m_attached_to_local = parent && parent->isLocalPlayer();
 
 	/*
@@ -1443,12 +1517,24 @@ void GenericCAO::updateAttachments()
 		if (m_matrixnode && parent_node) {
 			m_matrixnode->setParent(parent_node);
 			parent_node->updateAbsolutePosition();
-			getPosRotMatrix().setTranslation(m_attachment_position);
-			//setPitchYawRoll(getPosRotMatrix(), m_attachment_rotation);
-			// use Irrlicht eulers instead
-			getPosRotMatrix().setRotationDegrees(m_attachment_rotation);
+			if (m_prop.auto_align) {
+				getPosRotMatrix().makeIdentity();
+			} else {
+				getPosRotMatrix().setTranslation(m_attachment_position);
+				//setPitchYawRoll(getPosRotMatrix(), m_attachment_rotation);
+				// use Irrlicht eulers instead
+				getPosRotMatrix().setRotationDegrees(m_attachment_rotation);
+			}
 			m_matrixnode->updateAbsolutePosition();
 		}
+	}
+
+	if (m_prop.is_wield_item && m_attached_to_local && !was_attached_to_local) {
+		m_client->getCamera()->addWieldMeshCAO(this);
+		expireVisuals(); // Re-add to wield smgr
+	} else if (m_prop.is_wield_item && !m_attached_to_local && was_attached_to_local) {
+		m_client->getCamera()->removeWieldMeshCAO(this);
+		expireVisuals(); // Re-add to main smgr
 	}
 }
 
@@ -1476,6 +1562,8 @@ bool GenericCAO::visualExpiryRequired(const ObjectProperties &new_) const
 		old.visual_size != new_.visual_size ||
 		old.wield_item != new_.wield_item ||
 		old.colors != new_.colors ||
+		old.is_wield_item != new_.is_wield_item ||
+		old.hidedefaultparts != new_.hidedefaultparts ||
 		(uses_legacy_texture && old.textures != new_.textures);
 }
 
@@ -1833,8 +1921,24 @@ std::string GenericCAO::debugInfoText()
 
 void GenericCAO::updateMeshCulling()
 {
-	if (!m_is_local_player)
+	if (!m_is_local_player) {
+		// If we are a child of local player, and we are an immersive hand,
+		// we should NOT be hidden in first person.
+		if (m_attached_to_local && m_prop.is_wield_item) {
+			const bool first_person = m_client->getCamera()->getCameraMode() == CAMERA_MODE_FIRST;
+			if (first_person) {
+				scene::ISceneNode *node = getSceneNode();
+				if (node) {
+					node->forEachMaterial([this](auto &mat) {
+						mat.BackfaceCulling = m_prop.backface_culling;
+						mat.FrontfaceCulling = false;
+					});
+				}
+				return;
+			}
+		}
 		return;
+	}
 
 	const bool hidden = m_client->getCamera()->getCameraMode() == CAMERA_MODE_FIRST;
 

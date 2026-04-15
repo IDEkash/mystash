@@ -148,6 +148,8 @@ private:
 	std::string m_current_texture_modifier = "";
 	float m_step_distance_counter = 0.0f;
 
+	std::unordered_set<std::string> m_last_hidden_bones;
+
 	bool visualExpiryRequired(const ObjectProperties &newprops) const;
 
 public:

@@ -406,6 +406,12 @@ private:
 	// set_camera(self, {params})
 	static int l_set_camera(lua_State *L);
 
+	// attach_item(self, tag, model, {params})
+	static int l_attach_item(lua_State *L);
+
+	// detach_item(self, tag)
+	static int l_detach_item(lua_State *L);
+
 	// get_camera(self)
 	static int l_get_camera(lua_State *L);
 

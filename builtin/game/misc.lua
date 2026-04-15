@@ -301,6 +301,18 @@ end
 -- Helper for LBM execution, called from C++
 --
 
+core.register_entity(":__builtin:3d_item", {
+	initial_properties = {
+		visual = "mesh",
+		physical = false,
+		pointable = false,
+		static_save = false,
+	},
+	on_activate = function(self, staticdata)
+		self.object:set_armor_groups({immortal = 1})
+	end,
+})
+
 function core.run_lbm(id, pos_list, dtime_s)
 	local lbm = core.registered_lbms[id]
 	assert(lbm, "Entry with given id not found in registered_lbms table")
