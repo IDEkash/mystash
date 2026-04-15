@@ -415,7 +415,7 @@ int ObjectRef::l_set_animation(lua_State *L)
 		int opts = 2;
 		v2f frame_range(1, 1);
 		float frame_speed = 15.0f;
-		float frame_blend = 0.0f;
+		float frame_blend = 0.1f;
 		bool frame_loop = true;
 
 		if (getboolfield_default(L, opts, "pause", false) || getboolfield_default(L, opts, "paused", false))
@@ -471,7 +471,7 @@ int ObjectRef::l_set_animation(lua_State *L)
 
 	v2f frame_range   = readParam<v2f>(L,  2, v2f(1, 1));
 	float frame_speed = readParam<float>(L, 3, 15.0f);
-	float frame_blend = readParam<float>(L, 4, 0.0f);
+	float frame_blend = readParam<float>(L, 4, 0.1f);
 	bool frame_loop   = readParam<bool>(L, 5, true);
 
 	sao->setAnimation(frame_range, frame_speed, frame_blend, frame_loop);
@@ -503,7 +503,7 @@ int ObjectRef::l_set_animation_clip(lua_State *L)
 
 	v2f frame_range = readParam<v2f>(L, 3, v2f(1, 1));
 	float frame_speed = readParam<float>(L, 4, 15.0f);
-	float frame_blend = readParam<float>(L, 5, 0.0f);
+	float frame_blend = readParam<float>(L, 5, 0.1f);
 	bool frame_loop = readParam<bool>(L, 6, true);
 
 	if (clip_type == 1)

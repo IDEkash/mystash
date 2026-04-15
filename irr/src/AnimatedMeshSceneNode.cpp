@@ -686,7 +686,10 @@ void AnimatedMeshSceneNode::animateJoints()
 	}
 
 	if (BlendActive && BlendDurationMs > 0) {
-		const f32 weight = std::min(1.f, (f32)BlendElapsedMs / (f32)BlendDurationMs);
+		f32 weight = std::min(1.f, (f32)BlendElapsedMs / (f32)BlendDurationMs);
+		// smoothstep easing
+		weight = weight * weight * (3.0f - 2.0f * weight);
+
 		auto from = skinnedMesh->animateMesh(BlendCurrentFrameNr);
 		auto to = skinnedMesh->animateMesh(getFrameNr());
 		assert(from.size() == to.size());
