@@ -129,25 +129,24 @@ void ClientEnvironment::step(float dtime)
 		if (!free_move) {
 			// Gravity
 			if (!is_climbing && !lplayer->in_liquid)
-				// HACK the factor 2 for gravity is arbitrary and should be removed eventually
-				lplayer->gravity = 2 * lplayer->movement_gravity * lplayer->physics_override.gravity;
+				lplayer->gravity = lplayer->movement_gravity * lplayer->physics_override.gravity;
 
 			// Liquid floating / sinking
 			if (!is_climbing && lplayer->in_liquid &&
 					!lplayer->swimming_vertical &&
 					!lplayer->swimming_pitch)
-				// HACK the factor 2 for gravity is arbitrary and should be removed eventually
-				lplayer->gravity = 2 * lplayer->movement_liquid_sink * lplayer->physics_override.liquid_sink;
+				lplayer->gravity = lplayer->movement_liquid_sink * lplayer->physics_override.liquid_sink;
 
 			// Movement resistance
 			if (lplayer->move_resistance > 0) {
 				v3f speed = lplayer->getSpeed();
 
 				if (lplayer->in_lava) {
-					speed.X *= 0.50f;
-					speed.Y *= 0.50f;
-					speed.Z *= 0.50f;
-					speed.Y -= 0.02f * BS;
+					float factor = std::exp(-5.0f * dtime_part); // Exponential decay for 50% velocity kill
+					speed.X *= factor;
+					speed.Y *= factor;
+					speed.Z *= factor;
+					speed.Y -= 0.5f * BS * dtime_part; // Scale sink by dtime
 				} else {
 					// How much the node's move_resistance blocks movement, ranges
 					// between 0 and 1. Should match the scale at which liquid_viscosity
