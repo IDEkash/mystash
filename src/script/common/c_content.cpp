@@ -282,7 +282,7 @@ void push_item_definition_full(lua_State *L, const ItemDefinition &i)
 }
 
 /******************************************************************************/
-const std::array<const char *, 35> object_property_keys = {
+const std::array<const char *, 38> object_property_keys = {
 	"hp_max",
 	"breath_max",
 	"physical",
@@ -319,6 +319,9 @@ const std::array<const char *, 35> object_property_keys = {
 	// "node" is intentionally not here as it's gated behind `fallback` below!
 	"nametag_fontsize",
 	"nametag_scale_z",
+	"model_unit_scale",
+	"auto_normalize",
+	"target_height",
 };
 
 /******************************************************************************/
@@ -504,6 +507,18 @@ void read_object_properties(lua_State *L, int index,
 	lua_pop(L, 1);
 	getboolfield(L, -1, "nametag_scale_z", prop->nametag_scale_z);
 
+	lua_getfield(L, -1, "model_unit_scale");
+	if (lua_istable(L, -1)) {
+		prop->model_unit_scale = read_v3f(L, -1);
+	} else if (lua_isnumber(L, -1)) {
+		float s = lua_tonumber(L, -1);
+		prop->model_unit_scale = v3f(s, s, s);
+	}
+	lua_pop(L, 1);
+
+	getboolfield(L, -1, "auto_normalize", prop->auto_normalize);
+	getfloatfield(L, -1, "target_height", prop->target_height);
+
 	getstringfield(L, -1, "infotext", prop->infotext);
 	getboolfield(L, -1, "static_save", prop->static_save);
 
@@ -609,6 +624,14 @@ void push_object_properties(lua_State *L, const ObjectProperties *prop)
 	lua_setfield(L, -2, "nametag_fontsize");
 	lua_pushboolean(L, prop->nametag_scale_z);
 	lua_setfield(L, -2, "nametag_scale_z");
+
+	push_v3f(L, prop->model_unit_scale);
+	lua_setfield(L, -2, "model_unit_scale");
+	lua_pushboolean(L, prop->auto_normalize);
+	lua_setfield(L, -2, "auto_normalize");
+	lua_pushnumber(L, prop->target_height);
+	lua_setfield(L, -2, "target_height");
+
 	lua_pushlstring(L, prop->infotext.c_str(), prop->infotext.size());
 	lua_setfield(L, -2, "infotext");
 	lua_pushboolean(L, prop->static_save);

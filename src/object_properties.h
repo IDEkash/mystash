@@ -46,6 +46,7 @@ struct ObjectProperties
 	// For dropped items, this contains the serialized item.
 	std::string wield_item;
 	v3f visual_size = v3f(1, 1, 1);
+	v3f model_unit_scale = v3f(1, 1, 1);
 	video::SColor nametag_color = video::SColor(255, 255, 255, 255);
 	std::optional<video::SColor> nametag_bgcolor;
 	v2s16 spritediv = v2s16(1, 1);
@@ -56,6 +57,7 @@ struct ObjectProperties
 	f32 automatic_face_movement_max_rotation_per_sec = -1.0f;
 	float eye_height = 1.625f;
 	float zoom_fov = 0.0f;
+	float target_height = 0.0f;
 	std::optional<u32> nametag_fontsize;
 	MapNode node = MapNode(CONTENT_IGNORE);
 	u16 hp_max = 1;
@@ -75,6 +77,7 @@ struct ObjectProperties
 	bool shaded = true;
 	bool show_on_minimap = false;
 	bool nametag_scale_z = false;
+	bool auto_normalize = false;
 
 	ObjectProperties();
 

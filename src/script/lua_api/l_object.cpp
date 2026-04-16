@@ -418,6 +418,11 @@ int ObjectRef::l_set_animation(lua_State *L)
 		float frame_blend = 0.1f;
 		bool frame_loop = true;
 
+		std::string mesh;
+		if (auto *prop = sao->accessObjectProperties())
+			mesh = prop->mesh;
+		bool is_gltf = str_ends_with(mesh, ".gltf", true) || str_ends_with(mesh, ".glb", true);
+
 		if (getboolfield_default(L, opts, "pause", false) || getboolfield_default(L, opts, "paused", false))
 			frame_speed = 0.0f;
 
@@ -447,6 +452,34 @@ int ObjectRef::l_set_animation(lua_State *L)
 
 		frame_loop = getboolfield_default(L, opts, "loop", frame_loop);
 		frame_loop = getboolfield_default(L, opts, "frame_loop", frame_loop);
+
+		std::string time_mode = getstringfield_default(L, opts, "time_mode", "auto");
+		if (time_mode == "auto") {
+			if (is_gltf) {
+				// For glTF, if speed is suspiciously high (legacy default was 15),
+				// modder probably didn't realize it's a multiplier now.
+				if (frame_speed > 5.0f) {
+					warningstream << "set_animation: high speed (" << frame_speed
+						<< ") used with glTF model '" << mesh << "'. "
+						<< "For glTF, speed is a multiplier (normal=1.0)." << std::endl;
+				}
+			} else {
+				// For non-glTF, if modder used small range (e.g. 0-1) and speed=1,
+				// they might be thinking in seconds. But we don't have duration info here easily.
+			}
+		} else if (time_mode == "seconds") {
+			if (!is_gltf) {
+				// Convert seconds to frames using 24 FPS (typical for B3D in Minetest)
+				frame_range *= 24.0f;
+				frame_speed *= 24.0f;
+			}
+		} else if (time_mode == "frames") {
+			if (is_gltf) {
+				// Convert frames to seconds using 24 FPS
+				frame_range /= 24.0f;
+				frame_speed /= 24.0f;
+			}
+		}
 
 		lua_getfield(L, opts, "clip");
 		if (lua_isnumber(L, -1)) {
@@ -560,7 +593,7 @@ int ObjectRef::l_get_animation_info(lua_State *L)
 	float frame_speed = 15;
 	float frame_blend = 0;
 	bool frame_loop = true;
-	
+
 	sao->getAnimation(&frames, &frame_speed, &frame_blend, &frame_loop);
 
 	u8 clip_type = 0;
@@ -599,6 +632,44 @@ int ObjectRef::l_get_animation_info(lua_State *L)
 	lua_setfield(L, -2, "progress");
 	lua_pushnil(L);
 	lua_setfield(L, -2, "bones");
+
+	std::string mesh;
+	if (auto *prop = sao->accessObjectProperties())
+		mesh = prop->mesh;
+	bool is_gltf = str_ends_with(mesh, ".gltf", true) || str_ends_with(mesh, ".glb", true);
+	lua_pushboolean(L, is_gltf);
+	lua_setfield(L, -2, "is_gltf");
+	lua_pushstring(L, is_gltf ? "seconds" : "frames");
+	lua_setfield(L, -2, "unit");
+
+	return 1;
+}
+
+int ObjectRef::l_get_model_info(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	std::string mesh;
+	if (auto *prop = sao->accessObjectProperties())
+		mesh = prop->mesh;
+
+	lua_newtable(L);
+	lua_pushstring(L, mesh.c_str());
+	lua_setfield(L, -2, "mesh");
+
+	bool is_gltf = str_ends_with(mesh, ".gltf", true) || str_ends_with(mesh, ".glb", true);
+	lua_pushstring(L, is_gltf ? "gltf" : "b3d"); // simplistic check
+	lua_setfield(L, -2, "format");
+
+	lua_pushboolean(L, is_gltf);
+	lua_setfield(L, -2, "uses_time");
+
+	lua_pushnumber(L, is_gltf ? 1.0f : 15.0f);
+	lua_setfield(L, -2, "default_speed");
 
 	return 1;
 }
@@ -3171,6 +3242,7 @@ luaL_Reg ObjectRef::methods[] = {
 		luamethod(ObjectRef, set_animation_clip),
 		luamethod(ObjectRef, get_animation),
 		luamethod(ObjectRef, get_animation_info),
+		luamethod(ObjectRef, get_model_info),
 		luamethod(ObjectRef, set_animation_frame_speed),
 	luamethod_aliased(ObjectRef, set_bone_position, setboneposition),
 	luamethod_aliased(ObjectRef, set_bone_rotation, setbonerotation),
