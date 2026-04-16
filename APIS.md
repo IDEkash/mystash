@@ -1,6 +1,6 @@
 # Fork APIs
 
-This fork adds Android `htmlview` (including headless workers + JSON helpers), extra animator helpers, and glTF multi-clip animation support.
+This fork adds Android `htmlview` (including headless workers + JSON helpers), extra animator helpers, glTF multi-clip animation support, an independent bone transform API, upgraded animation blending with smoothstep easing and event callbacks, a refined physics and movement model, an accessibility sprint toggle, and an improved Animation & Scaling API with auto-normalization.
 
 ## Android: `htmlview` (Lua)
 
@@ -133,6 +133,72 @@ glTF/GLB meshes can contain multiple animations. This fork loads each glTF `anim
 
 For skinned meshes (including glTF), `frame_blend` controls crossfade duration (seconds) when switching animations.
 
+## Improved Animation and Scaling API
+
+This API removes the guesswork involved in scaling glTF models and unifies time handling between different model formats (glTF vs B3D/X).
+
+### Scaling API (Normalization)
+
+New properties in `set_properties` to handle model scaling automatically:
+
+- `auto_normalize`: boolean. If `true`, the engine measures the model's actual size and scales it so that 1 unit in the model file equals 1 node in the game world.
+- `target_height`: number. Forces the model to a specific height in nodes. Example: `target_height = 1.7` makes a character exactly 1.7 nodes tall, regardless of original export size.
+- `model_unit_scale`: vector. An additional multiplier applied after normalization. Useful for making a model wider or thinner without changing its height.
+
+**Example usage:**
+
+```lua
+self.object:set_properties({
+    visual = "mesh",
+    mesh = "character.gltf",
+    auto_normalize = true, -- Now 1 unit in file = 1 node in game
+    target_height = 1.8,   -- Force character to be exactly 1.8 nodes tall
+})
+```
+
+### Enhanced Animation API
+
+glTF animations use seconds for their range, while older formats use frames. The `set_animation` API now handles this automatically via a new `time_mode` parameter.
+
+`ObjectRef:set_animation(opts)`
+- `time_mode`:
+  - `"auto"` (Default): Uses seconds for glTF and frames for other formats.
+  - `"seconds"`: Interprets `range` as seconds. For B3D/X models, the engine automatically converts seconds to frames (assuming 24 FPS).
+  - `"frames"`: Interprets `range` as frames. For glTF models, the engine automatically converts frames to seconds.
+
+**Example usage:**
+
+```lua
+-- Play exactly 2 seconds of animation, regardless of model format
+self.object:set_animation({
+    range = {x = 0, y = 2.0},
+    speed = 1.0,
+    time_mode = "seconds"
+})
+```
+
+### Model Introspection
+
+New methods to query model format details for writing safer, format-agnostic code.
+
+`ObjectRef:get_model_info() -> table`
+- Returns:
+  - `mesh`: The filename.
+  - `format`: `"gltf"` or `"b3d"`.
+  - `uses_time`: Boolean, `true` if the model natively uses seconds.
+  - `default_speed`: `1.0` for glTF, `15.0` (or similar) for others.
+
+`ObjectRef:get_animation_info() -> table`
+- Enhanced to include:
+  - `is_gltf`: boolean
+  - `unit`: `"seconds"` or `"frames"` (the unit currently used by the object).
+
+### Engine Fixes
+
+- **Fixed "Tiny Model" Bug**: Fixed a bug where setting an animation range with `x` nearly equal to `y` (like a static pose) could cause the model to shrink to near-zero size due to degenerate scaling math.
+- **Cleaner glTF Transitions**: Improved the glTF loader to disable interpolation across different animation clips on the internal timeline, ensuring cleaner swaps between animations (like "walk" to "idle").
+- **Safety Warnings**: If you use a frame-based speed (like 30) on a glTF model in "auto" mode, the engine prints a warning to help catch mistakes.
+
 ## glTF inspection helpers (Lua)
 
 `core.gltf_get_animation_clips(path) -> list`
@@ -143,6 +209,44 @@ For skinned meshes (including glTF), `frame_blend` controls crossfade duration (
   - `meshes`: `{ {index,name,primitives}, ... }`
   - `bones`: `{ {node,name}, ... }` (joint nodes across skins)
   - `animations`: `{ {index,name,start,end,duration}, ... }`
+
+## Independent Bone Transform API (Lua)
+
+The independent bone transform API is fully implemented and available on all `ObjectRef` (players and entities). Each transform type (position, rotation, scale) is stored and synced independently — calling `set_bone_rotation` will only update the rotation and leave existing position or scale overrides untouched.
+
+### Setting transforms
+
+`ObjectRef:set_bone_position(bone, position, opts?)`
+
+`ObjectRef:set_bone_rotation(bone, rotation, opts?)`
+
+`ObjectRef:set_bone_scale(bone, scale, opts?)`
+
+**Arguments:**
+
+- `position` / `rotation` / `scale`: Can be a table `{x=..., y=..., z=...}` or three separate numbers `x, y, z`. `set_bone_scale` also supports a single number for uniform scaling.
+- `opts` (optional): A table containing:
+  - `absolute`: boolean (default `false`). If `true`, the override replaces the animation transform entirely. If `false`, it is added on top of the current animation (ideal for head look and other additive overrides).
+  - `interpolation`: float (default `0.0`). The time in seconds to smoothly transition to the new transform value.
+
+### Querying transforms
+
+`ObjectRef:get_bone_position(bone)`
+
+`ObjectRef:get_bone_rotation(bone)`
+
+`ObjectRef:get_bone_scale(bone)`
+
+Each returns a single vector (`{x,y,z}`) representing the current override for that specific transform.
+
+### How it works
+
+- **Independence**: Each transform (position, rotation, scale) is stored and synced independently. Calling `set_bone_rotation` only updates the rotation; existing position or scale overrides are left untouched.
+- **Client-side blending**: Overrides are applied in the client-side rendering loop after glTF animation blending has occurred. This ensures that animation clips (like walking) do not reset manual overrides (like head looking) every frame.
+- **Synchronization**: Changes made on the server are automatically serialized and sent to all observing clients.
+- **Euler persistence**: The API stores the exact Euler angles you provide, avoiding gimbal lock or "twisting" issues that often occur when converting back and forth between quaternions and Euler angles.
+
+This implementation enables robust Minecraft-style head movement, procedural animations, and modular entity attachments.
 
 ## Lua Animator (`core.animator`)
 
@@ -155,8 +259,44 @@ For skinned meshes (including glTF), `frame_blend` controls crossfade duration (
 ### Global animator event bus
 
 `core.animator.register_on_event(cb)`
+
 `core.animator.unregister_on_event(cb)`
 - `cb(animator, object, event_payload)` called for every emitted animation event.
+
+#### Event types
+
+The `event_payload` table contains:
+
+- `event.name`: The type of event.
+  - `"jump_start"`: Fired when a humanoid begins a jump.
+  - `"land"`: Fired when a humanoid finishes a jump and returns to the ground (idle/walk/run).
+  - `"attack_start"`: Fired when an attack animation begins.
+  - `"transition"`: A generic event fired whenever the animator switches states.
+- `event.from`: The state being left.
+- `event.to`: The state being entered.
+- `event.blend`: The duration of the blend.
+- `event.ctx`: The animator context at the time of the transition.
+
+#### Example: Playing sounds on animation events
+
+```lua
+core.animator.register_on_event(function(animator, object, event)
+    if event.name == "jump_start" then
+        minetest.sound_play("jump", {object = object})
+    elseif event.name == "land" then
+        minetest.sound_play("land", {object = object})
+    end
+end)
+```
+
+(Note: `core.animator.register_on_event` also works as the standard naming convention.)
+
+### Upgraded animation blending
+
+The core rendering engine (`irr/src/AnimatedMeshSceneNode.cpp`) has been modified to use **smoothstep easing** (ease-in/out) for animation blending, replacing the old linear blending. This makes transitions between animations feel significantly more fluid and natural.
+
+- **Automatic smoothing**: The Lua API (`set_animation` and `set_animation_clip`) now defaults to a `0.1s` blend time if none is specified. Existing mods immediately benefit from smoother transitions without any code changes.
+- **Humanoid logic**: The humanoid animator helper tracks state changes more accurately, specifically for jumping and landing, ensuring events fire at the correct moment.
 
 ### Humanoid helper
 
@@ -168,6 +308,99 @@ For skinned meshes (including glTF), `frame_blend` controls crossfade duration (
 
 `core.on_animation_end(object, cb)` (alias for `core.animator.on_animation_end`)
 - Calls `cb(object)` when the current non-looping animation is expected to end (computed from `ObjectRef:get_animation()`).
+
+## Physics and Movement Model
+
+A refined physics and movement model designed to provide a "snappy" and physical experience, heavily inspired by the feel of high-performance mobile voxel engines.
+
+### How it works
+
+#### 1. Physical gravity and jump
+
+- **True gravity (32.0 nodes/s²)**: The hidden "Factor of 2" engine hack has been removed. Gravity now behaves exactly as defined. At 32 nodes/s², falling is fast and "heavy," matching modern mobile voxel games.
+- **One-block jump (9.5 nodes/s)**: This value is specifically tuned to the 32.0 gravity. It allows the player to consistently clear a 1-block height with a small margin, reaching the top level of the adjacent block.
+
+#### 2. Responsive movement
+
+- **Friction (3.0 acceleration)**: By increasing ground acceleration to 3.0, the "ice-skating" feel is removed. The player starts and stops much faster, providing tight, responsive control.
+- **Air control (1.25 acceleration)**: Air acceleration is set to 1.25 to provide a balanced amount of mid-air control without feeling floaty.
+
+#### 3. Built-in sprint logic
+
+The engine now monitors your movement input magnitude (joystick push or key pressure):
+
+- **Trigger**: If input magnitude is ≥ 95% (fully pushed).
+- **Behavior**: The walking speed is automatically multiplied by 1.3x, resulting in a sprint speed of approximately 5.6 nodes/s.
+- **Internal**: This happens in the engine's `applyControl` step, so it works automatically for any input device reaching that threshold.
+
+#### 4. Specialized liquid physics
+
+The engine now differentiates between "Water-like" and "Lava-like" liquids:
+
+- **Standard liquids**: Uses `movement_liquid_sink` (0.4) and `fluidity` (0.2) for a sluggish swim.
+- **Lava physics** (`group:lava`): If a node is in the `lava` item group, the engine applies:
+  - **Exponential decay**: Velocity is killed rapidly every frame, making it feel like moving through thick liquid.
+  - **Constant sink**: A forced downward sink rate of 0.5 blocks per second prevents simply floating on the surface.
+
+#### 5. Advanced movement mechanics
+
+- **Ladder climbing**:
+  - **Fall clamp**: When on a ladder, your maximum downward speed is clamped to -0.15, creating a slow, controlled slide.
+  - **Forward boost**: If you press "Forward" while on a ladder, you get an upward boost matching your climb speed, allowing for faster ascending.
+- **Edge-grabbing (sneak)**: Instead of hitting an "invisible wall" at the edge of a block, the new logic reduces velocity by 50% per frame when you hit the sneak limit. This makes the player "slide" into the edge and "catch" it, creating a smoother edge-grab feel.
+
+### Default settings (`minetest.conf`)
+
+| Setting | Default | Description |
+|---|---|---|
+| `movement_gravity` | `32.0` | Global gravity (nodes/s²) |
+| `movement_speed_jump` | `9.5` | Initial upward velocity for jump |
+| `movement_speed_walk` | `4.3` | Baseline walking speed |
+| `movement_speed_crouch` | `1.3` | Speed while sneaking |
+| `movement_acceleration_default` | `3.0` | Ground friction/responsiveness |
+| `movement_acceleration_air` | `1.25` | Mid-air maneuverability |
+| `movement_liquid_sink` | `0.4` | Downward speed in water |
+| `movement_speed_climb` | `3.0` | Vertical ladder speed |
+
+### Lua API (`player:set_physics_override`)
+
+The standard Luanti API now hooks into these refined engine calculations:
+
+```lua
+player:set_physics_override({
+    speed = 1.0,                -- Multiplies walk/sprint
+    jump = 1.0,                 -- Multiplies jump speed
+    gravity = 1.0,              -- Multiplies gravity
+    speed_climb = 1.0,          -- Multiplies ladder speed
+    acceleration_default = 1.0  -- Multiplies ground friction
+})
+```
+
+### Node groups
+
+- `group:lava`: Adding this to a node definition automatically enables the high-viscosity "Lava Physics."
+- `group:disable_jump`: Prevents jumping while standing on or in the node.
+
+## Accessibility Sprint Toggle
+
+An accessibility setting that gates the engine's internal joystick-driven speed boost, allowing players who prefer a consistent walking speed to disable the automatic sprint.
+
+### How it works
+
+- **Logic gate**: The movement physics in `src/client/localplayer.cpp` have been modified. Previously, the engine hard-coded a 1.3x speed multiplier whenever the joystick magnitude reached 0.95 or higher. Now, this multiplier only activates if the new `accessibilitysprintenabled` setting is `true`.
+- **Reactive UI**: The toggle in the Accessibility menu under Movement updates the `PlayerSettings` struct in real-time. As soon as you toggle it, the engine immediately changes how it interprets your joystick input without needing a restart.
+- **Robustness**: The setting is registered in `src/defaultsettings.cpp`. Even if the setting is missing from a player's `minetest.conf` (e.g., after a settings reset), it defaults to `true` (original behavior) instead of causing a "Setting not found" crash.
+
+### API
+
+- **Lua API**: Access this setting in mods or the main menu using:
+  ```lua
+  core.settings:get_bool("accessibilitysprintenabled")
+  ```
+- **C++ API**: Within the engine, it is stored in the `LocalPlayer` settings:
+  ```cpp
+  player_settings.accessibility_sprint_enabled  // Boolean
+  ```
 
 ## Fog API (Lua)
 
@@ -211,3 +444,7 @@ Extended volumetric and height-based fog controls.
 - `params`:
   - `fog`: table (FogParams)
   - `boundary`: table (FogBoundaryParams)
+
+---
+- **More Soon!**
+- Latest Update: April, 27, 2026
