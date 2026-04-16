@@ -629,8 +629,8 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		updateMaterialType(false);
 
 		auto mesh = make_irr<scene::SMesh>();
-		f32 dx = BS * m_prop.visual_size.X / 2;
-		f32 dy = BS * m_prop.visual_size.Y / 2;
+		f32 dx = BS * m_prop.visual_size.X * m_prop.model_unit_scale.X / 2;
+		f32 dy = BS * m_prop.visual_size.Y * m_prop.model_unit_scale.Y / 2;
 		video::SColor c(0xFFFFFFFF);
 
 		video::S3DVertex vertices[4] = {
@@ -675,7 +675,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		m_meshnode->grab();
 		mesh->drop();
 
-		m_meshnode->setScale(m_prop.visual_size);
+		m_meshnode->setScale(m_prop.visual_size * m_prop.model_unit_scale);
 
 		setSceneNodeMaterials(m_meshnode);
 
@@ -696,7 +696,19 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 			m_animated_meshnode = m_smgr->addAnimatedMeshSceneNode(mesh, m_matrixnode);
 			m_animated_meshnode->grab();
 			mesh->drop(); // The scene node took hold of it
-			m_animated_meshnode->setScale(m_prop.visual_size);
+
+			v3f final_scale = m_prop.visual_size;
+			if (m_prop.auto_normalize || m_prop.target_height > 0.0f) {
+				const core::aabbox3d<f32> &box = mesh->getBoundingBox();
+				float model_height = box.MaxEdge.Y - box.MinEdge.Y;
+				if (m_prop.target_height > 0.0f && model_height > 0.001f) {
+					float s = (m_prop.target_height * BS) / model_height;
+					final_scale = v3f(s, s, s);
+				} else if (m_prop.auto_normalize) {
+					final_scale = v3f(BS, BS, BS);
+				}
+			}
+			m_animated_meshnode->setScale(final_scale * m_prop.model_unit_scale);
 
 			// set vertex colors to ensure alpha is set
 			setMeshColor(m_animated_meshnode->getMesh(), video::SColor(0xFFFFFFFF));
@@ -749,7 +761,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		m_wield_meshnode->setItem(item, m_client,
 			(m_prop.visual == OBJECTVISUAL_WIELDITEM));
 
-		m_wield_meshnode->setScale(m_prop.visual_size / 2.0f);
+		m_wield_meshnode->setScale(m_prop.visual_size * m_prop.model_unit_scale / 2.0f);
 		break;
 	} case OBJECTVISUAL_NODE: {
 		auto *mesh = generateNodeMesh(m_client, m_prop.node, m_meshnode_animation);
@@ -760,7 +772,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		m_meshnode->grab();
 		mesh->drop();
 
-		m_meshnode->setScale(m_prop.visual_size);
+		m_meshnode->setScale(m_prop.visual_size * m_prop.model_unit_scale);
 
 		setSceneNodeMaterials(m_meshnode);
 		break;
@@ -770,8 +782,8 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 
 		setSceneNodeMaterials(m_spritenode);
 
-		m_spritenode->setSize(v2f(m_prop.visual_size.X,
-				m_prop.visual_size.Y) * BS);
+		m_spritenode->setSize(v2f(m_prop.visual_size.X * m_prop.model_unit_scale.X,
+				m_prop.visual_size.Y * m_prop.model_unit_scale.Y) * BS);
 		setBillboardTextureMatrix(m_spritenode, 1, 1, 0, 0);
 
 		// This also serves as fallback for unknown visual types
@@ -1474,6 +1486,9 @@ bool GenericCAO::visualExpiryRequired(const ObjectProperties &new_) const
 		old.mesh != new_.mesh ||
 		old.visual != new_.visual ||
 		old.visual_size != new_.visual_size ||
+		old.model_unit_scale != new_.model_unit_scale ||
+		old.auto_normalize != new_.auto_normalize ||
+		old.target_height != new_.target_height ||
 		old.wield_item != new_.wield_item ||
 		old.colors != new_.colors ||
 		(uses_legacy_texture && old.textures != new_.textures);

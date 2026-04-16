@@ -778,24 +778,33 @@ void SelfType::MeshExtractor::loadAnimations()
 			const auto &keys = clip_keys.at(nodeIdx);
 
 			if (!keys.position.frames.empty()) {
-				for (const auto &f : keys.position.frames)
-					joint->keys.position.pushBack(offset + f.time, f.value, f.interpolate_to_next);
+				for (size_t i = 0; i < keys.position.frames.size(); ++i) {
+					const auto &f = keys.position.frames[i];
+					bool interp = f.interpolate_to_next && (i < keys.position.frames.size() - 1);
+					joint->keys.position.pushBack(offset + f.time, f.value, interp);
+				}
 			} else if (pos_any[nodeIdx]) {
-				joint->keys.position.pushBack(offset, rest.translation);
+				joint->keys.position.pushBack(offset, rest.translation, false);
 			}
 
 			if (!keys.rotation.frames.empty()) {
-				for (const auto &f : keys.rotation.frames)
-					joint->keys.rotation.pushBack(offset + f.time, f.value, f.interpolate_to_next);
+				for (size_t i = 0; i < keys.rotation.frames.size(); ++i) {
+					const auto &f = keys.rotation.frames[i];
+					bool interp = f.interpolate_to_next && (i < keys.rotation.frames.size() - 1);
+					joint->keys.rotation.pushBack(offset + f.time, f.value, interp);
+				}
 			} else if (rot_any[nodeIdx]) {
-				joint->keys.rotation.pushBack(offset, rest.rotation);
+				joint->keys.rotation.pushBack(offset, rest.rotation, false);
 			}
 
 			if (!keys.scale.frames.empty()) {
-				for (const auto &f : keys.scale.frames)
-					joint->keys.scale.pushBack(offset + f.time, f.value, f.interpolate_to_next);
+				for (size_t i = 0; i < keys.scale.frames.size(); ++i) {
+					const auto &f = keys.scale.frames[i];
+					bool interp = f.interpolate_to_next && (i < keys.scale.frames.size() - 1);
+					joint->keys.scale.pushBack(offset + f.time, f.value, interp);
+				}
 			} else if (scl_any[nodeIdx]) {
-				joint->keys.scale.pushBack(offset, rest.scale);
+				joint->keys.scale.pushBack(offset, rest.scale, false);
 			}
 		}
 

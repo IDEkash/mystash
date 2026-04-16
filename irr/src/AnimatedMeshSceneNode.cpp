@@ -73,7 +73,7 @@ f32 AnimatedMeshSceneNode::getFrameNr() const
 void AnimatedMeshSceneNode::buildFrameNr(u32 timeMs)
 {
 	auto advance = [](f32 &frame, f32 start, f32 end, f32 fps_ms, bool looping, u32 dt_ms) {
-		if (start == end || fps_ms == 0.f) {
+		if (std::abs(start - end) < 0.0001f || fps_ms == 0.f) {
 			frame = start;
 			return;
 		}
