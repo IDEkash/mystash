@@ -1,6 +1,8 @@
 # Fork APIs
 
-This fork adds Android `htmlview` (including headless workers + JSON helpers), extra animator helpers, glTF multi-clip animation support, an independent bone transform API, upgraded animation blending with smoothstep easing and event callbacks, a state-machine animation controller, a refined physics and movement model, and an accessibility sprint toggle.
+This fork adds Android `htmlview` (including headless workers + JSON helpers), extra animator helpers, glTF multi-clip animation support, an independent bone transform API with smooth network interpolation, a refined physics & movement model, an accessibility sprint toggle, a state-machine animation controller, and an upgraded animation system with easing and events.
+
+---
 
 ## Android: `htmlview` (Lua)
 
@@ -101,6 +103,8 @@ Workers still support `send`, `inject`, `navigate`, and `on_message`, but `displ
   - `visible`: boolean
   - `ready`: boolean (`true` after `onPageFinished`)
 
+---
+
 ## glTF multi-clip animation (Lua)
 
 glTF/GLB meshes can contain multiple animations. This fork loads each glTF `animations[i]` as a selectable clip.
@@ -133,6 +137,8 @@ glTF/GLB meshes can contain multiple animations. This fork loads each glTF `anim
 
 For skinned meshes (including glTF), `frame_blend` controls crossfade duration (seconds) when switching animations.
 
+---
+
 ## glTF inspection helpers (Lua)
 
 `core.gltf_get_animation_clips(path) -> list`
@@ -144,43 +150,7 @@ For skinned meshes (including glTF), `frame_blend` controls crossfade duration (
   - `bones`: `{ {node,name}, ... }` (joint nodes across skins)
   - `animations`: `{ {index,name,start,end,duration}, ... }`
 
-## Independent Bone Transform API (Lua)
-
-The independent bone transform API is fully implemented and available on all `ObjectRef` (players and entities). Each transform type (position, rotation, scale) is stored and synced independently — calling `setbonerotation` will only update the rotation and leave existing position or scale overrides untouched.
-
-### Setting transforms
-
-`ObjectRef:setboneposition(bone, position, opts?)`
-
-`ObjectRef:setbonerotation(bone, rotation, opts?)`
-
-`ObjectRef:setbonescale(bone, scale, opts?)`
-
-**Arguments:**
-
-- `position` / `rotation` / `scale`: Can be a table `{x=..., y=..., z=...}` or three separate numbers `x, y, z`. `setbonescale` also supports a single number for uniform scaling.
-- `opts` (optional): A table containing:
-  - `absolute`: boolean (default `false`). If `true`, the override replaces the animation transform entirely. If `false`, it is added on top of the current animation (ideal for head look and other additive overrides).
-  - `interpolation`: float (default `0.0`). The time in seconds to smoothly transition to the new transform value.
-
-### Querying transforms
-
-`ObjectRef:getboneposition(bone)`
-
-`ObjectRef:getbonerotation(bone)`
-
-`ObjectRef:getbonescale(bone)`
-
-Each returns a single vector (`{x,y,z}`) representing the current override for that specific transform.
-
-### How it works
-
-- **Independence**: Each transform (position, rotation, scale) is stored and synced independently. Calling `setbonerotation` only updates the rotation; existing position or scale overrides are left untouched.
-- **Client-side blending**: Overrides are applied in the client-side rendering loop after glTF animation blending has occurred. This ensures that animation clips (like walking) do not reset manual overrides (like head looking) every frame.
-- **Synchronization**: Changes made on the server are automatically serialized and sent to all observing clients.
-- **Euler persistence**: The API stores the exact Euler angles you provide, avoiding gimbal lock or "twisting" issues that often occur when converting back and forth between quaternions and Euler angles.
-
-This implementation enables robust Minecraft-style head movement, procedural animations, and modular entity attachments.
+---
 
 ## Lua Animator (`core.animator`)
 
@@ -192,27 +162,25 @@ This implementation enables robust Minecraft-style head movement, procedural ani
 
 ### Global animator event bus
 
-`core.animator.register_on_event(cb)`
-
+`core.animator.register_on_event(cb)` (alias: `core.animator.registeronevent`)
 `core.animator.unregister_on_event(cb)`
 - `cb(animator, object, event_payload)` called for every emitted animation event.
 
-#### Event types
+### Event types
 
-The `event_payload` table contains:
+The event table passed to your callback contains:
 
 - `event.name`: The type of event.
   - `"jump_start"`: Fired when a humanoid begins a jump.
-  - `"land"`: Fired when a humanoid finishes a jump and returns to the ground (idle/walk/run).
+  - `"land"`: Fired when a humanoid finishes a jump and returns to the ground.
   - `"attack_start"`: Fired when an attack animation begins.
-  - `"transition"`: A generic event fired whenever the animator switches states.
+  - `"transition"`: Fired whenever the animator switches states.
 - `event.from`: The state being left.
 - `event.to`: The state being entered.
 - `event.blend`: The duration of the blend.
 - `event.ctx`: The animator context at the time of the transition.
 
-#### Example: Playing sounds on animation events
-
+**Example: Playing sounds on animation events**
 ```lua
 core.animator.registeronevent(function(animator, object, event)
     if event.name == "jump_start" then
@@ -222,15 +190,6 @@ core.animator.registeronevent(function(animator, object, event)
     end
 end)
 ```
-
-(Note: `core.animator.register_on_event` also works as the standard naming convention.)
-
-### Upgraded animation blending
-
-The core rendering engine (`irr/src/AnimatedMeshSceneNode.cpp`) has been modified to use **smoothstep easing** (ease-in/out) for animation blending, replacing the old linear blending. This makes transitions between animations feel significantly more fluid and natural.
-
-- **Automatic smoothing**: The Lua API (`set_animation` and `set_animation_clip`) now defaults to a `0.1s` blend time if none is specified. Existing mods immediately benefit from smoother transitions without any code changes.
-- **Humanoid logic**: The humanoid animator helper tracks state changes more accurately, specifically for jumping and landing, ensuring events fire at the correct moment.
 
 ### Humanoid helper
 
@@ -243,24 +202,44 @@ The core rendering engine (`irr/src/AnimatedMeshSceneNode.cpp`) has been modifie
 `core.on_animation_end(object, cb)` (alias for `core.animator.on_animation_end`)
 - Calls `cb(object)` when the current non-looping animation is expected to end (computed from `ObjectRef:get_animation()`).
 
-## State-Machine Animation Controller (Lua)
+---
 
-A powerful state-machine animation system that allows defining named animation states with automatic conditional transitions and synchronization callbacks.
+## Animation System Upgrade
+
+The engine-level animation system has been upgraded for smoother, more natural transitions.
+
+- **Smoothstep Easing**: The core rendering engine (`irr/src/AnimatedMeshSceneNode.cpp`) now uses smoothstep (ease-in/out) blending instead of linear blending during animation transitions.
+- **Automatic Blend Default**: `set_animation` and `set_animation_clip` now default to a `0.1s` blend time if none is specified. Existing mods automatically benefit without any code changes.
+- **Improved Humanoid Logic**: The humanoid animator helper more accurately tracks state changes for jumping and landing, ensuring events fire at the correct moment.
+
+---
+
+## State-Machine Animation Controller
+
+A powerful Lua-side state-machine animation system available on all entities.
 
 ### Key features
 
-1. **State machine**: Define named states with frame ranges (or `frames` alias), speed, and looping.
-2. **Conditional transitions**: Automatically switch states using Lua functions that evaluate object context (e.g., velocity, controls).
-3. **Synchronization callbacks**: New `core.animator` methods (`on_animation_start`, `on_animation_end`, etc.) allow syncing sounds or effects perfectly with animation states.
-4. **Smooth blending**: Leverages the engine's animation blending (quaternion SLERP) during state transitions.
-5. **Zero-overhead integration**: Uses a weak-keyed registry and metatable patching to add functionality to `ObjectRef` without breaking existing mod compatibility. Manual calls to `set_animation` correctly take precedence.
+- **State Machine**: Define named states with frame ranges (or `frames` alias), speed, and looping.
+- **Conditional Transitions**: Automatically switch states using Lua functions that evaluate object context (e.g., velocity, controls).
+- **Synchronization Callbacks**: `core.animator` methods (`on_animation_start`, `on_animation_end`, etc.) allow syncing sounds or effects perfectly with animation states.
+- **Smooth Blending**: Leverages the engine's animation blending (quaternion SLERP) during state transitions.
+- **Zero-Overhead Integration**: Uses a weak-keyed registry and metatable patching to add functionality to `ObjectRef` without breaking existing mod compatibility. Manual calls to `set_animation` correctly take precedence.
 
 ### API
 
+`entity:set_animation_controller(def)`
+- `def.states`: table of named states, each with:
+  - `frames` / `frame_range`: `{start, end}`
+  - `speed`: number
+  - `loop`: boolean
+- `def.transitions`: list of `{from, to, condition}` entries where `condition(ctx) -> boolean`.
+
+**Example**
 ```lua
 entity:set_animation_controller({
     states = {
-        idle = {frames={0, 20}, speed=30, loop=true},
+        idle   = {frames={0,  20}, speed=30, loop=true},
         attack = {frames={21, 40}, speed=60, loop=false}
     },
     transitions = {
@@ -269,45 +248,125 @@ entity:set_animation_controller({
 })
 ```
 
-## Physics and Movement Model
+---
 
-A refined physics and movement model designed to provide a "snappy" and physical experience, heavily inspired by the feel of high-performance mobile voxel engines.
+## Independent Bone Transform API
+
+Available on all `ObjectRef` (players and entities). Underscored and non-underscored method names both work.
+
+### Setting transforms
+
+`object:set_bone_position(bone, position, opts?)`
+`object:set_bone_rotation(bone, rotation, opts?)`
+`object:set_bone_scale(bone, scale, opts?)`
+
+- `position` / `rotation` / `scale`: `{x=..., y=..., z=...}` or three separate numbers. `set_bone_scale` also accepts a single number for uniform scaling.
+- `opts` (optional):
+  - `absolute`: boolean (default `false`). If `true`, the override replaces the animation transform. If `false`, it is added on top (ideal for head-look).
+  - `interpolation`: float (default `0.0`). Seconds to smoothly transition to the new transform.
+
+### Querying transforms
+
+`object:get_bone_position(bone) -> vector`
+`object:get_bone_rotation(bone) -> vector`
+`object:get_bone_scale(bone) -> vector`
+
+Each returns the current override for that specific transform as `{x, y, z}`.
 
 ### How it works
 
-#### 1. Physical gravity and jump
+- **Independence**: Each transform (position, rotation, scale) is stored and synced independently. Calling `set_bone_rotation` leaves existing position or scale overrides untouched.
+- **Client-side blending**: Overrides are applied after glTF animation blending, so animation clips (e.g., walking) do not reset manual overrides (e.g., head-look) every frame.
+- **Synchronization**: Server-side changes are automatically serialized and sent to all observing clients.
+- **Euler persistence**: Exact Euler angles are stored, avoiding gimbal lock or "twisting" issues from quaternion round-trips.
 
-- **True gravity (32.0 nodes/s²)**: The hidden "Factor of 2" engine hack has been removed. Gravity now behaves exactly as defined. At 32 nodes/s², falling is fast and "heavy," matching modern mobile voxel games.
-- **One-block jump (9.5 nodes/s)**: This value is specifically tuned to the 32.0 gravity. It allows the player to consistently clear a 1-block height with a small margin, reaching the top level of the adjacent block.
+---
 
-#### 2. Responsive movement
+## Smooth Bone Interpolation
 
-- **Friction (3.0 acceleration)**: By increasing ground acceleration to 3.0, the "ice-skating" feel is removed. The player starts and stops much faster, providing tight, responsive control.
-- **Air control (1.25 acceleration)**: Air acceleration is set to 1.25 to provide a balanced amount of mid-air control without feeling floaty.
+Network-transparent, render-rate bone smoothing built on top of the Independent Bone Transform API.
 
-#### 3. Built-in sprint logic
+### How it works
 
-The engine now monitors your movement input magnitude (joystick push or key pressure):
+- **Client-side update tracking**: The client records the arrival time of each bone update packet and uses an Exponential Moving Average (EMA) to maintain a stable update interval (e.g., ~0.05 s at 20 Hz server tick rate).
+- **Render-rate smoothing**: Instead of snapping to new values on each packet, the engine interpolates bone transforms every frame (~60 fps) using Quaternion SLERP for rotations, ensuring perfectly smooth angular transitions.
+- **Prediction & jitter buffering**: Temporal extrapolation continues movement up to 150% past the last received value if the next packet is late, eliminating the stutter common with 20 Hz updates. A damping factor of `0.8×` absorbs small delivery variations without visible snapping.
+- **Animator blending**: Interpolation is applied after the base animation, so smooth head tracking correctly blends with existing animations (walking, attacking, idle) unless `absolute = true` is used.
 
-- **Trigger**: If input magnitude is ≥ 95% (fully pushed).
-- **Behavior**: The walking speed is automatically multiplied by 1.3x, resulting in a sprint speed of approximately 5.6 nodes/s.
-- **Internal**: This happens in the engine's `applyControl` step, so it works automatically for any input device reaching that threshold.
+### API
 
-#### 4. Specialized liquid physics
+The `interpolate` flag is available on all bone-related `ObjectRef` methods.
 
-The engine now differentiates between "Water-like" and "Lava-like" liquids:
+#### `set_bone_rotation` / `set_bone_position` / `set_bone_scale`
 
-- **Standard liquids**: Uses `movement_liquid_sink` (0.4) and `fluidity` (0.2) for a sluggish swim.
-- **Lava physics** (`group:lava`): If a node is in the `lava` item group, the engine applies:
-  - **Exponential decay**: Velocity is killed rapidly every frame, making it feel like moving through thick liquid.
-  - **Constant sink**: A forced downward sink rate of 0.5 blocks per second prevents simply floating on the surface.
+Pass `interpolate = true` in the options table to enable client-side smoothing.
 
-#### 5. Advanced movement mechanics
+```lua
+-- Smooth head tracking
+entity:set_bone_rotation("head", {x=pitch, y=yaw, z=0}, {
+    interpolate = true,   -- enables smooth client-side smoothing
+    absolute    = false,  -- false = relative to animation, true = override
+})
+```
 
-- **Ladder climbing**:
-  - **Fall clamp**: When on a ladder, your maximum downward speed is clamped to -0.15, creating a slow, controlled slide.
-  - **Forward boost**: If you press "Forward" while on a ladder, you get an upward boost matching your climb speed, allowing for faster ascending.
-- **Edge-grabbing (sneak)**: Instead of hitting an "invisible wall" at the edge of a block, the new logic reduces velocity by 50% per frame when you hit the sneak limit. This makes the player "slide" into the edge and "catch" it, creating a smoother edge-grab feel.
+#### `set_bone_override`
+
+For complex setups, the flag is available per-property.
+
+```lua
+entity:set_bone_override("head", {
+    rotation = {
+        vec         = {x=pitch, y=yaw, z=0},
+        interpolate = true,
+        absolute    = false,
+    },
+    position = {
+        vec         = {x=0, y=1, z=0},
+        interpolate = true,
+    }
+})
+```
+
+#### `get_bone_override`
+
+Returned tables now include the `interpolate` field so you can inspect the current smoothing state.
+
+```lua
+local override = entity:get_bone_override("head")
+print(override.rotation.interpolate)  -- true or false
+```
+
+### Compatibility
+
+- **Legacy support**: Omitting `interpolate` or setting it to `false` falls back to the original behavior (duration-based interpolation or instant snapping). Existing mods are unaffected.
+- **Zero network overhead**: Flags are packed into existing protocol bytes — no increase in network traffic.
+
+---
+
+## Physics & Movement Model
+
+A refined physics model inspired by high-performance mobile voxel engines, targeting a snappy and physical feel.
+
+### How it works
+
+**Physical gravity & jump**
+- Gravity is `32.0 nodes/s²` — the hidden "Factor of 2" engine hack has been removed. Falling is fast and heavy.
+- Jump speed is `9.5 nodes/s`, tuned to clear exactly one block with a small margin.
+
+**Responsive movement**
+- Ground acceleration (`3.0`) removes the "ice-skating" feel — the player starts and stops quickly.
+- Air acceleration (`1.25`) provides balanced mid-air control without feeling floaty.
+
+**Built-in sprint logic**
+- If joystick / key input magnitude reaches ≥ 95% (fully pushed), walking speed is automatically multiplied by `1.3×` (~5.6 nodes/s sprint). Handled in the engine's `applyControl` step, so it works for any input device.
+
+**Specialized liquid physics**
+- Standard liquids: uses `movement_liquid_sink` (`0.4`) and fluidity (`0.2`) for a sluggish swim.
+- Lava (`group:lava`): exponential velocity decay (`e^{-5t}`) per frame plus a forced downward sink of `0.5 blocks/s`.
+
+**Advanced movement mechanics**
+- *Ladder climbing*: Downward speed is clamped to `-0.15` for a controlled slide. Pressing Forward grants an upward boost matching climb speed.
+- *Edge-grabbing (sneak)*: Instead of an invisible wall, velocity is reduced by 50% per frame at the sneak limit, creating a smooth edge-grab.
 
 ### Default settings (`minetest.conf`)
 
@@ -317,50 +376,53 @@ The engine now differentiates between "Water-like" and "Lava-like" liquids:
 | `movement_speed_jump` | `9.5` | Initial upward velocity for jump |
 | `movement_speed_walk` | `4.3` | Baseline walking speed |
 | `movement_speed_crouch` | `1.3` | Speed while sneaking |
-| `movement_acceleration_default` | `3.0` | Ground friction/responsiveness |
+| `movement_acceleration_default` | `3.0` | Ground friction / responsiveness |
 | `movement_acceleration_air` | `1.25` | Mid-air maneuverability |
 | `movement_liquid_sink` | `0.4` | Downward speed in water |
 | `movement_speed_climb` | `3.0` | Vertical ladder speed |
 
 ### Lua API (`player:set_physics_override`)
 
-The standard Luanti API now hooks into these refined engine calculations:
-
 ```lua
 player:set_physics_override({
-    speed = 1.0,                -- Multiplies walk/sprint
-    jump = 1.0,                 -- Multiplies jump speed
-    gravity = 1.0,              -- Multiplies gravity
-    speed_climb = 1.0,          -- Multiplies ladder speed
-    acceleration_default = 1.0  -- Multiplies ground friction
+    speed                = 1.0,  -- Multiplies walk/sprint
+    jump                 = 1.0,  -- Multiplies jump speed
+    gravity              = 1.0,  -- Multiplies gravity
+    speed_climb          = 1.0,  -- Multiplies ladder speed
+    acceleration_default = 1.0   -- Multiplies ground friction
 })
 ```
 
 ### Node groups
 
-- `group:lava`: Adding this to a node definition automatically enables the high-viscosity "Lava Physics."
-- `group:disable_jump`: Prevents jumping while standing on or in the node.
+- `group:lava` — Enables high-viscosity lava physics on a node.
+- `group:disable_jump` — Prevents jumping while standing on or in the node.
+
+---
 
 ## Accessibility Sprint Toggle
 
-An accessibility setting that gates the engine's internal joystick-driven speed boost, allowing players who prefer a consistent walking speed to disable the automatic sprint.
+Allows players to disable the automatic joystick-driven sprint.
 
 ### How it works
 
-- **Logic gate**: The movement physics in `src/client/localplayer.cpp` have been modified. Previously, the engine hard-coded a 1.3x speed multiplier whenever the joystick magnitude reached 0.95 or higher. Now, this multiplier only activates if the new `accessibilitysprintenabled` setting is `true`.
-- **Reactive UI**: The toggle in the Accessibility menu under Movement updates the `PlayerSettings` struct in real-time. As soon as you toggle it, the engine immediately changes how it interprets your joystick input without needing a restart.
-- **Robustness**: The setting is registered in `src/defaultsettings.cpp`. Even if the setting is missing from a player's `minetest.conf` (e.g., after a settings reset), it defaults to `true` (original behavior) instead of causing a "Setting not found" crash.
+- The `1.3×` speed multiplier in `src/client/localplayer.cpp` now only activates when `accessibilitysprintenabled` is `true`.
+- The toggle in the **Accessibility → Movement** menu updates `PlayerSettings` in real-time — no restart required.
+- The setting is registered in `src/defaultsettings.cpp` and defaults to `true` (preserving original behavior when missing from `minetest.conf`).
 
 ### API
 
-- **Lua API**: Access this setting in mods or the main menu using:
-  ```lua
-  core.settings:get_bool("accessibilitysprintenabled")
-  ```
-- **C++ API**: Within the engine, it is stored in the `LocalPlayer` settings:
-  ```cpp
-  player_settings.accessibility_sprint_enabled  // Boolean
-  ```
+**Lua**
+```lua
+core.settings:get_bool("accessibilitysprintenabled")
+```
+
+**C++ (engine internals)**
+```cpp
+player_settings.accessibility_sprint_enabled  // bool
+```
+
+---
 
 ## Fog API (Lua)
 
