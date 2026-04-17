@@ -730,9 +730,12 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 					}
 
 					if (auto *bone = m_animated_meshnode->getJointNode(it->first.c_str())) {
-						bone->setPosition(props.getPosition(bone->getPosition()));
-						bone->setRotation(props.getRotationEulerDeg(bone->getRotation()));
-						bone->setScale(props.getScale(bone->getScale()));
+						bone->setVisible(!props.hidden);
+						if (!props.hidden) {
+							bone->setPosition(props.getPosition(bone->getPosition()));
+							bone->setRotation(props.getRotationEulerDeg(bone->getRotation()));
+							bone->setScale(props.getScale(bone->getScale()));
+						}
 					}
 					++it;
 				}
@@ -1714,6 +1717,13 @@ void GenericCAO::processMessage(const std::string &data)
 			props.position.absolute = (absoluteFlag & 1) > 0;
 			props.rotation.absolute = (absoluteFlag & 2) > 0;
 			props.scale.absolute = (absoluteFlag & 4) > 0;
+			props.hidden = (absoluteFlag & 8) > 0;
+
+			if (canRead(is)) {
+				props.pos_smooth = readF32(is);
+				props.rot_smooth = readF32(is);
+				props.scale_smooth = readF32(is);
+			}
 		}
 		m_bone_override[bone] = props;
 	} else if (cmd == AO_CMD_ATTACH_TO) {

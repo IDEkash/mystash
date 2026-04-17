@@ -142,6 +142,12 @@ private:
 	// set_bone_scale(self, bone, x, y, z, opts?)
 	static int l_set_bone_scale(lua_State *L);
 
+	// set_part_visible(self, bone, visible)
+	static int l_set_part_visible(lua_State *L);
+
+	// set_part_smooth(self, bone, smooth_table)
+	static int l_set_part_smooth(lua_State *L);
+
 	// get_bone_position(self, bone)
 	static int l_get_bone_position(lua_State *L);
 
