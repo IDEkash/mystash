@@ -136,10 +136,10 @@ function ai.update_perception(obj, state, dtime)
 			local t_pos = target:get_pos()
 			local dist = vector.distance(my_pos, t_pos)
 
-			-- Range detection (e.g. hearing/smell)
+			-- Range detection
 			local detected = dist <= range
 
-			-- Vision detection (FOV + LOS)
+			-- Vision detection
 			local visible = false
 			if dist <= vision.distance then
 				local to_target = vector.direction(my_pos, t_pos)
@@ -180,7 +180,6 @@ function ai.update_perception(obj, state, dtime)
 	p.detected_targets = current_detected
 	p.visible_targets = current_visible
 
-	-- Sync to memory for modder convenience
 	state.memory.detected_targets = current_detected
 	state.memory.visible_targets = current_visible
 end
@@ -190,7 +189,6 @@ local function draw_debug(obj, state)
 	local pos = obj:get_pos()
 	if not pos then return end
 
-	-- Visualization
 	local p = state.perception
 	if p.sight_enabled then
 		core.add_particle({
@@ -201,10 +199,6 @@ local function draw_debug(obj, state)
 			texture = "heart.png^[colorize:#00FF00:127",
 			glow = 10,
 		})
-	end
-
-	if state.current_goal then
-		-- Debug string could be sent via chat or displayed in nametag
 	end
 end
 
@@ -261,11 +255,9 @@ local function update_entity_ai(obj, dtime)
 	local state = get_or_create_ai_state(obj)
 	local now = core.get_gametime()
 
-	-- 1. Updates
 	ai.update_perception(obj, state, dtime)
 	update_path_execution(obj, state, dtime)
 
-	-- 2. Interrupts
 	if state.current_goal and state.current_goal.interrupt then
 		if state.current_goal.interrupt(obj) then
 			if state.current_goal.on_end then
@@ -275,7 +267,6 @@ local function update_entity_ai(obj, dtime)
 		end
 	end
 
-	-- 3. Goal Selection
 	if not state.current_goal or (now - state.last_eval_time >= state.eval_interval) then
 		state.last_eval_time = now
 
@@ -299,17 +290,13 @@ local function update_entity_ai(obj, dtime)
 
 				if condition_value > 0 then
 					local score = (goal.priority or 1) * condition_value
-
-					-- Multipliers
 					local modifiers = state.state_modifiers[state.behavior_state]
 					if modifiers and modifiers[goal.type] then
 						score = score * modifiers[goal.type]
 					end
-
 					if goal.trait and state.traits[goal.trait] then
 						score = score * state.traits[goal.trait]
 					end
-
 					if goal.score then
 						score = score * goal.score(obj)
 					end
@@ -334,10 +321,8 @@ local function update_entity_ai(obj, dtime)
 		end
 	end
 
-	-- 4. Execution
 	if state.current_goal then
 		local goal = state.current_goal
-
 		if goal.duration and (now - state.goal_start_time > goal.duration) then
 			if goal.on_end then goal.on_end(obj, "completed") end
 			if goal.reward then goal.reward(obj) end
@@ -353,12 +338,12 @@ local function update_entity_ai(obj, dtime)
 		if action then result = action(obj, goal, dtime) end
 		if goal.on_tick then goal.on_tick(obj, dtime) end
 
-		if result == true then -- Completed
+		if result == true then
 			if goal.on_end then goal.on_end(obj, "completed") end
 			if goal.reward then goal.reward(obj) end
 			if goal.cooldown then state.cooldowns[goal] = now + goal.cooldown end
 			state.current_goal = nil
-		elseif result == false then -- Failed
+		elseif result == false then
 			if goal.on_end then goal.on_end(obj, "failed") end
 			if goal.penalty then goal.penalty(obj) end
 			if goal.cooldown then state.cooldowns[goal] = now + goal.cooldown end
@@ -383,26 +368,139 @@ local function get_min_dist_to_player(pos)
 	return min_dist
 end
 
+local patched_metatables = {}
+local function patch_object_metatable(obj)
+	local mt = getmetatable(obj)
+	if not mt or patched_metatables[mt] then return end
+	patched_metatables[mt] = true
+
+	local old_index = mt.__index
+	local ai_methods = {
+		set_state = function(self, behavior_state)
+			get_or_create_ai_state(self).behavior_state = behavior_state
+		end,
+		get_state = function(self)
+			local state = entity_ai_states[self]
+			return state and state.behavior_state or "idle"
+		end,
+		set_state_modifiers = function(self, modifiers)
+			get_or_create_ai_state(self).state_modifiers = modifiers
+		end,
+		set_goals = function(self, goals)
+			get_or_create_ai_state(self).goals = goals
+		end,
+		get_goals = function(self)
+			local state = entity_ai_states[self]
+			return state and state.goals
+		end,
+		set_sight = function(self, enabled)
+			get_or_create_ai_state(self).perception.sight_enabled = enabled
+		end,
+		has_sight = function(self)
+			local state = entity_ai_states[self]
+			return state and state.perception.sight_enabled
+		end,
+		set_detection_range = function(self, range)
+			get_or_create_ai_state(self).perception.detection_range = range
+		end,
+		set_vision = function(self, vision_def)
+			get_or_create_ai_state(self).perception.vision = vision_def
+		end,
+		set_los_check = function(self, enabled)
+			get_or_create_ai_state(self).perception.los_check = enabled
+		end,
+		get_memory = function(self)
+			local state = entity_ai_states[self]
+			return state and state.memory
+		end,
+		get_traits = function(self)
+			local state = entity_ai_states[self]
+			return state and state.traits
+		end,
+		set_trait = function(self, trait, value)
+			get_or_create_ai_state(self).traits[trait] = value
+		end,
+		get_perception = function(self)
+			local state = entity_ai_states[self]
+			return state and state.perception
+		end,
+		goto_pos = function(self, pos)
+			local pe = get_or_create_ai_state(self).path_execution
+			pe.target_pos = pos
+			pe.current_path = nil
+		end,
+		stop_moving = function(self)
+			local pe = get_or_create_ai_state(self).path_execution
+			pe.target_pos = nil
+			pe.current_path = nil
+			self:set_velocity({x=0, y=0, z=0})
+		end,
+		can_see = function(self, target)
+			local state = entity_ai_states[self]
+			if not state then return false end
+			local p = state.perception
+			if type(target) == "string" then
+				for t, _ in pairs(p.visible_targets) do
+					if (t:is_player() and target == "player") or
+					   (not t:is_player() and t:get_luaentity() and t:get_luaentity().name == target) then
+						return true
+					end
+				end
+				return false
+			else
+				return p.visible_targets[target] == true
+			end
+		end,
+		add_buff = function(self, name, duration) end,
+		add_status = function(self, name, duration) end,
+	}
+
+	local old_findpath = mt.findpath
+	ai_methods.findpath = function(self, targetpos, params)
+		params = params or {}
+		if params.penalties == true then
+			local p_table = {}
+			for name, def in pairs(ai.node_penalties) do p_table[name] = def.penalty end
+			params.penalties = p_table
+		end
+		if old_findpath then return old_findpath(self, targetpos, params) end
+	end
+
+	for k, v in pairs(ai_methods) do
+		mt[k] = v
+	end
+
+	mt.__index = function(self, key)
+		if key == "memory" then return ai_methods.get_memory(self) end
+		if key == "traits" then return ai_methods.get_traits(self) end
+		if key == "perception" then return ai_methods.get_perception(self) end
+
+		if type(old_index) == "function" then
+			return old_index(self, key)
+		elseif type(old_index) == "table" then
+			return old_index[key]
+		end
+	end
+end
+
 local staggered_counter = 0
 core.register_globalstep(function(dtime)
 	staggered_counter = staggered_counter + 1
-
 	for _, player in ipairs(core.get_connected_players()) do
+		patch_object_metatable(player)
 		ai.process_node_penalties(player)
 	end
 
 	local i = 0
 	for obj, state in pairs(entity_ai_states) do
 		if obj:is_valid() then
-			state.accumulated_dt = state.accumulated_dt + dtime
-
+			patch_object_metatable(obj)
+			state.accumulated_dt = (state.accumulated_dt or 0) + dtime
 			local pos = obj:get_pos()
 			local dist = pos and get_min_dist_to_player(pos) or 0
-
 			local skip_ticks = 3
 			if dist > 100 then skip_ticks = 20
 			elseif dist > 50 then skip_ticks = 10 end
-
 			if (i + staggered_counter) % skip_ticks == 0 then
 				update_entity_ai(obj, state.accumulated_dt)
 				state.accumulated_dt = 0
@@ -414,111 +512,16 @@ core.register_globalstep(function(dtime)
 	end
 end)
 
--- ObjectRef API Extension
-local function patch_object_metatable(mt)
-	if not mt then return end
+core.register_on_joinplayer(function(player)
+	patch_object_metatable(player)
+end)
 
-	mt.set_state = function(self, behavior_state)
-		get_or_create_ai_state(self).behavior_state = behavior_state
+local old_register_entity = core.register_entity
+core.register_entity = function(name, prototype)
+	local old_on_activate = prototype.on_activate
+	prototype.on_activate = function(self, staticdata, dtime_s)
+		patch_object_metatable(self.object)
+		if old_on_activate then return old_on_activate(self, staticdata, dtime_s) end
 	end
-	mt.get_state = function(self)
-		local state = entity_ai_states[self]
-		return state and state.behavior_state or "idle"
-	end
-	mt.set_state_modifiers = function(self, modifiers)
-		get_or_create_ai_state(self).state_modifiers = modifiers
-	end
-	mt.set_goals = function(self, goals)
-		get_or_create_ai_state(self).goals = goals
-	end
-	mt.get_goals = function(self)
-		local state = entity_ai_states[self]
-		return state and state.goals
-	end
-	mt.set_sight = function(self, enabled)
-		get_or_create_ai_state(self).perception.sight_enabled = enabled
-	end
-	mt.has_sight = function(self)
-		local state = entity_ai_states[self]
-		return state and state.perception.sight_enabled
-	end
-	mt.set_detection_range = function(self, range)
-		get_or_create_ai_state(self).perception.detection_range = range
-	end
-	mt.set_vision = function(self, vision_def)
-		get_or_create_ai_state(self).perception.vision = vision_def
-	end
-	mt.set_los_check = function(self, enabled)
-		get_or_create_ai_state(self).perception.los_check = enabled
-	end
-	mt.get_memory = function(self)
-		local state = entity_ai_states[self]
-		return state and state.memory
-	end
-	mt.get_traits = function(self)
-		local state = entity_ai_states[self]
-		return state and state.traits
-	end
-	mt.set_trait = function(self, trait, value)
-		get_or_create_ai_state(self).traits[trait] = value
-	end
-	mt.get_perception = function(self)
-		local state = entity_ai_states[self]
-		return state and state.perception
-	end
-	mt.goto_pos = function(self, pos)
-		local pe = get_or_create_ai_state(self).path_execution
-		pe.target_pos = pos
-		pe.current_path = nil
-	end
-	mt.stop_moving = function(self)
-		local pe = get_or_create_ai_state(self).path_execution
-		pe.target_pos = nil
-		pe.current_path = nil
-		self:set_velocity({x=0, y=0, z=0})
-	end
-	mt.can_see = function(self, target)
-		local state = entity_ai_states[self]
-		if not state then return false end
-		if type(target) == "string" then
-			for t, _ in pairs(state.perception.visible_targets) do
-				if (t:is_player() and target == "player") or
-				   (not t:is_player() and t:get_luaentity() and t:get_luaentity().name == target) then
-					if state.perception.detected_targets[t] then return true end
-				end
-			end
-			return false
-		else
-			return state.perception.visible_targets[target] == true and state.perception.detected_targets[target] == true
-		end
-	end
-
-	local old_findpath = mt.findpath
-	mt.findpath = function(self, targetpos, params)
-		params = params or {}
-		if params.penalties == true then
-			local p_table = {}
-			for name, def in pairs(ai.node_penalties) do p_table[name] = def.penalty end
-			params.penalties = p_table
-		end
-		if old_findpath then return old_findpath(self, targetpos, params) end
-	end
-
-	if not mt.add_buff then mt.add_buff = function(self, name, duration) end end
-	if not mt.add_status then mt.add_status = function(self, name, duration) end end
-
-	-- Expose .memory, .traits, .perception as fields
-	local methods = {}
-	for k, v in pairs(mt) do methods[k] = v end
-	mt.__index = function(self, key)
-		if key == "memory" then return mt.get_memory(self) end
-		if key == "traits" then return mt.get_traits(self) end
-		if key == "perception" then return mt.get_perception(self) end
-		return methods[key]
-	end
-end
-
-local ObjectRef_mt = debug.getregistry().ObjectRef
-if ObjectRef_mt then
-	patch_object_metatable(ObjectRef_mt)
+	return old_register_entity(name, prototype)
 end
