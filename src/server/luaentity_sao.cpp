@@ -217,6 +217,8 @@ void LuaEntitySAO::step(float dtime, bool send_recommended)
 		m_env->getScriptIface()->luaentity_Step(m_id, dtime, moveresult_p);
 	}
 
+	stepAnimation(dtime);
+
 	if (!send_recommended)
 		return;
 
@@ -327,7 +329,8 @@ u32 LuaEntitySAO::punch(v3f dir,
 		const ToolCapabilities &toolcap,
 		ServerActiveObject *puncher,
 		float time_from_last_punch,
-		u16 initial_wear)
+		u16 initial_wear,
+		const std::string &hitzone)
 {
 	if (!m_registered) {
 		// Delete unknown LuaEntities when punched
@@ -348,8 +351,19 @@ u32 LuaEntitySAO::punch(v3f dir,
 			time_from_last_punch,
 			initial_wear);
 
+	float damage_multiplier = 1.0f;
+	if (!hitzone.empty()) {
+		for (const auto &hz : m_prop.hitzones) {
+			if (hz.part == hitzone) {
+				damage_multiplier = hz.damage_multiplier;
+				break;
+			}
+		}
+	}
+	s32 damage = result.did_punch ? (s32)(result.damage * damage_multiplier) : 0;
+
 	bool damage_handled = m_env->getScriptIface()->luaentity_Punch(m_id, puncher,
-			time_from_last_punch, toolcap, dir, result.did_punch ? result.damage : 0);
+			time_from_last_punch, toolcap, dir, damage, hitzone);
 
 	if (!damage_handled) {
 		if (result.did_punch) {

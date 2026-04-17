@@ -32,7 +32,8 @@ public:
 	u32 punch(v3f dir, const ToolCapabilities &toolcap,
 			ServerActiveObject *puncher = nullptr,
 			float time_from_last_punch = 1000000.0f,
-			u16 initial_wear = 0);
+			u16 initial_wear = 0,
+			const std::string &hitzone = "");
 
 	void rightClick(ServerActiveObject *clicker);
 

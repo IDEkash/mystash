@@ -485,6 +485,45 @@ void ClientEnvironment::getSelectedActiveObjects(
 					(current_intersection - shootline_on_map.start).getLengthSQ(), pointable);
 			}
 		}
+
+		// Hit zone detection
+		if (gcao && !gcao->getProperties().hitzones.empty()) {
+			scene::AnimatedMeshSceneNode *animated_node = gcao->getAnimatedMeshSceneNode();
+			for (const auto &hz : gcao->getProperties().hitzones) {
+				aabb3f hz_box = hz.box;
+				v3f hz_pos = obj->getPosition();
+				core::quaternion hz_rot;
+
+				if (animated_node && !hz.part.empty()) {
+					if (auto *bone = animated_node->getJointNode(hz.part.c_str())) {
+						if (!bone->isVisible())
+							continue;
+						bone->updateAbsolutePosition();
+						const core::matrix4 &bone_matrix = bone->getAbsoluteTransformation();
+						hz_pos = bone_matrix.getTranslation();
+						hz_rot = core::quaternion(bone_matrix.getRotationRadians());
+
+						// If automatic hit zone (default box size), try to get from bone
+						if (hz.box == aabb3f(-0.5f, -0.5f, -0.5f, 0.5f, 0.5f, 0.5f)) {
+							// We'd ideally get the mesh volume for this bone.
+							// For now, use a reasonable default if not specified.
+						}
+					}
+				}
+
+				v3f hz_intersection, hz_normal, hz_raw_normal;
+				const v3f rel_start = shootline_on_map.start - hz_pos;
+				if (boxLineCollision(hz_box, hz_rot.getMatrix().getRotationRadians(),
+						rel_start, line_vector, &hz_intersection, &hz_normal, &hz_raw_normal)) {
+					PointabilityType pointable = gcao->getProperties().pointable; // Use same as object
+					hz_intersection += hz_pos;
+					PointedThing pt(obj->getId(), hz_intersection, hz_normal, hz_raw_normal,
+						(hz_intersection - shootline_on_map.start).getLengthSQ(), pointable);
+					pt.hitzone = hz.part;
+					objects.push_back(pt);
+				}
+			}
+		}
 	}
 }
 

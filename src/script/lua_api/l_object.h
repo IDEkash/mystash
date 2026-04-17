@@ -124,6 +124,12 @@ private:
 	// set_animation_frame_speed(self, frame_speed)
 	static int l_set_animation_frame_speed(lua_State *L);
 
+	// set_animation_event(self, frame, name, part)
+	static int l_set_animation_event(lua_State *L);
+
+	// on_animation_event(self, callback)
+	static int l_on_animation_event(lua_State *L);
+
 	// get_animation(self)
 	static int l_get_animation(lua_State *L);
 

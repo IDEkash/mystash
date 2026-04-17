@@ -1396,6 +1396,30 @@ void ServerEnvironment::getSelectedActiveObjects(
 				(s16) obj->getId(), current_intersection, current_normal,
 				current_raw_normal, d_sq, pointable);
 		}
+
+		// Hit zone detection (Server side for raycast)
+		if (usao && !props->hitzones.empty()) {
+			for (const auto &hz : props->hitzones) {
+				aabb3f hz_box = hz.box;
+				v3f hz_pos = pos;
+				v3f hz_rot_euler;
+
+				// Server has no access to real bone matrices, but we can approximate
+				// if we have some server-side bone overrides.
+				// For now, if no bone data, assume it's at base position.
+
+				v3f hz_intersection, hz_normal, hz_raw_normal;
+				const v3f hz_rel_start = shootline_on_map.start - hz_pos;
+				// Simplified: no rotation for server-side hitzone detection unless we add bone sync
+				if (boxLineCollision(hz_box, hz_rel_start, line_vector, &hz_intersection, &hz_normal)) {
+					hz_intersection += hz_pos;
+					PointedThing pt(obj->getId(), hz_intersection, hz_normal, hz_normal,
+						(hz_intersection - shootline_on_map.start).getLengthSQ(), pointable);
+					pt.hitzone = hz.part;
+					objects.push_back(pt);
+				}
+			}
+		}
 		return false;
 	};
 

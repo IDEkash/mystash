@@ -82,6 +82,32 @@ void ScriptApiEntity::luaentity_Activate(u16 id,
 	lua_pop(L, 2); // Pop object and error handler
 }
 
+void ScriptApiEntity::luaentity_on_animation_event(u16 id, const std::string &event, const std::string &part)
+{
+	SCRIPTAPI_PRECHECKHEADER
+
+	int error_handler = PUSH_ERROR_HANDLER(L);
+
+	// Get core.luaentities[id]
+	luaentity_get(L, id);
+	int object = lua_gettop(L);
+
+	lua_getfield(L, -1, "on_animation_event");
+	if (lua_isnil(L, -1)) {
+		lua_pop(L, 2);
+		return;
+	}
+	luaL_checktype(L, -1, LUA_TFUNCTION);
+	lua_pushvalue(L, object); // self
+	lua_pushstring(L, event.c_str());
+	lua_pushstring(L, part.c_str());
+
+	setOriginFromTable(object);
+	PCALL_RES(lua_pcall(L, 3, 0, error_handler));
+
+	lua_pop(L, 2); // Pop object and error handler
+}
+
 void ScriptApiEntity::luaentity_Deactivate(u16 id, bool removal)
 {
 	SCRIPTAPI_PRECHECKHEADER
@@ -247,7 +273,8 @@ void ScriptApiEntity::luaentity_Step(u16 id, float dtime,
 //                       tool_capabilities, direction, damage)
 bool ScriptApiEntity::luaentity_Punch(u16 id,
 		ServerActiveObject *puncher, float time_from_last_punch,
-		const ToolCapabilities &toolcap, v3f dir, s32 damage)
+		const ToolCapabilities &toolcap, v3f dir, s32 damage,
+		const std::string &hitzone)
 {
 	SCRIPTAPI_PRECHECKHEADER
 
@@ -273,9 +300,10 @@ bool ScriptApiEntity::luaentity_Punch(u16 id,
 	push_tool_capabilities(L, toolcap);
 	push_v3f(L, dir);
 	lua_pushnumber(L, damage);
+	lua_pushstring(L, hitzone.c_str());
 
 	setOriginFromTable(object);
-	PCALL_RES(lua_pcall(L, 6, 1, error_handler));
+	PCALL_RES(lua_pcall(L, 7, 1, error_handler));
 
 	bool retval = readParam<bool>(L, -1);
 	lua_pop(L, 2); // Pop object and error handler

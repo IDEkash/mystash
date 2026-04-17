@@ -31,7 +31,8 @@ public:
 	void on_cheat(ServerActiveObject *player, const std::string &cheat_type);
 	bool on_punchplayer(ServerActiveObject *player, ServerActiveObject *hitter,
 			float time_from_last_punch, const ToolCapabilities &toolcap,
-			v3f dir, s32 damage);
+			v3f dir, s32 damage, const std::string &hitzone = "");
+	void on_animation_event(ServerActiveObject *player, const std::string &event, const std::string &part);
 	void on_rightclickplayer(ServerActiveObject *player, ServerActiveObject *clicker);
 	s32 on_player_hpchange(ServerActiveObject *player, s32 hp_change,
 			const PlayerHPChangeReason &reason);

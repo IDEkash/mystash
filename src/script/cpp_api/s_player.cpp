@@ -44,7 +44,8 @@ bool ScriptApiPlayer::on_punchplayer(ServerActiveObject *player,
 		float time_from_last_punch,
 		const ToolCapabilities &toolcap,
 		v3f dir,
-		s32 damage)
+		s32 damage,
+		const std::string &hitzone)
 {
 	SCRIPTAPI_PRECHECKHEADER
 	// Get core.registered_on_punchplayers
@@ -60,8 +61,23 @@ bool ScriptApiPlayer::on_punchplayer(ServerActiveObject *player,
 	push_tool_capabilities(L, toolcap);
 	push_v3f(L, dir);
 	lua_pushnumber(L, damage);
-	runCallbacks(6, RUN_CALLBACKS_MODE_OR);
+	lua_pushstring(L, hitzone.c_str());
+	runCallbacks(7, RUN_CALLBACKS_MODE_OR);
 	return readParam<bool>(L, -1);
+}
+
+void ScriptApiPlayer::on_animation_event(ServerActiveObject *player,
+		const std::string &event, const std::string &part)
+{
+	SCRIPTAPI_PRECHECKHEADER
+	// Get core.registered_on_animation_events
+	lua_getglobal(L, "core");
+	lua_getfield(L, -1, "registered_on_animation_events");
+	// Call callbacks
+	objectrefGetOrCreate(L, player);
+	lua_pushstring(L, event.c_str());
+	lua_pushstring(L, part.c_str());
+	runCallbacks(3, RUN_CALLBACKS_MODE_FIRST);
 }
 
 void ScriptApiPlayer::on_rightclickplayer(ServerActiveObject *player,

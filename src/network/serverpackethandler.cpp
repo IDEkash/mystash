@@ -1076,7 +1076,7 @@ void Server::handleCommand_Interact(NetworkPacket *pkt)
 			playersao->resetTimeFromLastPunch();
 
 		u32 wear = pointed_object->punch(dir, toolcap, playersao,
-				time_from_last_punch, tool_item.wear);
+				time_from_last_punch, tool_item.wear, pointed.hitzone);
 
 		// Callback may have changed item, so get it again
 		playersao->getWieldedItem(&selected_item);

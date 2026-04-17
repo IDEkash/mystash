@@ -102,7 +102,8 @@ public:
 	*/
 
 	u32 punch(v3f dir, const ToolCapabilities &toolcap, ServerActiveObject *puncher,
-			float time_from_last_punch, u16 initial_wear = 0) override;
+			float time_from_last_punch, u16 initial_wear = 0,
+			const std::string &hitzone = "") override;
 	void rightClick(ServerActiveObject *clicker) override;
 	void setHP(s32 hp, const PlayerHPChangeReason &reason) override
 	{

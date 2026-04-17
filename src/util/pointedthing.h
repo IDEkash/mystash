@@ -56,6 +56,11 @@ struct PointedThing
 	 */
 	u16 box_id = 0;
 	/*!
+	 * Only valid if type is POINTEDTHING_OBJECT.
+	 * Name of the hit zone if applicable.
+	 */
+	std::string hitzone;
+	/*!
 	 * Only valid if type isn't POINTEDTHING_NONE.
 	 * First intersection point of the ray and the nodebox in irrlicht
 	 * coordinates.

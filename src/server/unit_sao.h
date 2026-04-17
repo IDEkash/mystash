@@ -99,6 +99,8 @@ public:
 			const std::string &bone, const BoneOverride &props);
 	void sendPunchCommand();
 
+	void stepAnimation(float dtime);
+
 protected:
 	u16 m_hp = 1;
 
@@ -110,6 +112,8 @@ protected:
 	// Object properties
 	bool m_properties_sent = true;
 	ObjectProperties m_prop;
+
+	float m_animation_time = 0.0f;
 
 	// Stores position and rotation for each bone name
 	std::unordered_map<std::string, BoneOverride> m_bone_override;

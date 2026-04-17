@@ -282,7 +282,7 @@ void push_item_definition_full(lua_State *L, const ItemDefinition &i)
 }
 
 /******************************************************************************/
-const std::array<const char *, 38> object_property_keys = {
+const std::array<const char *, 40> object_property_keys = {
 	"hp_max",
 	"breath_max",
 	"physical",
@@ -322,6 +322,8 @@ const std::array<const char *, 38> object_property_keys = {
 	"model_unit_scale",
 	"auto_normalize",
 	"target_height",
+	"hitzones",
+	"animation_events",
 };
 
 /******************************************************************************/
@@ -534,6 +536,45 @@ void read_object_properties(lua_State *L, int index,
 
 	getstringfield(L, -1, "damage_texture_modifier", prop->damage_texture_modifier);
 
+	lua_getfield(L, -1, "hitzones");
+	if (lua_istable(L, -1)) {
+		prop->hitzones.clear();
+		int table = lua_gettop(L);
+		lua_pushnil(L);
+		while (lua_next(L, table) != 0) {
+			if (lua_istable(L, -1)) {
+				HitZone hz;
+				getstringfield(L, -1, "part", hz.part);
+				getfloatfield(L, -1, "damage_multiplier", hz.damage_multiplier);
+				lua_getfield(L, -1, "box");
+				if (lua_istable(L, -1))
+					hz.box = read_aabb3f(L, -1, 1.0);
+				lua_pop(L, 1);
+				prop->hitzones.push_back(hz);
+			}
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "animation_events");
+	if (lua_istable(L, -1)) {
+		prop->animation_events.clear();
+		int table = lua_gettop(L);
+		lua_pushnil(L);
+		while (lua_next(L, table) != 0) {
+			if (lua_istable(L, -1)) {
+				AnimationEvent event;
+				getfloatfield(L, -1, "frame", event.frame);
+				getstringfield(L, -1, "name", event.name);
+				getstringfield(L, -1, "part", event.part);
+				prop->animation_events.push_back(event);
+			}
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+
 	// Remember to update object_property_keys above
 	// when adding a new property
 }
@@ -648,6 +689,34 @@ void push_object_properties(lua_State *L, const ObjectProperties *prop)
 	lua_setfield(L, -2, "damage_texture_modifier");
 	lua_pushboolean(L, prop->show_on_minimap);
 	lua_setfield(L, -2, "show_on_minimap");
+
+	lua_createtable(L, prop->hitzones.size(), 0);
+	int i = 1;
+	for (const auto &hz : prop->hitzones) {
+		lua_newtable(L);
+		lua_pushstring(L, hz.part.c_str());
+		lua_setfield(L, -2, "part");
+		lua_pushnumber(L, hz.damage_multiplier);
+		lua_setfield(L, -2, "damage_multiplier");
+		push_aabb3f(L, hz.box);
+		lua_setfield(L, -2, "box");
+		lua_rawseti(L, -2, i++);
+	}
+	lua_setfield(L, -2, "hitzones");
+
+	lua_createtable(L, prop->animation_events.size(), 0);
+	i = 1;
+	for (const auto &event : prop->animation_events) {
+		lua_newtable(L);
+		lua_pushnumber(L, event.frame);
+		lua_setfield(L, -2, "frame");
+		lua_pushstring(L, event.name.c_str());
+		lua_setfield(L, -2, "name");
+		lua_pushstring(L, event.part.c_str());
+		lua_setfield(L, -2, "part");
+		lua_rawseti(L, -2, i++);
+	}
+	lua_setfield(L, -2, "animation_events");
 
 	// Remember to update object_property_keys above
 	// when adding a new property
@@ -2333,6 +2402,10 @@ void push_pointed_thing(lua_State *L, const PointedThing &pointed, bool csm,
 		} else {
 			push_objectRef(L, pointed.object_id);
 			lua_setfield(L, -2, "ref");
+		}
+		if (!pointed.hitzone.empty()) {
+			lua_pushstring(L, pointed.hitzone.c_str());
+			lua_setfield(L, -2, "hitzone");
 		}
 	} else {
 		lua_pushstring(L, "nothing");

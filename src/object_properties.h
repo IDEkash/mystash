@@ -9,10 +9,38 @@
 #include "irrlichttypes_bloated.h"
 #include <iostream>
 #include <vector>
+#include <map>
 #include "util/pointabilities.h"
 #include "mapnode.h"
 
 struct EnumString;
+
+struct HitZone
+{
+	std::string part;
+	aabb3f box = aabb3f(-0.5f, -0.5f, -0.5f, 0.5f, 0.5f, 0.5f);
+	float damage_multiplier = 1.0f;
+
+	bool operator==(const HitZone &other) const
+	{
+		return part == other.part && box == other.box &&
+			damage_multiplier == other.damage_multiplier;
+	}
+	bool operator!=(const HitZone &other) const { return !(*this == other); }
+};
+
+struct AnimationEvent
+{
+	float frame = 0.0f;
+	std::string name;
+	std::string part;
+
+	bool operator==(const AnimationEvent &other) const
+	{
+		return frame == other.frame && name == other.name && part == other.part;
+	}
+	bool operator!=(const AnimationEvent &other) const { return !(*this == other); }
+};
 
 enum ObjectVisual : u8 {
 	OBJECTVISUAL_UNKNOWN,
@@ -78,6 +106,9 @@ struct ObjectProperties
 	bool show_on_minimap = false;
 	bool nametag_scale_z = false;
 	bool auto_normalize = false;
+
+	std::vector<HitZone> hitzones;
+	std::vector<AnimationEvent> animation_events;
 
 	ObjectProperties();
 

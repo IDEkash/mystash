@@ -93,6 +93,16 @@ std::string ObjectProperties::dump() const
 	os << ", shaded=" << shaded;
 	os << ", show_on_minimap=" << show_on_minimap;
 	os << ", nametag_scale_z=" << nametag_scale_z;
+	os << ", hitzones=[";
+	for (const auto &hz : hitzones) {
+		os << "{part=" << hz.part << ",multiplier=" << hz.damage_multiplier << "} ";
+	}
+	os << "]";
+	os << ", animation_events=[";
+	for (const auto &event : animation_events) {
+		os << "{frame=" << event.frame << ",name=" << event.name << ",part=" << event.part << "} ";
+	}
+	os << "]";
 	return os.str();
 }
 
@@ -110,7 +120,8 @@ static inline auto tie(const ObjectProperties &o)
 	o.node, o.hp_max, o.breath_max, o.glow, o.pointable, o.physical,
 	o.collideWithObjects, o.rotate_selectionbox, o.is_visible, o.makes_footstep_sound,
 	o.automatic_face_movement_dir, o.backface_culling, o.static_save, o.use_texture_alpha,
-	o.shaded, o.show_on_minimap, o.nametag_scale_z
+	o.shaded, o.show_on_minimap, o.nametag_scale_z,
+	o.hitzones, o.animation_events
 	);
 }
 
@@ -225,6 +236,21 @@ void ObjectProperties::serialize(std::ostream &os) const
 	writeU8(os, auto_normalize);
 	writeF32(os, target_height);
 
+	writeU16(os, hitzones.size());
+	for (const auto &hz : hitzones) {
+		os << serializeString16(hz.part);
+		writeV3F32(os, hz.box.MinEdge);
+		writeV3F32(os, hz.box.MaxEdge);
+		writeF32(os, hz.damage_multiplier);
+	}
+
+	writeU16(os, animation_events.size());
+	for (const auto &event : animation_events) {
+		writeF32(os, event.frame);
+		os << serializeString16(event.name);
+		os << serializeString16(event.part);
+	}
+
 	// Add stuff only at the bottom.
 	// Never remove anything, because we don't want new versions of this!
 }
@@ -334,6 +360,30 @@ void ObjectProperties::deSerialize(std::istream &is)
 	model_unit_scale = readV3F32(is);
 	auto_normalize = readU8(is);
 	target_height = readF32(is);
+
+	if (!canRead(is))
+		return;
+
+	hitzones.clear();
+	u32 hitzone_count = readU16(is);
+	for (u32 i = 0; i < hitzone_count; i++) {
+		HitZone hz;
+		hz.part = deSerializeString16(is);
+		hz.box.MinEdge = readV3F32(is);
+		hz.box.MaxEdge = readV3F32(is);
+		hz.damage_multiplier = readF32(is);
+		hitzones.push_back(hz);
+	}
+
+	animation_events.clear();
+	u32 event_count = readU16(is);
+	for (u32 i = 0; i < event_count; i++) {
+		AnimationEvent event;
+		event.frame = readF32(is);
+		event.name = deSerializeString16(is);
+		event.part = deSerializeString16(is);
+		animation_events.push_back(event);
+	}
 
 	//if (!canRead(is))
 	//	return;

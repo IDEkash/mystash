@@ -26,9 +26,11 @@ public:
 			ServerActiveObject *self, ObjectProperties *prop, const std::string &entity_name);
 	void luaentity_Step(u16 id, float dtime,
 		const collisionMoveResult *moveresult);
+	void luaentity_on_animation_event(u16 id, const std::string &event, const std::string &part);
 	bool luaentity_Punch(u16 id,
 			ServerActiveObject *puncher, float time_from_last_punch,
-			const ToolCapabilities &toolcap, v3f dir, s32 damage);
+			const ToolCapabilities &toolcap, v3f dir, s32 damage,
+			const std::string &hitzone = "");
 	bool luaentity_on_death(u16 id, ServerActiveObject *killer);
 	void luaentity_Rightclick(u16 id, ServerActiveObject *clicker);
 	void luaentity_on_attach_child(u16 id, ServerActiveObject *child);

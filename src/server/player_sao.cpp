@@ -253,6 +253,8 @@ void PlayerSAO::step(float dtime, bool send_recommended)
 	m_nocheat_dig_time += dtime;
 	m_max_speed_override_time = MYMAX(m_max_speed_override_time - dtime, 0.0f);
 
+	stepAnimation(dtime);
+
 	// Each frame, parent position is copied if the object is attached,
 	// otherwise it's calculated normally.
 	// If the object gets detached this comes into effect automatically from
@@ -453,7 +455,8 @@ u32 PlayerSAO::punch(v3f dir,
 	const ToolCapabilities &toolcap,
 	ServerActiveObject *puncher,
 	float time_from_last_punch,
-	u16 initial_wear)
+	u16 initial_wear,
+	const std::string &hitzone)
 {
 	// No effect if PvP disabled or if immortal
 	if (isImmortal() || !g_settings->getBool("enable_pvp")) {
@@ -468,14 +471,25 @@ u32 PlayerSAO::punch(v3f dir,
 	HitParams hitparams = getHitParams(m_armor_groups, toolcap,
 			time_from_last_punch, initial_wear);
 
+	float damage_multiplier = 1.0f;
+	if (!hitzone.empty()) {
+		for (const auto &hz : m_prop.hitzones) {
+			if (hz.part == hitzone) {
+				damage_multiplier = hz.damage_multiplier;
+				break;
+			}
+		}
+	}
+	s32 damage = (s32)(hitparams.hp * damage_multiplier);
+
 	PlayerSAO *playersao = m_player->getPlayerSAO();
 
 	bool damage_handled = m_env->getScriptIface()->on_punchplayer(playersao,
 				puncher, time_from_last_punch, toolcap, dir,
-				hitparams.hp);
+				damage);
 
 	if (!damage_handled) {
-		setHP((s32)getHP() - (s32)hitparams.hp,
+		setHP((s32)getHP() - (s32)damage,
 				PlayerHPChangeReason(PlayerHPChangeReason::PLAYER_PUNCH, puncher));
 	} else { // override client prediction
 		if (puncher->getType() == ACTIVEOBJECT_TYPE_PLAYER) {

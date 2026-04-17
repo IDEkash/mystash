@@ -49,6 +49,7 @@ void UnitSAO::setAnimation(
 	m_animation_clip_index = 0;
 	m_animation_clip_name.clear();
 	m_animation_sent = false;
+	m_animation_time = m_animation_range.X;
 }
 
 void UnitSAO::getAnimation(v2f *frame_range, float *frame_speed, float *frame_blend,
@@ -92,6 +93,7 @@ void UnitSAO::setAnimationClipByName(const std::string &clip_name, v2f frame_ran
 	m_animation_clip_index = 0;
 	m_animation_clip_name = clip_name;
 	m_animation_sent = false;
+	m_animation_time = m_animation_range.X;
 }
 
 void UnitSAO::clearAnimationClip()
@@ -102,6 +104,7 @@ void UnitSAO::clearAnimationClip()
 	m_animation_clip_index = 0;
 	m_animation_clip_name.clear();
 	m_animation_sent = false;
+	m_animation_time = m_animation_range.X;
 }
 
 void UnitSAO::getAnimationClip(u8 *clip_type, u16 *clip_index, std::string *clip_name) const
@@ -458,4 +461,45 @@ std::string UnitSAO::generatePunchCommand(u16 result_hp) const
 void UnitSAO::sendPunchCommand()
 {
 	m_messages_out.emplace(getId(), true, generatePunchCommand(getHP()));
+}
+
+void UnitSAO::stepAnimation(float dtime)
+{
+	if (m_animation_speed == 0.0f || m_prop.animation_events.empty())
+		return;
+
+	float old_time = m_animation_time;
+	m_animation_time += dtime * m_animation_speed;
+
+	float start = m_animation_range.X;
+	float end = m_animation_range.Y;
+
+	if (m_animation_loop) {
+		if (m_animation_time > end) {
+			m_animation_time = start + std::fmod(m_animation_time - start, end - start);
+		}
+	} else {
+		if (m_animation_time > end)
+			m_animation_time = end;
+	}
+
+	for (const auto &event : m_prop.animation_events) {
+		bool triggered = false;
+		if (old_time < event.frame && m_animation_time >= event.frame) {
+			triggered = true;
+		} else if (m_animation_loop && m_animation_time < old_time) {
+			// Looped around
+			if (old_time < event.frame || m_animation_time >= event.frame) {
+				triggered = true;
+			}
+		}
+
+		if (triggered) {
+			if (getType() == ACTIVEOBJECT_TYPE_PLAYER) {
+				m_env->getScriptIface()->on_animation_event(this, event.name, event.part);
+			} else {
+				m_env->getScriptIface()->luaentity_on_animation_event(m_id, event.name, event.part);
+			}
+		}
+	}
 }

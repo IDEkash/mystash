@@ -24,7 +24,7 @@ std::string PointedThing::dump() const
 	}
 		break;
 	case POINTEDTHING_OBJECT:
-		os << "[object " << object_id << "]";
+		os << "[object " << object_id << " hitzone=" << hitzone << "]";
 		break;
 	default:
 		os << "[unknown PointedThing]";
@@ -34,7 +34,7 @@ std::string PointedThing::dump() const
 
 void PointedThing::serialize(std::ostream &os) const
 {
-	writeU8(os, 0); // version
+	writeU8(os, 1); // version
 	writeU8(os, (u8)type);
 	switch (type) {
 	case POINTEDTHING_NOTHING:
@@ -45,6 +45,7 @@ void PointedThing::serialize(std::ostream &os) const
 		break;
 	case POINTEDTHING_OBJECT:
 		writeU16(os, object_id);
+		os << serializeString16(hitzone);
 		break;
 	}
 }
@@ -52,7 +53,7 @@ void PointedThing::serialize(std::ostream &os) const
 void PointedThing::deSerialize(std::istream &is)
 {
 	int version = readU8(is);
-	if (version != 0) throw SerializationError(
+	if (version > 1) throw SerializationError(
 			"unsupported PointedThing version");
 	type = static_cast<PointedThingType>(readU8(is));
 	switch (type) {
@@ -64,6 +65,8 @@ void PointedThing::deSerialize(std::istream &is)
 		break;
 	case POINTEDTHING_OBJECT:
 		object_id = readU16(is);
+		if (version >= 1)
+			hitzone = deSerializeString16(is);
 		break;
 	default:
 		throw SerializationError("unsupported PointedThingType");
@@ -86,7 +89,7 @@ bool PointedThing::operator==(const PointedThing &pt2) const
 	}
 	else if (type == POINTEDTHING_OBJECT)
 	{
-		if (object_id != pt2.object_id || pointability != pt2.pointability)
+		if (object_id != pt2.object_id || pointability != pt2.pointability || hitzone != pt2.hitzone)
 			return false;
 	}
 	return true;

@@ -213,7 +213,9 @@ int ObjectRef::l_punch(lua_State *L)
 		dir = readParam<v3f>(L, 5, v3f(0));
 	}
 
-	u32 wear = sao->punch(dir, toolcap, puncher, time_from_last_punch);
+	std::string hitzone = readParam<std::string>(L, 6, "");
+
+	u32 wear = sao->punch(dir, toolcap, puncher, time_from_last_punch, 0, hitzone);
 	lua_pushnumber(L, wear);
 
 	return 1;
@@ -958,6 +960,57 @@ int ObjectRef::l_set_bone_scale(lua_State *L)
 	props.scale.absolute = absolute;
 	props.scale.interp_duration = interpolation;
 	sao->setBoneOverride(bone, props);
+	return 0;
+}
+
+// set_animation_event(self, frame, name, part)
+int ObjectRef::l_set_animation_event(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	ObjectProperties *prop = sao->accessObjectProperties();
+	if (!prop)
+		return 0;
+
+	AnimationEvent event;
+	event.frame = readParam<float>(L, 2);
+	event.name = readParam<std::string>(L, 3);
+	event.part = readParam<std::string>(L, 4, "");
+
+	prop->animation_events.push_back(event);
+	sao->notifyObjectPropertiesModified();
+	return 0;
+}
+
+// on_animation_event(self, callback)
+int ObjectRef::l_on_animation_event(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	luaL_checktype(L, 2, LUA_TFUNCTION);
+
+	if (sao->getType() == ACTIVEOBJECT_TYPE_PLAYER) {
+		// Players use global registered_on_animation_events
+		return 0;
+	}
+
+	// For entities, we store the callback in the luaentity table
+	lua_getglobal(L, "core");
+	lua_getfield(L, -1, "luaentities");
+	lua_pushnumber(L, sao->getId());
+	lua_gettable(L, -2);
+	if (lua_istable(L, -1)) {
+		lua_pushvalue(L, 2);
+		lua_setfield(L, -2, "on_animation_event");
+	}
 	return 0;
 }
 
@@ -3317,6 +3370,8 @@ luaL_Reg ObjectRef::methods[] = {
 		luamethod(ObjectRef, get_animation_info),
 		luamethod(ObjectRef, get_model_info),
 		luamethod(ObjectRef, set_animation_frame_speed),
+		luamethod_aliased(ObjectRef, l_set_animation_event, setanimationevent),
+		luamethod_aliased(ObjectRef, l_on_animation_event, onanimationevent),
 	luamethod_aliased(ObjectRef, set_bone_position, setboneposition),
 	luamethod_aliased(ObjectRef, set_bone_rotation, setbonerotation),
 	luamethod_aliased(ObjectRef, set_bone_scale, setbonescale),
