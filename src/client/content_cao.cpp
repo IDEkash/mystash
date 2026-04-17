@@ -518,7 +518,6 @@ ClientActiveObject* GenericCAO::getParent() const
 
 void GenericCAO::removeFromScene(bool permanent)
 {
-	m_bone_original_scales.clear();
 	// Should be true when removing the object permanently
 	// and false when refreshing (eg: updating visuals)
 	if (m_env && permanent) {
@@ -704,6 +703,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 			if (!m_animated_meshnode)
 				return;
 			m_animated_meshnode->grab();
+			mesh->drop(); // The scene node took hold of it
 
 			v3f final_scale = m_prop.visual_size;
 			if (m_prop.auto_normalize || m_prop.target_height > 0.0f) {
@@ -810,23 +810,11 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		updateTextures(m_current_texture_modifier);
 
 	// Add weapons
-	if (m_is_player && m_animated_meshnode) {
+	if (m_animated_meshnode) {
 		bool is_first_person = m_is_local_player &&
 				m_client->getCamera()->getCameraMode() == CAMERA_MODE_FIRST;
 		scene::ISceneManager *smgr = is_first_person ?
 				m_client->getCamera()->getWieldSceneManager() : m_smgr;
-
-		// First pass: find arm model if we are in FP
-		scene::AnimatedMeshSceneNode *arm_node = nullptr;
-		if (is_first_person) {
-			for (object_t child_id : m_attachment_child_ids) {
-				GenericCAO *child = m_env->getGenericCAO(child_id);
-				if (child && child->m_prop.is_wield_item && child->m_animated_meshnode) {
-					arm_node = child->m_animated_meshnode;
-					break;
-				}
-			}
-		}
 
 		for (const auto &w : m_prop.weapons) {
 			scene::IAnimatedMesh *mesh = m_client->getMesh(w.model, true);
@@ -835,21 +823,43 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 
 			scene::ISceneNode *parent = nullptr;
 			if (is_first_person) {
-				if (arm_node)
-					parent = arm_node->getJointNode(w.bone.c_str());
-				if (!parent)
+				if (w.bone == "camera") {
 					parent = m_client->getCamera()->getViewmodelRoot();
+				} else {
+					// Search in attached wield items (e.g. viewmodel arms)
+					for (object_t child_id : m_attachment_child_ids) {
+						GenericCAO *child = m_env->getGenericCAO(child_id);
+						if (child && child->m_prop.is_wield_item && child->m_animated_meshnode) {
+							parent = child->m_animated_meshnode->getJointNode(w.bone.c_str());
+							if (parent) break;
+						}
+					}
+					// Search in previously created weapon nodes for this CAO
+					if (!parent) {
+						for (const auto &wn : m_weapon_nodes) {
+							parent = wn.node->getJointNode(w.bone.c_str());
+							if (parent) break;
+						}
+					}
+					if (!parent)
+						parent = m_client->getCamera()->getViewmodelRoot();
+				}
 			} else {
 				parent = m_animated_meshnode->getJointNode(w.bone.c_str());
+				if (!parent)
+					parent = m_animated_meshnode;
 			}
 
 			if (!parent)
 				continue;
 
 			scene::AnimatedMeshSceneNode *wnode = smgr->addAnimatedMeshSceneNode(mesh, parent);
-			if (!wnode)
+			if (!wnode) {
+				mesh->drop();
 				continue;
+			}
 			wnode->grab();
+			mesh->drop();
 
 			wnode->setScale(w.scale);
 			wnode->setPosition(w.offset_pos);
@@ -866,7 +876,6 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 			if (is_first_person) {
 				wnode->forEachMaterial([](auto &mat) {
 					mat.ZBuffer = video::ECFN_ALWAYS;
-					mat.ZWriteEnable = video::EZW_OFF;
 				});
 			}
 
@@ -2025,19 +2034,10 @@ void GenericCAO::updateMeshCulling()
 
 		for (const auto &bone : parts_to_hide) {
 			if (auto *joint = m_animated_meshnode->getJointNode(bone.c_str())) {
-				if (m_bone_original_scales.find(bone) == m_bone_original_scales.end())
-					m_bone_original_scales[bone] = joint->getScale();
 				joint->setScale(v3f(0, 0, 0));
+				joint->setVisible(false);
 			}
 		}
-	} else if (m_animated_meshnode) {
-		// Restore scales
-		for (auto const& [bone, scale] : m_bone_original_scales) {
-			if (auto *joint = m_animated_meshnode->getJointNode(bone.c_str())) {
-				joint->setScale(scale);
-			}
-		}
-		m_bone_original_scales.clear();
 	}
 }
 

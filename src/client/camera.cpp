@@ -546,6 +546,15 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	m_viewmodel_root_node->setPosition(wield_position);
 	m_viewmodel_root_node->setRotation(wield_rotation);
 
+	if (m_arm_inertia) {
+		// Apply inertia to the entire viewmodel root as well
+		// This uses the same offset calculated for the legacy wieldmesh
+		v3f inertia_pos = m_viewmodel_root_node->getPosition();
+		inertia_pos.X += (m_wieldmesh_offset.X - WIELDMESH_OFFSET_X) * 0.1f;
+		inertia_pos.Y += (m_wieldmesh_offset.Y - WIELDMESH_OFFSET_Y) * 0.1f;
+		m_viewmodel_root_node->setPosition(inertia_pos);
+	}
+
 	m_wieldnode->setPosition(v3f(0, 0, 0));
 	m_wieldnode->setRotation(v3f(0, 0, 0));
 
