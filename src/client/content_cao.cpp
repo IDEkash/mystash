@@ -866,7 +866,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 			if (is_first_person) {
 				wnode->forEachMaterial([](auto &mat) {
 					mat.ZBuffer = video::ECFN_ALWAYS;
-					mat.ZWriteEnable = false;
+					mat.ZWriteEnable = video::EZW_OFF;
 				});
 			}
 
@@ -1966,7 +1966,7 @@ void GenericCAO::updateMeshCulling()
 	if (!m_is_local_player)
 		return;
 
-	CameraMode cam_mode = m_client->getCamera()->getCameraMode();
+	int cam_mode = (int)m_client->getCamera()->getCameraMode();
 	if (cam_mode != m_last_camera_mode) {
 		m_last_camera_mode = cam_mode;
 		expireVisuals();

@@ -156,7 +156,7 @@ private:
 	// last applied texture modifier
 	std::string m_current_texture_modifier = "";
 	float m_step_distance_counter = 0.0f;
-	CameraMode m_last_camera_mode = CAMERA_MODE_FIRST;
+	int m_last_camera_mode = 0; // CAMERA_MODE_FIRST
 	std::unordered_map<std::string, v3f> m_bone_original_scales;
 
 	bool visualExpiryRequired(const ObjectProperties &newprops) const;
