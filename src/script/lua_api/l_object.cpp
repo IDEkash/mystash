@@ -1725,6 +1725,74 @@ int ObjectRef::l_get_luaentity(lua_State *L)
 	return 1;
 }
 
+// findpath(self, targetpos, search_params)
+int ObjectRef::l_findpath(lua_State *L)
+{
+	GET_ENV_PTR;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	v3s16 pos1 = floatToInt(sao->getBasePosition(), BS);
+	v3s16 pos2 = read_v3s16(L, 2);
+
+	unsigned int searchdistance = 30;
+	unsigned int max_jump = 1;
+	unsigned int max_drop = 4;
+	PathAlgorithm algo = PA_PLAIN_NP;
+	std::map<content_t, int> penalties;
+
+	if (lua_istable(L, 3)) {
+		searchdistance = getintfield_default(L, 3, "max_distance", searchdistance);
+		max_jump = getintfield_default(L, 3, "max_jump", max_jump);
+		max_drop = getintfield_default(L, 3, "max_drop", max_drop);
+
+		lua_getfield(L, 3, "algorithm");
+		if (lua_isstring(L, -1)) {
+			std::string algorithm = lua_tostring(L, -1);
+			if (algorithm == "A*")
+				algo = PA_PLAIN;
+			else if (algorithm == "Dijkstra")
+				algo = PA_DIJKSTRA;
+		}
+		lua_pop(L, 1);
+
+		lua_getfield(L, 3, "penalties");
+		if (lua_istable(L, -1)) {
+			lua_pushnil(L);
+			while (lua_next(L, -2) != 0) {
+				std::string node_name = luaL_checkstring(L, -2);
+				int penalty = luaL_checkinteger(L, -1);
+				content_t id;
+				if (env->getGameDef()->ndef()->getId(node_name, id)) {
+					penalties[id] = penalty;
+				}
+				lua_pop(L, 1);
+			}
+		}
+		lua_pop(L, 1);
+	}
+
+	std::vector<v3s16> path = get_path(&env->getServerMap(), env->getGameDef()->ndef(), pos1, pos2,
+		searchdistance, max_jump, max_drop, algo, penalties);
+
+	if (!path.empty()) {
+		lua_createtable(L, path.size(), 0);
+		int top = lua_gettop(L);
+		unsigned int index = 1;
+		for (const v3s16 &i : path) {
+			lua_pushnumber(L, index);
+			push_v3s16(L, i);
+			lua_settable(L, top);
+			index++;
+		}
+		return 1;
+	}
+
+	return 0;
+}
+
 /* Player-only */
 
 // get_player_name(self)
@@ -3357,6 +3425,7 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod_aliased(ObjectRef, set_sprite, setsprite),
 	luamethod(ObjectRef, get_entity_name),
 	luamethod(ObjectRef, get_luaentity),
+	luamethod(ObjectRef, findpath),
 
 	// Player-only
 	luamethod(ObjectRef, is_player),

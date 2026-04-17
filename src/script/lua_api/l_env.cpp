@@ -1278,8 +1278,22 @@ int ModApiEnv::l_find_path(lua_State *L)
 			algo = PA_DIJKSTRA;
 	}
 
+	std::map<content_t, int> penalties;
+	if (lua_istable(L, 7)) {
+		lua_pushnil(L);
+		while (lua_next(L, 7) != 0) {
+			std::string node_name = luaL_checkstring(L, -2);
+			int penalty = luaL_checkinteger(L, -1);
+			content_t id;
+			if (env->getGameDef()->ndef()->getId(node_name, id)) {
+				penalties[id] = penalty;
+			}
+			lua_pop(L, 1);
+		}
+	}
+
 	std::vector<v3s16> path = get_path(&env->getServerMap(), env->getGameDef()->ndef(), pos1, pos2,
-		searchdistance, max_jump, max_drop, algo);
+		searchdistance, max_jump, max_drop, algo, penalties);
 
 	if (!path.empty()) {
 		lua_createtable(L, path.size(), 0);

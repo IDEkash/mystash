@@ -241,6 +241,9 @@ private:
 	// get_luaentity(self)
 	static int l_get_luaentity(lua_State *L);
 
+	// findpath(self, targetpos, search_params)
+	static int l_findpath(lua_State *L);
+
 	/* Player-only */
 
 	// get_player_name(self)

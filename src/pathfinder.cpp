@@ -183,7 +183,8 @@ public:
 			unsigned int searchdistance,
 			unsigned int max_jump,
 			unsigned int max_drop,
-			PathAlgorithm algo);
+			PathAlgorithm algo,
+			const std::map<content_t, int> &penalties = {});
 
 private:
 	/* helper functions */
@@ -310,6 +311,8 @@ private:
 
 	const NodeDefManager *m_ndef = nullptr;
 
+	std::map<content_t, int> m_penalties;
+
 	friend class PathfinderCompareHeuristic;
 
 #ifdef PATHFINDER_DEBUG
@@ -396,10 +399,11 @@ std::vector<v3s16> get_path(Map* map, const NodeDefManager *ndef,
 		unsigned int searchdistance,
 		unsigned int max_jump,
 		unsigned int max_drop,
-		PathAlgorithm algo)
+		PathAlgorithm algo,
+		const std::map<content_t, int> &penalties)
 {
 	return Pathfinder(map, ndef).getPath(source, destination,
-				searchdistance, max_jump, max_drop, algo);
+				searchdistance, max_jump, max_drop, algo, penalties);
 }
 
 /******************************************************************************/
@@ -592,7 +596,8 @@ std::vector<v3s16> Pathfinder::getPath(v3s16 source,
 							unsigned int searchdistance,
 							unsigned int max_jump,
 							unsigned int max_drop,
-							PathAlgorithm algo)
+							PathAlgorithm algo,
+							const std::map<content_t, int> &penalties)
 {
 #ifdef PATHFINDER_CALC_TIME
 	timespec ts;
@@ -603,6 +608,7 @@ std::vector<v3s16> Pathfinder::getPath(v3s16 source,
 	//initialization
 	m_maxjump = max_jump;
 	m_maxdrop = max_drop;
+	m_penalties = penalties;
 	m_start       = source;
 	m_destination = destination;
 	m_min_target_distance = -1;
@@ -826,6 +832,13 @@ PathCost Pathfinder::calcCost(v3s16 pos, v3s16 dir)
 			return retval;
 	}
 
+	int penalty = 0;
+	{
+		auto it = m_penalties.find(node_at_pos2.getContent());
+		if (it != m_penalties.end())
+			penalty = it->second;
+	}
+
 	if (!m_ndef->get(node_at_pos2).walkable) {
 		MapNode node_below_pos2 =
 			m_map->getNode(pos2 + v3s16(0, -1, 0));
@@ -841,7 +854,7 @@ PathCost Pathfinder::calcCost(v3s16 pos, v3s16 dir)
 		if (m_ndef->get(node_below_pos2).walkable) {
 			//SUCCESS!
 			retval.valid = true;
-			retval.value = 1;
+			retval.value = 1 + penalty;
 			retval.y_change = 0;
 			DEBUG_OUT("Pathfinder: "<< pos
 					<< " cost same height found" << std::endl);
@@ -865,7 +878,7 @@ PathCost Pathfinder::calcCost(v3s16 pos, v3s16 dir)
 				if ((pos2.Y - testpos.Y - 1) <= m_maxdrop) {
 					//SUCCESS!
 					retval.valid = true;
-					retval.value = 2;
+					retval.value = 2 + penalty;
 					//difference of y-pos +1 (target node is ABOVE solid node)
 					retval.y_change = ((testpos.Y - pos2.Y) +1);
 					DEBUG_OUT("Pathfinder cost below height found" << std::endl);
@@ -919,7 +932,15 @@ PathCost Pathfinder::calcCost(v3s16 pos, v3s16 dir)
 			if (targetpos.Y - pos2.Y <= m_maxjump) {
 				//SUCCESS!
 				retval.valid = true;
-				retval.value = 2;
+
+				int jump_penalty = 0;
+				{
+					auto it = m_penalties.find(node_target.getContent());
+					if (it != m_penalties.end())
+						jump_penalty = it->second;
+				}
+
+				retval.value = 2 + jump_penalty;
 				retval.y_change = (targetpos.Y - pos2.Y);
 				DEBUG_OUT("Pathfinder cost above found" << std::endl);
 			}
