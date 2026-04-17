@@ -24,6 +24,8 @@
 #include "server/luaentity_sao.h"
 #include "server/player_sao.h"
 #include "server/serverinventorymgr.h"
+#include "pathfinder.h"
+#include "nodedef.h"
 
 using object_t = ServerActiveObject::object_t;
 
