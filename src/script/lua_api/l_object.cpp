@@ -26,6 +26,7 @@
 #include "server/serverinventorymgr.h"
 #include "pathfinder.h"
 #include "nodedef.h"
+#include "servermap.h"
 
 using object_t = ServerActiveObject::object_t;
 

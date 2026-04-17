@@ -11,6 +11,7 @@
 #include <map>
 #include "irr_v3d.h"
 #include "irrlichttypes.h"
+#include "mapnode.h"
 
 /******************************************************************************/
 /* Forward declarations                                                       */

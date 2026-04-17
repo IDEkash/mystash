@@ -40,7 +40,7 @@ function ai.process_node_penalties(obj)
 end
 
 -- Goal Selector logic
-local entity_ai_states = {}
+local entity_ai_states = setmetatable({}, { __mode = "k" })
 
 local function update_entity_ai(obj, dtime)
 	local state = entity_ai_states[obj]
