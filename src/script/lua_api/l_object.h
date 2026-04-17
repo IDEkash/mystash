@@ -166,6 +166,12 @@ private:
 	// get_bone_override(self)
 	static int l_get_bone_overrides(lua_State *L);
 
+	// attach_weapon(self, {params})
+	static int l_attach_weapon(lua_State *L);
+
+	// detach_weapon(self, model)
+	static int l_detach_weapon(lua_State *L);
+
 	// set_attach(self, parent, bone, position, rotation)
 	static int l_set_attach(lua_State *L);
 

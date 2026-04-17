@@ -28,12 +28,40 @@ enum ObjectVisual : u8 {
 extern const EnumString es_ObjectVisual[];
 
 
+struct WeaponProp
+{
+	std::string model;
+	std::vector<std::string> textures;
+	std::vector<std::string> hide_parts;
+	std::string bone;
+	v3f offset_pos;
+	v3f offset_rot;
+	v3f scale = v3f(1, 1, 1);
+
+	bool operator==(const WeaponProp &other) const
+	{
+		return model == other.model &&
+			textures == other.textures &&
+			hide_parts == other.hide_parts &&
+			bone == other.bone &&
+			offset_pos == other.offset_pos &&
+			offset_rot == other.offset_rot &&
+			scale == other.scale;
+	}
+
+	bool operator!=(const WeaponProp &other) const
+	{
+		return !(*this == other);
+	}
+};
+
 struct ObjectProperties
 {
 	/* member variables ordered roughly by size */
 
 	std::vector<std::string> textures;
 	std::vector<video::SColor> colors; // Currently unused
+	std::vector<WeaponProp> weapons;
 	// Values are BS=1
 	aabb3f collisionbox = aabb3f(-0.5f, -0.5f, -0.5f, 0.5f, 0.5f, 0.5f);
 	// Values are BS=1
@@ -78,6 +106,10 @@ struct ObjectProperties
 	bool show_on_minimap = false;
 	bool nametag_scale_z = false;
 	bool auto_normalize = false;
+	bool is_wield_item = false;
+	bool auto_align = false;
+	bool hidedefaultparts = false;
+	video::SColor skin_tone = video::SColor(255, 255, 255, 255);
 
 	ObjectProperties();
 

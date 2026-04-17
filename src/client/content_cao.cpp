@@ -518,6 +518,7 @@ ClientActiveObject* GenericCAO::getParent() const
 
 void GenericCAO::removeFromScene(bool permanent)
 {
+	m_bone_original_scales.clear();
 	// Should be true when removing the object permanently
 	// and false when refreshing (eg: updating visuals)
 	if (m_env && permanent) {
@@ -548,6 +549,12 @@ void GenericCAO::removeFromScene(bool permanent)
 		m_spritenode->drop();
 		m_spritenode = nullptr;
 	}
+
+	for (auto &wn : m_weapon_nodes) {
+		wn.node->remove();
+		wn.node->drop();
+	}
+	m_weapon_nodes.clear();
 
 	m_meshnode_animation.clear();
 
@@ -694,8 +701,9 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 			}
 
 			m_animated_meshnode = m_smgr->addAnimatedMeshSceneNode(mesh, m_matrixnode);
+			if (!m_animated_meshnode)
+				return;
 			m_animated_meshnode->grab();
-			mesh->drop(); // The scene node took hold of it
 
 			v3f final_scale = m_prop.visual_size;
 			if (m_prop.auto_normalize || m_prop.target_height > 0.0f) {
@@ -801,6 +809,71 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 	if (m_reset_textures_timer < 0)
 		updateTextures(m_current_texture_modifier);
 
+	// Add weapons
+	if (m_is_player && m_animated_meshnode) {
+		bool is_first_person = m_is_local_player &&
+				m_client->getCamera()->getCameraMode() == CAMERA_MODE_FIRST;
+		scene::ISceneManager *smgr = is_first_person ?
+				m_client->getCamera()->getWieldSceneManager() : m_smgr;
+
+		// First pass: find arm model if we are in FP
+		scene::AnimatedMeshSceneNode *arm_node = nullptr;
+		if (is_first_person) {
+			for (object_t child_id : m_attachment_child_ids) {
+				GenericCAO *child = m_env->getGenericCAO(child_id);
+				if (child && child->m_prop.is_wield_item && child->m_animated_meshnode) {
+					arm_node = child->m_animated_meshnode;
+					break;
+				}
+			}
+		}
+
+		for (const auto &w : m_prop.weapons) {
+			scene::IAnimatedMesh *mesh = m_client->getMesh(w.model, true);
+			if (!mesh)
+				continue;
+
+			scene::ISceneNode *parent = nullptr;
+			if (is_first_person) {
+				if (arm_node)
+					parent = arm_node->getJointNode(w.bone.c_str());
+				if (!parent)
+					parent = m_client->getCamera()->getViewmodelRoot();
+			} else {
+				parent = m_animated_meshnode->getJointNode(w.bone.c_str());
+			}
+
+			if (!parent)
+				continue;
+
+			scene::AnimatedMeshSceneNode *wnode = smgr->addAnimatedMeshSceneNode(mesh, parent);
+			if (!wnode)
+				continue;
+			wnode->grab();
+
+			wnode->setScale(w.scale);
+			wnode->setPosition(w.offset_pos);
+			wnode->setRotation(w.offset_rot);
+
+			// Set textures
+			for (u32 i = 0; i < wnode->getMaterialCount(); i++) {
+				if (i < w.textures.size() && !w.textures[i].empty()) {
+					video::SMaterial &mat = wnode->getMaterial(i);
+					setMaterialTextureAndFilters(mat, w.textures[i], m_client->tsrc());
+				}
+			}
+
+			if (is_first_person) {
+				wnode->forEachMaterial([](auto &mat) {
+					mat.ZBuffer = video::ECFN_ALWAYS;
+					mat.ZWriteEnable = false;
+				});
+			}
+
+			m_weapon_nodes.push_back({wnode, w.model});
+		}
+	}
+
 	if (scene::ISceneNode *node = getSceneNode()) {
 		node->setParent(m_matrixnode);
 
@@ -897,7 +970,22 @@ void GenericCAO::setNodeLight(const video::SColor &light_color)
 		auto *node = getSceneNode();
 		if (!node)
 			return;
-		setColorParam(node, light_color);
+
+		if (m_is_player && m_prop.skin_tone != video::SColor(255, 255, 255, 255)) {
+			// Apply skin tone. This is a bit complex as we might only want to apply it
+			// to skin materials. For now, we mix it with light color.
+			video::SColor c = light_color;
+			c.setRed(c.getRed() * m_prop.skin_tone.getRed() / 255);
+			c.setGreen(c.getGreen() * m_prop.skin_tone.getGreen() / 255);
+			c.setBlue(c.getBlue() * m_prop.skin_tone.getBlue() / 255);
+			setColorParam(node, c);
+		} else {
+			setColorParam(node, light_color);
+		}
+	}
+
+	for (auto &wn : m_weapon_nodes) {
+		setColorParam(wn.node, light_color);
 	}
 }
 
@@ -1407,6 +1495,12 @@ void GenericCAO::updateAnimation()
 	}
 
 	m_animated_meshnode->setAnimation(range.X, range.Y, m_animation_speed, m_animation_loop, m_animation_blend);
+
+	if (m_prop.auto_align) {
+		for (auto &wn : m_weapon_nodes) {
+			wn.node->setAnimation(range.X, range.Y, m_animation_speed, m_animation_loop, m_animation_blend);
+		}
+	}
 }
 
 void GenericCAO::updateAnimationSpeed()
@@ -1415,6 +1509,12 @@ void GenericCAO::updateAnimationSpeed()
 		return;
 
 	m_animated_meshnode->setAnimationSpeed(m_animation_speed);
+
+	if (m_prop.auto_align) {
+		for (auto &wn : m_weapon_nodes) {
+			wn.node->setAnimationSpeed(m_animation_speed);
+		}
+	}
 }
 
 void GenericCAO::updateAttachments()
@@ -1494,6 +1594,11 @@ bool GenericCAO::visualExpiryRequired(const ObjectProperties &new_) const
 		old.target_height != new_.target_height ||
 		old.wield_item != new_.wield_item ||
 		old.colors != new_.colors ||
+		old.weapons != new_.weapons ||
+		old.is_wield_item != new_.is_wield_item ||
+		old.auto_align != new_.auto_align ||
+		old.hidedefaultparts != new_.hidedefaultparts ||
+		old.skin_tone != new_.skin_tone ||
 		(uses_legacy_texture && old.textures != new_.textures);
 }
 
@@ -1861,7 +1966,14 @@ void GenericCAO::updateMeshCulling()
 	if (!m_is_local_player)
 		return;
 
-	const bool hidden = m_client->getCamera()->getCameraMode() == CAMERA_MODE_FIRST;
+	CameraMode cam_mode = m_client->getCamera()->getCameraMode();
+	if (cam_mode != m_last_camera_mode) {
+		m_last_camera_mode = cam_mode;
+		expireVisuals();
+	}
+
+	const bool is_first_person = cam_mode == CAMERA_MODE_FIRST;
+	const bool hidden = is_first_person && !m_prop.is_wield_item;
 
 	scene::ISceneNode *node = getSceneNode();
 
@@ -1890,6 +2002,42 @@ void GenericCAO::updateMeshCulling()
 			mat.BackfaceCulling = m_prop.backface_culling;
 			mat.FrontfaceCulling = false;
 		});
+	}
+
+	if (m_animated_meshnode && is_first_person && m_prop.hidedefaultparts) {
+		// Hide parts that should be replaced by viewmodel arms
+		std::unordered_set<std::string> parts_to_hide;
+		// Check own weapons (if we are a viewmodel model themselves)
+		for (const auto &w : m_prop.weapons) {
+			for (const auto &p : w.hide_parts)
+				parts_to_hide.insert(p);
+		}
+		// Check children weapons
+		for (object_t child_id : m_attachment_child_ids) {
+			GenericCAO *child = m_env->getGenericCAO(child_id);
+			if (child && child->m_prop.is_wield_item) {
+				for (const auto &w : child->m_prop.weapons) {
+					for (const auto &p : w.hide_parts)
+						parts_to_hide.insert(p);
+				}
+			}
+		}
+
+		for (const auto &bone : parts_to_hide) {
+			if (auto *joint = m_animated_meshnode->getJointNode(bone.c_str())) {
+				if (m_bone_original_scales.find(bone) == m_bone_original_scales.end())
+					m_bone_original_scales[bone] = joint->getScale();
+				joint->setScale(v3f(0, 0, 0));
+			}
+		}
+	} else if (m_animated_meshnode) {
+		// Restore scales
+		for (auto const& [bone, scale] : m_bone_original_scales) {
+			if (auto *joint = m_animated_meshnode->getJointNode(bone.c_str())) {
+				joint->setScale(scale);
+			}
+		}
+		m_bone_original_scales.clear();
 	}
 }
 

@@ -57,8 +57,10 @@ Camera::Camera(MapDrawControl &draw_control, Client *client, RenderingEngine *re
 	// all other 3D scene nodes and before the GUI.
 	m_wieldmgr = smgr->createNewSceneManager();
 	m_wieldmgr->addCameraSceneNode();
+	m_viewmodel_root_node = m_wieldmgr->addEmptySceneNode();
 	m_wieldnode = new WieldMeshSceneNode(m_wieldmgr, -1);
 	m_wieldnode->setItem(ItemStack(), m_client);
+	m_wieldnode->setParent(m_viewmodel_root_node);
 	m_wieldnode->drop(); // m_wieldmgr grabbed it
 
 	m_nametags.clear();
@@ -541,8 +543,11 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 		wield_position.X -= std::sin(bobfrac*M_PI*2.0) * 3.0;
 		wield_position.Y += std::sin(my_modf(bobfrac*2.0)*M_PI) * 3.0;
 	}
-	m_wieldnode->setPosition(wield_position);
-	m_wieldnode->setRotation(wield_rotation);
+	m_viewmodel_root_node->setPosition(wield_position);
+	m_viewmodel_root_node->setRotation(wield_rotation);
+
+	m_wieldnode->setPosition(v3f(0, 0, 0));
+	m_wieldnode->setRotation(v3f(0, 0, 0));
 
 	m_player_light_color = player->light_color;
 	m_wieldnode->setLightColorAndAnimation(m_player_light_color,

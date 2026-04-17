@@ -173,6 +173,16 @@ public:
 		return m_camera_mode;
 	}
 
+	inline scene::ISceneManager *getWieldSceneManager()
+	{
+		return m_wieldmgr;
+	}
+
+	inline scene::ISceneNode *getViewmodelRoot()
+	{
+		return m_viewmodel_root_node;
+	}
+
 	Nametag *addNametag(const Nametag &params);
 
 	void removeNametag(Nametag *nametag);
@@ -193,6 +203,7 @@ private:
 
 	scene::ISceneManager *m_wieldmgr = nullptr;
 	WieldMeshSceneNode *m_wieldnode = nullptr;
+	scene::ISceneNode *m_viewmodel_root_node = nullptr;
 
 	// draw control
 	MapDrawControl& m_draw_control;

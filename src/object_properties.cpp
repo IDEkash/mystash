@@ -100,7 +100,7 @@ static inline auto tie(const ObjectProperties &o)
 {
 	// Make sure to add new members to this list!
 	return std::tie(
-	o.textures, o.colors, o.collisionbox, o.selectionbox, o.visual, o.mesh,
+	o.textures, o.colors, o.weapons, o.collisionbox, o.selectionbox, o.visual, o.mesh,
 	o.damage_texture_modifier, o.nametag, o.infotext, o.wield_item, o.visual_size,
 	o.nametag_color, o.nametag_bgcolor, o.nametag_fontsize, o.spritediv,
 	o.initial_sprite_basepos,
@@ -110,7 +110,8 @@ static inline auto tie(const ObjectProperties &o)
 	o.node, o.hp_max, o.breath_max, o.glow, o.pointable, o.physical,
 	o.collideWithObjects, o.rotate_selectionbox, o.is_visible, o.makes_footstep_sound,
 	o.automatic_face_movement_dir, o.backface_culling, o.static_save, o.use_texture_alpha,
-	o.shaded, o.show_on_minimap, o.nametag_scale_z
+	o.shaded, o.show_on_minimap, o.nametag_scale_z,
+	o.is_wield_item, o.auto_align, o.hidedefaultparts, o.skin_tone
 	);
 }
 
@@ -225,6 +226,26 @@ void ObjectProperties::serialize(std::ostream &os) const
 	writeU8(os, auto_normalize);
 	writeF32(os, target_height);
 
+	writeU8(os, is_wield_item);
+	writeU8(os, auto_align);
+	writeU8(os, hidedefaultparts);
+	writeARGB8(os, skin_tone);
+
+	writeU16(os, weapons.size());
+	for (const auto &w : weapons) {
+		os << serializeString16(w.model);
+		writeU16(os, w.textures.size());
+		for (const auto &t : w.textures)
+			os << serializeString16(t);
+		writeU16(os, w.hide_parts.size());
+		for (const auto &p : w.hide_parts)
+			os << serializeString16(p);
+		os << serializeString16(w.bone);
+		writeV3F32(os, w.offset_pos);
+		writeV3F32(os, w.offset_rot);
+		writeV3F32(os, w.scale);
+	}
+
 	// Add stuff only at the bottom.
 	// Never remove anything, because we don't want new versions of this!
 }
@@ -334,6 +355,35 @@ void ObjectProperties::deSerialize(std::istream &is)
 	model_unit_scale = readV3F32(is);
 	auto_normalize = readU8(is);
 	target_height = readF32(is);
+
+	if (!canRead(is))
+		return;
+
+	is_wield_item = readU8(is);
+	auto_align = readU8(is);
+	hidedefaultparts = readU8(is);
+	skin_tone = readARGB8(is);
+
+	if (!canRead(is))
+		return;
+
+	weapons.clear();
+	u32 weapon_count = readU16(is);
+	for (u32 i = 0; i < weapon_count; i++) {
+		WeaponProp w;
+		w.model = deSerializeString16(is);
+		u32 tex_count = readU16(is);
+		for (u32 j = 0; j < tex_count; j++)
+			w.textures.push_back(deSerializeString16(is));
+		u32 hide_count = readU16(is);
+		for (u32 j = 0; j < hide_count; j++)
+			w.hide_parts.push_back(deSerializeString16(is));
+		w.bone = deSerializeString16(is);
+		w.offset_pos = readV3F32(is);
+		w.offset_rot = readV3F32(is);
+		w.scale = readV3F32(is);
+		weapons.push_back(w);
+	}
 
 	//if (!canRead(is))
 	//	return;

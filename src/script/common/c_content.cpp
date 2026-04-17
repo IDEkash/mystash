@@ -282,7 +282,7 @@ void push_item_definition_full(lua_State *L, const ItemDefinition &i)
 }
 
 /******************************************************************************/
-const std::array<const char *, 38> object_property_keys = {
+const std::array<const char *, 43> object_property_keys = {
 	"hp_max",
 	"breath_max",
 	"physical",
@@ -322,6 +322,11 @@ const std::array<const char *, 38> object_property_keys = {
 	"model_unit_scale",
 	"auto_normalize",
 	"target_height",
+	"is_wield_item",
+	"auto_align",
+	"hidedefaultparts",
+	"skin_tone",
+	"weapons",
 };
 
 /******************************************************************************/
@@ -519,6 +524,77 @@ void read_object_properties(lua_State *L, int index,
 	getboolfield(L, -1, "auto_normalize", prop->auto_normalize);
 	getfloatfield(L, -1, "target_height", prop->target_height);
 
+	getboolfield(L, -1, "is_wield_item", prop->is_wield_item);
+	getboolfield(L, -1, "auto_align", prop->auto_align);
+	getboolfield(L, -1, "hidedefaultparts", prop->hidedefaultparts);
+
+	lua_getfield(L, -1, "skin_tone");
+	if (!lua_isnil(L, -1))
+		read_color(L, -1, &prop->skin_tone);
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "weapons");
+	if (lua_istable(L, -1)) {
+		prop->weapons.clear();
+		int table = lua_gettop(L);
+		lua_pushnil(L);
+		while (lua_next(L, table) != 0) {
+			if (lua_istable(L, -1)) {
+				WeaponProp w;
+				getstringfield(L, -1, "model", w.model);
+
+				lua_getfield(L, -1, "textures");
+				if (lua_istable(L, -1)) {
+					int table2 = lua_gettop(L);
+					lua_pushnil(L);
+					while (lua_next(L, table2) != 0) {
+						if (lua_isstring(L, -1))
+							w.textures.emplace_back(lua_tostring(L, -1));
+						lua_pop(L, 1);
+					}
+				}
+				lua_pop(L, 1);
+
+				lua_getfield(L, -1, "hide_parts");
+				if (lua_istable(L, -1)) {
+					int table2 = lua_gettop(L);
+					lua_pushnil(L);
+					while (lua_next(L, table2) != 0) {
+						if (lua_isstring(L, -1))
+							w.hide_parts.emplace_back(lua_tostring(L, -1));
+						lua_pop(L, 1);
+					}
+				}
+				lua_pop(L, 1);
+
+				getstringfield(L, -1, "bone", w.bone);
+
+				lua_getfield(L, -1, "offset_pos");
+				if (lua_istable(L, -1))
+					w.offset_pos = read_v3f(L, -1);
+				lua_pop(L, 1);
+
+				lua_getfield(L, -1, "offset_rot");
+				if (lua_istable(L, -1))
+					w.offset_rot = read_v3f(L, -1);
+				lua_pop(L, 1);
+
+				lua_getfield(L, -1, "scale");
+				if (lua_istable(L, -1))
+					w.scale = read_v3f(L, -1);
+				else if (lua_isnumber(L, -1)) {
+					float s = lua_tonumber(L, -1);
+					w.scale = v3f(s, s, s);
+				}
+				lua_pop(L, 1);
+
+				prop->weapons.push_back(w);
+			}
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+
 	getstringfield(L, -1, "infotext", prop->infotext);
 	getboolfield(L, -1, "static_save", prop->static_save);
 
@@ -631,6 +707,49 @@ void push_object_properties(lua_State *L, const ObjectProperties *prop)
 	lua_setfield(L, -2, "auto_normalize");
 	lua_pushnumber(L, prop->target_height);
 	lua_setfield(L, -2, "target_height");
+
+	lua_pushboolean(L, prop->is_wield_item);
+	lua_setfield(L, -2, "is_wield_item");
+	lua_pushboolean(L, prop->auto_align);
+	lua_setfield(L, -2, "auto_align");
+	lua_pushboolean(L, prop->hidedefaultparts);
+	lua_setfield(L, -2, "hidedefaultparts");
+	push_ARGB8(L, prop->skin_tone);
+	lua_setfield(L, -2, "skin_tone");
+
+	lua_createtable(L, prop->weapons.size(), 0);
+	for (u32 i = 0; i < prop->weapons.size(); i++) {
+		const auto &w = prop->weapons[i];
+		lua_newtable(L);
+		lua_pushstring(L, w.model.c_str());
+		lua_setfield(L, -2, "model");
+
+		lua_createtable(L, w.textures.size(), 0);
+		for (u32 j = 0; j < w.textures.size(); j++) {
+			lua_pushstring(L, w.textures[j].c_str());
+			lua_rawseti(L, -2, j + 1);
+		}
+		lua_setfield(L, -2, "textures");
+
+		lua_createtable(L, w.hide_parts.size(), 0);
+		for (u32 j = 0; j < w.hide_parts.size(); j++) {
+			lua_pushstring(L, w.hide_parts[j].c_str());
+			lua_rawseti(L, -2, j + 1);
+		}
+		lua_setfield(L, -2, "hide_parts");
+
+		lua_pushstring(L, w.bone.c_str());
+		lua_setfield(L, -2, "bone");
+		push_v3f(L, w.offset_pos);
+		lua_setfield(L, -2, "offset_pos");
+		push_v3f(L, w.offset_rot);
+		lua_setfield(L, -2, "offset_rot");
+		push_v3f(L, w.scale);
+		lua_setfield(L, -2, "scale");
+
+		lua_rawseti(L, -2, i + 1);
+	}
+	lua_setfield(L, -2, "weapons");
 
 	lua_pushlstring(L, prop->infotext.c_str(), prop->infotext.size());
 	lua_setfield(L, -2, "infotext");

@@ -7,6 +7,7 @@
 #include "EMaterialTypes.h"
 #include "IDummyTransformationSceneNode.h"
 #include "irrlichttypes.h"
+#include <unordered_map>
 
 #include "object_properties.h"
 #include "clientobject.h"
@@ -26,6 +27,7 @@ class Client;
 struct Nametag;
 struct MinimapMarker;
 class WieldMeshSceneNode;
+enum CameraMode : int;
 
 /*
 	SmoothTranslator and other helpers
@@ -90,6 +92,13 @@ private:
 	scene::IMeshSceneNode *m_meshnode = nullptr;
 	scene::AnimatedMeshSceneNode *m_animated_meshnode = nullptr;
 	WieldMeshSceneNode *m_wield_meshnode = nullptr;
+
+	struct WeaponNode {
+		scene::AnimatedMeshSceneNode *node;
+		std::string model;
+	};
+	std::vector<WeaponNode> m_weapon_nodes;
+
 	scene::IBillboardSceneNode *m_spritenode = nullptr;
 	scene::IDummyTransformationSceneNode *m_matrixnode = nullptr;
 	Nametag *m_nametag = nullptr;
@@ -147,6 +156,8 @@ private:
 	// last applied texture modifier
 	std::string m_current_texture_modifier = "";
 	float m_step_distance_counter = 0.0f;
+	CameraMode m_last_camera_mode = CAMERA_MODE_FIRST;
+	std::unordered_map<std::string, v3f> m_bone_original_scales;
 
 	bool visualExpiryRequired(const ObjectProperties &newprops) const;
 

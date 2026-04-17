@@ -1204,6 +1204,106 @@ int ObjectRef::l_get_bone_overrides(lua_State *L)
 	return 1;
 }
 
+int ObjectRef::l_attach_weapon(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	ObjectProperties *prop = sao->accessObjectProperties();
+	if (prop == nullptr)
+		return 0;
+
+	luaL_checktype(L, 2, LUA_TTABLE);
+
+	WeaponProp w;
+	getstringfield(L, 2, "model", w.model);
+	lua_getfield(L, 2, "textures");
+	if (lua_istable(L, -1)) {
+		int table = lua_gettop(L);
+		lua_pushnil(L);
+		while (lua_next(L, table) != 0) {
+			if (lua_isstring(L, -1))
+				w.textures.emplace_back(lua_tostring(L, -1));
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+	lua_getfield(L, 2, "hide_parts");
+	if (lua_istable(L, -1)) {
+		int table = lua_gettop(L);
+		lua_pushnil(L);
+		while (lua_next(L, table) != 0) {
+			if (lua_isstring(L, -1))
+				w.hide_parts.emplace_back(lua_tostring(L, -1));
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+	getstringfield(L, 2, "bone", w.bone);
+	lua_getfield(L, 2, "offset_pos");
+	if (lua_istable(L, -1))
+		w.offset_pos = read_v3f(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 2, "offset_rot");
+	if (lua_istable(L, -1))
+		w.offset_rot = read_v3f(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 2, "scale");
+	if (lua_istable(L, -1))
+		w.scale = read_v3f(L, -1);
+	else if (lua_isnumber(L, -1)) {
+		float s = lua_tonumber(L, -1);
+		w.scale = v3f(s, s, s);
+	}
+	lua_pop(L, 1);
+
+	// If model already exists, replace it
+	bool found = false;
+	for (auto &existing : prop->weapons) {
+		if (existing.model == w.model) {
+			existing = w;
+			found = true;
+			break;
+		}
+	}
+	if (!found)
+		prop->weapons.push_back(w);
+
+	sao->notifyObjectPropertiesModified();
+	return 0;
+}
+
+int ObjectRef::l_detach_weapon(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	ObjectProperties *prop = sao->accessObjectProperties();
+	if (prop == nullptr)
+		return 0;
+
+	if (lua_isnoneornil(L, 2)) {
+		prop->weapons.clear();
+	} else {
+		std::string model = readParam<std::string>(L, 2);
+		for (auto it = prop->weapons.begin(); it != prop->weapons.end(); ) {
+			if (it->model == model)
+				it = prop->weapons.erase(it);
+			else
+				++it;
+		}
+	}
+
+	sao->notifyObjectPropertiesModified();
+	return 0;
+}
+
 // set_attach(self, parent, bone, position, rotation, force_visible)
 int ObjectRef::l_set_attach(lua_State *L)
 {
@@ -3328,6 +3428,8 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod(ObjectRef, set_bone_override),
 	luamethod(ObjectRef, get_bone_override),
 	luamethod(ObjectRef, get_bone_overrides),
+	luamethod_aliased(ObjectRef, attach_weapon, attachweapon),
+	luamethod_aliased(ObjectRef, detach_weapon, detachweapon),
 	luamethod(ObjectRef, set_attach),
 	luamethod(ObjectRef, get_attach),
 	luamethod(ObjectRef, get_children),
