@@ -1,9 +1,9 @@
 // Luanti
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#ifdef __ANDROID__
-
 #include "htmlview_jni.h"
+
+#ifdef __ANDROID__
 
 #include "config.h"
 #include "log.h"
@@ -403,5 +403,31 @@ void htmlview_jni_poll(ServerScripting *script)
 		script->on_htmlview_capture(c.id, c.png_base64);
 	}
 }
+
+#else // __ANDROID__
+
+#include "scripting_server.h"
+
+void htmlview_jni_run(const std::string &id, const std::string &html) {}
+void htmlview_jni_run_worker(const std::string &id, const std::string &html) {}
+void htmlview_jni_run_external(const std::string &id, const std::string &root_dir,
+		const std::string &entry) {}
+void htmlview_jni_run_external_worker(const std::string &id, const std::string &root_dir,
+		const std::string &entry) {}
+void htmlview_jni_stop(const std::string &id) {}
+void htmlview_jni_shutdown_all() {}
+void htmlview_jni_reload(const std::string &id) {}
+void htmlview_jni_focus(const std::string &id) {}
+std::string htmlview_jni_state(const std::string &id) { return ""; }
+void htmlview_jni_display(const std::string &id, int x, int y, int w, int h,
+		bool visible, bool fullscreen, bool safe_area,
+		bool drag_embed, float border_radius) {}
+void htmlview_jni_input(const std::string &id, bool block_game_input) {}
+void htmlview_jni_send(const std::string &id, const std::string &message) {}
+void htmlview_jni_navigate(const std::string &id, const std::string &url) {}
+void htmlview_jni_inject(const std::string &id, const std::string &js) {}
+void htmlview_jni_pipe(const std::string &fromId, const std::string &toId) {}
+void htmlview_jni_capture(const std::string &id, int width, int height) {}
+void htmlview_jni_poll(ServerScripting *script) {}
 
 #endif // __ANDROID__
