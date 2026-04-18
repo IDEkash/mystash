@@ -55,6 +55,7 @@ if (new File(depsDir, 'armeabi-v7a').exists()) {
 		src 'https://github.com/luanti-org/luanti_android_deps/releases/download/latest/deps-lite.zip'
 		dest depsZip
 		overwrite false
+		retries 3
 
 		task getDeps(dependsOn: downloadDeps, type: Copy) {
 			depsDir.mkdir()

@@ -2,6 +2,16 @@ name: lua_lint
 
 # Lint on lua changes on builtin or if workflow changed
 on:
+  push:
+    paths:
+      - 'builtin/**'
+      - 'games/devtest/**'
+      - '.github/workflows/lua.yml'
+  pull_request:
+    paths:
+      - 'builtin/**'
+      - 'games/devtest/**'
+      - '.github/workflows/lua.yml'
   workflow_dispatch:
 
 jobs:
