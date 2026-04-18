@@ -109,6 +109,7 @@ struct ObjectProperties
 	bool is_wield_item = false;
 	bool auto_align = false;
 	bool hidedefaultparts = false;
+	bool hide_wield_item = false;
 	video::SColor skin_tone = video::SColor(255, 255, 255, 255);
 
 	ObjectProperties();

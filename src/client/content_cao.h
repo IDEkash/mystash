@@ -95,7 +95,8 @@ private:
 	WieldMeshSceneNode *m_wield_meshnode = nullptr;
 
 	struct WeaponNode {
-		scene::AnimatedMeshSceneNode *node;
+		scene::AnimatedMeshSceneNode *world_node = nullptr;
+		scene::AnimatedMeshSceneNode *viewmodel_node = nullptr;
 		std::string model;
 	};
 	std::vector<WeaponNode> m_weapon_nodes;
@@ -158,6 +159,7 @@ private:
 	std::string m_current_texture_modifier = "";
 	float m_step_distance_counter = 0.0f;
 	int m_last_camera_mode = 0; // CAMERA_MODE_FIRST
+	bool m_is_fp_wield = false;
 
 	bool visualExpiryRequired(const ObjectProperties &newprops) const;
 

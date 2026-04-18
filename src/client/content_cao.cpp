@@ -550,8 +550,14 @@ void GenericCAO::removeFromScene(bool permanent)
 	}
 
 	for (auto &wn : m_weapon_nodes) {
-		wn.node->remove();
-		wn.node->drop();
+		if (wn.world_node) {
+			wn.world_node->remove();
+			wn.world_node->drop();
+		}
+		if (wn.viewmodel_node) {
+			wn.viewmodel_node->remove();
+			wn.viewmodel_node->drop();
+		}
 	}
 	m_weapon_nodes.clear();
 
@@ -585,6 +591,13 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 	if (!m_prop.is_visible)
 		return;
 
+	m_is_fp_wield = (m_is_local_player || m_attached_to_local) &&
+			m_client->getCamera()->getCameraMode() == CAMERA_MODE_FIRST &&
+			m_prop.is_wield_item;
+
+	scene::ISceneManager *visual_smgr = m_is_fp_wield ?
+			m_client->getCamera()->getWieldSceneManager() : m_smgr;
+
 	infostream << "GenericCAO::addToScene(): " <<
 		enum_to_string(es_ObjectVisual, m_prop.visual)<< std::endl;
 
@@ -612,7 +625,9 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		}
 	};
 
-	m_matrixnode = m_smgr->addDummyTransformationSceneNode();
+	scene::ISceneNode *matrix_parent = m_is_fp_wield ?
+			m_client->getCamera()->getViewmodelRoot() : visual_smgr->getRootSceneNode();
+	m_matrixnode = visual_smgr->addDummyTransformationSceneNode(matrix_parent);
 	m_matrixnode->grab();
 
 	auto setMaterial = [this](video::SMaterial &mat) {
@@ -672,12 +687,12 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		}
 
 		mesh->recalculateBoundingBox();
-		m_meshnode = m_smgr->addMeshSceneNode(mesh.get(), m_matrixnode);
+		m_meshnode = visual_smgr->addMeshSceneNode(mesh.get(), m_matrixnode);
 		m_meshnode->grab();
 		break;
 	} case OBJECTVISUAL_CUBE: {
 		scene::IMesh *mesh = createCubeMesh(v3f(BS,BS,BS));
-		m_meshnode = m_smgr->addMeshSceneNode(mesh, m_matrixnode);
+		m_meshnode = visual_smgr->addMeshSceneNode(mesh, m_matrixnode);
 		m_meshnode->grab();
 		mesh->drop();
 
@@ -699,7 +714,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 						recalculateNormals(mesh, true, false);
 			}
 
-			m_animated_meshnode = m_smgr->addAnimatedMeshSceneNode(mesh, m_matrixnode);
+			m_animated_meshnode = visual_smgr->addAnimatedMeshSceneNode(mesh, m_matrixnode);
 			if (!m_animated_meshnode)
 				return;
 			m_animated_meshnode->grab();
@@ -778,7 +793,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		auto *mesh = generateNodeMesh(m_client, m_prop.node, m_meshnode_animation);
 		assert(mesh);
 
-		m_meshnode = m_smgr->addMeshSceneNode(mesh, m_matrixnode);
+		m_meshnode = visual_smgr->addMeshSceneNode(mesh, m_matrixnode);
 		m_meshnode->setSharedMaterials(true);
 		m_meshnode->grab();
 		mesh->drop();
@@ -788,7 +803,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		setSceneNodeMaterials(m_meshnode);
 		break;
 	} default:
-		m_spritenode = m_smgr->addBillboardSceneNode(m_matrixnode);
+		m_spritenode = visual_smgr->addBillboardSceneNode(m_matrixnode);
 		m_spritenode->grab();
 
 		setSceneNodeMaterials(m_spritenode);
@@ -811,82 +826,79 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 
 	// Add weapons
 	if (m_animated_meshnode) {
-		bool is_first_person = m_is_local_player &&
-				m_client->getCamera()->getCameraMode() == CAMERA_MODE_FIRST;
-		scene::ISceneManager *smgr = is_first_person ?
-				m_client->getCamera()->getWieldSceneManager() : m_smgr;
-
 		for (const auto &w : m_prop.weapons) {
 			scene::IAnimatedMesh *mesh = m_client->getMesh(w.model, true);
 			if (!mesh)
 				continue;
 
-			scene::ISceneNode *parent = nullptr;
-			if (is_first_person) {
-				if (w.bone == "camera") {
-					parent = m_client->getCamera()->getViewmodelRoot();
+			WeaponNode wn;
+			wn.model = w.model;
+
+			auto createNode = [&](scene::ISceneManager *mgr, scene::ISceneNode *parent, bool fp) {
+				scene::AnimatedMeshSceneNode *node = mgr->addAnimatedMeshSceneNode(mesh, parent);
+				if (!node) return (scene::AnimatedMeshSceneNode*)nullptr;
+				node->grab();
+				node->setScale(w.scale);
+				node->setPosition(w.offset_pos);
+				node->setRotation(w.offset_rot);
+				for (u32 i = 0; i < node->getMaterialCount(); i++) {
+					if (i < w.textures.size() && !w.textures[i].empty()) {
+						video::SMaterial &mat = node->getMaterial(i);
+						setMaterialTextureAndFilters(mat, w.textures[i], m_client->tsrc());
+					}
+				}
+				if (fp) {
+					node->forEachMaterial([](auto &mat) {
+						mat.ZBuffer = video::ECFN_ALWAYS;
+					});
+					node->setVisible(m_client->getCamera()->getCameraMode() == CAMERA_MODE_FIRST);
 				} else {
-					// Search in attached wield items (e.g. viewmodel arms)
+					node->setVisible(m_client->getCamera()->getCameraMode() != CAMERA_MODE_FIRST);
+				}
+				return node;
+			};
+
+			// Create world node
+			scene::ISceneNode *world_parent = m_animated_meshnode->getJointNode(w.bone.c_str());
+			if (!world_parent) world_parent = m_animated_meshnode;
+			wn.world_node = createNode(m_smgr, world_parent, false);
+
+			// Create viewmodel node if local player
+			if (m_is_local_player) {
+				scene::ISceneManager *vmgr = m_client->getCamera()->getWieldSceneManager();
+				scene::ISceneNode *vm_parent = nullptr;
+				if (w.bone == "camera") {
+					vm_parent = m_client->getCamera()->getViewmodelRoot();
+				} else {
 					for (object_t child_id : m_attachment_child_ids) {
 						GenericCAO *child = m_env->getGenericCAO(child_id);
 						if (child && child->m_prop.is_wield_item && child->m_animated_meshnode) {
-							parent = child->m_animated_meshnode->getJointNode(w.bone.c_str());
-							if (parent) break;
+							vm_parent = child->m_animated_meshnode->getJointNode(w.bone.c_str());
+							if (vm_parent) break;
 						}
 					}
-					// Search in previously created weapon nodes for this CAO
-					if (!parent) {
-						for (const auto &wn : m_weapon_nodes) {
-							parent = wn.node->getJointNode(w.bone.c_str());
-							if (parent) break;
+					if (!vm_parent) {
+						for (const auto &prev_wn : m_weapon_nodes) {
+							if (prev_wn.viewmodel_node) {
+								vm_parent = prev_wn.viewmodel_node->getJointNode(w.bone.c_str());
+								if (vm_parent) break;
+							}
 						}
 					}
-					if (!parent)
-						parent = m_client->getCamera()->getViewmodelRoot();
+					if (!vm_parent) vm_parent = m_client->getCamera()->getViewmodelRoot();
 				}
-			} else {
-				parent = m_animated_meshnode->getJointNode(w.bone.c_str());
-				if (!parent)
-					parent = m_animated_meshnode;
+				wn.viewmodel_node = createNode(vmgr, vm_parent, true);
 			}
 
-			if (!parent)
-				continue;
-
-			scene::AnimatedMeshSceneNode *wnode = smgr->addAnimatedMeshSceneNode(mesh, parent);
-			if (!wnode) {
-				mesh->drop();
-				continue;
-			}
-			wnode->grab();
 			mesh->drop();
-
-			wnode->setScale(w.scale);
-			wnode->setPosition(w.offset_pos);
-			wnode->setRotation(w.offset_rot);
-
-			// Set textures
-			for (u32 i = 0; i < wnode->getMaterialCount(); i++) {
-				if (i < w.textures.size() && !w.textures[i].empty()) {
-					video::SMaterial &mat = wnode->getMaterial(i);
-					setMaterialTextureAndFilters(mat, w.textures[i], m_client->tsrc());
-				}
-			}
-
-			if (is_first_person) {
-				wnode->forEachMaterial([](auto &mat) {
-					mat.ZBuffer = video::ECFN_ALWAYS;
-				});
-			}
-
-			m_weapon_nodes.push_back({wnode, w.model});
+			m_weapon_nodes.push_back(wn);
 		}
 	}
 
 	if (scene::ISceneNode *node = getSceneNode()) {
 		node->setParent(m_matrixnode);
 
-		if (auto shadow = RenderingEngine::get_shadow_renderer())
+		if (auto shadow = RenderingEngine::get_shadow_renderer(); shadow && !m_is_fp_wield)
 			shadow->addNodeToShadowList(node);
 	}
 
@@ -922,6 +934,16 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 					layer.Texture = last;
 				last = layer.Texture;
 			}
+		}
+	}
+
+	// Local player: handle weapon node visibility between passes
+	if (m_is_local_player) {
+		for (auto &wn : m_weapon_nodes) {
+			if (wn.world_node)
+				wn.world_node->setVisible(!is_first_person);
+			if (wn.viewmodel_node)
+				wn.viewmodel_node->setVisible(is_first_person);
 		}
 	}
 }
@@ -994,7 +1016,10 @@ void GenericCAO::setNodeLight(const video::SColor &light_color)
 	}
 
 	for (auto &wn : m_weapon_nodes) {
-		setColorParam(wn.node, light_color);
+		if (wn.world_node)
+			setColorParam(wn.world_node, light_color);
+		if (wn.viewmodel_node)
+			setColorParam(wn.viewmodel_node, light_color);
 	}
 }
 
@@ -1072,6 +1097,13 @@ void GenericCAO::updateNodePos()
 
 	if (node) {
 		assert(m_matrixnode);
+
+		if (m_is_fp_wield) {
+			getPosRotMatrix().setTranslation(v3f(0, 0, 0));
+			getPosRotMatrix().setRotationDegrees(v3f(0, 0, 0));
+			return;
+		}
+
 		v3s16 camera_offset = m_env->getCameraOffset();
 		v3f pos = pos_translator.val_current -
 				intToFloat(camera_offset, BS);
@@ -1393,6 +1425,16 @@ void GenericCAO::updateTextureAnim()
 			}
 		}
 	}
+
+	// Local player: handle weapon node visibility between passes
+	if (m_is_local_player) {
+		for (auto &wn : m_weapon_nodes) {
+			if (wn.world_node)
+				wn.world_node->setVisible(!is_first_person);
+			if (wn.viewmodel_node)
+				wn.viewmodel_node->setVisible(is_first_person);
+		}
+	}
 }
 
 // Do not pass by reference, see header.
@@ -1505,9 +1547,12 @@ void GenericCAO::updateAnimation()
 
 	m_animated_meshnode->setAnimation(range.X, range.Y, m_animation_speed, m_animation_loop, m_animation_blend);
 
-	if (m_prop.auto_align) {
-		for (auto &wn : m_weapon_nodes) {
-			wn.node->setAnimation(range.X, range.Y, m_animation_speed, m_animation_loop, m_animation_blend);
+	for (auto &wn : m_weapon_nodes) {
+		if (m_prop.auto_align) {
+			if (wn.world_node)
+				wn.world_node->setAnimation(range.X, range.Y, m_animation_speed, m_animation_loop, m_animation_blend);
+			if (wn.viewmodel_node)
+				wn.viewmodel_node->setAnimation(range.X, range.Y, m_animation_speed, m_animation_loop, m_animation_blend);
 		}
 	}
 }
@@ -1519,9 +1564,12 @@ void GenericCAO::updateAnimationSpeed()
 
 	m_animated_meshnode->setAnimationSpeed(m_animation_speed);
 
-	if (m_prop.auto_align) {
-		for (auto &wn : m_weapon_nodes) {
-			wn.node->setAnimationSpeed(m_animation_speed);
+	for (auto &wn : m_weapon_nodes) {
+		if (m_prop.auto_align) {
+			if (wn.world_node)
+				wn.world_node->setAnimationSpeed(m_animation_speed);
+			if (wn.viewmodel_node)
+				wn.viewmodel_node->setAnimationSpeed(m_animation_speed);
 		}
 	}
 }
@@ -1982,7 +2030,29 @@ void GenericCAO::updateMeshCulling()
 	}
 
 	const bool is_first_person = cam_mode == CAMERA_MODE_FIRST;
-	const bool hidden = is_first_person && !m_prop.is_wield_item;
+	bool hidden = is_first_person && !m_prop.is_wield_item;
+
+	// Check if any attached wield-item wants to hide the legacy hand
+	if (is_first_person && !m_prop.is_wield_item) {
+		for (object_t child_id : m_attachment_child_ids) {
+			GenericCAO *child = m_env->getGenericCAO(child_id);
+			if (child && child->m_prop.is_wield_item && child->m_prop.hide_wield_item) {
+				hidden = true;
+				break;
+			}
+		}
+		// Also check own weapon properties
+		if (!hidden) {
+			for (const auto &w : m_prop.weapons) {
+				// This is a bit of a placeholder, we could add hide_wield_item to WeaponProp too
+				// but for now we use the object property.
+				if (m_prop.hide_wield_item) {
+					hidden = true;
+					break;
+				}
+			}
+		}
+	}
 
 	scene::ISceneNode *node = getSceneNode();
 
@@ -2037,6 +2107,16 @@ void GenericCAO::updateMeshCulling()
 				joint->setScale(v3f(0, 0, 0));
 				joint->setVisible(false);
 			}
+		}
+	}
+
+	// Local player: handle weapon node visibility between passes
+	if (m_is_local_player) {
+		for (auto &wn : m_weapon_nodes) {
+			if (wn.world_node)
+				wn.world_node->setVisible(!is_first_person);
+			if (wn.viewmodel_node)
+				wn.viewmodel_node->setVisible(is_first_person);
 		}
 	}
 }

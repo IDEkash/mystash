@@ -111,7 +111,7 @@ static inline auto tie(const ObjectProperties &o)
 	o.collideWithObjects, o.rotate_selectionbox, o.is_visible, o.makes_footstep_sound,
 	o.automatic_face_movement_dir, o.backface_culling, o.static_save, o.use_texture_alpha,
 	o.shaded, o.show_on_minimap, o.nametag_scale_z,
-	o.is_wield_item, o.auto_align, o.hidedefaultparts, o.skin_tone
+	o.is_wield_item, o.auto_align, o.hidedefaultparts, o.hide_wield_item, o.skin_tone
 	);
 }
 
@@ -229,6 +229,7 @@ void ObjectProperties::serialize(std::ostream &os) const
 	writeU8(os, is_wield_item);
 	writeU8(os, auto_align);
 	writeU8(os, hidedefaultparts);
+	writeU8(os, hide_wield_item);
 	writeARGB8(os, skin_tone);
 
 	writeU16(os, weapons.size());
@@ -362,6 +363,7 @@ void ObjectProperties::deSerialize(std::istream &is)
 	is_wield_item = readU8(is);
 	auto_align = readU8(is);
 	hidedefaultparts = readU8(is);
+	hide_wield_item = readU8(is);
 	skin_tone = readARGB8(is);
 
 	if (!canRead(is))

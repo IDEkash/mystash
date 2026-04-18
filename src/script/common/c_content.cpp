@@ -325,6 +325,7 @@ const std::array<const char *, 43> object_property_keys = {
 	"is_wield_item",
 	"auto_align",
 	"hidedefaultparts",
+	"hide_wield_item",
 	"skin_tone",
 	"weapons",
 };
@@ -527,6 +528,7 @@ void read_object_properties(lua_State *L, int index,
 	getboolfield(L, -1, "is_wield_item", prop->is_wield_item);
 	getboolfield(L, -1, "auto_align", prop->auto_align);
 	getboolfield(L, -1, "hidedefaultparts", prop->hidedefaultparts);
+	getboolfield(L, -1, "hide_wield_item", prop->hide_wield_item);
 
 	lua_getfield(L, -1, "skin_tone");
 	if (!lua_isnil(L, -1))
@@ -714,6 +716,8 @@ void push_object_properties(lua_State *L, const ObjectProperties *prop)
 	lua_setfield(L, -2, "auto_align");
 	lua_pushboolean(L, prop->hidedefaultparts);
 	lua_setfield(L, -2, "hidedefaultparts");
+	lua_pushboolean(L, prop->hide_wield_item);
+	lua_setfield(L, -2, "hide_wield_item");
 	push_ARGB8(L, prop->skin_tone);
 	lua_setfield(L, -2, "skin_tone");
 

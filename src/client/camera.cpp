@@ -562,6 +562,13 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	m_wieldnode->setLightColorAndAnimation(m_player_light_color,
 			m_client->getAnimationTime());
 
+	bool hide_legacy = false;
+	if (player->getCAO())
+		hide_legacy = player->getCAO()->getProperties().hide_wield_item;
+
+	if (hide_legacy)
+		m_wieldnode->setVisible(false);
+
 	// Set render distance
 	updateViewingRange();
 
