@@ -332,6 +332,7 @@ std::string PlayerSAO::generateUpdatePhysicsOverrideCommand() const
 	writeF32(os, phys.speed_fast);
 	writeF32(os, phys.acceleration_fast);
 	writeF32(os, phys.speed_walk);
+	writeF32(os, phys.step_height);
 	return os.str();
 }
 
