@@ -347,7 +347,12 @@ int ModApiUtil::l_gltf_inspect(lua_State *L)
 
 	const auto &m = *model;
 
-	lua_createtable(L, 0, 3);
+	lua_createtable(L, 0, 4);
+
+	if (m.extensions.has_value()) {
+		push_json_value(L, *m.extensions, 0);
+		lua_setfield(L, -2, "extensions");
+	}
 
 	// meshes
 	lua_newtable(L);
@@ -387,11 +392,18 @@ int ModApiUtil::l_gltf_inspect(lua_State *L)
 		} else {
 			name = "bone_" + std::to_string(node);
 		}
-		lua_createtable(L, 0, 2);
+		lua_createtable(L, 0, 3);
 		lua_pushinteger(L, (lua_Integer)node);
 		lua_setfield(L, -2, "node");
 		lua_pushlstring(L, name.c_str(), name.size());
 		lua_setfield(L, -2, "name");
+		if (m.nodes.has_value() && node < m.nodes->size()) {
+			const auto &n = m.nodes->at(node);
+			if (n.extensions.has_value()) {
+				push_json_value(L, *n.extensions, 0);
+				lua_setfield(L, -2, "extensions");
+			}
+		}
 		lua_rawseti(L, -2, outb++);
 	}
 	lua_setfield(L, -2, "bones");
@@ -424,7 +436,7 @@ int ModApiUtil::l_gltf_inspect(lua_State *L)
 			if (duration < 0.0f)
 				duration = 0.0f;
 			std::string name = anim.name.has_value() ? *anim.name : ("animation_" + std::to_string(ai));
-			lua_createtable(L, 0, 5);
+			lua_createtable(L, 0, 6);
 			lua_pushinteger(L, (lua_Integer)ai);
 			lua_setfield(L, -2, "index");
 			lua_pushlstring(L, name.c_str(), name.size());
@@ -435,6 +447,10 @@ int ModApiUtil::l_gltf_inspect(lua_State *L)
 			lua_setfield(L, -2, "end");
 			lua_pushnumber(L, duration);
 			lua_setfield(L, -2, "duration");
+			if (anim.extensions.has_value()) {
+				push_json_value(L, *anim.extensions, 0);
+				lua_setfield(L, -2, "extensions");
+			}
 			lua_rawseti(L, -2, outa++);
 		}
 	}

@@ -401,6 +401,7 @@ struct Animation {
 	std::vector<AnimationChannel> channels;
 	std::optional<std::string> name;
 	std::vector<AnimationSampler> samplers;
+	std::optional<Json::Value> extensions;
 	Animation(const Json::Value &o)
 		: channels(asVec<AnimationChannel>(o["channels"]))
 		, samplers(asVec<AnimationSampler>(o["samplers"]))
@@ -411,6 +412,9 @@ struct Animation {
 			name = as<std::string>(o["name"]);
 		}
 		check(samplers.size() >= 1);
+		if (o.isMember("extensions")) {
+			extensions = o["extensions"];
+		}
 	}
 };
 template<> Animation as(const Json::Value &o) { return o; }
@@ -931,6 +935,7 @@ struct Node {
 	std::optional<std::string> name;
 	std::optional<std::size_t> skin;
 	std::optional<std::vector<double>> weights;
+	std::optional<Json::Value> extensions;
 	Node(const Json::Value &o)
 		: transform(TRS{})
 	{
@@ -977,6 +982,9 @@ struct Node {
 		if (o.isMember("weights")) {
 			weights = asVec<double>(o["weights"]);
 			check(weights->size() >= 1);
+		}
+		if (o.isMember("extensions")) {
+			extensions = o["extensions"];
 		}
 	}
 };
@@ -1136,6 +1144,7 @@ struct GlTF {
 	std::optional<std::vector<Scene>> scenes;
 	std::optional<std::vector<Skin>> skins;
 	std::optional<std::vector<Texture>> textures;
+	std::optional<Json::Value> extensions;
 
 	GlTF(const Json::Value &o,
 			const UriResolver &resolveUri = uriError,
@@ -1250,6 +1259,9 @@ struct GlTF {
 		if (o.isMember("textures")) {
 			textures = asVec<Texture>(o["textures"]);
 			check(textures->size() >= 1);
+		}
+		if (o.isMember("extensions")) {
+			extensions = o["extensions"];
 		}
 
 		// Validation

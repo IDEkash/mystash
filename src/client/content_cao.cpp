@@ -698,17 +698,36 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 			mesh->drop(); // The scene node took hold of it
 
 			v3f final_scale = m_prop.visual_size;
-			if (m_prop.auto_normalize || m_prop.target_height > 0.0f) {
+			v3f model_unit_scale = m_prop.model_unit_scale;
+			float target_height = m_prop.target_height;
+
+			if (auto *skinned = dynamic_cast<scene::SkinnedMesh *>(mesh)) {
+				const Json::Value &exts = skinned->getGltfExtensions();
+				if (exts.isMember("LUA_scale")) {
+					const Json::Value &scale_ext = exts["LUA_scale"];
+					if (target_height <= 0.0f && scale_ext.isMember("target_height") && scale_ext["target_height"].isNumeric()) {
+						target_height = scale_ext["target_height"].asFloat();
+					}
+					if (m_prop.model_unit_scale == v3f(1, 1, 1) && scale_ext.isMember("unit_scale") && scale_ext["unit_scale"].isObject()) {
+						const Json::Value &us = scale_ext["unit_scale"];
+						if (us.isMember("x") && us["x"].isNumeric()) model_unit_scale.X = us["x"].asFloat();
+						if (us.isMember("y") && us["y"].isNumeric()) model_unit_scale.Y = us["y"].asFloat();
+						if (us.isMember("z") && us["z"].isNumeric()) model_unit_scale.Z = us["z"].asFloat();
+					}
+				}
+			}
+
+			if (m_prop.auto_normalize || target_height > 0.0f) {
 				const core::aabbox3d<f32> &box = mesh->getBoundingBox();
 				float model_height = box.MaxEdge.Y - box.MinEdge.Y;
-				if (m_prop.target_height > 0.0f && model_height > 0.001f) {
-					float s = (m_prop.target_height * BS) / model_height;
+				if (target_height > 0.0f && model_height > 0.001f) {
+					float s = (target_height * BS) / model_height;
 					final_scale = v3f(s, s, s);
 				} else if (m_prop.auto_normalize) {
 					final_scale = v3f(BS, BS, BS);
 				}
 			}
-			m_animated_meshnode->setScale(final_scale * m_prop.model_unit_scale);
+			m_animated_meshnode->setScale(final_scale * model_unit_scale);
 
 			// set vertex colors to ensure alpha is set
 			setMeshColor(m_animated_meshnode->getMesh(), video::SColor(0xFFFFFFFF));
@@ -718,6 +737,22 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 			m_animated_meshnode->forEachMaterial([this] (auto &mat) {
 				mat.BackfaceCulling = m_prop.backface_culling;
 			});
+
+			if (auto *skinned = dynamic_cast<scene::SkinnedMesh *>(mesh)) {
+				const Json::Value &exts = skinned->getGltfExtensions();
+				if (exts.isMember("LUA_visibility")) {
+					const Json::Value &vis = exts["LUA_visibility"];
+					if (vis.isMember("hidden") && vis["hidden"].isArray()) {
+						for (const auto &bone_name : vis["hidden"]) {
+							if (bone_name.isString()) {
+								BoneOverride props;
+								props.hidden = true;
+								m_bone_override[bone_name.asString()] = props;
+							}
+						}
+					}
+				}
+			}
 
 			m_animated_meshnode->setOnAnimateCallback([&](f32 dtime) {
 				for (auto it = m_bone_override.begin(); it != m_bone_override.end();) {

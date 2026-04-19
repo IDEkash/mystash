@@ -17,6 +17,7 @@
 #include "vector3d.h"
 #include "Transform.h"
 
+#include <json/json.h>
 #include <optional>
 #include <string>
 #include <variant>
@@ -59,6 +60,7 @@ public:
 		std::string name;
 		f32 start = 0.0f;
 		f32 end = 0.0f;
+		Json::Value extensions;
 	};
 
 	u32 getAnimationClipCount() const { return AnimationClips.size(); }
@@ -342,6 +344,8 @@ public:
 		// The .x and .gltf formats pre-calculate this
 		std::optional<core::matrix4> GlobalInversedMatrix;
 
+		Json::Value extensions;
+
 		void setParent(SJoint *parent) {
 			ParentJointID = parent ? parent->JointID : std::optional<u16>{};
 		}
@@ -362,6 +366,9 @@ public:
 	const std::vector<SJoint *> &getAllJoints() const {
 		return AllJoints;
 	}
+
+	const Json::Value &getGltfExtensions() const { return GltfExtensions; }
+	void setGltfExtensions(Json::Value extensions) { GltfExtensions = std::move(extensions); }
 
 protected:
 	bool checkForWeights() const;
@@ -391,6 +398,8 @@ protected:
 	std::vector<SJoint *> AllJoints;
 
 	std::vector<AnimationClip> AnimationClips;
+
+	Json::Value GltfExtensions;
 
 	//! Bounding box of just the static parts of the mesh
 	core::aabbox3df StaticPartsBox{{0, 0, 0}};
@@ -458,9 +467,9 @@ public:
 	//! Adds a new weight to the mesh
 	void addWeight(SJoint *joint, u16 buf, u32 vert_id, f32 strength);
 
-	void addAnimationClip(std::string name, f32 start, f32 end)
+	void addAnimationClip(std::string name, f32 start, f32 end, Json::Value extensions = Json::nullValue)
 	{
-		mesh->AnimationClips.push_back({std::move(name), start, end});
+		mesh->AnimationClips.push_back({std::move(name), start, end, std::move(extensions)});
 	}
 
 	void clearAnimationClips()

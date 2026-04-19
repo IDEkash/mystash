@@ -588,6 +588,9 @@ void SelfType::MeshExtractor::loadNode(
 	if (node.name.has_value()) {
 		joint->Name = node.name->c_str();
 	}
+	if (node.extensions.has_value()) {
+		joint->extensions = *node.extensions;
+	}
 	m_loaded_nodes[nodeIdx] = joint;
 	if (node.mesh.has_value()) {
 		deferAddMesh(*node.mesh, node.skin, joint);
@@ -809,7 +812,8 @@ void SelfType::MeshExtractor::loadAnimations()
 		}
 
 		const auto clip_name = anim.name.has_value() ? *anim.name : ("animation_" + std::to_string(animIdx));
-		m_irr_model.addAnimationClip(clip_name, offset, offset + duration);
+		m_irr_model.addAnimationClip(clip_name, offset, offset + duration,
+				anim.extensions.has_value() ? *anim.extensions : Json::nullValue);
 		offset += duration + clip_gap;
 	}
 }
@@ -837,7 +841,11 @@ SkinnedMesh *SelfType::MeshExtractor::load()
 		}
 		loadSkins();
 		loadAnimations();
-		return std::move(m_irr_model).finalize();
+		auto *res = std::move(m_irr_model).finalize();
+		if (res && m_gltf_model.extensions.has_value()) {
+			res->setGltfExtensions(*m_gltf_model.extensions);
+		}
+		return res;
 	} catch (const std::out_of_range &e) {
 		throw std::runtime_error(e.what());
 	} catch (const std::bad_optional_access &e) {
