@@ -8,6 +8,7 @@
 #include "irr_v2d.h"
 #include "util/base64.h"
 #include "client/camera.h"
+#include "client/content_cao.h"
 #include "client/mesh_generator_thread.h"
 #include "chatmessage.h"
 #include "client/clientmedia.h"

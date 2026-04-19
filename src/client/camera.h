@@ -230,8 +230,6 @@ private:
 	v3s16 m_camera_offset;
 
 	// Camera state overrides (from Lua)
-	v3f m_lua_pos;
-	bool m_lua_pos_active = false;
 	f32 m_lua_yaw = 0.0f;
 	f32 m_lua_pitch = 0.0f;
 	f32 m_lua_fov = 0.0f;
@@ -307,6 +305,8 @@ private:
 	ItemStack m_wield_item_next;
 
 	CameraMode m_camera_mode;
+	v3f m_lua_pos;
+	bool m_lua_pos_active = false;
 
 	f32 m_cache_view_bobbing_amount;
 	bool m_arm_inertia;

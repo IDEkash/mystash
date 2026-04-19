@@ -2841,6 +2841,9 @@ void Game::processPlayerInteraction(f32 dtime, bool show_hud)
 		// Shoot from player head, no bobbing
 		shootline.start = camera->getHeadPosition();
 		break;
+	case CAMERA_MODE_SPECTATE:
+		shootline.start = camera->getPosition();
+		break;
 	case CAMERA_MODE_THIRD_FRONT:
 		shootline.start = camera->getHeadPosition();
 		// prevent player pointing anything in front-view
