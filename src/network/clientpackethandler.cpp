@@ -1895,3 +1895,43 @@ void Client::handleCommand_SetFogBoundary(NetworkPacket *pkt)
 	e->set_fog_boundary = new FogBoundaryParams(std::move(params));
 	m_client_event_queue.push(e);
 }
+
+void Client::handleCommand_SetCamera(NetworkPacket *pkt)
+{
+	u8 mode_u8;
+	v3f pos;
+	f32 yaw, pitch, fov, transition_time;
+	u8 flags;
+
+	*pkt >> mode_u8 >> pos >> yaw >> pitch >> fov >> transition_time >> flags;
+
+	CameraMode mode = static_cast<CameraMode>(mode_u8);
+
+	if (flags & 0x08) { // mode changed
+		m_camera->setCameraMode(mode);
+		// LocalPlayer SAO check
+		LocalPlayer *player = m_env.getLocalPlayer();
+		if (player && player->getCAO()) {
+			player->getCAO()->updateMeshCulling();
+			player->getCAO()->setChildrenVisible(mode > CAMERA_MODE_FIRST);
+		}
+	}
+
+	if (flags & 0x01) { // pos changed
+		if (std::isnan(pos.X))
+			m_camera->resetLuaPos();
+		else
+			m_camera->lerpPos(pos, transition_time);
+	}
+
+	if (flags & 0x02) { // rot changed
+		m_camera->lerpRotation(yaw, pitch, transition_time);
+	}
+
+	if (flags & 0x04) { // fov changed
+		if (fov > 0)
+			m_camera->lerpFov(fov, transition_time);
+		else
+			m_camera->resetLuaFov();
+	}
+}

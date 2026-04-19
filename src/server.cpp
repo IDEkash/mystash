@@ -1491,6 +1491,25 @@ void Server::SendMovement(session_t peer_id)
 	Send(&pkt);
 }
 
+void Server::SendSetCamera(session_t peer_id, u8 flags, f32 transition_time)
+{
+	RemotePlayer *player = m_env->getPlayer(peer_id);
+	if (!player)
+		return;
+
+	NetworkPacket pkt(TOCLIENT_SET_CAMERA, 1 + 12 + 4 + 4 + 4 + 4 + 1, peer_id);
+
+	pkt << (u8)player->m_camera_state.mode
+		<< player->m_camera_state.pos
+		<< player->m_camera_state.yaw
+		<< player->m_camera_state.pitch
+		<< player->m_camera_state.fov
+		<< transition_time
+		<< flags;
+
+	Send(&pkt);
+}
+
 void Server::HandlePlayerHPChange(PlayerSAO *playersao, const PlayerHPChangeReason &reason)
 {
 	m_script->player_event(playersao, "health_changed");

@@ -44,6 +44,7 @@ Camera::Camera(MapDrawControl &draw_control, Client *client, RenderingEngine *re
 	m_client(client),
 	m_camera_mode(CAMERA_MODE_FIRST),
 	m_lua_pos(0,0,0),
+	m_lua_pos_active(false),
 	m_player_light_color(0xFFFFFFFF)
 {
 	auto smgr = rendering_engine->get_scene_manager();
@@ -314,6 +315,7 @@ void Camera::updateOffset()
 
 void Camera::lerpPos(const v3f &target, f32 duration)
 {
+	m_lua_pos_active = true;
 	if (duration <= 0.0f) {
 		m_lua_pos = target;
 		m_lerp_pos.state.active = false;
@@ -386,10 +388,11 @@ f32 Camera::getPitch() const
 void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 {
 	// Ensure m_lua_pos is somewhat sane if it was never set
-	if (m_lua_pos == v3f(0,0,0) && m_camera_mode == CAMERA_MODE_SPECTATE) {
+	if (!m_lua_pos_active && m_camera_mode == CAMERA_MODE_SPECTATE) {
 		m_lua_pos = player->getEyePosition();
 		m_lua_yaw = player->getYaw();
 		m_lua_pitch = player->getPitch();
+		m_lua_pos_active = true;
 	}
 
 	// Handle lerps
@@ -458,7 +461,7 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 		m_camera_position = m_lua_pos;
 		m_camera_direction = v3f(0,0,1);
 		m_camera_direction.rotateYZBy(m_lua_pitch);
-		m_camera_direction.rotateXZBy(-m_lua_yaw);
+		m_camera_direction.rotateXZBy(m_lua_yaw);
 
 		updateOffset();
 

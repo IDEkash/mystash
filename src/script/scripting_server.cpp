@@ -11,6 +11,7 @@
 #include "lua_api/l_areastore.h"
 #include "lua_api/l_async.h"
 #include "lua_api/l_auth.h"
+#include "lua_api/l_camera_server.h"
 #include "lua_api/l_base.h"
 #include "lua_api/l_craft.h"
 #include "lua_api/l_env.h"
@@ -154,6 +155,7 @@ void ServerScripting::InitializeModApi(lua_State *L, int top)
 	ModApiRollback::Initialize(L, top);
 	ModApiServer::Initialize(L, top);
 	ModApiUtil::Initialize(L, top);
+	ModApiCamera::Initialize(L, top);
 	ModApiHttp::Initialize(L, top);
 	ModApiStorage::Initialize(L, top);
 	ModApiChannels::Initialize(L, top);

@@ -215,6 +215,7 @@ public:
 		void handleCommand_SetLighting(NetworkPacket *pkt);
 		void handleCommand_SetFog(NetworkPacket *pkt);
 		void handleCommand_SetFogBoundary(NetworkPacket *pkt);
+		void handleCommand_SetCamera(NetworkPacket *pkt);
 		void handleCommand_Camera(NetworkPacket* pkt);
 
 	void ProcessData(NetworkPacket *pkt);

@@ -174,8 +174,9 @@ public:
 	}
 
 	// Camera override methods
-	void setLuaPos(const v3f &pos) { m_lua_pos = pos; }
+	void setLuaPos(const v3f &pos) { m_lua_pos = pos; m_lua_pos_active = true; }
 	v3f getLuaPos() const { return m_lua_pos; }
+	void resetLuaPos() { m_lua_pos_active = false; }
 	void setLuaYaw(f32 yaw) { m_lua_yaw = yaw; }
 	f32 getLuaYaw() const { return m_lua_yaw; }
 	void setLuaPitch(f32 pitch) { m_lua_pitch = pitch; }
@@ -230,6 +231,7 @@ private:
 
 	// Camera state overrides (from Lua)
 	v3f m_lua_pos;
+	bool m_lua_pos_active = false;
 	f32 m_lua_yaw = 0.0f;
 	f32 m_lua_pitch = 0.0f;
 	f32 m_lua_fov = 0.0f;
