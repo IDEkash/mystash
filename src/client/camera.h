@@ -173,6 +173,25 @@ public:
 		return m_camera_mode;
 	}
 
+	// Camera override methods
+	void setLuaPos(const v3f &pos) { m_lua_pos = pos; }
+	v3f getLuaPos() const { return m_lua_pos; }
+	void setLuaYaw(f32 yaw) { m_lua_yaw = yaw; }
+	f32 getLuaYaw() const { return m_lua_yaw; }
+	void setLuaPitch(f32 pitch) { m_lua_pitch = pitch; }
+	f32 getLuaPitch() const { return m_lua_pitch; }
+	void setLuaFov(f32 fov) { m_lua_fov = fov; m_lua_fov_active = true; }
+	void resetLuaFov() { m_lua_fov_active = false; }
+
+	// Actual camera state getters (including overrides/lerps)
+	f32 getYaw() const;
+	f32 getPitch() const;
+
+	// Lerp methods
+	void lerpPos(const v3f &target, f32 duration);
+	void lerpRotation(f32 yaw, f32 pitch, f32 duration, bool relative = false);
+	void lerpFov(f32 fov, f32 duration);
+
 	Nametag *addNametag(const Nametag &params);
 
 	void removeNametag(Nametag *nametag);
@@ -208,6 +227,41 @@ private:
 	v3f m_camera_direction;
 	// Camera offset
 	v3s16 m_camera_offset;
+
+	// Camera state overrides (from Lua)
+	v3f m_lua_pos;
+	f32 m_lua_yaw = 0.0f;
+	f32 m_lua_pitch = 0.0f;
+	f32 m_lua_fov = 0.0f;
+	bool m_lua_fov_active = false;
+
+	// Lerp state
+	struct LerpState {
+		bool active = false;
+		f32 time = 0.0f;
+		f32 duration = 0.0f;
+	};
+
+	struct {
+		LerpState state;
+		v3f start;
+		v3f target;
+	} m_lerp_pos;
+
+	struct {
+		LerpState state;
+		f32 start_yaw;
+		f32 start_pitch;
+		f32 target_yaw;
+		f32 target_pitch;
+		bool relative;
+	} m_lerp_rot;
+
+	struct {
+		LerpState state;
+		f32 start;
+		f32 target;
+	} m_lerp_fov;
 
 	bool m_stepheight_smooth_active = false;
 

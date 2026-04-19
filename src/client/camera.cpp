@@ -43,6 +43,7 @@ Camera::Camera(MapDrawControl &draw_control, Client *client, RenderingEngine *re
 	m_draw_control(draw_control),
 	m_client(client),
 	m_camera_mode(CAMERA_MODE_FIRST),
+	m_lua_pos(0,0,0),
 	m_player_light_color(0xFFFFFFFF)
 {
 	auto smgr = rendering_engine->get_scene_manager();
@@ -311,8 +312,113 @@ void Camera::updateOffset()
 	// No need to update m_cameranode as that will be done before the next render.
 }
 
+void Camera::lerpPos(const v3f &target, f32 duration)
+{
+	if (duration <= 0.0f) {
+		m_lua_pos = target;
+		m_lerp_pos.state.active = false;
+		return;
+	}
+	m_lerp_pos.state.active = true;
+	m_lerp_pos.state.time = 0.0f;
+	m_lerp_pos.state.duration = duration;
+	m_lerp_pos.start = m_lua_pos;
+	m_lerp_pos.target = target;
+}
+
+void Camera::lerpRotation(f32 yaw, f32 pitch, f32 duration, bool relative)
+{
+	if (duration <= 0.0f) {
+		m_lua_yaw = yaw;
+		m_lua_pitch = pitch;
+		m_lerp_rot.state.active = false;
+		return;
+	}
+	m_lerp_rot.state.active = true;
+	m_lerp_rot.state.time = 0.0f;
+	m_lerp_rot.state.duration = duration;
+	m_lerp_rot.start_yaw = m_lua_yaw;
+	m_lerp_rot.start_pitch = m_lua_pitch;
+	m_lerp_rot.target_yaw = yaw;
+	m_lerp_rot.target_pitch = pitch;
+	m_lerp_rot.relative = relative;
+
+	if (!relative) {
+		// Normalize yaw to shortest path
+		float diff = m_lerp_rot.target_yaw - m_lerp_rot.start_yaw;
+		while (diff < -180) { diff += 360; m_lerp_rot.target_yaw += 360; }
+		while (diff > 180) { diff -= 360; m_lerp_rot.target_yaw -= 360; }
+	}
+}
+
+void Camera::lerpFov(f32 fov, f32 duration)
+{
+	if (duration <= 0.0f) {
+		m_lua_fov = fov;
+		m_lua_fov_active = true;
+		m_lerp_fov.state.active = false;
+		return;
+	}
+	m_lerp_fov.state.active = true;
+	m_lerp_fov.state.time = 0.0f;
+	m_lerp_fov.state.duration = duration;
+	m_lerp_fov.start = m_lua_fov_active ? m_lua_fov : m_curr_fov_degrees;
+	m_lerp_fov.target = fov;
+	m_lua_fov_active = true;
+}
+
+f32 Camera::getYaw() const
+{
+	LocalPlayer *player = m_client->getEnv().getLocalPlayer();
+	if (m_camera_mode == CAMERA_MODE_SPECTATE)
+		return m_lua_yaw;
+	return player->getYaw() + m_lua_yaw;
+}
+
+f32 Camera::getPitch() const
+{
+	LocalPlayer *player = m_client->getEnv().getLocalPlayer();
+	if (m_camera_mode == CAMERA_MODE_SPECTATE)
+		return m_lua_pitch;
+	return player->getPitch() + m_lua_pitch;
+}
+
 void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 {
+	// Ensure m_lua_pos is somewhat sane if it was never set
+	if (m_lua_pos == v3f(0,0,0) && m_camera_mode == CAMERA_MODE_SPECTATE) {
+		m_lua_pos = player->getEyePosition();
+		m_lua_yaw = player->getYaw();
+		m_lua_pitch = player->getPitch();
+	}
+
+	// Handle lerps
+	if (m_lerp_pos.state.active) {
+		m_lerp_pos.state.time += frametime;
+		f32 t = core::clamp(m_lerp_pos.state.time / m_lerp_pos.state.duration, 0.0f, 1.0f);
+		m_lua_pos = m_lerp_pos.start.getInterpolated(m_lerp_pos.target, t);
+		if (t >= 1.0f) m_lerp_pos.state.active = false;
+	}
+
+	if (m_lerp_rot.state.active) {
+		m_lerp_rot.state.time += frametime;
+		f32 t = core::clamp(m_lerp_rot.state.time / m_lerp_rot.state.duration, 0.0f, 1.0f);
+		m_lua_yaw = m_lerp_rot.start_yaw + (m_lerp_rot.target_yaw - m_lerp_rot.start_yaw) * t;
+		m_lua_pitch = m_lerp_rot.start_pitch + (m_lerp_rot.target_pitch - m_lerp_rot.start_pitch) * t;
+		if (t >= 1.0f) {
+			m_lerp_rot.state.active = false;
+			if (!m_lerp_rot.relative)
+				m_lua_yaw = wrapDegrees_0_360(m_lua_yaw);
+		}
+	}
+
+	if (m_lerp_fov.state.active) {
+		m_lerp_fov.state.time += frametime;
+		f32 t = core::clamp(m_lerp_fov.state.time / m_lerp_fov.state.duration, 0.0f, 1.0f);
+		m_lua_fov = m_lerp_fov.start + (m_lerp_fov.target - m_lerp_fov.start) * t;
+		if (t >= 1.0f) m_lerp_fov.state.active = false;
+	}
+
 	// Get player position
 	// Smooth the movement when walking up stairs
 	v3f old_player_position = m_playernode->getPosition();
@@ -348,35 +454,54 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	m_playernode->setRotation(v3f(0, -1 * yaw, 0));
 	m_playernode->updateAbsolutePosition();
 
-	// Get camera tilt timer (hurt animation)
-	float cameratilt = fabs(fabs(player->hurt_tilt_timer-0.75)-0.75);
+	if (m_camera_mode == CAMERA_MODE_SPECTATE) {
+		m_camera_position = m_lua_pos;
+		m_camera_direction = v3f(0,0,1);
+		m_camera_direction.rotateYZBy(m_lua_pitch);
+		m_camera_direction.rotateXZBy(-m_lua_yaw);
 
-	// Calculate and translate the head SceneNode offsets
-	{
-		v3f eye_offset = player->getEyeOffset();
-		switch(m_camera_mode) {
-		case CAMERA_MODE_ANY:
-			assert(false);
-			break;
-		case CAMERA_MODE_FIRST:
-			eye_offset += player->eye_offset_first;
-			break;
-		case CAMERA_MODE_THIRD:
-			eye_offset += player->eye_offset_third;
-			break;
-		case CAMERA_MODE_THIRD_FRONT:
-			eye_offset.X += player->eye_offset_third_front.X;
-			eye_offset.Y += player->eye_offset_third_front.Y;
-			eye_offset.Z -= player->eye_offset_third_front.Z;
-			break;
+		updateOffset();
+
+		m_cameranode->setPosition(m_camera_position - intToFloat(m_camera_offset, BS));
+		m_cameranode->setUpVector(v3f(0,1,0));
+		// rotate up vector? usually not needed for normal spectator
+		m_cameranode->updateAbsolutePosition();
+		m_cameranode->setTarget(m_camera_position - intToFloat(m_camera_offset, BS)
+			+ 100 * m_camera_direction);
+	} else {
+		// Get camera tilt timer (hurt animation)
+		float cameratilt = fabs(fabs(player->hurt_tilt_timer-0.75)-0.75);
+
+		// Calculate and translate the head SceneNode offsets
+		{
+			v3f eye_offset = player->getEyeOffset();
+			switch(m_camera_mode) {
+			case CAMERA_MODE_ANY:
+				assert(false);
+				break;
+			case CAMERA_MODE_FIRST:
+				eye_offset += player->eye_offset_first;
+				break;
+			case CAMERA_MODE_THIRD:
+				eye_offset += player->eye_offset_third;
+				break;
+			case CAMERA_MODE_THIRD_FRONT:
+				eye_offset.X += player->eye_offset_third_front.X;
+				eye_offset.Y += player->eye_offset_third_front.Y;
+				eye_offset.Z -= player->eye_offset_third_front.Z;
+				break;
+			case CAMERA_MODE_SPECTATE:
+				// Handled above
+				break;
+			}
+
+			// Set head node transformation
+			eye_offset.Y += cameratilt * -player->hurt_tilt_strength;
+			m_headnode->setPosition(eye_offset);
+			m_headnode->setRotation(v3f(pitch + m_lua_pitch, -m_lua_yaw,
+				cameratilt * player->hurt_tilt_strength));
+			m_headnode->updateAbsolutePosition();
 		}
-
-		// Set head node transformation
-		eye_offset.Y += cameratilt * -player->hurt_tilt_strength;
-		m_headnode->setPosition(eye_offset);
-		m_headnode->setRotation(v3f(pitch, 0,
-			cameratilt * player->hurt_tilt_strength));
-		m_headnode->updateAbsolutePosition();
 	}
 
 
@@ -404,15 +529,17 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	}
 
 	// Compute absolute camera position and target
-	m_headnode->getAbsoluteTransformation().transformVect(m_camera_position, rel_cam_pos);
-	m_camera_direction = m_headnode->getAbsoluteTransformation()
-			.rotateAndScaleVect(rel_cam_target - rel_cam_pos);
+	if (m_camera_mode != CAMERA_MODE_SPECTATE) {
+		m_headnode->getAbsoluteTransformation().transformVect(m_camera_position, rel_cam_pos);
+		m_camera_direction = m_headnode->getAbsoluteTransformation()
+				.rotateAndScaleVect(rel_cam_target - rel_cam_pos);
+	}
 
-	v3f abs_cam_up = m_headnode->getAbsoluteTransformation()
-			.rotateAndScaleVect(rel_cam_up);
+	v3f abs_cam_up = m_camera_mode == CAMERA_MODE_SPECTATE ? v3f(0,1,0) :
+			m_headnode->getAbsoluteTransformation().rotateAndScaleVect(rel_cam_up);
 
 	// Reposition the camera for third person view
-	if (m_camera_mode > CAMERA_MODE_FIRST)
+	if (m_camera_mode > CAMERA_MODE_FIRST && m_camera_mode != CAMERA_MODE_SPECTATE)
 	{
 		v3f my_cp = m_camera_position;
 
@@ -454,12 +581,14 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	}
 
 	// Set camera node transformation
-	m_cameranode->setPosition(m_camera_position - intToFloat(m_camera_offset, BS));
-	m_cameranode->setUpVector(abs_cam_up);
-	m_cameranode->updateAbsolutePosition();
-	// *100 helps in large map coordinates
-	m_cameranode->setTarget(m_camera_position - intToFloat(m_camera_offset, BS)
-		+ 100 * m_camera_direction);
+	if (m_camera_mode != CAMERA_MODE_SPECTATE) {
+		m_cameranode->setPosition(m_camera_position - intToFloat(m_camera_offset, BS));
+		m_cameranode->setUpVector(abs_cam_up);
+		m_cameranode->updateAbsolutePosition();
+		// *100 helps in large map coordinates
+		m_cameranode->setTarget(m_camera_position - intToFloat(m_camera_offset, BS)
+			+ 100 * m_camera_direction);
+	}
 
 	/*
 	 * Apply server-sent FOV, instantaneous or smooth transition.
@@ -481,6 +610,8 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	} else if (m_server_sent_fov) {
 		// Instantaneous FOV change
 		m_curr_fov_degrees = m_target_fov_degrees;
+	} else if (m_lua_fov_active) {
+		m_curr_fov_degrees = m_lua_fov;
 	} else if (player->getPlayerControl().zoom && player->getZoomFOV() > 0.001f) {
 		// Player requests zoom, apply zoom FOV
 		m_curr_fov_degrees = player->getZoomFOV();

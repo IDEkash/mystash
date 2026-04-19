@@ -18,8 +18,11 @@ private:
 
 	static int l_set_camera_mode(lua_State *L);
 	static int l_get_camera_mode(lua_State *L);
+	static int l_get_mode(lua_State *L);
 
 	static int l_get_fov(lua_State *L);
+	static int l_set_fov(lua_State *L);
+	static int l_lerp_fov(lua_State *L);
 
 	static int l_get_pos(lua_State *L);
 	static int l_get_offset(lua_State *L);
@@ -27,6 +30,18 @@ private:
 	static int l_get_look_vertical(lua_State *L);
 	static int l_get_look_horizontal(lua_State *L);
 	static int l_get_aspect_ratio(lua_State *L);
+
+	static int l_get_rotation(lua_State *L);
+	static int l_set_rotation(lua_State *L);
+	static int l_add_rotation(lua_State *L);
+	static int l_lerp_rotation(lua_State *L);
+	static int l_reset(lua_State *L);
+
+	static int l_get_position(lua_State *L);
+	static int l_set_position(lua_State *L);
+	static int l_add_position(lua_State *L);
+	static int l_lerp_position(lua_State *L);
+	static int l_reset_position(lua_State *L);
 
 	static Camera *getobject(LuaCamera *ref);
 	static Camera *getobject(lua_State *L, int narg);
