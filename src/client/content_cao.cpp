@@ -996,7 +996,7 @@ void GenericCAO::step(float dtime, ClientEnvironment *env)
 		m_rotation.Y = wrapDegrees_0_360(player->getYaw());
 		rot_translator.val_current = m_rotation;
 
-		if (m_is_visible) {
+		if (m_is_visible && !m_animation_forced) {
 			LocalPlayerAnimation old_anim = player->last_animation;
 			float old_anim_speed = player->last_animation_speed;
 			m_velocity = v3f(0,0,0);
@@ -1660,23 +1660,24 @@ void GenericCAO::processMessage(const std::string &data)
 		m_animation_clip_index = clip_index;
 		m_animation_clip_name = std::move(clip_name);
 
-		if (!m_is_local_player) {
-			updateAnimation();
-		} else {
+		if (m_is_local_player) {
 			LocalPlayer *player = m_env->getLocalPlayer();
 			// update animation only if local animations present
 			// and received animation is unknown (except idle animation)
 			bool is_known = false;
-			for (int i = 1; i < 4; i++) {
-				if (range.Y == player->local_animations[i].Y)
+			for (int i = 0; i < 4; i++) {
+				if (range == player->local_animations[i]) {
 					is_known = true;
+					break;
+				}
 			}
-			if (!is_known ||
-					(player->local_animations[1].Y + player->local_animations[2].Y < 1)) {
-				updateAnimation();
-			}
-			// FIXME: ^ This code is trash. It's also broken.
+			// If the server sends an animation that isn't one of our standard
+			// local ones, we consider it "forced" and stop overriding it with
+			// our own walk/dig animations.
+			m_animation_forced = !is_known;
 		}
+
+		updateAnimation();
 	} else if (cmd == AO_CMD_SET_ANIMATION_SPEED) {
 		m_animation_speed = readF32(is);
 		updateAnimationSpeed();

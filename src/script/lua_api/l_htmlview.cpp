@@ -48,87 +48,74 @@ static bool isStringEqCI(lua_State *L, int idx, const char *s)
 int ModApiHTMLView::l_run(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	std::string html = readParam<std::string>(L, 2);
-
-	#ifdef __ANDROID__
-		htmlview_jni_run(id, html);
-		return 0;
-#else
-	return luaL_error(L, "htmlview is only available on Android");
+	htmlview_jni_run(id, html);
 #endif
+	return 0;
 }
 
 int ModApiHTMLView::l_run_worker(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	std::string html = readParam<std::string>(L, 2);
-
-#ifdef __ANDROID__
 	htmlview_jni_run_worker(id, html);
-	return 0;
-#else
-	return luaL_error(L, "htmlview is only available on Android");
 #endif
+	return 0;
 }
 
 int ModApiHTMLView::l_run_external(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	std::string root_dir = readParam<std::string>(L, 2);
 	std::string entry = "index.html";
 	if (!lua_isnoneornil(L, 3))
 		entry = readParam<std::string>(L, 3);
 
-	#ifdef __ANDROID__
-		CHECK_SECURE_PATH(L, root_dir.c_str(), false);
-		htmlview_jni_run_external(id, root_dir, entry);
-		return 0;
-#else
-	return luaL_error(L, "htmlview is only available on Android");
+	CHECK_SECURE_PATH(L, root_dir.c_str(), false);
+	htmlview_jni_run_external(id, root_dir, entry);
 #endif
+	return 0;
 }
 
 int ModApiHTMLView::l_run_external_worker(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	std::string root_dir = readParam<std::string>(L, 2);
 	std::string entry = "index.html";
 	if (!lua_isnoneornil(L, 3))
 		entry = readParam<std::string>(L, 3);
 
-#ifdef __ANDROID__
 	CHECK_SECURE_PATH(L, root_dir.c_str(), false);
 	htmlview_jni_run_external_worker(id, root_dir, entry);
-	return 0;
-#else
-	return luaL_error(L, "htmlview is only available on Android");
 #endif
+	return 0;
 }
 
 int ModApiHTMLView::l_stop(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-	std::string id = readParam<std::string>(L, 1);
-
 #ifdef __ANDROID__
+	std::string id = readParam<std::string>(L, 1);
 	htmlview_jni_stop(id);
-	return 0;
-#else
-	return luaL_error(L, "htmlview is only available on Android");
 #endif
+	return 0;
 }
 
 int ModApiHTMLView::l_display(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	luaL_checktype(L, 2, LUA_TTABLE);
 
-#ifdef __ANDROID__
 	bool visible = getboolfield_default(L, 2, "visible", true);
 	bool safe_area = getboolfield_default(L, 2, "safe_area", true);
 	bool fullscreen = getboolfield_default(L, 2, "fullscreen", false);
@@ -174,32 +161,26 @@ int ModApiHTMLView::l_display(lua_State *L)
 
 	htmlview_jni_display(id, x, y, w, h, visible, fullscreen, safe_area,
 		drag_embed, border_radius);
-	return 0;
-#else
-	return luaL_error(L, "htmlview is only available on Android");
 #endif
+	return 0;
 }
 
 int ModApiHTMLView::l_send(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	std::string message = readParam<std::string>(L, 2);
-
-	#ifdef __ANDROID__
-		htmlview_jni_send(id, message);
-		return 0;
-#else
-	return luaL_error(L, "htmlview is only available on Android");
+	htmlview_jni_send(id, message);
 #endif
+	return 0;
 }
 
 int ModApiHTMLView::l_send_json(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-	std::string id = readParam<std::string>(L, 1);
-
 #ifdef __ANDROID__
+	std::string id = readParam<std::string>(L, 1);
 	Json::Value root;
 	try {
 		read_json_value(L, root, 2, HTMLVIEW_MAX_JSON_DEPTH);
@@ -208,57 +189,47 @@ int ModApiHTMLView::l_send_json(lua_State *L)
 	}
 	std::string out = fastWriteJson(root);
 	htmlview_jni_send(id, out);
-	return 0;
-#else
-	return luaL_error(L, "htmlview is only available on Android");
 #endif
+	return 0;
 }
 
 int ModApiHTMLView::l_navigate(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	std::string url = readParam<std::string>(L, 2);
-
-#ifdef __ANDROID__
 	htmlview_jni_navigate(id, url);
-	return 0;
-#else
-	return luaL_error(L, "htmlview is only available on Android");
 #endif
+	return 0;
 }
 
 int ModApiHTMLView::l_inject(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	std::string js = readParam<std::string>(L, 2);
-
-#ifdef __ANDROID__
 	htmlview_jni_inject(id, js);
-	return 0;
-#else
-	return luaL_error(L, "htmlview is only available on Android");
 #endif
+	return 0;
 }
 
 int ModApiHTMLView::l_pipe(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
 	std::string from_id = readParam<std::string>(L, 1);
 	std::string to_id = readParam<std::string>(L, 2);
-
-#ifdef __ANDROID__
 	htmlview_jni_pipe(from_id, to_id);
-	return 0;
-#else
-	return luaL_error(L, "htmlview is only available on Android");
 #endif
+	return 0;
 }
 
 int ModApiHTMLView::l_capture(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	int width = 0;
 	int height = 0;
@@ -271,35 +242,30 @@ int ModApiHTMLView::l_capture(lua_State *L)
 	if (height < 0)
 		height = 0;
 
-#ifdef __ANDROID__
 	htmlview_jni_capture(id, width, height);
-	return 0;
-#else
-	return luaL_error(L, "htmlview is only available on Android");
 #endif
+	return 0;
 }
 
 int ModApiHTMLView::l_input(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	luaL_checktype(L, 2, LUA_TTABLE);
 
-#ifdef __ANDROID__
 	bool block_game_input = getboolfield_default(L, 2, "block_game_input", false);
 	htmlview_jni_input(id, block_game_input);
-	return 0;
-#else
-	return luaL_error(L, "htmlview is only available on Android");
 #endif
+	return 0;
 }
 
 int ModApiHTMLView::l_state(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 
-#ifdef __ANDROID__
 	std::string json = htmlview_jni_state(id);
 	if (json.empty()) {
 		lua_pushnil(L);
@@ -323,34 +289,29 @@ int ModApiHTMLView::l_state(lua_State *L)
 	}
 	return 1;
 #else
-	return luaL_error(L, "htmlview is only available on Android");
+	lua_pushnil(L);
+	return 1;
 #endif
 }
 
 int ModApiHTMLView::l_reload(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-	std::string id = readParam<std::string>(L, 1);
-
 #ifdef __ANDROID__
+	std::string id = readParam<std::string>(L, 1);
 	htmlview_jni_reload(id);
-	return 0;
-#else
-	return luaL_error(L, "htmlview is only available on Android");
 #endif
+	return 0;
 }
 
 int ModApiHTMLView::l_focus(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-	std::string id = readParam<std::string>(L, 1);
-
 #ifdef __ANDROID__
+	std::string id = readParam<std::string>(L, 1);
 	htmlview_jni_focus(id);
-	return 0;
-#else
-	return luaL_error(L, "htmlview is only available on Android");
 #endif
+	return 0;
 }
 
 
@@ -437,7 +398,6 @@ int ModApiHTMLView::l_on_capture(lua_State *L)
 
 void ModApiHTMLView::Initialize(lua_State *L, int top)
 {
-	#ifdef __ANDROID__
 		lua_newtable(L);
 		int tbl = lua_gettop(L);
 
@@ -464,8 +424,4 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 	lua_pushvalue(L, tbl);
 	lua_setglobal(L, "htmlview");
 	lua_setfield(L, top, "htmlview");
-#else
-	(void)L;
-	(void)top;
-#endif
 }
