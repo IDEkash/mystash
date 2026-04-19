@@ -3,6 +3,7 @@
 
 #include "l_camera_server.h"
 #include "l_internal.h"
+#include "l_object.h"
 #include "script/common/c_converter.h"
 #include "script/common/c_content.h"
 #include "server.h"

@@ -139,6 +139,15 @@ public:
 
 	void onSuccessfulSave();
 
+	// Camera state (for server-side Lua API)
+	struct {
+		CameraMode mode = CAMERA_MODE_FIRST;
+		v3f pos = v3f(0,0,0);
+		f32 yaw = 0.0f;
+		f32 pitch = 0.0f;
+		f32 fov = 0.0f;
+	} m_camera_state;
+
 private:
 	PlayerSAO *m_sao = nullptr;
 	bool m_dirty = false;
@@ -167,15 +176,6 @@ private:
 	FogBoundaryParams m_fog_boundary_params;
 
 	Lighting m_lighting;
-
-	// Camera state (for server-side Lua API)
-	struct {
-		CameraMode mode = CAMERA_MODE_FIRST;
-		v3f pos = v3f(0,0,0);
-		f32 yaw = 0.0f;
-		f32 pitch = 0.0f;
-		f32 fov = 0.0f;
-	} m_camera_state;
 
 	session_t m_peer_id = PEER_ID_INEXISTENT;
 };
