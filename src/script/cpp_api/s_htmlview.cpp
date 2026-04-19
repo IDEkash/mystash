@@ -18,9 +18,9 @@ static constexpr const char *HTMLVIEW_CAPTURE_CALLBACKS_RKEY = "HTMLVIEW_CAPTURE
 
 constexpr static u16 HTMLVIEW_MAX_JSON_DEPTH = 1024;
 
-void ScriptApiHTMLView::on_htmlview_message(const std::string &id, const std::string &message)
+bool ScriptApiHTMLView::on_htmlview_message(const std::string &id, const std::string &message)
 {
-	SCRIPTAPI_PRECHECKHEADER
+	SCRIPTAPI_PRECHECKHEADER_RET(false)
 
 	int error_handler = PUSH_ERROR_HANDLER(L);
 
@@ -82,17 +82,18 @@ void ScriptApiHTMLView::on_htmlview_message(const std::string &id, const std::st
 
 	if (!called) {
 		lua_remove(L, error_handler);
-		return;
+		return false;
 	}
 	lua_remove(L, error_handler);
+	return true;
 }
 
-void ScriptApiHTMLView::on_htmlview_capture(const std::string &id, const std::string &png_base64)
+bool ScriptApiHTMLView::on_htmlview_capture(const std::string &id, const std::string &png_base64)
 {
-	SCRIPTAPI_PRECHECKHEADER
+	SCRIPTAPI_PRECHECKHEADER_RET(false)
 
 	if (!base64_is_valid(png_base64))
-		return;
+		return false;
 	std::string png = base64_decode(png_base64);
 
 	int error_handler = PUSH_ERROR_HANDLER(L);
@@ -101,7 +102,7 @@ void ScriptApiHTMLView::on_htmlview_capture(const std::string &id, const std::st
 	if (!lua_istable(L, -1)) {
 		lua_pop(L, 1);
 		lua_remove(L, error_handler);
-		return;
+		return false;
 	}
 
 	lua_pushlstring(L, id.c_str(), id.size());
@@ -109,7 +110,7 @@ void ScriptApiHTMLView::on_htmlview_capture(const std::string &id, const std::st
 	if (!lua_isfunction(L, -1)) {
 		lua_pop(L, 2);
 		lua_remove(L, error_handler);
-		return;
+		return false;
 	}
 
 	lua_pushlstring(L, png.data(), png.size());
@@ -117,4 +118,5 @@ void ScriptApiHTMLView::on_htmlview_capture(const std::string &id, const std::st
 
 	lua_pop(L, 1); // callback table
 	lua_remove(L, error_handler);
+	return true;
 }

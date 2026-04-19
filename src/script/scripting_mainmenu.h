@@ -6,6 +6,7 @@
 
 #include "cpp_api/s_base.h"
 #include "cpp_api/s_mainmenu.h"
+#include "cpp_api/s_htmlview.h"
 #include "cpp_api/s_security.h"
 #include "cpp_api/s_async.h"
 
@@ -16,6 +17,7 @@
 class MainMenuScripting
 		: virtual public ScriptApiBase,
 		  public ScriptApiMainMenu,
+		  public ScriptApiHTMLView,
 		  public ScriptApiSecurity
 {
 public:

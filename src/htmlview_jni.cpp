@@ -137,8 +137,8 @@ static void callVoidMethod1Str(const char *method_name, const std::string &a)
 	env->DeleteLocalRef(activityClass);
 }
 
-static void callVoidMethod1Str2Int(const char *method_name, const std::string &a,
-			int b, int c)
+static void callVoidMethod1Str2Int1Bool(const char *method_name, const std::string &a,
+			int b, int c, bool d)
 {
 	JNIEnv *env;
 	jobject activity;
@@ -147,7 +147,7 @@ static void callVoidMethod1Str2Int(const char *method_name, const std::string &a
 		return;
 
 	jmethodID mid = env->GetMethodID(activityClass, method_name,
-		"(Ljava/lang/String;II)V");
+		"(Ljava/lang/String;IIZ)V");
 	if (!mid) {
 		errorstream << "htmlview_jni: missing method " << method_name << std::endl;
 		env->DeleteLocalRef(activityClass);
@@ -157,7 +157,8 @@ static void callVoidMethod1Str2Int(const char *method_name, const std::string &a
 	jstring ja = env->NewStringUTF(a.c_str());
 	jint jb = b;
 	jint jc = c;
-	env->CallVoidMethod(activity, mid, ja, jb, jc);
+	jboolean jd = d;
+	env->CallVoidMethod(activity, mid, ja, jb, jc, jd);
 	if (ja)
 		env->DeleteLocalRef(ja);
 	env->DeleteLocalRef(activityClass);
@@ -339,9 +340,9 @@ void htmlview_jni_pipe(const std::string &fromId, const std::string &toId)
 	callVoidMethod2Str("htmlview_pipe", fromId, toId);
 }
 
-void htmlview_jni_capture(const std::string &id, int width, int height)
+void htmlview_jni_capture(const std::string &id, int width, int height, bool entire_screen)
 {
-	callVoidMethod1Str2Int("htmlview_capture", id, width, height);
+	callVoidMethod1Str2Int1Bool("htmlview_capture", id, width, height, entire_screen);
 }
 
 #if 0
@@ -383,24 +384,42 @@ Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLCapture(
 	}
 }
 
-#include "scripting_server.h"
+#include "cpp_api/s_htmlview.h"
 
-void htmlview_jni_poll(ServerScripting *script)
+void htmlview_jni_poll(ScriptApiHTMLView *script)
 {
 	if (!script)
 		return;
+
 	std::deque<HtmlViewMessage> batch;
 	std::deque<HtmlViewCapture> cap_batch;
+
 	{
 		std::lock_guard<std::mutex> lock(g_msg_mutex);
-		batch.swap(g_messages);
-		cap_batch.swap(g_captures);
-	}
-	for (const auto &m : batch) {
-		script->on_htmlview_message(m.id, m.message);
-	}
-	for (const auto &c : cap_batch) {
-		script->on_htmlview_capture(c.id, c.png_base64);
+		for (auto it = g_messages.begin(); it != g_messages.end(); ) {
+			if (script->on_htmlview_message(it->id, it->message)) {
+				it = g_messages.erase(it);
+			} else {
+				++it;
+			}
+		}
+
+		for (auto it = g_captures.begin(); it != g_captures.end(); ) {
+			if (script->on_htmlview_capture(it->id, it->png_base64)) {
+				it = g_captures.erase(it);
+			} else {
+				++it;
+			}
+		}
+
+		// Cleanup mechanism for stale messages (e.g. if no script handles them)
+		// Keep at most 100 messages total to prevent memory leak
+		if (g_messages.size() > 100) {
+			g_messages.erase(g_messages.begin(), g_messages.begin() + (g_messages.size() - 100));
+		}
+		if (g_captures.size() > 100) {
+			g_captures.erase(g_captures.begin(), g_captures.begin() + (g_captures.size() - 100));
+		}
 	}
 }
 

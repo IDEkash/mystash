@@ -360,16 +360,16 @@ public class HTMLViewManager {
 		activity.runOnUiThread(() -> pipes.put(fromId, toId));
 	}
 
-	public void htmlview_capture(String id, int width, int height) {
+	public void htmlview_capture(String id, int width, int height, boolean entireScreen) {
 		activity.runOnUiThread(() -> {
 			HtmlViewState st = views.get(id);
 			if (st == null)
 				return;
-			capturePngToNativeOnUiThread(id, st, width, height);
+			capturePngToNativeOnUiThread(id, st, width, height, entireScreen);
 		});
 	}
 
-	private void capturePngToNativeOnUiThread(String id, HtmlViewState st, int width, int height) {
+	private void capturePngToNativeOnUiThread(String id, HtmlViewState st, int width, int height, boolean entireScreen) {
 		WebView wv = st.webView;
 
 		int w = width > 0 ? width : wv.getWidth();
@@ -389,21 +389,26 @@ public class HTMLViewManager {
 		try {
 			Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
 			Canvas canvas = new Canvas(bmp);
-			int vw = wv.getWidth();
-			int vh = wv.getHeight();
-			if (vw > 0 && vh > 0) {
-				float sx = w / (float) vw;
-				float sy = h / (float) vh;
-				canvas.save();
-				canvas.scale(sx, sy);
-				wv.draw(canvas);
-				canvas.restore();
+
+			if (entireScreen) {
+				root.draw(canvas);
 			} else {
-				int ws = View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY);
-				int hs = View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY);
-				wv.measure(ws, hs);
-				wv.layout(0, 0, w, h);
-				wv.draw(canvas);
+				int vw = wv.getWidth();
+				int vh = wv.getHeight();
+				if (vw > 0 && vh > 0) {
+					float sx = w / (float) vw;
+					float sy = h / (float) vh;
+					canvas.save();
+					canvas.scale(sx, sy);
+					wv.draw(canvas);
+					canvas.restore();
+				} else {
+					int ws = View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY);
+					int hs = View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY);
+					wv.measure(ws, hs);
+					wv.layout(0, 0, w, h);
+					wv.draw(canvas);
+				}
 			}
 
 			ByteArrayOutputStream out = new ByteArrayOutputStream();

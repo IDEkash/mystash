@@ -6,17 +6,18 @@
 #include "common/c_converter.h"
 #include "lua_api/l_internal.h"
 #include "cpp_api/s_security.h"
+#include "lua_api/l_inventory.h"
 
 #include <memory>
+#include <json/json.h>
+#include "convert_json.h"
+#include "common/c_content.h"
 
 
 	#ifdef __ANDROID__
 	#include "htmlview_jni.h"
 	#include <cctype>
 	#include <limits>
-		#include <json/json.h>
-		#include "convert_json.h"
-		#include "common/c_content.h"
 		#endif
 
 static constexpr const char *HTMLVIEW_CALLBACKS_RKEY = "HTMLVIEW_CALLBACKS";
@@ -262,9 +263,11 @@ int ModApiHTMLView::l_capture(lua_State *L)
 	std::string id = readParam<std::string>(L, 1);
 	int width = 0;
 	int height = 0;
+	bool entire_screen = false;
 	if (lua_istable(L, 2)) {
 		width = getintfield_default(L, 2, "width", 0);
 		height = getintfield_default(L, 2, "height", 0);
+		entire_screen = getboolfield_default(L, 2, "entire_screen", false);
 	}
 	if (width < 0)
 		width = 0;
@@ -272,7 +275,7 @@ int ModApiHTMLView::l_capture(lua_State *L)
 		height = 0;
 
 #ifdef __ANDROID__
-	htmlview_jni_capture(id, width, height);
+	htmlview_jni_capture(id, width, height, entire_screen);
 	return 0;
 #else
 	return luaL_error(L, "htmlview is only available on Android");
@@ -435,31 +438,87 @@ int ModApiHTMLView::l_on_capture(lua_State *L)
 	return 0;
 }
 
+int ModApiHTMLView::l_get_inventory_json(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	checkObject<InvRef>(L, 1);
+	std::string listname;
+	if (lua_isstring(L, 2))
+		listname = readParam<std::string>(L, 2);
+
+	if (listname.empty()) {
+		lua_getfield(L, 1, "get_lists");
+		lua_pushvalue(L, 1);
+		lua_call(L, 1, 1);
+	} else {
+		lua_getfield(L, 1, "get_list");
+		lua_pushvalue(L, 1);
+		lua_pushstring(L, listname.c_str());
+		lua_call(L, 2, 1);
+	}
+
+	Json::Value root;
+	try {
+		read_json_value(L, root, -1, HTMLVIEW_MAX_JSON_DEPTH);
+	} catch (SerializationError &e) {
+		return luaL_error(L, "htmlview.get_inventory_json: %s", e.what());
+	}
+	lua_pop(L, 1);
+
+	if (!listname.empty() && root.isArray()) {
+		Json::Value wrapped;
+		Json::Value slots(Json::arrayValue);
+		for (Json::ArrayIndex i = 0; i < root.size(); ++i) {
+			Json::Value slot;
+			slot["id"] = i;
+			if (root[i].isObject()) {
+				slot["item"] = root[i]["name"];
+				slot["count"] = root[i]["count"];
+				for (auto const &name : root[i].getMemberNames()) {
+					if (name != "name" && name != "count")
+						slot[name] = root[i][name];
+				}
+			} else {
+				slot["item"] = "";
+				slot["count"] = 0;
+			}
+			slots.append(slot);
+		}
+		wrapped["slots"] = slots;
+		root = wrapped;
+	}
+
+	std::string out = fastWriteJson(root);
+	lua_pushlstring(L, out.c_str(), out.size());
+	return 1;
+}
+
 void ModApiHTMLView::Initialize(lua_State *L, int top)
 {
-	#ifdef __ANDROID__
-		lua_newtable(L);
-		int tbl = lua_gettop(L);
+#ifdef __ANDROID__
+	lua_newtable(L);
+	int tbl = lua_gettop(L);
 
-		registerFunction(L, "run", l_run, tbl);
-		registerFunction(L, "run_worker", l_run_worker, tbl);
-		registerFunction(L, "run_external", l_run_external, tbl);
-		registerFunction(L, "run_external_worker", l_run_external_worker, tbl);
-		registerFunction(L, "stop", l_stop, tbl);
-		registerFunction(L, "display", l_display, tbl);
-		registerFunction(L, "send", l_send, tbl);
-		registerFunction(L, "send_json", l_send_json, tbl);
-		registerFunction(L, "navigate", l_navigate, tbl);
-		registerFunction(L, "inject", l_inject, tbl);
-		registerFunction(L, "pipe", l_pipe, tbl);
-		registerFunction(L, "capture", l_capture, tbl);
-		registerFunction(L, "input", l_input, tbl);
-		registerFunction(L, "state", l_state, tbl);
-		registerFunction(L, "reload", l_reload, tbl);
-		registerFunction(L, "focus", l_focus, tbl);
-		registerFunction(L, "on_message", l_on_message, tbl);
-		registerFunction(L, "on_message_json", l_on_message_json, tbl);
-		registerFunction(L, "on_capture", l_on_capture, tbl);
+	registerFunction(L, "run", l_run, tbl);
+	registerFunction(L, "run_worker", l_run_worker, tbl);
+	registerFunction(L, "run_external", l_run_external, tbl);
+	registerFunction(L, "run_external_worker", l_run_external_worker, tbl);
+	registerFunction(L, "stop", l_stop, tbl);
+	registerFunction(L, "display", l_display, tbl);
+	registerFunction(L, "send", l_send, tbl);
+	registerFunction(L, "send_json", l_send_json, tbl);
+	registerFunction(L, "navigate", l_navigate, tbl);
+	registerFunction(L, "inject", l_inject, tbl);
+	registerFunction(L, "pipe", l_pipe, tbl);
+	registerFunction(L, "capture", l_capture, tbl);
+	registerFunction(L, "input", l_input, tbl);
+	registerFunction(L, "state", l_state, tbl);
+	registerFunction(L, "reload", l_reload, tbl);
+	registerFunction(L, "focus", l_focus, tbl);
+	registerFunction(L, "on_message", l_on_message, tbl);
+	registerFunction(L, "on_message_json", l_on_message_json, tbl);
+	registerFunction(L, "on_capture", l_on_capture, tbl);
+	registerFunction(L, "get_inventory_json", l_get_inventory_json, tbl);
 
 	lua_pushvalue(L, tbl);
 	lua_setglobal(L, "htmlview");

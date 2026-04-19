@@ -9,11 +9,16 @@
 #include "lua_api/l_mainmenu.h"
 #include "lua_api/l_mainmenu_sound.h"
 #include "lua_api/l_menu_common.h"
+#include "lua_api/l_htmlview.h"
 #include "lua_api/l_util.h"
 #include "lua_api/l_settings.h"
 #include "log.h"
 #include "filesys.h"
 #include "porting.h"
+
+#ifdef __ANDROID__
+#include "htmlview_jni.h"
+#endif
 
 extern "C" {
 #include "lualib.h"
@@ -58,6 +63,7 @@ void MainMenuScripting::initializeModApi(lua_State *L, int top)
 	ModApiUtil::Initialize(L, top);
 	ModApiMainMenuSound::Initialize(L, top);
 	ModApiHttp::Initialize(L, top);
+	ModApiHTMLView::Initialize(L, top);
 
 	asyncEngine.registerStateInitializer(registerLuaClasses);
 	asyncEngine.registerStateInitializer(ModApiMenuCommon::InitializeAsync);
@@ -105,6 +111,9 @@ bool MainMenuScripting::checkPathAccess(const std::string &abs_path, bool write_
 
 void MainMenuScripting::step()
 {
+#ifdef __ANDROID__
+	htmlview_jni_poll(this);
+#endif
 	asyncEngine.step(getStack());
 }
 
