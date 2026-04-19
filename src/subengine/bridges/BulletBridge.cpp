@@ -36,10 +36,6 @@ public:
         btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, startMotionState, colShape, localInertia);
         body = new btRigidBody(rbInfo);
         dynamicsWorld->addRigidBody(body);
-
-        SubEngine::getInstance().hookProperty("bullet_body_pos", &bodyPos);
-        SubEngine::getInstance().hookProperty("bullet_body_vel", &bodyVel);
-        SubEngine::getInstance().hookProperty("bullet_gravity", &gravity);
     }
 
     ~BulletBridge() {
@@ -95,6 +91,14 @@ public:
         // glDisableVertexAttribArray(0);
     }
 
+    void* getProperty(const char* name) {
+        std::string propName(name);
+        if (propName == "bullet_body_pos") return &bodyPos;
+        if (propName == "bullet_body_vel") return &bodyVel;
+        if (propName == "bullet_gravity") return &gravity;
+        return nullptr;
+    }
+
 private:
     btDefaultCollisionConfiguration* collisionConfiguration;
     btCollisionDispatcher* dispatcher;
@@ -126,6 +130,11 @@ extern "C" {
 
     void subengine_render() {
         if (g_bulletBridge) g_bulletBridge->renderDebug();
+    }
+
+    void* subengine_get_prop(const char* name) {
+        if (g_bulletBridge) return g_bulletBridge->getProperty(name);
+        return nullptr;
     }
 
     void subengine_shutdown() {

@@ -21,6 +21,7 @@ bool SubEngine::init(const std::string& libPath) {
     m_logicFn = (SubEngineLogicFn)dlsym(m_handle, "subengine_logic");
     m_renderFn = (SubEngineRenderFn)dlsym(m_handle, "subengine_render");
     m_shutdownFn = (SubEngineShutdownFn)dlsym(m_handle, "subengine_shutdown");
+    m_getPropFn = (SubEngineGetPropFn)dlsym(m_handle, "subengine_get_prop");
 
     if (!m_initFn) {
         errorstream << "SubEngine: Missing subengine_init in " << libPath << std::endl;
@@ -81,6 +82,9 @@ void SubEngine::hookProperty(const std::string& name, void* target) {
 }
 
 void* SubEngine::getHookedProperty(const std::string& name) {
+    if (m_getPropFn) {
+        return m_getPropFn(name.c_str());
+    }
     auto it = m_hookedProperties.find(name);
     if (it != m_hookedProperties.end()) {
         return it->second;

@@ -1,10 +1,10 @@
-set(subengine_SRCS
+add_library(subengine STATIC
     SubEngine.cpp
     LuaSubEngine.cpp
 )
 
-# Export core subengine_SRCS to parent scope
-set(subengine_SRCS ${subengine_SRCS} PARENT_SCOPE)
+target_include_directories(subengine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(subengine PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 # Create a separate shared library for the Bullet Bridge
 add_library(bullet_bridge SHARED bridges/BulletBridge.cpp)

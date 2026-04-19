@@ -268,6 +268,15 @@ find_package(ZLIB REQUIRED)
 find_package(Zstd REQUIRED)
 
 include(FetchContent)
+set(BUILD_UNIT_TESTS OFF CACHE BOOL "" FORCE)
+set(BUILD_BULLET2_DEMOS OFF CACHE BOOL "" FORCE)
+set(BUILD_CPU_DEMOS OFF CACHE BOOL "" FORCE)
+set(BUILD_OPENGL3_DEMOS OFF CACHE BOOL "" FORCE)
+set(BUILD_BULLET3 OFF CACHE BOOL "" FORCE)
+set(BUILD_EXTRAS OFF CACHE BOOL "" FORCE)
+set(INSTALL_LIBS ON CACHE BOOL "" FORCE)
+set(USE_MSVC_RUNTIME_LIBRARY_DLL ON CACHE BOOL "" FORCE)
+
 FetchContent_Declare(
   bullet
   GIT_REPOSITORY https://github.com/bulletphysics/bullet3
@@ -563,7 +572,6 @@ list(APPEND client_SRCS
 	${client_network_SRCS}
 	${client_irrlicht_changes_SRCS}
 	${client_SCRIPT_SRCS}
-	${subengine_SRCS}
 )
 
 if(BUILD_UNITTESTS)
@@ -726,6 +734,7 @@ if(BUILD_CLIENT)
 		lstrpack
 		sha256
 		${FREETYPE_LIBRARY}
+		subengine
 		${PLATFORM_LIBS}
 		# on Android, Luanti depends on SDL2 directly
 		# on other platforms, only IrrlichtMt depends on SDL2

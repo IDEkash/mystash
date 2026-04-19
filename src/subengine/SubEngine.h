@@ -22,6 +22,7 @@ typedef void (*SubEngineUpdateFn)();
 typedef void (*SubEngineLogicFn)();
 typedef void (*SubEngineRenderFn)();
 typedef void (*SubEngineShutdownFn)();
+typedef void* (*SubEngineGetPropFn)(const char*);
 
 class SubEngine {
 public:
@@ -52,6 +53,7 @@ private:
     SubEngineLogicFn m_logicFn = nullptr;
     SubEngineRenderFn m_renderFn = nullptr;
     SubEngineShutdownFn m_shutdownFn = nullptr;
+    SubEngineGetPropFn m_getPropFn = nullptr;
 };
 
 } // namespace subengine
