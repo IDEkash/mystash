@@ -22,6 +22,7 @@
 #include "renderingengine.h"
 #include "render/core.h"
 #include "render/factory.h"
+#include "subengine/SubEngine.h"
 #include "filesys.h"
 #include "irrlicht_changes/static_text.h"
 #include "irr_ptr.h"

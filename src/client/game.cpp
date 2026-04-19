@@ -57,6 +57,8 @@
 #include <ICameraSceneNode.h>
 #include "util/tracy_wrapper.h"
 #include "item_visuals_manager.h"
+#include "subengine/SubEngine.h"
+#include "subengine/LuaSubEngine.h"
 
 #if USE_SOUND
 	#include "client/sound/sound_openal.h"
@@ -740,6 +742,9 @@ void Game::run()
 
 		step(dtime);
 
+		subengine::SubEngine::getInstance().update();
+		subengine::run_lua_update(client->getScript()->getStack());
+
 		processClientEvents(&cam_view_target);
 		updateDebugState();
 		// Update camera here so it is in-sync with CAO position
@@ -747,6 +752,10 @@ void Game::run()
 		updateSound(dtime);
 		processPlayerInteraction(dtime, m_game_ui->m_flags.show_hud);
 		updateFrame(&graph, &stats, dtime, cam_view);
+
+		subengine::SubEngine::getInstance().logic();
+		subengine::run_lua_logic(client->getScript()->getStack());
+
 		updateProfilerGraphs(&graph);
 
 		if (m_does_lost_focus_pause_game && !device->isWindowFocused() && !isMenuActive()) {
@@ -3841,6 +3850,8 @@ void Game::drawScene(ProfilerGraph *graph, RunStats *stats)
 
 	this->m_rendering_engine->draw_scene(sky_color, this->m_game_ui->m_flags.show_hud,
 			draw_wield_tool, draw_crosshair);
+
+	subengine::SubEngine::getInstance().render();
 
 	/*
 		Profiler graph

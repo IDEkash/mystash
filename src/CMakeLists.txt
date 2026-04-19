@@ -267,6 +267,14 @@ endif(ENABLE_OPENSSL)
 find_package(ZLIB REQUIRED)
 find_package(Zstd REQUIRED)
 
+include(FetchContent)
+FetchContent_Declare(
+  bullet
+  GIT_REPOSITORY https://github.com/bulletphysics/bullet3
+  GIT_TAG        3.24
+)
+FetchContent_MakeAvailable(bullet)
+
 
 if(NOT MSVC)
 	set(USE_GPROF FALSE CACHE BOOL "Use -pg flag for g++")
@@ -414,6 +422,7 @@ add_subdirectory(network)
 add_subdirectory(script)
 add_subdirectory(util)
 add_subdirectory(server)
+add_subdirectory(subengine)
 
 # Source files that are identical between server & client builds.
 # This means they don't use or include anything that depends on the
@@ -554,6 +563,7 @@ list(APPEND client_SRCS
 	${client_network_SRCS}
 	${client_irrlicht_changes_SRCS}
 	${client_SCRIPT_SRCS}
+	${subengine_SRCS}
 )
 
 if(BUILD_UNITTESTS)
