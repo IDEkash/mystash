@@ -3,7 +3,7 @@
 #include "common/c_converter.h"
 #include "common/c_content.h"
 #include "log.h"
-#include "script/common/c_internal.h"
+#include "lua_api/l_internal.h"
 
 int LuaSubEngine::m_update_callback_ref = LUA_NOREF;
 int LuaSubEngine::m_logic_callback_ref = LUA_NOREF;

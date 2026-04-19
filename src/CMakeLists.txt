@@ -431,7 +431,6 @@ add_subdirectory(network)
 add_subdirectory(script)
 add_subdirectory(util)
 add_subdirectory(server)
-add_subdirectory(subengine)
 
 # Source files that are identical between server & client builds.
 # This means they don't use or include anything that depends on the
@@ -628,6 +627,7 @@ if(USE_CURL)
 	include_directories(${CURL_INCLUDE_DIR})
 endif()
 
+add_subdirectory(subengine)
 
 # When cross-compiling place the executable in <build dir>/bin so that multiple
 # targets can be built from the same source folder. Otherwise, place it in

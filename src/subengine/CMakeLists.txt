@@ -4,7 +4,10 @@ add_library(subengine STATIC
 )
 
 target_include_directories(subengine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(subengine PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_include_directories(subengine PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/script
+)
 
 # Create a separate shared library for the Bullet Bridge
 add_library(bullet_bridge SHARED bridges/BulletBridge.cpp)
