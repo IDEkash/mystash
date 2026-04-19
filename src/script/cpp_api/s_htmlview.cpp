@@ -20,7 +20,7 @@ constexpr static u16 HTMLVIEW_MAX_JSON_DEPTH = 1024;
 
 bool ScriptApiHTMLView::on_htmlview_message(const std::string &id, const std::string &message)
 {
-	SCRIPTAPI_PRECHECKHEADER_RET(false)
+	SCRIPTAPI_PRECHECKHEADER
 
 	int error_handler = PUSH_ERROR_HANDLER(L);
 
@@ -90,7 +90,7 @@ bool ScriptApiHTMLView::on_htmlview_message(const std::string &id, const std::st
 
 bool ScriptApiHTMLView::on_htmlview_capture(const std::string &id, const std::string &png_base64)
 {
-	SCRIPTAPI_PRECHECKHEADER_RET(false)
+	SCRIPTAPI_PRECHECKHEADER
 
 	if (!base64_is_valid(png_base64))
 		return false;
