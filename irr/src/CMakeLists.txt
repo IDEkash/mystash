@@ -246,6 +246,7 @@ set(link_includes
 	"${ZLIB_INCLUDE_DIR}"
 	"${JPEG_INCLUDE_DIR}"
 	"${PNG_INCLUDE_DIR}"
+	"${JSON_INCLUDE_DIR}"
 	"$<$<NOT:$<BOOL:${USE_SDL3}>>:${SDL2_INCLUDE_DIRS}>"
 
 	${OPENGL_INCLUDE_DIR}
@@ -507,6 +508,7 @@ target_link_libraries(IrrlichtMt PRIVATE
 	${ZLIB_LIBRARY}
 	${JPEG_LIBRARY}
 	${PNG_LIBRARY}
+	${JSON_LIBRARY}
 	"$<$<BOOL:${USE_SDL2_SHARED}>:SDL2::SDL2>"
 	"$<$<BOOL:${USE_SDL2_STATIC}>:SDL2::SDL2-static>"
 
