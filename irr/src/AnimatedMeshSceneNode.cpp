@@ -69,43 +69,87 @@ f32 AnimatedMeshSceneNode::getFrameNr() const
 	return CurrentFrameNr;
 }
 
+static bool crossed(f32 prev_frame, f32 cur_frame, f32 marker_frame, bool loop, f32 start, f32 end, f32 fps)
+{
+	const f32 len = end - start;
+	if (len <= 0.f)
+		return false;
+
+	if (!loop) {
+		if (fps >= 0.f)
+			return prev_frame < marker_frame && marker_frame <= cur_frame;
+		return cur_frame <= marker_frame && marker_frame < prev_frame;
+	}
+
+	if (fps >= 0.f) {
+		if (cur_frame >= prev_frame)
+			return prev_frame < marker_frame && marker_frame <= cur_frame;
+		return marker_frame > prev_frame || marker_frame <= cur_frame;
+	}
+
+	if (cur_frame <= prev_frame)
+		return cur_frame <= marker_frame && marker_frame < prev_frame;
+	return marker_frame < prev_frame || marker_frame >= cur_frame;
+}
+
 //! Get CurrentFrameNr and update transiting settings
 void AnimatedMeshSceneNode::buildFrameNr(u32 timeMs)
 {
-	auto advance = [](f32 &frame, f32 start, f32 end, f32 fps_ms, bool looping, u32 dt_ms) {
+	auto advance = [&](f32 &frame, f32 start, f32 end, f32 fps_ms, bool looping, u32 dt_ms, bool is_main) {
 		if (std::abs(start - end) < 0.0001f || fps_ms == 0.f) {
 			frame = start;
 			return;
 		}
 
+		const f32 prev_frame = frame;
 		frame += dt_ms * fps_ms;
 		const f32 len = end - start;
 
 		if (looping && len > 0.f) {
 			if (fps_ms > 0.f) {
-				if (frame > end)
+				if (frame > end) {
 					frame = start + fmodf(frame - start, len);
+					if (is_main && OnCycleCallback)
+						OnCycleCallback();
+				}
 			} else {
-				if (frame < start)
+				if (frame < start) {
 					frame = end - fmodf(end - frame, len);
+					if (is_main && OnCycleCallback)
+						OnCycleCallback();
+				}
 			}
-			return;
+		} else {
+			if (fps_ms > 0.f)
+				frame = std::min(frame, end);
+			else
+				frame = std::max(frame, start);
 		}
 
-		if (fps_ms > 0.f)
-			frame = std::min(frame, end);
-		else
-			frame = std::max(frame, start);
+		if (is_main && OnEventCallback) {
+			if (auto *skinned = dynamic_cast<SkinnedMesh*>(Mesh)) {
+				for (u32 i = 0; i < skinned->getAnimationClipCount(); ++i) {
+					const auto *clip = skinned->getAnimationClip(i);
+					if (std::abs(clip->start - start) < 0.001f && std::abs(clip->end - end) < 0.001f) {
+						for (const auto &ev : clip->events) {
+							if (crossed(prev_frame, frame, clip->start + ev.time, looping, start, end, fps_ms))
+								OnEventCallback(ev.name);
+						}
+						break;
+					}
+				}
+			}
+		}
 	};
 
 	if (BlendActive) {
-		advance(BlendCurrentFrameNr, BlendStartFrame, BlendEndFrame, BlendFramesPerSecond, BlendLooping, timeMs);
+		advance(BlendCurrentFrameNr, BlendStartFrame, BlendEndFrame, BlendFramesPerSecond, BlendLooping, timeMs, false);
 		BlendElapsedMs = std::min(BlendElapsedMs + timeMs, BlendDurationMs);
 		if (BlendElapsedMs >= BlendDurationMs)
 			BlendActive = false;
 	}
 
-	advance(CurrentFrameNr, StartFrame, EndFrame, FramesPerSecond, Looping, timeMs);
+	advance(CurrentFrameNr, StartFrame, EndFrame, FramesPerSecond, Looping, timeMs, true);
 }
 
 void AnimatedMeshSceneNode::OnRegisterSceneNode()

@@ -3,6 +3,7 @@
 // Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
 
 #include "content_cao.h"
+#include "script/scripting_client.h"
 #include <IBillboardSceneNode.h>
 #include <ICameraSceneNode.h>
 #include <IMeshManipulator.h>
@@ -717,6 +718,14 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 
 			m_animated_meshnode->forEachMaterial([this] (auto &mat) {
 				mat.BackfaceCulling = m_prop.backface_culling;
+			});
+
+			m_animated_meshnode->setOnEventCallback([this](const std::string &name) {
+				m_client->getScript()->on_animation_event(m_id, name);
+			});
+
+			m_animated_meshnode->setOnCycleCallback([this]() {
+				m_client->getScript()->on_animation_cycle(m_id);
 			});
 
 			m_animated_meshnode->setOnAnimateCallback([&](f32 dtime) {

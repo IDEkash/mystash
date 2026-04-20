@@ -232,6 +232,39 @@ bool ScriptApiClient::on_inventory_open(Inventory *inventory)
 	return readParam<bool>(L, -1);
 }
 
+void ScriptApiClient::on_animation_event(u16 id, const std::string &name)
+{
+	SCRIPTAPI_PRECHECKHEADER
+
+	lua_getglobal(L, "core");
+	lua_getfield(L, -1, "registered_on_animation_event");
+
+	push_objectRef(L, id);
+	lua_pushstring(L, name.c_str());
+
+	try {
+		runCallbacks(2, RUN_CALLBACKS_MODE_FIRST);
+	} catch (LuaError &e) {
+		getClient()->setFatalError(e);
+	}
+}
+
+void ScriptApiClient::on_animation_cycle(u16 id)
+{
+	SCRIPTAPI_PRECHECKHEADER
+
+	lua_getglobal(L, "core");
+	lua_getfield(L, -1, "registered_on_animation_cycle");
+
+	push_objectRef(L, id);
+
+	try {
+		runCallbacks(1, RUN_CALLBACKS_MODE_FIRST);
+	} catch (LuaError &e) {
+		getClient()->setFatalError(e);
+	}
+}
+
 void ScriptApiClient::setEnv(ClientEnvironment *env)
 {
 	ScriptApiBase::setEnv(env);

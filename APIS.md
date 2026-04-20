@@ -390,6 +390,41 @@ The core rendering engine (`irr/src/AnimatedMeshSceneNode.cpp`) has been modifie
 `core.on_animation_end(object, cb)` (alias for `core.animator.on_animation_end`)
 - Calls `cb(object)` when the current non-looping animation is expected to end (computed from `ObjectRef:get_animation()`).
 
+### Animation cycle helper
+
+`core.on_animation_cycle(object, cb)` (alias for `core.animator.on_animation_cycle`)
+- Calls `cb(object)` each time a looping animation completes one full cycle (wraps around).
+- Useful for syncing footstep sounds, particles, and other cyclic effects.
+
+### glTF Animation Events
+
+glTF models can contain named events at specific times within an animation. This fork extracts these from the glTF `extras` field and fires them during playback.
+
+**glTF Structure:**
+Events should be placed in the `extras` field of an animation object:
+```json
+"animations": [
+  {
+    "name": "Walk",
+    "extras": {
+      "events": [
+        { "time": 0.5, "name": "footstep_l" },
+        { "time": 1.0, "name": "footstep_r" }
+      ]
+    },
+    "channels": [...]
+  }
+]
+```
+
+**Lua API:**
+Register a global listener to receive these events:
+`core.animator.register_on_event(function(animator, object, event))`
+- `event.name`: The name defined in the glTF file.
+- `event.engine`: `true` (indicates this is an engine-triggered model event).
+
+Note: `animator` will be `nil` for events triggered directly by the engine's mesh node (when not using the Lua Animator state machine).
+
 ## Physics and Movement Model
 
 A refined physics and movement model designed to provide a "snappy" and physical experience, heavily inspired by the feel of high-performance mobile voxel engines.

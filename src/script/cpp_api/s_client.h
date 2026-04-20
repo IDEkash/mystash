@@ -42,5 +42,8 @@ public:
 
 	bool on_inventory_open(Inventory *inventory);
 
+	void on_animation_event(u16 id, const std::string &name);
+	void on_animation_cycle(u16 id);
+
 	void setEnv(ClientEnvironment *env);
 };
