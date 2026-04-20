@@ -22,6 +22,7 @@
 static constexpr const char *HTMLVIEW_CALLBACKS_RKEY = "HTMLVIEW_CALLBACKS";
 static constexpr const char *HTMLVIEW_JSON_CALLBACKS_RKEY = "HTMLVIEW_JSON_CALLBACKS";
 static constexpr const char *HTMLVIEW_CAPTURE_CALLBACKS_RKEY = "HTMLVIEW_CAPTURE_CALLBACKS";
+static constexpr const char *HTMLVIEW_READY_CALLBACKS_RKEY = "HTMLVIEW_READY_CALLBACKS";
 
 static constexpr u16 HTMLVIEW_MAX_JSON_DEPTH = 1024;
 
@@ -314,6 +315,36 @@ int ModApiHTMLView::l_focus(lua_State *L)
 	return 0;
 }
 
+int ModApiHTMLView::l_shared_set(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
+	std::string key = readParam<std::string>(L, 1);
+	const char *val = nullptr;
+	if (!lua_isnil(L, 2))
+		val = luaL_checkstring(L, 2);
+	htmlview_jni_shared_set(key, val);
+#endif
+	return 0;
+}
+
+int ModApiHTMLView::l_shared_get(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
+	std::string key = readParam<std::string>(L, 1);
+	std::string val = htmlview_jni_shared_get(key);
+	if (val.empty())
+		lua_pushnil(L);
+	else
+		lua_pushlstring(L, val.c_str(), val.size());
+	return 1;
+#else
+	lua_pushnil(L);
+	return 1;
+#endif
+}
+
 
 int ModApiHTMLView::l_on_message(lua_State *L)
 {
@@ -396,6 +427,33 @@ int ModApiHTMLView::l_on_capture(lua_State *L)
 	return 0;
 }
 
+int ModApiHTMLView::l_on_ready(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	std::string id = readParam<std::string>(L, 1);
+	bool clear = lua_isnil(L, 2);
+	if (!clear)
+		luaL_checktype(L, 2, LUA_TFUNCTION);
+
+	lua_getfield(L, LUA_REGISTRYINDEX, HTMLVIEW_READY_CALLBACKS_RKEY);
+	if (!lua_istable(L, -1)) {
+		lua_pop(L, 1);
+		lua_newtable(L);
+		lua_pushvalue(L, -1);
+		lua_setfield(L, LUA_REGISTRYINDEX, HTMLVIEW_READY_CALLBACKS_RKEY);
+	}
+
+	lua_pushlstring(L, id.c_str(), id.size());
+	if (clear)
+		lua_pushnil(L);
+	else
+		lua_pushvalue(L, 2);
+	lua_settable(L, -3);
+
+	lua_pop(L, 1);
+	return 0;
+}
+
 void ModApiHTMLView::Initialize(lua_State *L, int top)
 {
 		lua_newtable(L);
@@ -417,9 +475,12 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "state", l_state, tbl);
 		registerFunction(L, "reload", l_reload, tbl);
 		registerFunction(L, "focus", l_focus, tbl);
+		registerFunction(L, "shared_set", l_shared_set, tbl);
+		registerFunction(L, "shared_get", l_shared_get, tbl);
 		registerFunction(L, "on_message", l_on_message, tbl);
 		registerFunction(L, "on_message_json", l_on_message_json, tbl);
 		registerFunction(L, "on_capture", l_on_capture, tbl);
+		registerFunction(L, "on_ready", l_on_ready, tbl);
 
 	lua_pushvalue(L, tbl);
 	lua_setglobal(L, "htmlview");

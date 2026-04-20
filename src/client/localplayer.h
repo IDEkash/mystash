@@ -38,6 +38,7 @@ struct PlayerSettings
 	bool noclip = false;
 	bool autojump = false;
 	bool accessibility_sprint_enabled = true;
+	bool auto_climb = false;
 
 	void readGlobalSettings();
 	void registerSettingsCallback();

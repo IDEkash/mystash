@@ -21,7 +21,7 @@
 
 const static std::string PlayerSettings_names[] = {
 	"free_move", "pitch_move", "fast_move", "continuous_forward", "always_fly_fast",
-	"aux1_descends", "noclip", "autojump", "accessibilitysprintenabled"
+	"aux1_descends", "noclip", "autojump", "accessibilitysprintenabled", "autoclimbenabled"
 };
 
 void PlayerSettings::readGlobalSettings()
@@ -35,6 +35,7 @@ void PlayerSettings::readGlobalSettings()
 	noclip = g_settings->getBool("noclip");
 	autojump = g_settings->getBool("autojump");
 	accessibility_sprint_enabled = g_settings->getBool("accessibilitysprintenabled");
+	auto_climb = g_settings->getBool("autoclimbenabled");
 }
 
 
@@ -717,11 +718,13 @@ void LocalPlayer::move(f32 dtime, Environment *env,
 	}
 
 	if (is_climbing) {
-		if (m_speed.Y < -0.15f * BS)
-			m_speed.Y = -0.15f * BS;
+		float climb_speed = movement_speed_climb * physics_override.speed_climb;
 
-		if (control.direction_keys & 1) { // Up/Forward
-			float climb_speed = movement_speed_climb * physics_override.speed_climb;
+		if (m_speed.Y < -climb_speed)
+			m_speed.Y = -climb_speed;
+
+		bool auto_climb = physics_override.auto_climb || getPlayerSettings().auto_climb;
+		if ((control.direction_keys & 1) || (auto_climb && control.isMoving())) { // Up/Forward or Auto-climb
 			if (m_speed.Y < climb_speed)
 				m_speed.Y = climb_speed;
 		}
@@ -998,6 +1001,9 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 				swimming_vertical = true;
 			} else if (is_climbing && !m_disable_descend) {
 				speedV.Y = -movement_speed_climb * physics_override.speed_climb;
+			} else if ((physics_override.auto_climb || getPlayerSettings().auto_climb) &&
+					is_climbing && !m_disable_descend) {
+				speedV.Y = -movement_speed_climb * physics_override.speed_climb;
 			} else {
 				// If not free movement but fast is allowed, aux1 is
 				// "Turbo button"
@@ -1036,6 +1042,11 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 					speedV.Y = -speed_fast;
 				else
 					speedV.Y = -movement_speed_climb * physics_override.speed_climb;
+			}
+		} else if ((physics_override.auto_climb || getPlayerSettings().auto_climb) &&
+				control.sneak && !control.jump) {
+			if (is_climbing && !m_disable_descend) {
+				speedV.Y = -movement_speed_climb * physics_override.speed_climb;
 			}
 		}
 	}

@@ -26,9 +26,15 @@ struct HtmlViewCapture {
 	std::string png_base64;
 };
 
+struct HtmlViewEvent {
+	enum Type { READY } type;
+	std::string id;
+};
+
 static std::mutex g_msg_mutex;
 static std::deque<HtmlViewMessage> g_messages;
 static std::deque<HtmlViewCapture> g_captures;
+static std::deque<HtmlViewEvent> g_events;
 
 static std::string readJavaString(JNIEnv *env, jstring j_str)
 {
@@ -339,6 +345,37 @@ void htmlview_jni_pipe(const std::string &fromId, const std::string &toId)
 	callVoidMethod2Str("htmlview_pipe", fromId, toId);
 }
 
+void htmlview_jni_shared_set(const std::string &key, const char *val)
+{
+	JNIEnv *env;
+	jobject activity;
+	jclass activityClass;
+	if (!getActivityEnv(&env, &activity, &activityClass))
+		return;
+
+	jmethodID mid = env->GetMethodID(activityClass, "htmlview_shared_set",
+		"(Ljava/lang/String;Ljava/lang/String;)V");
+	if (!mid) {
+		errorstream << "htmlview_jni: missing method htmlview_shared_set" << std::endl;
+		env->DeleteLocalRef(activityClass);
+		return;
+	}
+
+	jstring jk = env->NewStringUTF(key.c_str());
+	jstring jv = val ? env->NewStringUTF(val) : nullptr;
+	env->CallVoidMethod(activity, mid, jk, jv);
+	if (jk)
+		env->DeleteLocalRef(jk);
+	if (jv)
+		env->DeleteLocalRef(jv);
+	env->DeleteLocalRef(activityClass);
+}
+
+std::string htmlview_jni_shared_get(const std::string &key)
+{
+	return callStringMethod1Str("htmlview_shared_get", key);
+}
+
 void htmlview_jni_capture(const std::string &id, int width, int height)
 {
 	callVoidMethod1Str2Int("htmlview_capture", id, width, height);
@@ -383,6 +420,19 @@ Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLCapture(
 	}
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLReady(
+		JNIEnv *env, jclass, jstring id)
+{
+	HtmlViewEvent e;
+	e.type = HtmlViewEvent::READY;
+	e.id = readJavaString(env, id);
+	{
+		std::lock_guard<std::mutex> lock(g_msg_mutex);
+		g_events.push_back(std::move(e));
+	}
+}
+
 #include "scripting_server.h"
 
 void htmlview_jni_poll(ServerScripting *script)
@@ -391,16 +441,22 @@ void htmlview_jni_poll(ServerScripting *script)
 		return;
 	std::deque<HtmlViewMessage> batch;
 	std::deque<HtmlViewCapture> cap_batch;
+	std::deque<HtmlViewEvent> event_batch;
 	{
 		std::lock_guard<std::mutex> lock(g_msg_mutex);
 		batch.swap(g_messages);
 		cap_batch.swap(g_captures);
+		event_batch.swap(g_events);
 	}
 	for (const auto &m : batch) {
 		script->on_htmlview_message(m.id, m.message);
 	}
 	for (const auto &c : cap_batch) {
 		script->on_htmlview_capture(c.id, c.png_base64);
+	}
+	for (const auto &e : event_batch) {
+		if (e.type == HtmlViewEvent::READY)
+			script->on_htmlview_ready(e.id);
 	}
 }
 

@@ -61,6 +61,9 @@ Workers still support `send`, `inject`, `navigate`, and `on_message`, but `displ
 - On success: `cb(decoded_table, raw_string)`
 - On parse error: `cb(nil, raw_string, error_string)`
 
+`htmlview.on_ready(id, cb_or_nil)`
+- `cb()`: Fired once after `onPageFinished`.
+
 `htmlview.pipe(from_id, to_id)`
 - Forwards messages from one HTMLView instance to another.
 
@@ -74,6 +77,22 @@ Workers still support `send`, `inject`, `navigate`, and `on_message`, but `displ
 - Reloads without destroying the instance.
 - For `run_external*`, reloads the current entry.
 - For `run*`, reloads the last provided HTML.
+
+### Shared memory IPC
+
+Allows zero-overhead data exchange between HTMLView workers and Lua.
+
+`htmlview.shared_set(key, val)`
+- Sets a value in the shared memory store. `val` can be `nil` to remove.
+
+`htmlview.shared_get(key) -> string | nil`
+- Retrieves a value from the shared memory store.
+
+Within the HTMLView (Javascript):
+
+`luanti.shared_set(key, val)`
+
+`luanti.shared_get(key) -> string | null`
 
 ### Capture
 
@@ -407,8 +426,9 @@ The engine now differentiates between "Water-like" and "Lava-like" liquids:
 #### 5. Advanced movement mechanics
 
 - **Ladder climbing**:
-  - **Fall clamp**: When on a ladder, your maximum downward speed is clamped to -0.15, creating a slow, controlled slide.
+  - **Controlled descend**: You can now descend ladders at the same speed as climbing up by pressing Crouch/Sneak.
   - **Forward boost**: If you press "Forward" while on a ladder, you get an upward boost matching your climb speed, allowing for faster ascending.
+  - **Auto-climb**: When `auto_climb` is enabled (via physics override or accessibility setting), simply moving towards a ladder will climb it, and crouching will descend it.
 - **Edge-grabbing (sneak)**: Instead of hitting an "invisible wall" at the edge of a block, the new logic reduces velocity by 50% per frame when you hit the sneak limit. This makes the player "slide" into the edge and "catch" it, creating a smoother edge-grab feel.
 
 ### Default settings (`minetest.conf`)
@@ -434,7 +454,8 @@ player:set_physics_override({
     jump = 1.0,                 -- Multiplies jump speed
     gravity = 1.0,              -- Multiplies gravity
     speed_climb = 1.0,          -- Multiplies ladder speed
-    acceleration_default = 1.0  -- Multiplies ground friction
+    acceleration_default = 1.0, -- Multiplies ground friction
+    auto_climb = false          -- Enables auto-climb and auto-descend on ladders
 })
 ```
 

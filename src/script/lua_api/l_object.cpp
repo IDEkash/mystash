@@ -2193,6 +2193,7 @@ int ObjectRef::l_set_physics_override(lua_State *L)
 	getfloatfield(L, 2, "acceleration_fast", phys.acceleration_fast);
 	getfloatfield(L, 2, "speed_walk", phys.speed_walk);
 	getfloatfield(L, 2, "step_height", phys.step_height);
+	getboolfield(L, 2, "auto_climb", phys.auto_climb);
 
 	if (phys != old)
 		playersao->m_physics_override_sent = false;
@@ -2244,6 +2245,8 @@ int ObjectRef::l_get_physics_override(lua_State *L)
 	lua_setfield(L, -2, "speed_walk");
 	lua_pushnumber(L, phys.step_height);
 	lua_setfield(L, -2, "step_height");
+	lua_pushboolean(L, phys.auto_climb);
+	lua_setfield(L, -2, "auto_climb");
 	return 1;
 }
 
