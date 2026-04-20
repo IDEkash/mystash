@@ -719,6 +719,14 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 				mat.BackfaceCulling = m_prop.backface_culling;
 			});
 
+			m_animated_meshnode->setOnEventCallback([this](const std::string &name) {
+				m_client->getScript()->on_animation_event(m_id, name);
+			});
+
+			m_animated_meshnode->setOnCycleCallback([this]() {
+				m_client->getScript()->on_animation_cycle(m_id);
+			});
+
 			m_animated_meshnode->setOnAnimateCallback([&](f32 dtime) {
 				for (auto it = m_bone_override.begin(); it != m_bone_override.end();) {
 					BoneOverride &props = it->second;

@@ -5,6 +5,8 @@ M._event_listeners = {}
 
 M._end_watchers = {}
 
+M._cycle_watchers = {}
+
 function M.register_on_event(cb)
 	assert(type(cb) == "function")
 	table.insert(M._event_listeners, cb)
@@ -47,8 +49,23 @@ function M.cancel_on_animation_end(obj)
 	M._end_watchers[obj] = nil
 end
 
+function M.on_animation_cycle(obj, cb)
+	assert(obj and obj.is_valid and obj:is_valid())
+	assert(type(cb) == "function")
+	M._cycle_watchers[obj] = cb
+	return obj
+end
+
+function M.cancel_on_animation_cycle(obj)
+	M._cycle_watchers[obj] = nil
+end
+
 if not core.on_animation_end then
 	core.on_animation_end = M.on_animation_end
+end
+
+if not core.on_animation_cycle then
+	core.on_animation_cycle = M.on_animation_cycle
 end
 
 local RAD = math.rad
@@ -542,6 +559,29 @@ end
 
 function M.unregister(anim)
 	registry[anim] = nil
+end
+
+if (INIT == "game" or INIT == "client") and core.register_on_animation_event then
+	core.register_on_animation_event(function(obj, event_name)
+		local payload = {
+			name = event_name,
+			engine = true,
+		}
+		for _, gcb in ipairs(M._event_listeners) do
+			if type(gcb) == "function" then
+				gcb(nil, obj, payload)
+			end
+		end
+	end)
+end
+
+if (INIT == "game" or INIT == "client") and core.register_on_animation_cycle then
+	core.register_on_animation_cycle(function(obj)
+		local cb = M._cycle_watchers[obj]
+		if type(cb) == "function" then
+			cb(obj)
+		end
+	end)
 end
 
 if INIT == "game" and core.register_globalstep then
