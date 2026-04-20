@@ -117,6 +117,7 @@ struct PlayerPhysicsOverride
 	float acceleration_fast = 1.f;
 	float speed_walk = 1.f;
 	float step_height = -1.f;
+	bool auto_climb = false;
 
 	bool operator==(const PlayerPhysicsOverride &other) const;
 	bool operator!=(const PlayerPhysicsOverride &other) const {

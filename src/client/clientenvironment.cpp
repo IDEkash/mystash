@@ -147,6 +147,21 @@ void ClientEnvironment::step(float dtime)
 					speed.Y *= factor;
 					speed.Z *= factor;
 					speed.Y -= 0.5f * BS * dtime_part; // Scale sink by dtime
+				} else if (lplayer->in_liquid) {
+					// Improved water physics: similar to lava but less restrictive
+					float factor = std::exp(-2.5f * dtime_part); // Slightly less drag than lava
+					speed.X *= factor;
+					speed.Y *= factor;
+					speed.Z *= factor;
+					// Buoyancy/Sink logic
+					if (lplayer->control.jump) {
+						speed.Y += 2.0f * BS * dtime_part; // Upward boost
+					} else if (lplayer->control.sneak) {
+						speed.Y -= 2.0f * BS * dtime_part; // Downward boost
+					} else {
+						// Constant sink similar to lava but slower
+						speed.Y -= 0.2f * BS * dtime_part;
+					}
 				} else {
 					// How much the node's move_resistance blocks movement, ranges
 					// between 0 and 1. Should match the scale at which liquid_viscosity

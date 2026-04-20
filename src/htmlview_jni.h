@@ -28,6 +28,8 @@ class ServerScripting;
 	void htmlview_jni_navigate(const std::string &id, const std::string &url);
 	void htmlview_jni_inject(const std::string &id, const std::string &js);
 	void htmlview_jni_pipe(const std::string &fromId, const std::string &toId);
+	void htmlview_jni_shared_set(const std::string &key, const char *val);
+	std::string htmlview_jni_shared_get(const std::string &key);
 	void htmlview_jni_capture(const std::string &id, int width, int height);
 	void htmlview_jni_poll(ServerScripting *script);
 
