@@ -808,8 +808,22 @@ void SelfType::MeshExtractor::loadAnimations()
 			}
 		}
 
+		std::vector<SkinnedMesh::AnimationEvent> events;
+		if (anim.extras.isMember("events") && anim.extras["events"].isArray()) {
+			const auto &gltf_events = anim.extras["events"];
+			for (Json::ArrayIndex i = 0; i < gltf_events.size(); ++i) {
+				const auto &ev = gltf_events[i];
+				if (ev.isMember("name") && ev.isMember("time")) {
+					events.push_back({
+						static_cast<f32>(ev["time"].asDouble()) + time_shift,
+						ev["name"].asString()
+					});
+				}
+			}
+		}
+
 		const auto clip_name = anim.name.has_value() ? *anim.name : ("animation_" + std::to_string(animIdx));
-		m_irr_model.addAnimationClip(clip_name, offset, offset + duration);
+		m_irr_model.addAnimationClip(clip_name, offset, offset + duration, std::move(events));
 		offset += duration + clip_gap;
 	}
 }
