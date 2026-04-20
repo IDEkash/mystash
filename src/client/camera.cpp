@@ -136,6 +136,10 @@ inline f32 my_modf(f32 x)
 
 void Camera::step(f32 dtime)
 {
+	if (m_shake.trauma > 0.0f) {
+		m_shake.trauma = std::max(0.0f, m_shake.trauma - m_shake.decay * dtime);
+	}
+
 	bool was_under_zero = m_wield_change_timer < 0;
 	m_wield_change_timer = MYMIN(m_wield_change_timer + dtime, 0.125);
 
@@ -385,7 +389,9 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	v3f rel_cam_target = v3f(0,0,1);
 	v3f rel_cam_up = v3f(0,1,0);
 
-	if (m_cache_view_bobbing_amount != 0.0f && m_view_bobbing_anim != 0.0f &&
+	f32 bob_amount = m_override.bob_amount.value_or(m_cache_view_bobbing_amount);
+
+	if (bob_amount != 0.0f && m_view_bobbing_anim != 0.0f &&
 		m_camera_mode < CAMERA_MODE_THIRD) {
 		f32 bobfrac = my_modf(m_view_bobbing_anim * 2);
 		f32 bobdir = (m_view_bobbing_anim < 0.5) ? 1.0 : -1.0;
@@ -398,9 +404,33 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 			-0.28 * bobtmp * bobtmp,
 			0.);
 
-		rel_cam_pos += bobvec * m_cache_view_bobbing_amount;
-		rel_cam_target += bobvec * m_cache_view_bobbing_amount;
-		rel_cam_up.rotateXYBy(-0.03 * bobdir * bobtmp * M_PI * m_cache_view_bobbing_amount);
+		rel_cam_pos += bobvec * bob_amount;
+		rel_cam_target += bobvec * bob_amount;
+		rel_cam_up.rotateXYBy(-0.03 * bobdir * bobtmp * M_PI * bob_amount);
+	}
+
+	if (m_override.roll) {
+		rel_cam_up.rotateXYBy(*m_override.roll * core::RADTODEG);
+	}
+
+	if (m_override.pos_offset) {
+		rel_cam_pos += *m_override.pos_offset;
+		rel_cam_target += *m_override.pos_offset;
+	}
+
+	if (m_shake.trauma > 0.0f) {
+		f32 shake_amount = m_shake.trauma * m_shake.trauma;
+		f32 t = m_client->getAnimationTime();
+		v3f shake_offset(
+			shake_amount * m_shake.max_offset * (std::sin(t * 20.0f) * 0.5f + std::sin(t * 31.0f) * 0.5f),
+			shake_amount * m_shake.max_offset * (std::sin(t * 23.0f) * 0.5f + std::sin(t * 29.0f) * 0.5f),
+			shake_amount * m_shake.max_offset * (std::sin(t * 17.0f) * 0.5f + std::sin(t * 37.0f) * 0.5f)
+		);
+		rel_cam_pos += shake_offset;
+		rel_cam_target += shake_offset;
+
+		f32 roll_shake = shake_amount * m_shake.max_angle * (std::sin(t * 19.0f) * 0.5f + std::sin(t * 27.0f) * 0.5f);
+		rel_cam_up.rotateXYBy(roll_shake * core::RADTODEG);
 	}
 
 	// Compute absolute camera position and target
@@ -507,8 +537,10 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 		addArmInertia(yaw);
 
 	// Position the wielded item
-	v3f wield_position = v3f(m_wieldmesh_offset.X, m_wieldmesh_offset.Y, 65);
-	v3f wield_rotation = v3f(-100, 120, -100);
+	v3f wield_position = m_override.wield_offset ?
+		v3f(m_override.wield_offset->X, m_override.wield_offset->Y, 65) :
+		v3f(m_wieldmesh_offset.X, m_wieldmesh_offset.Y, 65);
+	v3f wield_rotation = m_override.wield_rotation.value_or(v3f(-100, 120, -100));
 	wield_position.Y += std::abs(m_wield_change_timer)*320 - 40;
 	if(m_digging_anim < 0.05 || m_digging_anim > 0.5)
 	{
@@ -567,6 +599,8 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 		// Start animation
 		m_view_bobbing_state = 1;
 		m_view_bobbing_speed = MYMIN(speed.getLength(), 70);
+		if (m_override.bob_speed)
+			m_view_bobbing_speed *= *m_override.bob_speed;
 	} else if (m_view_bobbing_state == 1) {
 		// Stop animation
 		m_view_bobbing_state = 2;
@@ -614,7 +648,7 @@ void Camera::drawWieldedTool(core::matrix4* translation)
 	// Draw the wielded node (in a separate scene manager)
 	scene::ICameraSceneNode* cam = m_wieldmgr->getActiveCamera();
 	cam->setAspectRatio(m_cameranode->getAspectRatio());
-	cam->setFOV(72.0*M_PI/180.0);
+	cam->setFOV(m_override.wield_fov.value_or(72.0f) * M_PI / 180.0);
 	cam->setNearValue(10);
 	cam->setFarValue(1000);
 	if (translation != NULL)
@@ -641,6 +675,15 @@ void Camera::toggleCameraMode()
 		m_camera_mode = CAMERA_MODE_THIRD_FRONT;
 	else
 		m_camera_mode = CAMERA_MODE_FIRST;
+}
+
+void Camera::addTrauma(f32 amount, std::optional<f32> decay,
+		std::optional<f32> max_angle, std::optional<f32> max_offset)
+{
+	m_shake.trauma = std::min(1.0f, m_shake.trauma + amount);
+	if (decay) m_shake.decay = *decay;
+	if (max_angle) m_shake.max_angle = *max_angle;
+	if (max_offset) m_shake.max_offset = *max_offset;
 }
 
 void Camera::drawNametags()

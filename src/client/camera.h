@@ -27,6 +27,25 @@ namespace scene {
 	class ISceneNode;
 };
 
+struct CameraOverride
+{
+	std::optional<v2f> wield_offset;
+	std::optional<v3f> wield_rotation;
+	std::optional<f32> wield_fov;
+	std::optional<f32> bob_amount;
+	std::optional<f32> bob_speed;
+	std::optional<f32> roll;
+	std::optional<v3f> pos_offset;
+};
+
+struct ShakeState
+{
+	f32 trauma = 0.0f;      // 0..1, decays over time
+	f32 decay = 2.0f;       // how fast it fades
+	f32 max_angle = 5.0f * core::DEGTORAD; // radians
+	f32 max_offset = 0.1f * BS;            // nodes
+};
+
 struct Nametag
 {
 	scene::ISceneNode *parent_node = nullptr;
@@ -173,6 +192,15 @@ public:
 		return m_camera_mode;
 	}
 
+	void setOverride(const CameraOverride &override)
+	{
+		m_override = override;
+	}
+
+	void addTrauma(f32 amount, std::optional<f32> decay = std::nullopt,
+			std::optional<f32> max_angle = std::nullopt,
+			std::optional<f32> max_offset = std::nullopt);
+
 	Nametag *addNametag(const Nametag &params);
 
 	void removeNametag(Nametag *nametag);
@@ -260,4 +288,7 @@ private:
 
 	// Last known light color of the player
 	video::SColor m_player_light_color;
+
+	CameraOverride m_override;
+	ShakeState m_shake;
 };

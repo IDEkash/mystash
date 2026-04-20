@@ -10,6 +10,7 @@
 #include "client/client.h"
 #include "client/localplayer.h"
 #include <ICameraSceneNode.h>
+#include <optional>
 
 LuaCamera::LuaCamera(Camera *m) : m_camera(m)
 {
@@ -151,6 +152,88 @@ int LuaCamera::l_get_aspect_ratio(lua_State *L)
 	return 1;
 }
 
+// set_override(self, override_table)
+int LuaCamera::l_set_override(lua_State *L)
+{
+	Camera *camera = getobject(L, 1);
+	if (!camera)
+		return 0;
+
+	CameraOverride ov;
+	if (lua_istable(L, 2)) {
+		lua_getfield(L, 2, "wield_offset");
+		if (lua_istable(L, -1))
+			ov.wield_offset = read_v2f(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, 2, "wield_rotation");
+		if (lua_istable(L, -1))
+			ov.wield_rotation = read_v3f(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, 2, "wield_fov");
+		if (lua_isnumber(L, -1))
+			ov.wield_fov = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, 2, "bob_amount");
+		if (lua_isnumber(L, -1))
+			ov.bob_amount = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, 2, "bob_speed");
+		if (lua_isnumber(L, -1))
+			ov.bob_speed = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, 2, "roll");
+		if (lua_isnumber(L, -1))
+			ov.roll = lua_tonumber(L, -1) * core::DEGTORAD;
+		lua_pop(L, 1);
+
+		lua_getfield(L, 2, "pos_offset");
+		if (lua_istable(L, -1))
+			ov.pos_offset = read_v3f(L, -1) * BS;
+		lua_pop(L, 1);
+	}
+
+	camera->setOverride(ov);
+	return 0;
+}
+
+// add_trauma(self, amount, [config])
+int LuaCamera::l_add_trauma(lua_State *L)
+{
+	Camera *camera = getobject(L, 1);
+	if (!camera)
+		return 0;
+
+	f32 amount = luaL_checknumber(L, 2);
+	std::optional<f32> decay;
+	std::optional<f32> max_angle;
+	std::optional<f32> max_offset;
+
+	if (lua_istable(L, 3)) {
+		lua_getfield(L, 3, "decay");
+		if (lua_isnumber(L, -1))
+			decay = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, 3, "max_angle");
+		if (lua_isnumber(L, -1))
+			max_angle = lua_tonumber(L, -1) * core::DEGTORAD;
+		lua_pop(L, 1);
+
+		lua_getfield(L, 3, "max_offset");
+		if (lua_isnumber(L, -1))
+			max_offset = lua_tonumber(L, -1) * BS;
+		lua_pop(L, 1);
+	}
+
+	camera->addTrauma(amount, decay, max_angle, max_offset);
+	return 0;
+}
+
 Camera *LuaCamera::getobject(LuaCamera *ref)
 {
 	return ref->m_camera;
@@ -190,6 +273,8 @@ const luaL_Reg LuaCamera::methods[] = {
 	luamethod(LuaCamera, get_look_vertical),
 	luamethod(LuaCamera, get_look_horizontal),
 	luamethod(LuaCamera, get_aspect_ratio),
+	luamethod(LuaCamera, set_override),
+	luamethod(LuaCamera, add_trauma),
 
 	{0, 0}
 };

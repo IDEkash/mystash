@@ -28,6 +28,9 @@ private:
 	static int l_get_look_horizontal(lua_State *L);
 	static int l_get_aspect_ratio(lua_State *L);
 
+	static int l_set_override(lua_State *L);
+	static int l_add_trauma(lua_State *L);
+
 	static Camera *getobject(LuaCamera *ref);
 	static Camera *getobject(lua_State *L, int narg);
 
