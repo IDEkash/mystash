@@ -35,17 +35,16 @@ public:
 
 	static ServerActiveObject* getobject(ObjectRef *ref);
 
-	static const char className[];
-private:
-	ServerActiveObject *m_object = nullptr;
-	static luaL_Reg methods[];
-
-
 	static LuaEntitySAO* getluaobject(ObjectRef *ref);
 
 	static PlayerSAO* getplayersao(ObjectRef *ref);
 
 	static RemotePlayer *getplayer(ObjectRef *ref);
+
+	static const char className[];
+private:
+	ServerActiveObject *m_object = nullptr;
+	static luaL_Reg methods[];
 
 	// Exported functions
 
