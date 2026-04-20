@@ -2148,6 +2148,37 @@ void Server::SendEyeOffset(session_t peer_id, v3f first, v3f third, v3f third_fr
 	Send(&pkt);
 }
 
+void Server::SendCameraOverride(session_t peer_id, const PlayerCameraOverride &override)
+{
+	NetworkPacket pkt(TOCLIENT_CAMERA_OVERRIDE, 0, peer_id);
+	u8 flags = 0;
+	if (override.wield_offset)   flags |= 1;
+	if (override.wield_rotation) flags |= 2;
+	if (override.wield_fov)      flags |= 4;
+	if (override.bob_amount)     flags |= 8;
+	if (override.bob_speed)      flags |= 16;
+	if (override.roll)           flags |= 32;
+	if (override.pos_offset)     flags |= 64;
+
+	pkt << flags;
+	if (override.wield_offset)   pkt << *override.wield_offset;
+	if (override.wield_rotation) pkt << *override.wield_rotation;
+	if (override.wield_fov)      pkt << *override.wield_fov;
+	if (override.bob_amount)     pkt << *override.bob_amount;
+	if (override.bob_speed)      pkt << *override.bob_speed;
+	if (override.roll)           pkt << *override.roll;
+	if (override.pos_offset)     pkt << *override.pos_offset;
+
+	Send(&pkt);
+}
+
+void Server::SendCameraShake(session_t peer_id, f32 trauma, f32 decay, f32 max_angle, f32 max_offset)
+{
+	NetworkPacket pkt(TOCLIENT_CAMERA_SHAKE, 0, peer_id);
+	pkt << trauma << decay << max_angle << max_offset;
+	Send(&pkt);
+}
+
 void Server::SendPlayerPrivileges(session_t peer_id)
 {
 	RemotePlayer *player = m_env->getPlayer(peer_id);
@@ -3639,6 +3670,13 @@ void Server::setPlayerEyeOffset(RemotePlayer *player, v3f first, v3f third, v3f 
 	player->eye_offset_third = third;
 	player->eye_offset_third_front = third_front;
 	SendEyeOffset(player->getPeerId(), first, third, third_front);
+}
+
+void Server::setPlayerCameraOverride(RemotePlayer *player, const PlayerCameraOverride &override)
+{
+	sanity_check(player);
+	player->camera_override = override;
+	SendCameraOverride(player->getPeerId(), override);
 }
 
 void Server::setSky(RemotePlayer *player, const SkyboxParams &params)

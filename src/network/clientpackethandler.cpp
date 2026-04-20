@@ -1572,6 +1572,37 @@ void Client::handleCommand_EyeOffset(NetworkPacket* pkt)
 	}
 }
 
+void Client::handleCommand_CameraOverride(NetworkPacket* pkt)
+{
+	if (!m_camera)
+		return;
+
+	CameraOverride ov;
+	u8 flags;
+	*pkt >> flags;
+
+	if (flags & 1) { v2f v; *pkt >> v; ov.wield_offset = v; }
+	if (flags & 2) { v3f v; *pkt >> v; ov.wield_rotation = v; }
+	if (flags & 4) { f32 v; *pkt >> v; ov.wield_fov = v; }
+	if (flags & 8) { f32 v; *pkt >> v; ov.bob_amount = v; }
+	if (flags & 16) { f32 v; *pkt >> v; ov.bob_speed = v; }
+	if (flags & 32) { f32 v; *pkt >> v; ov.roll = v; }
+	if (flags & 64) { v3f v; *pkt >> v; ov.pos_offset = v; }
+
+	m_camera->setOverride(ov);
+}
+
+void Client::handleCommand_CameraShake(NetworkPacket* pkt)
+{
+	if (!m_camera)
+		return;
+
+	f32 trauma, decay, max_angle, max_offset;
+	*pkt >> trauma >> decay >> max_angle >> max_offset;
+
+	m_camera->addTrauma(trauma, decay, max_angle, max_offset);
+}
+
 void Client::handleCommand_Camera(NetworkPacket* pkt)
 {
 	LocalPlayer *player = m_env.getLocalPlayer();

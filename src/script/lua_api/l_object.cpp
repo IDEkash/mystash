@@ -742,6 +742,97 @@ int ObjectRef::l_set_eye_offset(lua_State *L)
 	return 0;
 }
 
+// set_camera_override(self, override_table)
+int ObjectRef::l_set_camera_override(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	RemotePlayer *player = getplayer(ref);
+	if (player == nullptr)
+		return 0;
+
+	PlayerCameraOverride ov;
+	if (lua_istable(L, 2)) {
+		lua_getfield(L, 2, "wield_offset");
+		if (lua_istable(L, -1))
+			ov.wield_offset = read_v2f(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, 2, "wield_rotation");
+		if (lua_istable(L, -1))
+			ov.wield_rotation = read_v3f(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, 2, "wield_fov");
+		if (lua_isnumber(L, -1))
+			ov.wield_fov = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, 2, "bob_amount");
+		if (lua_isnumber(L, -1))
+			ov.bob_amount = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, 2, "bob_speed");
+		if (lua_isnumber(L, -1))
+			ov.bob_speed = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, 2, "roll");
+		if (lua_isnumber(L, -1))
+			ov.roll = lua_tonumber(L, -1) * core::DEGTORAD;
+		lua_pop(L, 1);
+
+		lua_getfield(L, 2, "pos_offset");
+		if (lua_istable(L, -1))
+			ov.pos_offset = read_v3f(L, -1) * BS;
+		lua_pop(L, 1);
+	}
+
+	getServer(L)->setPlayerCameraOverride(player, ov);
+	return 0;
+}
+
+// add_camera_shake(self, amount, [config])
+int ObjectRef::l_add_camera_shake(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	RemotePlayer *player = getplayer(ref);
+	if (player == nullptr)
+		return 0;
+
+	f32 amount = luaL_checknumber(L, 2);
+	f32 decay = player->shake_state.decay;
+	f32 max_angle = player->shake_state.max_angle;
+	f32 max_offset = player->shake_state.max_offset;
+
+	if (lua_istable(L, 3)) {
+		lua_getfield(L, 3, "decay");
+		if (lua_isnumber(L, -1))
+			decay = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, 3, "max_angle");
+		if (lua_isnumber(L, -1))
+			max_angle = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, 3, "max_offset");
+		if (lua_isnumber(L, -1))
+			max_offset = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+	}
+
+	player->shake_state.decay = decay;
+	player->shake_state.max_angle = max_angle;
+	player->shake_state.max_offset = max_offset;
+
+	getServer(L)->SendCameraShake(player->getPeerId(), amount, decay,
+			max_angle * core::DEGTORAD, max_offset * BS);
+	return 0;
+}
+
 // get_eye_offset(self)
 int ObjectRef::l_get_eye_offset(lua_State *L)
 {
@@ -3417,6 +3508,8 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod(ObjectRef, set_local_animation),
 	luamethod(ObjectRef, get_local_animation),
 	luamethod(ObjectRef, set_eye_offset),
+	luamethod(ObjectRef, set_camera_override),
+	luamethod(ObjectRef, add_camera_shake),
 	luamethod(ObjectRef, get_eye_offset),
 	luamethod(ObjectRef, send_mapblock),
 	luamethod(ObjectRef, set_minimap_modes),

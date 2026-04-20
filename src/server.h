@@ -388,6 +388,7 @@ public:
 	void setLocalPlayerAnimations(RemotePlayer *player, v2f animation_frames[4],
 			f32 frame_speed);
 	void setPlayerEyeOffset(RemotePlayer *player, v3f first, v3f third, v3f third_front);
+	void setPlayerCameraOverride(RemotePlayer *player, const PlayerCameraOverride &override);
 
 	void setSky(RemotePlayer *player, const SkyboxParams &params);
 	void setSun(RemotePlayer *player, const SunParams &params);
@@ -554,6 +555,8 @@ private:
 	void SendLocalPlayerAnimations(session_t peer_id, v2f animation_frames[4],
 		f32 animation_speed);
 	void SendEyeOffset(session_t peer_id, v3f first, v3f third, v3f third_front);
+	void SendCameraOverride(session_t peer_id, const PlayerCameraOverride &override);
+	void SendCameraShake(session_t peer_id, f32 trauma, f32 decay, f32 max_angle, f32 max_offset);
 	void SendPlayerPrivileges(session_t peer_id);
 	void SendPlayerInventoryFormspec(session_t peer_id);
 	void SendPlayerFormspecPrepend(session_t peer_id);

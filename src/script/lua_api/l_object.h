@@ -409,6 +409,12 @@ private:
 	// set_eye_offset(self, firstperson, thirdperson, thirdperson_front)
 	static int l_set_eye_offset(lua_State *L);
 
+	// set_camera_override(self, override_table)
+	static int l_set_camera_override(lua_State *L);
+
+	// add_camera_shake(self, amount, [config])
+	static int l_add_camera_shake(lua_State *L);
+
 	// get_eye_offset(self)
 	static int l_get_eye_offset(lua_State *L);
 

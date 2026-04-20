@@ -9,6 +9,7 @@
 #include "util/basic_macros.h"
 #include <string>
 #include <string_view>
+#include <optional>
 
 #define PLAYERNAME_SIZE 20
 
@@ -125,6 +126,25 @@ struct PlayerPhysicsOverride
 };
 
 /// @note numeric values are part of network protocol
+struct PlayerCameraOverride
+{
+	std::optional<v2f> wield_offset;
+	std::optional<v3f> wield_rotation;
+	std::optional<f32> wield_fov;
+	std::optional<f32> bob_amount;
+	std::optional<f32> bob_speed;
+	std::optional<f32> roll;
+	std::optional<v3f> pos_offset;
+};
+
+struct PlayerShakeState
+{
+	f32 trauma = 0.0f;
+	f32 decay = 2.0f;
+	f32 max_angle = 5.0f;
+	f32 max_offset = 0.1f;
+};
+
 enum CameraMode : int {
 	// not a mode. indicates that any may be used.
 	CAMERA_MODE_ANY = 0,
@@ -172,6 +192,9 @@ public:
 	v3f eye_offset_first;
 	v3f eye_offset_third;
 	v3f eye_offset_third_front;
+
+	PlayerCameraOverride camera_override;
+	PlayerShakeState shake_state;
 
 	Inventory inventory;
 

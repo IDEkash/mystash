@@ -711,7 +711,27 @@ enum ToClientCommand : u16
 			FogBoundaryParams (see fogparams.h)
 		*/
 
-		TOCLIENT_NUM_MSG_TYPES = 0x67,
+		TOCLIENT_CAMERA_OVERRIDE = 0x67,
+		/*
+			u8 flags
+			if flags & 1: v2f wield_offset
+			if flags & 2: v3f wield_rotation
+			if flags & 4: f32 wield_fov
+			if flags & 8: f32 bob_amount
+			if flags & 16: f32 bob_speed
+			if flags & 32: f32 roll
+			if flags & 64: v3f pos_offset
+		*/
+
+		TOCLIENT_CAMERA_SHAKE = 0x68,
+		/*
+			f32 trauma
+			f32 decay
+			f32 max_angle
+			f32 max_offset
+		*/
+
+		TOCLIENT_NUM_MSG_TYPES = 0x69,
 	};
 
 enum ToServerCommand : u16
