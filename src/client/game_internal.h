@@ -377,6 +377,10 @@ private:
 	bool m_camera_offset_changed = false;
 	bool m_game_focused = false;
 
+	float m_last_forced_yaw = 0.0f;
+	float m_last_forced_pitch = 0.0f;
+	bool m_free_look_enabled = false;
+
 	bool m_does_lost_focus_pause_game = false;
 
 	// if true, (almost) the whole game is paused

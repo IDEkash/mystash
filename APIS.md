@@ -15,6 +15,37 @@ Previously, calling these methods triggered a full "teleport" packet (`TOCLIENT_
 
 ---
 
+## Camera API (Lua)
+
+Server-side `ObjectRef` methods for controlling the player's camera.
+
+### Camera State
+
+`ObjectRef:set_camera(table)`
+- `table` fields:
+  - `mode`: string (`"firstperson"`, `"thirdpersonback"`, `"thirdpersonfront"`)
+  - `free_look`: boolean (default `false`). If `true`, server-forced orientation updates (via `set_look_vertical` or recoil) are applied additively to the player's current orientation rather than overriding it.
+  - `smooth`: boolean (default `false`). If `true`, orientation changes are smoothed on the client (0.05s default window) even if cinematic mode is off.
+  - `fov`: number. Sets the Field of View. Set to `0` to reset to client default.
+  - `fov_is_multiplier`: boolean (default `false`). If `true`, the `fov` value is treated as a multiplier for the player's base FOV setting.
+  - `fov_transition`: number (default `0.0`). Duration in seconds for a smooth FOV transition.
+
+`ObjectRef:get_camera() -> table`
+- Returns a table containing all the fields listed above.
+
+### Field of View
+
+`ObjectRef:set_fov(degrees, is_multiplier?, transition_time?)`
+- Legacy/explicit form of FOV control.
+- `degrees`: number. `0` to reset.
+- `is_multiplier`: boolean (default `false`).
+- `transition_time`: number (default `0`).
+
+`ObjectRef:get_fov() -> table`
+- Returns `{fov, is_multiplier, transition_time}`.
+
+---
+
 ## Android: `htmlview` (Lua)
 
 Android-only. On non-Android platforms, calling these functions errors.
