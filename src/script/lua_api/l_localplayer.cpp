@@ -278,6 +278,21 @@ int LuaLocalPlayer::l_get_pos(lua_State *L)
 	return 1;
 }
 
+// get_bone_world_pos(self, bone)
+int LuaLocalPlayer::l_get_bone_world_pos(lua_State *L)
+{
+	LocalPlayer *player = getobject(L, 1);
+	std::string bone = readParam<std::string>(L, 2, "");
+
+	GenericCAO *cao = player->getCAO();
+	if (cao) {
+		push_v3f(L, cao->getBoneWorldPos(bone));
+	} else {
+		push_v3f(L, player->getPosition() / BS);
+	}
+	return 1;
+}
+
 // get_movement_acceleration(self)
 int LuaLocalPlayer::l_get_movement_acceleration(lua_State *L)
 {
@@ -489,6 +504,7 @@ const luaL_Reg LuaLocalPlayer::methods[] = {
 		luamethod(LuaLocalPlayer, get_control),
 		luamethod(LuaLocalPlayer, get_breath),
 		luamethod(LuaLocalPlayer, get_pos),
+		luamethod(LuaLocalPlayer, get_bone_world_pos),
 		luamethod(LuaLocalPlayer, get_movement_acceleration),
 		luamethod(LuaLocalPlayer, get_movement_speed),
 		luamethod(LuaLocalPlayer, get_movement),

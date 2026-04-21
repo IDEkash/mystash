@@ -56,6 +56,9 @@ private:
 	// get_pos(self)
 	static int l_get_pos(lua_State *L);
 
+	// get_bone_world_pos(self, bone)
+	static int l_get_bone_world_pos(lua_State *L);
+
 	// get_movement_acceleration(self)
 	static int l_get_movement_acceleration(lua_State *L);
 

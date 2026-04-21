@@ -298,6 +298,8 @@ player:set_bone_rotation("Head", {x=0, y=-45, z=0}, {interpolation = 0.1})
   - `pos_smooth`: float — Persistent smoothing for position.
   - `rot_smooth`: float — Persistent smoothing for rotation.
   - `scale_smooth`: float — Persistent smoothing for scale.
+  - `color`: ColorSpec — Tints the bone mesh.
+  - `glow`: float — Adds emissive glow to the bone mesh.
 
 **Example:**
 
@@ -318,6 +320,9 @@ player:set_bone_override("RightArm", {
 `ObjectRef:get_bone_scale(bone)`
 
 Each returns a single vector (`{x,y,z}`) representing the current override for that specific transform.
+
+`ObjectRef:get_bone_world_pos(bone)`
+- Returns the world-space vector of the rendered bone. Ideal for spawning particles or effects attached to specific body parts. Available on both server-side `ObjectRef` and client-side `core.localplayer`.
 
 ### How it works
 
