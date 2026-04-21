@@ -29,6 +29,9 @@ Server-side `ObjectRef` methods for controlling the player's camera.
   - `fov`: number. Sets the Field of View. Set to `0` to reset to client default.
   - `fov_is_multiplier`: boolean (default `false`). If `true`, the `fov` value is treated as a multiplier for the player's base FOV setting.
   - `fov_transition`: number (default `0.0`). Duration in seconds for a smooth FOV transition.
+  - `tilt`: number (default `0.0`). Pitch offset in degrees.
+  - `roll`: number (default `0.0`). Roll offset in degrees.
+  - `offset`: vector (default `{x=0, y=0, z=0}`). Eye position offset.
 
 `ObjectRef:get_camera() -> table`
 - Returns a table containing all the fields listed above.

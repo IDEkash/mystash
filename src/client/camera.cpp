@@ -373,9 +373,10 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 
 		// Set head node transformation
 		eye_offset.Y += cameratilt * -player->hurt_tilt_strength;
+		eye_offset += player->camera_offset;
 		m_headnode->setPosition(eye_offset);
-		m_headnode->setRotation(v3f(pitch, 0,
-			cameratilt * player->hurt_tilt_strength));
+		m_headnode->setRotation(v3f(pitch + player->camera_tilt, 0,
+			cameratilt * player->hurt_tilt_strength + player->camera_roll));
 		m_headnode->updateAbsolutePosition();
 	}
 

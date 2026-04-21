@@ -60,6 +60,10 @@ Player::Player(const std::string &name, IItemDefManager *idef):
 	movement_gravity                = 9.81 * BS;
 	local_animation_speed           = 0.0;
 
+	camera_tilt                     = 0.0f;
+	camera_roll                     = 0.0f;
+	camera_offset                   = v3f(0, 0, 0);
+
 	hud_flags =
 		HUD_FLAG_HOTBAR_VISIBLE    | HUD_FLAG_HEALTHBAR_VISIBLE |
 		HUD_FLAG_CROSSHAIR_VISIBLE | HUD_FLAG_WIELDITEM_VISIBLE |
