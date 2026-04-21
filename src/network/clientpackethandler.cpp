@@ -1600,6 +1600,10 @@ void Client::handleCommand_Camera(NetworkPacket* pkt)
 		player->camera_smooth    = (flags & 2) != 0;
 	}
 
+	if (pkt->getRemainingBytes() >= 4) {
+		*pkt >> player->camera_tilt;
+	}
+
 	m_client_event_queue.push(new ClientEvent(CE_UPDATE_CAMERA));
 }
 

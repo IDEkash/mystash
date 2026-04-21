@@ -782,6 +782,11 @@ int ObjectRef::l_set_camera(lua_State *L)
 		player->camera_smooth = lua_toboolean(L, -1);
 	lua_pop(L, 1);
 
+	lua_getfield(L, -1, "tilt");
+	if (lua_isnumber(L, -1))
+		player->camera_tilt = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
 	lua_getfield(L, -1, "fov");
 	if (lua_isnumber(L, -1)) {
 		PlayerFovSpec s = player->getFov();
@@ -818,6 +823,7 @@ int ObjectRef::l_get_camera(lua_State *L)
 	setstringfield(L, -1, "mode", enum_to_string(es_CameraMode, player->allowed_camera_mode));
 	setboolfield(L, -1, "free_look", player->camera_free_look);
 	setboolfield(L, -1, "smooth", player->camera_smooth);
+	setfloatfield(L, -1, "tilt", player->camera_tilt);
 
 	PlayerFovSpec fov = player->getFov();
 	setfloatfield(L, -1, "fov", fov.fov);
@@ -1994,6 +2000,34 @@ int ObjectRef::l_get_fov(lua_State *L)
 	lua_pushboolean(L, fov_spec.is_multiplier);
 	lua_pushnumber(L, fov_spec.transition_time);
 	return 3;
+}
+
+// set_tilt(self, tilt)
+int ObjectRef::l_set_tilt(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	RemotePlayer *player = getplayer(ref);
+	if (player == nullptr)
+		return 0;
+
+	player->camera_tilt = readParam<float>(L, 2);
+
+	getServer(L)->SendCamera(player->getPeerId(), player);
+	return 0;
+}
+
+// get_tilt(self)
+int ObjectRef::l_get_tilt(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	RemotePlayer *player = getplayer(ref);
+	if (player == nullptr)
+		return 0;
+
+	lua_pushnumber(L, player->camera_tilt);
+	return 1;
 }
 
 // set_breath(self, breath)
@@ -3500,6 +3534,8 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod(ObjectRef, set_flags),
 	luamethod(ObjectRef, get_flags),
 	luamethod(ObjectRef, set_camera),
+	luamethod(ObjectRef, set_tilt),
+	luamethod(ObjectRef, get_tilt),
 	luamethod(ObjectRef, get_camera),
 
 	{0,0}

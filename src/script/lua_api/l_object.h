@@ -418,6 +418,12 @@ private:
 	// set_camera(self, {params})
 	static int l_set_camera(lua_State *L);
 
+	// set_tilt(self, tilt)
+	static int l_set_tilt(lua_State *L);
+
+	// get_tilt(self)
+	static int l_get_tilt(lua_State *L);
+
 	// get_camera(self)
 	static int l_get_camera(lua_State *L);
 
