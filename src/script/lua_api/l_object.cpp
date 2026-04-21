@@ -787,6 +787,11 @@ int ObjectRef::l_set_camera(lua_State *L)
 		player->camera_tilt = lua_tonumber(L, -1);
 	lua_pop(L, 1);
 
+	lua_getfield(L, -1, "anti_controller_tilt");
+	if (lua_isboolean(L, -1))
+		player->camera_anti_controller_tilt = lua_toboolean(L, -1);
+	lua_pop(L, 1);
+
 	lua_getfield(L, -1, "fov");
 	if (lua_isnumber(L, -1)) {
 		PlayerFovSpec s = player->getFov();
@@ -823,6 +828,7 @@ int ObjectRef::l_get_camera(lua_State *L)
 	setstringfield(L, -1, "mode", enum_to_string(es_CameraMode, player->allowed_camera_mode));
 	setboolfield(L, -1, "free_look", player->camera_free_look);
 	setboolfield(L, -1, "smooth", player->camera_smooth);
+	setboolfield(L, -1, "anti_controller_tilt", player->camera_anti_controller_tilt);
 	setfloatfield(L, -1, "tilt", player->camera_tilt);
 
 	PlayerFovSpec fov = player->getFov();

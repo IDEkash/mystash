@@ -1598,6 +1598,7 @@ void Client::handleCommand_Camera(NetworkPacket* pkt)
 		*pkt >> flags;
 		player->camera_free_look = (flags & 1) != 0;
 		player->camera_smooth    = (flags & 2) != 0;
+		player->camera_anti_controller_tilt = (flags & 4) != 0;
 	}
 
 	if (pkt->getRemainingBytes() >= 4) {

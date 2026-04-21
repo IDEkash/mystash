@@ -345,7 +345,12 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 
 	// Set player node transformation
 	m_playernode->setPosition(player_position);
-	m_playernode->setRotation(v3f(0, -1 * yaw, 0));
+
+	v3f player_rotation = v3f(0, -1 * yaw, 0);
+	if (!player->camera_anti_controller_tilt) {
+		player_rotation.Z = -player->camera_tilt;
+	}
+	m_playernode->setRotation(player_rotation);
 	m_playernode->updateAbsolutePosition();
 
 	// Get camera tilt timer (hurt animation)
@@ -374,8 +379,11 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 		// Set head node transformation
 		eye_offset.Y += cameratilt * -player->hurt_tilt_strength;
 		m_headnode->setPosition(eye_offset);
-		m_headnode->setRotation(v3f(pitch, 0,
-			cameratilt * player->hurt_tilt_strength + player->camera_tilt));
+
+		v3f head_rotation = v3f(pitch, 0, cameratilt * player->hurt_tilt_strength);
+		// Note: camera_tilt is handled via rel_cam_up if anti_controller_tilt is true
+		// to avoid remapping movement controls.
+		m_headnode->setRotation(head_rotation);
 		m_headnode->updateAbsolutePosition();
 	}
 
@@ -384,6 +392,9 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	v3f rel_cam_pos = v3f(0,0,0);
 	v3f rel_cam_target = v3f(0,0,1);
 	v3f rel_cam_up = v3f(0,1,0);
+
+	if (player->camera_anti_controller_tilt)
+		rel_cam_up.rotateXYBy(-player->camera_tilt);
 
 	if (m_cache_view_bobbing_amount != 0.0f && m_view_bobbing_anim != 0.0f &&
 		m_camera_mode < CAMERA_MODE_THIRD) {
@@ -617,6 +628,13 @@ void Camera::drawWieldedTool(core::matrix4* translation)
 	cam->setFOV(72.0*M_PI/180.0);
 	cam->setNearValue(10);
 	cam->setFarValue(1000);
+
+	LocalPlayer *player = m_client->getEnv().getLocalPlayer();
+	v3f rel_cam_up = v3f(0, 1, 0);
+	if (player)
+		rel_cam_up.rotateXYBy(-player->camera_tilt);
+	cam->setUpVector(rel_cam_up);
+
 	if (translation != NULL)
 	{
 		core::matrix4 startMatrix = cam->getAbsoluteTransformation();

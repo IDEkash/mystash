@@ -172,6 +172,7 @@ public:
 	CameraMode allowed_camera_mode = CAMERA_MODE_ANY;
 	bool camera_free_look = false;
 	bool camera_smooth = false;
+	bool camera_anti_controller_tilt = true;
 	f32 camera_tilt = 0.0f;
 
 	v3f eye_offset_first;
