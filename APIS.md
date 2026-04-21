@@ -35,9 +35,9 @@ Workers still support `send`, `inject`, `navigate`, and `on_message`, but `displ
   - `safe_area`: boolean (default `true`)
   - `fullscreen`: boolean (default `false`)
   - `drag_embed` / `draggable`: boolean (default `false`)
-  - `border_radius`: number (default `0`)
-  - `x`, `y`: number or string `"center"`
-  - `width`, `height`: number or string `"fullscreen"`
+  - `border_radius`: number (default `0`, negative values are clamped to `0`)
+  - `x`, `y`: number (pixel position, default `0`) or string `"center"`
+  - `width`, `height`: number (pixels, default `1`) or string `"fullscreen"` (setting either to `"fullscreen"` is equivalent to passing `fullscreen = true`)
 
 `htmlview.focus(id)`
 - Brings that HTMLView on top when multiple are open.
@@ -84,9 +84,11 @@ Allows zero-overhead data exchange between HTMLView workers and Lua.
 
 `htmlview.shared_set(key, val)`
 - Sets a value in the shared memory store. `val` can be `nil` to remove.
+- **Note:** `val` must be a string or `nil`. Non-string values must be serialised before calling.
 
 `htmlview.shared_get(key) -> string | nil`
 - Retrieves a value from the shared memory store.
+- Returns `nil` both when the key does not exist **and** when the stored value is an empty string — the two cases are indistinguishable from Lua.
 
 Within the HTMLView (Javascript):
 
@@ -98,8 +100,9 @@ Within the HTMLView (Javascript):
 
 `htmlview.capture(id, opts?)`
 - `opts`:
-  - `width`: int (0 = default)
-  - `height`: int (0 = default)
+  - `width`: int (default `0` = use view's natural size)
+  - `height`: int (default `0` = use view's natural size)
+  - Negative values are clamped to `0`.
 
 `htmlview.on_capture(id, cb_or_nil)`
 - `cb(png_bytes)` where `png_bytes` is a Lua string containing PNG file bytes.
@@ -114,43 +117,59 @@ Within the HTMLView (Javascript):
 ### State query
 
 `htmlview.state(id) -> table | nil`
-- Returns `nil` on error, otherwise a table:
+- Returns `nil` on error, on non-Android platforms, or if the JSON from the native side cannot be parsed. Otherwise a table:
   - `exists`: boolean
   - `worker`: boolean
   - `visible`: boolean
   - `ready`: boolean (`true` after `onPageFinished`)
+
+---
 
 ## glTF multi-clip animation (Lua)
 
 glTF/GLB meshes can contain multiple animations. This fork loads each glTF `animations[i]` as a selectable clip.
 
 `ObjectRef:set_animation(frame_range, frame_speed, frame_blend, frame_loop)`
-- Legacy form.
+- Legacy positional form.
 - Also clears any previously selected glTF clip.
+- Default `frame_blend` is `0.1` (smoothstep blend).
 
 `ObjectRef:set_animation(opts)`
 - New table form (pass only what you need):
-  - `clip`: number (0-based) or string (clip name)
+  - `clip`: number (0-based index) or string (clip name)
   - `range` / `frame_range`: `{x=..., y=...}`
   - `frame`: number (sets `{frame, frame}`)
   - `speed` / `frame_speed`: number
   - `speed_scale`: number (multiplies the chosen speed)
-  - `blend` / `frame_blend`: number
+  - `blend` / `frame_blend`: number (default `0.1`)
   - `loop` / `frame_loop`: boolean
   - `pause` / `paused`: boolean (sets speed to `0`)
+  - `time_mode`: `"auto"` | `"seconds"` | `"frames"` (see Enhanced Animation API)
 
 `ObjectRef:set_animation_clip(clip, frame_range, frame_speed, frame_blend, frame_loop)`
-- Explicit clip selection.
+- Explicit clip selection. `clip` can be a number (0-based index) or a string (clip name).
 
 `ObjectRef:get_animation() -> frame_range, frame_speed, frame_blend, frame_loop, clip`
+- Returns five values. `clip` is a number (index), string (name), or `nil` if no clip is selected.
 
 `ObjectRef:get_animation_info() -> table`
-- Returns `{ range, speed, blend, loop, clip, duration, progress=nil, bones=nil }`.
-- `progress`/`bones` are placeholders (not currently available from the engine).
+- Returns:
+  - `range`: `{x, y}`
+  - `speed`: number
+  - `blend`: number
+  - `loop`: boolean
+  - `clip`: number, string, or `nil`
+  - `duration`: number (seconds; `0` if speed is zero or range is degenerate)
+  - `progress`: `nil` (placeholder, not currently available from the engine)
+  - `bones`: `nil` (placeholder, not currently available from the engine)
+  - `is_gltf`: boolean
+  - `unit`: `"seconds"` or `"frames"` (the unit the object is currently using)
 
 ### Crossfade blending
 
 For skinned meshes (including glTF), `frame_blend` controls crossfade duration (seconds) when switching animations.
+
+---
 
 ## Improved Animation and Scaling API
 
@@ -181,7 +200,7 @@ glTF animations use seconds for their range, while older formats use frames. The
 
 `ObjectRef:set_animation(opts)`
 - `time_mode`:
-  - `"auto"` (Default): Uses seconds for glTF and frames for other formats.
+  - `"auto"` (Default): Uses seconds for glTF and frames for other formats. Prints a warning if speed > 5.0 is used with a glTF model (likely a legacy frame-speed mistake).
   - `"seconds"`: Interprets `range` as seconds. For B3D/X models, the engine automatically converts seconds to frames (assuming 24 FPS).
   - `"frames"`: Interprets `range` as frames. For glTF models, the engine automatically converts frames to seconds.
 
@@ -202,32 +221,41 @@ New methods to query model format details for writing safer, format-agnostic cod
 
 `ObjectRef:get_model_info() -> table`
 - Returns:
-  - `mesh`: The filename.
-  - `format`: `"gltf"` or `"b3d"`.
-  - `uses_time`: Boolean, `true` if the model natively uses seconds.
-  - `default_speed`: `1.0` for glTF, `15.0` (or similar) for others.
+  - `mesh`: string — The filename from object properties.
+  - `format`: `"gltf"` or `"b3d"` — Determined by file extension (`.gltf`/`.glb` → `"gltf"`, anything else → `"b3d"`).
+  - `uses_time`: boolean — `true` if the model natively uses seconds (i.e. glTF).
+  - `default_speed`: `1.0` for glTF, `15.0` for others.
 
 `ObjectRef:get_animation_info() -> table`
-- Enhanced to include:
+- Enhanced to include (in addition to all fields listed above):
   - `is_gltf`: boolean
-  - `unit`: `"seconds"` or `"frames"` (the unit currently used by the object).
+  - `unit`: `"seconds"` or `"frames"` (the unit currently used by the object)
 
 ### Engine Fixes
 
 - **Fixed "Tiny Model" Bug**: Fixed a bug where setting an animation range with `x` nearly equal to `y` (like a static pose) could cause the model to shrink to near-zero size due to degenerate scaling math.
 - **Cleaner glTF Transitions**: Improved the glTF loader to disable interpolation across different animation clips on the internal timeline, ensuring cleaner swaps between animations (like "walk" to "idle").
-- **Safety Warnings**: If you use a frame-based speed (like 30) on a glTF model in "auto" mode, the engine prints a warning to help catch mistakes.
+- **Safety Warnings**: If you use a frame-based speed (like 30) on a glTF model in `"auto"` mode (speed > 5.0), the engine prints a warning to help catch mistakes.
+
+---
 
 ## glTF inspection helpers (Lua)
 
-`core.gltf_get_animation_clips(path) -> list`
-- Returns `{ {index,name,start,end,duration}, ... }`.
+`core.gltf_get_animation_clips(path) -> list | nil, error_string`
+- On success, returns an array: `{ {index, name, start, end, duration}, ... }`
+  - `start` is always `0.0`. `end` and `duration` are equal and reflect the measured clip length.
+- On parse error, returns `nil, error_string`.
 
-`core.gltf_inspect(path) -> table`
-- Returns:
-  - `meshes`: `{ {index,name,primitives}, ... }`
-  - `bones`: `{ {node,name}, ... }` (joint nodes across skins)
-  - `animations`: `{ {index,name,start,end,duration}, ... }`
+`core.gltf_inspect(path) -> table | nil, error_string`
+- On success, returns:
+  - `meshes`: `{ {index, name, primitives}, ... }`
+  - `bones`: `{ {node, name}, ... }` — joint nodes across all skins. **Order is non-deterministic** (built from a hash set).
+  - `animations`: `{ {index, name, start, end, duration}, ... }` — same format as `gltf_get_animation_clips`. `start` is always `0.0`.
+- On parse error, returns `nil, error_string`.
+
+Both functions are subject to the engine's secure path check.
+
+---
 
 ## Independent Bone Transform API (Lua)
 
@@ -244,9 +272,10 @@ The independent bone transform API is fully implemented and available on all `Ob
 **Arguments:**
 
 - `position` / `rotation` / `scale`: Can be a table `{x=..., y=..., z=...}` or three separate numbers `x, y, z`. `set_bone_scale` also supports a single number for uniform scaling.
+- **Rotation units:** `set_bone_rotation` takes and returns **degrees**. The engine converts to/from radians internally.
 - `opts` (optional): A table containing:
   - `absolute`: boolean (default `false`). If `true`, the override replaces the animation transform entirely. If `false`, it is added on top of the current animation (ideal for head look and other additive overrides).
-  - `interpolation`: float (default `0.0`). The time in seconds to smoothly transition to the new transform value.
+  - `interpolation`: float (default `0.0`, or the bone's persistent smooth value if one has been set). The time in seconds to smoothly transition to the new transform value.
 
 ### Per-Part Visibility
 
@@ -293,31 +322,46 @@ player:set_bone_rotation("Head", {x=0, y=-45, z=0}, {interpolation = 0.1})
 
 `ObjectRef:set_bone_override(bone, table)`
 - Sets multiple bone properties at once.
-- `table` supports the standard transform fields (`position`, `rotation`, `scale`) as well as the new fields:
-  - `visible`: boolean — Per-part visibility.
-  - `pos_smooth`: float — Persistent smoothing for position.
-  - `rot_smooth`: float — Persistent smoothing for rotation.
-  - `scale_smooth`: float — Persistent smoothing for scale.
-
-**Example:**
+- Passing `nil` as the table clears all overrides for that bone.
+- `table` supports the following fields. Transform fields use a sub-table with a `vec` key:
 
 ```lua
 player:set_bone_override("RightArm", {
-    visible = true,
-    rot_smooth = 0.2,
-    rotation = { vec = {x=90, y=0, z=0} } -- Will use the 0.2s smooth
+    position = { vec = {x=0, y=0, z=0}, absolute = false, interpolation = 0.0 },
+    rotation = { vec = {x=0, y=0, z=0}, absolute = false, interpolation = 0.0 },
+    scale    = { vec = {x=1, y=1, z=1}, absolute = false, interpolation = 0.0 },
+    visible     = true,
+    pos_smooth  = 0.0,  -- persistent smooth for position
+    rot_smooth  = 0.2,  -- persistent smooth for rotation
+    scale_smooth = 0.0, -- persistent smooth for scale
+    color = "#FFFFFF",  -- ColorSpec: tints the bone mesh
+    glow  = 0.0,        -- float: adds emissive glow to the bone mesh
 })
 ```
 
+- **`rotation.vec` uses radians**, unlike `set_bone_rotation` which takes degrees. This inconsistency is intentional: `set_bone_override` operates at a lower level and stores values directly without conversion.
+
 ### Querying transforms
 
-`ObjectRef:get_bone_position(bone)`
+`ObjectRef:get_bone_position(bone) -> position, rotation`
+- Returns **two** vectors for legacy compatibility: the position `{x,y,z}` and the rotation `{x,y,z}` **in degrees**.
+- To read only position, discard the second return value.
 
-`ObjectRef:get_bone_rotation(bone)`
+`ObjectRef:get_bone_rotation(bone) -> rotation`
+- Returns a single vector `{x,y,z}` with the current rotation override in **degrees**.
 
-`ObjectRef:get_bone_scale(bone)`
+`ObjectRef:get_bone_scale(bone) -> scale`
+- Returns a single vector `{x,y,z}` with the current scale override.
 
-Each returns a single vector (`{x,y,z}`) representing the current override for that specific transform.
+`ObjectRef:get_bone_override(bone) -> table`
+- Returns the full override table for a single bone in the same format accepted by `set_bone_override`.
+- `rotation.vec` is in **radians**.
+
+`ObjectRef:get_bone_overrides() -> table`
+- Returns a table keyed by bone name, each value being a full override table in the same format as `get_bone_override`.
+
+`ObjectRef:get_bone_world_pos(bone) -> vector`
+- Returns the world-space vector of the rendered bone. Ideal for spawning particles or effects attached to specific body parts. Available on both server-side `ObjectRef` and client-side `core.localplayer`.
 
 ### How it works
 
@@ -329,19 +373,33 @@ Each returns a single vector (`{x,y,z}`) representing the current override for t
 
 This implementation enables robust Minecraft-style head movement, procedural animations, modular entity attachments, and per-part visibility control for equipment systems.
 
+---
+
 ## Lua Animator (`core.animator`)
 
 `core.animator.create(object, def)`
 - State machine + events + additive layers.
+- `def` fields:
+  - `states`: table of state definitions (each with `clip`, `range`, `speed`, `loop`, `blend`, `events`).
+  - `transitions`: array of transition rules (`from`, `to`, `priority`, `condition`, `blend`).
+  - `initial`: string — name of the starting state (defaults to an arbitrary first state key if not set).
+  - `initial_blend`: number — blend duration for the initial state transition.
+  - `get_context`: `function(animator, object, dtime) -> ctx` — returns the context table used to evaluate transitions. Defaults to `{vel, hs, moving}`.
+  - `on_event`: `function(animator, object, event_payload)` — called for events fired by this animator instance.
+  - `on_step`: `function(animator, object, dtime, ctx)` — called each update step.
 
 `core.animator.register(animator)`
-- Auto-updates each globalstep.
+- Auto-updates each globalstep. Returns the animator.
+
+`core.animator.unregister(animator)`
+- Stops auto-updating.
 
 ### Global animator event bus
 
 `core.animator.register_on_event(cb)`
 
 `core.animator.unregister_on_event(cb)`
+- Returns `true` if the callback was found and removed, `false` otherwise.
 - `cb(animator, object, event_payload)` called for every emitted animation event.
 
 #### Event types
@@ -383,18 +441,33 @@ The core rendering engine (`irr/src/AnimatedMeshSceneNode.cpp`) has been modifie
 
 `core.animator.humanoid(object, clips, opts?) -> animator`
 - Builds a basic `idle/walk/run/jump/attack` state machine.
-- Uses default context `hs` (horizontal speed). For `jump`/`attack`, provide `opts.get_context` that sets `ctx.jumping` / `ctx.attack`.
+- `clips`: table of clip identifiers (number index or string name) keyed by state name: `idle`, `walk`, `run`, `jump`, `attack`. Each value can be a bare clip identifier or a full state definition table.
+- `opts`:
+  - `walk_threshold`: number (default `0.05`) — horizontal speed to transition from idle to walk.
+  - `run_threshold`: number (default `2.5`) — horizontal speed to transition from walk to run.
+  - `initial`: string (default `"idle"`) — starting state.
+  - `initial_blend`: number — blend for the initial transition.
+  - `get_context`: `function(animator, object, dtime) -> ctx` — must set `ctx.jumping` and/or `ctx.attack` for jump/attack transitions to fire. Defaults to horizontal-speed-only context.
+  - `on_event`: `function(animator, object, event)` — local event callback.
+  - `on_step`: `function(animator, object, dtime, ctx)` — per-step callback.
 
 ### Animation end helper
 
 `core.on_animation_end(object, cb)` (alias for `core.animator.on_animation_end`)
 - Calls `cb(object)` when the current non-looping animation is expected to end (computed from `ObjectRef:get_animation()`).
+- Only fires for non-looping animations with non-zero speed.
+
+`core.animator.cancel_on_animation_end(object)`
+- Cancels a previously registered end watcher for the object.
 
 ### Animation cycle helper
 
 `core.on_animation_cycle(object, cb)` (alias for `core.animator.on_animation_cycle`)
 - Calls `cb(object)` each time a looping animation completes one full cycle (wraps around).
 - Useful for syncing footstep sounds, particles, and other cyclic effects.
+
+`core.animator.cancel_on_animation_cycle(object)`
+- Cancels a previously registered cycle watcher for the object.
 
 ### glTF Animation Events
 
@@ -424,6 +497,8 @@ Register a global listener to receive these events:
 - `event.engine`: `true` (indicates this is an engine-triggered model event).
 
 Note: `animator` will be `nil` for events triggered directly by the engine's mesh node (when not using the Lua Animator state machine).
+
+---
 
 ## Physics and Movement Model
 
@@ -481,16 +556,28 @@ The engine now differentiates between "Water-like" and "Lava-like" liquids:
 
 ### Lua API (`player:set_physics_override`)
 
-The standard Luanti API now hooks into these refined engine calculations:
+The full set of fields accepted and returned by `set_physics_override` / `get_physics_override`:
 
 ```lua
 player:set_physics_override({
-    speed = 1.0,                -- Multiplies walk/sprint
-    jump = 1.0,                 -- Multiplies jump speed
-    gravity = 1.0,              -- Multiplies gravity
-    speed_climb = 1.0,          -- Multiplies ladder speed
-    acceleration_default = 1.0, -- Multiplies ground friction
-    auto_climb = false          -- Enables auto-climb and auto-descend on ladders
+    speed                  = 1.0,   -- Multiplies walk/sprint speed
+    jump                   = 1.0,   -- Multiplies jump speed
+    gravity                = 1.0,   -- Multiplies gravity
+    speed_climb            = 1.0,   -- Multiplies ladder climb speed
+    speed_crouch           = 1.0,   -- Multiplies sneak speed
+    acceleration_default   = 1.0,   -- Multiplies ground acceleration/friction
+    acceleration_air       = 1.0,   -- Multiplies air acceleration
+    speed_fast             = 1.0,   -- Multiplies fast-mode speed
+    acceleration_fast      = 1.0,   -- Multiplies fast-mode acceleration
+    speed_walk             = 1.0,   -- Multiplies base walk speed independently
+    step_height            = 1.0,   -- Multiplies step-up height
+    liquid_fluidity        = 1.0,   -- Multiplies liquid fluidity
+    liquid_fluidity_smooth = 1.0,   -- Multiplies liquid fluidity smoothing
+    liquid_sink            = 1.0,   -- Multiplies liquid sink speed
+    sneak                  = true,  -- Enables/disables sneaking
+    sneak_glitch           = false, -- Enables legacy sneak-up-ledge glitch
+    new_move               = true,  -- Enables new movement code
+    auto_climb             = false, -- Enables auto-climb and auto-descend on ladders
 })
 ```
 
@@ -498,6 +585,8 @@ player:set_physics_override({
 
 - `group:lava`: Adding this to a node definition automatically enables the high-viscosity "Lava Physics."
 - `group:disable_jump`: Prevents jumping while standing on or in the node.
+
+---
 
 ## Accessibility Sprint Toggle
 
@@ -520,6 +609,8 @@ An accessibility setting that gates the engine's internal joystick-driven speed 
   player_settings.accessibility_sprint_enabled  // Boolean
   ```
 
+---
+
 ## Fog API (Lua)
 
 Extended volumetric and height-based fog controls.
@@ -528,37 +619,38 @@ Extended volumetric and height-based fog controls.
 - Sets custom fog parameters for a specific player. Pass `nil` to clear.
 - `params`:
   - `color`: ColorSpec (default: sky fog color)
-  - `fog_start`: number (0..0.99, fraction of view distance)
-  - `fog_end`: number (0..1, fraction of view distance)
-  - `blend_time`: number (seconds, transition duration)
-  - `max_density`: number (0..1, opacity at max height)
+  - `fog_start`: number (`0..0.99`, fraction of view distance; pass a negative value to leave at engine default)
+  - `fog_end`: number (`0..1`, fraction of view distance; pass a negative value to leave at engine default; clamped to ≥ `fog_start` when both are non-negative)
+  - `blend_time`: number (seconds, transition duration; clamped to ≥ `0`)
+  - `max_density`: number (`0..1`, opacity at max height; clamped)
   - `max_density_height`: number (node-space height for max density)
   - `zero_density_height`: number (node-space height where fog disappears)
   - `uniform`: boolean (if true, ignores height density)
-  - `direction`: v3f (up vector for height calculation, default `{x=0,y=1,z=0}`)
-  - `turbulence`: number (0..1, noise factor)
-  - `speed_density_scale`: number (multiplier for density based on player speed)
-  - `layers`: list of table (up to 4 extra fog layers):
-    - `color`, `max_density`, `max_density_height`, `zero_density_height`, `uniform`, `direction`
+  - `direction`: v3f (up vector for height calculation, default `{x=0,y=1,z=0}`; normalized automatically)
+  - `turbulence`: number (`0..1`, noise factor; clamped)
+  - `speed_density_scale`: number (multiplier for density based on player speed; clamped to ≥ `0`)
+  - `layers`: array of up to **4** extra fog layer tables (excess entries are silently dropped). Each layer supports: `color`, `max_density`, `max_density_height`, `zero_density_height`, `uniform`, `direction`.
   - `color_transition`: table (dynamic color animation):
-    - `speed`: number (animation speed)
-    - Array of keyframes or `keyframes` field:
-      - `{ time=number(0..1), color=ColorSpec }`
+    - `speed`: number (animation speed; clamped to ≥ `0`)
+    - Up to **8** keyframes (excess entries are silently dropped), provided as an array directly in the table or in a `keyframes` sub-array:
+      - `{ time = number(0..1), color = ColorSpec }`
+    - Keyframes are automatically sorted by time after parsing.
 
 `core.set_fog_boundary(player, params_or_nil)`
-- Defines a localized fog zone.
+- Defines a localized fog zone. Pass `nil` to clear.
 - `params`:
   - `pos`: v3f (center of the zone)
-  - `radius`: number (node-space size)
-  - `shape`: string (`"sphere"`, `"box"`, `"cylinder"`)
+  - `radius`: number (node-space size; clamped to ≥ `0`)
+  - `shape`: string (`"sphere"` (default), `"box"`, `"cylinder"`)
   - `fog`: table (FogParams structure as defined above)
   - `sound`: table (optional ambient sound inside zone):
     - `name`: string
-    - `gain`: number
-    - `fade_in`: number (seconds)
+    - `gain`: number (clamped to ≥ `0`)
+    - `fade_in`: number (seconds; clamped to ≥ `0`)
 
 `core.register_biome_atmosphere(biome_id, params)`
 - Registers fog and/or boundary parameters for a specific biome.
+- `biome_id`: integer
 - `params`:
   - `fog`: table (FogParams)
   - `boundary`: table (FogBoundaryParams)

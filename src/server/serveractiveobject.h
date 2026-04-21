@@ -63,6 +63,7 @@ public:
 		Some simple getters/setters
 	*/
 	v3f getBasePosition() const { return m_base_position; }
+	virtual v3f getBoneWorldPos(const std::string &bone) { return getBasePosition(); }
 	void setBasePosition(v3f pos);
 	ServerEnvironment* getEnv(){ return m_env; }
 

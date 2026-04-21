@@ -376,6 +376,22 @@ const v3f GenericCAO::getPosition() const
 	return m_position;
 }
 
+v3f GenericCAO::getBoneWorldPos(const std::string &bone_name)
+{
+	if (!m_animated_meshnode)
+		return getPosition();
+
+	scene::BoneSceneNode *bone = m_animated_meshnode->getJointNode(bone_name.c_str());
+	if (!bone)
+		return getPosition();
+
+	GenericCAO::updateParentChain();
+	m_animated_meshnode->updateAbsolutePosition();
+
+	v3s16 camera_offset = m_env->getCameraOffset();
+	return bone->getAbsolutePosition() + intToFloat(camera_offset, BS);
+}
+
 bool GenericCAO::isImmortal() const
 {
 	return itemgroup_get(getGroups(), "immortal");
@@ -738,12 +754,26 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 						continue;
 					}
 
-					if (auto *bone = m_animated_meshnode->getJointNode(it->first.c_str())) {
+					if (auto *bone = (scene::ISceneNode *)m_animated_meshnode->getJointNode(it->first.c_str())) {
 						bone->setVisible(!props.hidden);
 						if (!props.hidden) {
 							bone->setPosition(props.getPosition(bone->getPosition()));
 							bone->setRotation(props.getRotationEulerDeg(bone->getRotation()));
 							bone->setScale(props.getScale(bone->getScale()));
+
+							video::SColor color = props.color;
+							if (props.glow > 0 || m_prop.glow > 0) {
+								f32 glow = std::max(props.glow, (f32)m_prop.glow);
+								video::SColor light = encode_light(m_last_light_raw, glow);
+								color.setRed((color.getRed() * light.getRed()) / 255);
+								color.setGreen((color.getGreen() * light.getGreen()) / 255);
+								color.setBlue((color.getBlue() * light.getBlue()) / 255);
+							} else {
+								color.setRed((color.getRed() * m_last_light.getRed()) / 255);
+								color.setGreen((color.getGreen() * m_last_light.getGreen()) / 255);
+								color.setBlue((color.getBlue() * m_last_light.getBlue()) / 255);
+							}
+							setColorParam(bone, color);
 						}
 					}
 					++it;
@@ -889,6 +919,7 @@ void GenericCAO::updateLight(u32 day_night_ratio)
 
 	if (light != m_last_light) {
 		m_last_light = light;
+		m_last_light_raw = light_at_pos;
 		setNodeLight(light);
 	}
 }
@@ -1738,6 +1769,10 @@ void GenericCAO::processMessage(const std::string &data)
 				props.pos_smooth = readF32(is);
 				props.rot_smooth = readF32(is);
 				props.scale_smooth = readF32(is);
+				if (canRead(is)) {
+					props.color = readARGB8(is);
+					props.glow = readF32(is);
+				}
 			}
 		}
 		m_bone_override[bone] = props;

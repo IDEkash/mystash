@@ -1011,6 +1011,20 @@ int ObjectRef::l_get_bone_scale(lua_State *L)
 	return 1;
 }
 
+// get_bone_world_pos(self, bone)
+int ObjectRef::l_get_bone_world_pos(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	std::string bone = readParam<std::string>(L, 2, "");
+	push_v3f(L, sao->getBoneWorldPos(bone));
+	return 1;
+}
+
 // set_part_visible(self, bone, visible)
 int ObjectRef::l_set_part_visible(lua_State *L)
 {
@@ -1131,6 +1145,16 @@ int ObjectRef::l_set_bone_override(lua_State *L)
 		props.scale_smooth = lua_tonumber(L, -1);
 	lua_pop(L, 1);
 
+	lua_getfield(L, 3, "color");
+	if (!lua_isnil(L, -1))
+		read_color(L, -1, &props.color);
+	lua_pop(L, 1);
+
+	lua_getfield(L, 3, "glow");
+	if (lua_isnumber(L, -1))
+		props.glow = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
 	sao->setBoneOverride(bone, props);
 	return 0;
 }
@@ -1169,6 +1193,12 @@ static void push_bone_override(lua_State *L, const BoneOverride &props)
 
 	lua_pushnumber(L, props.scale_smooth);
 	lua_setfield(L, -2, "scale_smooth");
+
+	push_ARGB8(L, props.color);
+	lua_setfield(L, -2, "color");
+
+	lua_pushnumber(L, props.glow);
+	lua_setfield(L, -2, "glow");
 
 	// leave only override table on top of the stack
 }
@@ -3331,6 +3361,7 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod_aliased(ObjectRef, get_bone_position, getboneposition),
 	luamethod_aliased(ObjectRef, get_bone_rotation, getbonerotation),
 	luamethod_aliased(ObjectRef, get_bone_scale, getbonescale),
+	luamethod_aliased(ObjectRef, get_bone_world_pos, getboneworldpos),
 	luamethod(ObjectRef, set_bone_override),
 	luamethod(ObjectRef, get_bone_override),
 	luamethod(ObjectRef, get_bone_overrides),
