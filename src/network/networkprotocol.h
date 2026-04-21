@@ -711,7 +711,13 @@ enum ToClientCommand : u16
 			FogBoundaryParams (see fogparams.h)
 		*/
 
-		TOCLIENT_NUM_MSG_TYPES = 0x67,
+		TOCLIENT_SET_LOOK_DIRECTION = 0x67,
+		/*
+			f32 player pitch
+			f32 player yaw
+		*/
+
+		TOCLIENT_NUM_MSG_TYPES = 0x68,
 	};
 
 enum ToServerCommand : u16

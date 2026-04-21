@@ -608,6 +608,18 @@ void Client::handleCommand_MovePlayerRel(NetworkPacket *pkt)
 	player->addPosition(added_pos);
 }
 
+void Client::handleCommand_SetLookDirection(NetworkPacket *pkt)
+{
+	f32 pitch, yaw;
+	*pkt >> pitch >> yaw;
+
+	ClientEvent *event = new ClientEvent();
+	event->type = CE_PLAYER_FORCE_MOVE;
+	event->player_force_move.pitch = pitch;
+	event->player_force_move.yaw = yaw;
+	m_client_event_queue.push(event);
+}
+
 void Client::handleCommand_DeathScreenLegacy(NetworkPacket* pkt)
 {
 	ClientEvent *event = new ClientEvent();
