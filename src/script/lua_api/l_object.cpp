@@ -782,6 +782,26 @@ int ObjectRef::l_set_camera(lua_State *L)
 		player->camera_smooth = lua_toboolean(L, -1);
 	lua_pop(L, 1);
 
+	lua_getfield(L, -1, "fov");
+	if (lua_isnumber(L, -1)) {
+		PlayerFovSpec s = player->getFov();
+		s.fov = lua_tonumber(L, -1);
+
+		lua_getfield(L, 2, "fov_is_multiplier");
+		if (lua_isboolean(L, -1))
+			s.is_multiplier = lua_toboolean(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, 2, "fov_transition");
+		if (lua_isnumber(L, -1))
+			s.transition_time = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+
+		if (player->setFov(s))
+			getServer(L)->SendPlayerFov(player->getPeerId());
+	}
+	lua_pop(L, 1);
+
 	getServer(L)->SendCamera(player->getPeerId(), player);
 	return 0;
 }
@@ -798,6 +818,11 @@ int ObjectRef::l_get_camera(lua_State *L)
 	setstringfield(L, -1, "mode", enum_to_string(es_CameraMode, player->allowed_camera_mode));
 	setboolfield(L, -1, "free_look", player->camera_free_look);
 	setboolfield(L, -1, "smooth", player->camera_smooth);
+
+	PlayerFovSpec fov = player->getFov();
+	setfloatfield(L, -1, "fov", fov.fov);
+	setboolfield(L, -1, "fov_is_multiplier", fov.is_multiplier);
+	setfloatfield(L, -1, "fov_transition", fov.transition_time);
 
 	return 1;
 }

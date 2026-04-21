@@ -2676,8 +2676,13 @@ void Game::handleClientEvent_UpdateCamera(ClientEvent *event, CameraOrientation 
 
 	LocalPlayer *player = client->getEnv().getLocalPlayer();
 	if (player && player->camera_free_look) {
-		m_last_forced_yaw = cam->camera_yaw;
-		m_last_forced_pitch = cam->camera_pitch;
+		if (!m_free_look_enabled) {
+			m_last_forced_yaw = cam->camera_yaw;
+			m_last_forced_pitch = cam->camera_pitch;
+			m_free_look_enabled = true;
+		}
+	} else {
+		m_free_look_enabled = false;
 	}
 }
 
