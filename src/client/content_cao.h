@@ -96,6 +96,7 @@ private:
 	MinimapMarker *m_marker = nullptr;
 	bool m_visuals_expired = false;
 	video::SColor m_last_light = video::SColor(0xFFFFFFFF);
+	u16 m_last_light_raw = 0;
 	bool m_is_visible = false;
 	std::vector<MeshAnimationInfo> m_meshnode_animation;
 

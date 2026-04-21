@@ -381,7 +381,7 @@ v3f GenericCAO::getBoneWorldPos(const std::string &bone_name)
 	if (!m_animated_meshnode)
 		return getPosition();
 
-	scene::IBoneSceneNode *bone = m_animated_meshnode->getJointNode(bone_name.c_str());
+	scene::BoneSceneNode *bone = m_animated_meshnode->getJointNode(bone_name.c_str());
 	if (!bone)
 		return getPosition();
 
@@ -754,7 +754,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 						continue;
 					}
 
-					if (auto *bone = m_animated_meshnode->getJointNode(it->first.c_str())) {
+					if (auto *bone = (scene::ISceneNode *)m_animated_meshnode->getJointNode(it->first.c_str())) {
 						bone->setVisible(!props.hidden);
 						if (!props.hidden) {
 							bone->setPosition(props.getPosition(bone->getPosition()));
@@ -764,7 +764,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 							video::SColor color = props.color;
 							if (props.glow > 0 || m_prop.glow > 0) {
 								f32 glow = std::max(props.glow, (f32)m_prop.glow);
-								video::SColor light = encode_light(m_last_light, glow);
+								video::SColor light = encode_light(m_last_light_raw, glow);
 								color.setRed((color.getRed() * light.getRed()) / 255);
 								color.setGreen((color.getGreen() * light.getGreen()) / 255);
 								color.setBlue((color.getBlue() * light.getBlue()) / 255);
@@ -919,6 +919,7 @@ void GenericCAO::updateLight(u32 day_night_ratio)
 
 	if (light != m_last_light) {
 		m_last_light = light;
+		m_last_light_raw = light_at_pos;
 		setNodeLight(light);
 	}
 }
