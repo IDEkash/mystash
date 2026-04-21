@@ -570,6 +570,7 @@ player:set_physics_override({
     speed_fast             = 1.0,   -- Multiplies fast-mode speed
     acceleration_fast      = 1.0,   -- Multiplies fast-mode acceleration
     speed_walk             = 1.0,   -- Multiplies base walk speed independently
+    speed_sprint           = 1.0,   -- Multiplies the built-in 1.3x sprint boost
     step_height            = 1.0,   -- Multiplies step-up height
     liquid_fluidity        = 1.0,   -- Multiplies liquid fluidity
     liquid_fluidity_smooth = 1.0,   -- Multiplies liquid fluidity smoothing
@@ -585,6 +586,16 @@ player:set_physics_override({
 
 - `group:lava`: Adding this to a node definition automatically enables the high-viscosity "Lava Physics."
 - `group:disable_jump`: Prevents jumping while standing on or in the node.
+
+### Player Callbacks
+
+`core.register_on_jump(function(player))`
+- Fired when a player performs a jump.
+- `player`: `ObjectRef` of the player who jumped.
+
+`core.register_on_land(function(player))`
+- Fired when a player touches the ground after being in the air.
+- `player`: `ObjectRef` of the player who landed.
 
 ---
 

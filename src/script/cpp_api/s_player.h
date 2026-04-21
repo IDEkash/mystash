@@ -33,6 +33,8 @@ public:
 			float time_from_last_punch, const ToolCapabilities &toolcap,
 			v3f dir, s32 damage);
 	void on_rightclickplayer(ServerActiveObject *player, ServerActiveObject *clicker);
+	void on_jump(ServerActiveObject *player);
+	void on_land(ServerActiveObject *player);
 	s32 on_player_hpchange(ServerActiveObject *player, s32 hp_change,
 			const PlayerHPChangeReason &reason);
 	void on_playerReceiveFields(ServerActiveObject *player,

@@ -1671,9 +1671,11 @@ void GenericCAO::processMessage(const std::string &data)
 			phys.speed_walk        = readF32(is);
 		}
 
-		// new overrides since 5.16.0 (step_height)
+		// new overrides since 5.16.0 (step_height, speed_sprint)
 		if (canRead(is)) {
 			phys.step_height = readF32(is);
+			if (canRead(is))
+				phys.speed_sprint = readF32(is);
 		}
 
 		if (m_is_local_player) {

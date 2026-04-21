@@ -765,6 +765,7 @@ enum ToServerCommand : u16
 		u8 camera_inverted (bool)
 		f32 movement_speed
 		f32 movement_direction
+		u8 bits2 (jump: 1, land: 2)
 	*/
 
 	TOSERVER_GOTBLOCKS = 0x24,
