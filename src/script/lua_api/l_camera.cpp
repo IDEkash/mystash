@@ -151,6 +151,50 @@ int LuaCamera::l_get_aspect_ratio(lua_State *L)
 	return 1;
 }
 
+// set_free_look(self, enable)
+int LuaCamera::l_set_free_look(lua_State *L)
+{
+	Camera *camera = getobject(L, 1);
+	if (!camera)
+		return 0;
+
+	camera->setFreeLook(readParam<bool>(L, 2));
+	return 0;
+}
+
+// get_free_look(self)
+int LuaCamera::l_get_free_look(lua_State *L)
+{
+	Camera *camera = getobject(L, 1);
+	if (!camera)
+		return 0;
+
+	lua_pushboolean(L, camera->getFreeLook());
+	return 1;
+}
+
+// set_smoothie(self, enable)
+int LuaCamera::l_set_smoothie(lua_State *L)
+{
+	Camera *camera = getobject(L, 1);
+	if (!camera)
+		return 0;
+
+	camera->setSmoothie(readParam<bool>(L, 2));
+	return 0;
+}
+
+// get_smoothie(self)
+int LuaCamera::l_get_smoothie(lua_State *L)
+{
+	Camera *camera = getobject(L, 1);
+	if (!camera)
+		return 0;
+
+	lua_pushboolean(L, camera->getSmoothie());
+	return 1;
+}
+
 Camera *LuaCamera::getobject(LuaCamera *ref)
 {
 	return ref->m_camera;
@@ -190,6 +234,10 @@ const luaL_Reg LuaCamera::methods[] = {
 	luamethod(LuaCamera, get_look_vertical),
 	luamethod(LuaCamera, get_look_horizontal),
 	luamethod(LuaCamera, get_aspect_ratio),
+	luamethod(LuaCamera, set_free_look),
+	luamethod(LuaCamera, get_free_look),
+	luamethod(LuaCamera, set_smoothie),
+	luamethod(LuaCamera, get_smoothie),
 
 	{0, 0}
 };

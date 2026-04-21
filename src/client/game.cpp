@@ -716,11 +716,16 @@ void Game::run()
 		processUserInput(dtime);
 		// Update camera before player movement to avoid camera lag of one frame
 		updateCameraDirection(&cam_view_target, dtime);
-		if (m_cache_cam_smoothing <= 0.0f) {
+
+		float cam_smoothing = m_cache_cam_smoothing;
+		if (cam_smoothing <= 0.0f && camera->getSmoothie())
+			cam_smoothing = 0.05f;
+
+		if (cam_smoothing <= 0.0f) {
 			cam_view.camera_yaw = cam_view_target.camera_yaw;
 			cam_view.camera_pitch = cam_view_target.camera_pitch;
 		} else {
-			f32 cam_damp_lambda = 1.0f / m_cache_cam_smoothing * dtime;
+			f32 cam_damp_lambda = 1.0f / cam_smoothing * dtime;
 			cam_view.camera_yaw = damp(
 					cam_view.camera_yaw,
 					cam_view_target.camera_yaw,
@@ -2364,8 +2369,24 @@ void Game::handleClientEvent_PlayerDamage(ClientEvent *event, CameraOrientation 
 
 void Game::handleClientEvent_PlayerForceMove(ClientEvent *event, CameraOrientation *cam)
 {
-	cam->camera_yaw = event->player_force_move.yaw;
-	cam->camera_pitch = event->player_force_move.pitch;
+	if (camera->getFreeLook()) {
+		if (camera->isFirstForcedView()) {
+			camera->setLastForcedLook(event->player_force_move.pitch, event->player_force_move.yaw);
+			camera->setFirstForcedView(false);
+		}
+
+		float pitch_delta = event->player_force_move.pitch - camera->getLastForcedPitch();
+		float yaw_delta = event->player_force_move.yaw - camera->getLastForcedYaw();
+
+		cam->camera_pitch += pitch_delta;
+		cam->camera_yaw += yaw_delta;
+
+		camera->setLastForcedLook(event->player_force_move.pitch, event->player_force_move.yaw);
+	} else {
+		cam->camera_yaw = event->player_force_move.yaw;
+		cam->camera_pitch = event->player_force_move.pitch;
+		camera->setFirstForcedView(true);
+	}
 }
 
 void Game::handleClientEvent_DeathscreenLegacy(ClientEvent *event, CameraOrientation *cam)

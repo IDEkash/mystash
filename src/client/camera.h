@@ -173,6 +173,23 @@ public:
 		return m_camera_mode;
 	}
 
+	inline void setFreeLook(bool enable) { m_free_look = enable; }
+	inline bool getFreeLook() const { return m_free_look; }
+
+	inline void setSmoothie(bool enable) { m_smoothie = enable; }
+	inline bool getSmoothie() const { return m_smoothie; }
+
+	inline void setLastForcedLook(float pitch, float yaw)
+	{
+		m_last_forced_pitch = pitch;
+		m_last_forced_yaw = yaw;
+	}
+	inline float getLastForcedPitch() const { return m_last_forced_pitch; }
+	inline float getLastForcedYaw() const { return m_last_forced_yaw; }
+
+	inline bool isFirstForcedView() const { return m_first_forced_view; }
+	inline void setFirstForcedView(bool first) { m_first_forced_view = first; }
+
 	Nametag *addNametag(const Nametag &params);
 
 	void removeNametag(Nametag *nametag);
@@ -251,6 +268,12 @@ private:
 	ItemStack m_wield_item_next;
 
 	CameraMode m_camera_mode;
+
+	bool m_free_look = false;
+	bool m_smoothie = false;
+	float m_last_forced_pitch = 0.0f;
+	float m_last_forced_yaw = 0.0f;
+	bool m_first_forced_view = true;
 
 	f32 m_cache_view_bobbing_amount;
 	bool m_arm_inertia;

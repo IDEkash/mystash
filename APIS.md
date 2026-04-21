@@ -354,6 +354,32 @@ player:set_bone_override("RightArm", {
 
 - **`rotation.vec` uses radians**, unlike `set_bone_rotation` which takes degrees. This inconsistency is intentional: `set_bone_override` operates at a lower level and stores values directly without conversion.
 
+---
+
+## Client Camera API (`core.camera`)
+
+Additional properties and methods for controlling the client-side camera.
+
+### Free Look
+
+`core.camera:set_free_look(enable)`
+- `enable`: boolean.
+- When enabled, server-sent orientation updates (e.g., from `set_look_vertical`) are applied as **additive deltas** to the player's current look direction. This allows mods to implement recoil or camera animations that don't "lock" the player's mouse movement, allowing them to continue looking around while the animation plays.
+
+`core.camera:get_free_look() -> boolean`
+- Returns whether free look is currently enabled.
+
+### Camera Smoothing (Smoothie)
+
+`core.camera:set_smoothie(enable)`
+- `enable`: boolean.
+- When enabled, the camera uses a default smoothing factor (0.05) if no global camera smoothing is configured in the user's settings. This helps to "smooth over" small, instant camera orientation changes, making them feel more fluid.
+
+`core.camera:get_smoothie() -> boolean`
+- Returns whether the smoothie property is currently enabled.
+
+---
+
 ### Querying transforms
 
 `ObjectRef:get_bone_position(bone) -> position, rotation`
