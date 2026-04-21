@@ -1593,6 +1593,13 @@ void Client::handleCommand_Camera(NetworkPacket* pkt)
 	*pkt >> tmp;
 	player->allowed_camera_mode = static_cast<CameraMode>(tmp);
 
+	if (pkt->getRemainingBytes() > 0) {
+		u8 flags;
+		*pkt >> flags;
+		player->camera_free_look = (flags & 1) != 0;
+		player->camera_smooth    = (flags & 2) != 0;
+	}
+
 	m_client_event_queue.push(new ClientEvent(CE_UPDATE_CAMERA));
 }
 

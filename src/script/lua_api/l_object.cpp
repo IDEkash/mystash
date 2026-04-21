@@ -772,6 +772,16 @@ int ObjectRef::l_set_camera(lua_State *L)
 		string_to_enum(es_CameraMode, player->allowed_camera_mode, lua_tostring(L, -1));
 	lua_pop(L, 1);
 
+	lua_getfield(L, -1, "free_look");
+	if (lua_isboolean(L, -1))
+		player->camera_free_look = lua_toboolean(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "smooth");
+	if (lua_isboolean(L, -1))
+		player->camera_smooth = lua_toboolean(L, -1);
+	lua_pop(L, 1);
+
 	getServer(L)->SendCamera(player->getPeerId(), player);
 	return 0;
 }
@@ -786,6 +796,8 @@ int ObjectRef::l_get_camera(lua_State *L)
 
 	lua_newtable(L);
 	setstringfield(L, -1, "mode", enum_to_string(es_CameraMode, player->allowed_camera_mode));
+	setboolfield(L, -1, "free_look", player->camera_free_look);
+	setboolfield(L, -1, "smooth", player->camera_smooth);
 
 	return 1;
 }

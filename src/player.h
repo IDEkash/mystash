@@ -170,6 +170,8 @@ public:
 	}
 
 	CameraMode allowed_camera_mode = CAMERA_MODE_ANY;
+	bool camera_free_look = false;
+	bool camera_smooth = false;
 
 	v3f eye_offset_first;
 	v3f eye_offset_third;
