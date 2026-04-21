@@ -870,6 +870,7 @@ void LocalPlayer::move(f32 dtime, Environment *env,
 
 	if (!result.standing_on_object && !touching_ground_was && touching_ground) {
 		m_client->getEventManager()->put(new SimpleTriggerEvent(MtEvent::PLAYER_REGAIN_GROUND));
+		landed = true;
 
 		// Set camera impact value to be used for view bobbing
 		camera_impact = getSpeed().Y * -1;
@@ -977,7 +978,7 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 	const f32 speed_fast = movement_speed_fast * physics_override.speed_fast;
 
 	if (player_settings.accessibility_sprint_enabled && control.movement_speed >= 0.95f)
-		speed_walk *= 1.3f;
+		speed_walk *= 1.3f * physics_override.speed_sprint;
 
 	if (always_fly_fast && free_move && fast_move)
 		superspeed = true;
@@ -1088,6 +1089,7 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 				speedJ.Y = movement_speed_jump * physics_override.jump;
 				setSpeed(speedJ);
 				m_client->getEventManager()->put(new SimpleTriggerEvent(MtEvent::PLAYER_JUMP));
+				jumped = true;
 			}
 		} else if (in_liquid && !m_disable_jump && !control.sneak) {
 			if (fast_climb)
@@ -1501,6 +1503,7 @@ void LocalPlayer::old_move(f32 dtime, Environment *env,
 
 	if (!result.standing_on_object && !touching_ground_was && touching_ground) {
 		m_client->getEventManager()->put(new SimpleTriggerEvent(MtEvent::PLAYER_REGAIN_GROUND));
+		landed = true;
 		// Set camera impact value to be used for view bobbing
 		camera_impact = getSpeed().Y * -1.0f;
 	}

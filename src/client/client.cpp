@@ -1142,11 +1142,22 @@ void writePlayerPos(LocalPlayer *myplayer, ClientMap *clientMap, NetworkPacket *
 		[12+12+4+4+4+1+1] u8 camera_inverted (bool)
 		[12+12+4+4+4+1+1+1] f32 movement_speed
 		[12+12+4+4+4+1+1+1+4] f32 movement_direction
+		[12+12+4+4+4+1+1+1+4+4] u8 bits2 (jump: 1, land: 2)
 	*/
 	*pkt << position << speed << pitch << yaw << keyPressed;
 	*pkt << fov << wanted_range;
 	*pkt << camera_inverted;
 	*pkt << movement_speed << movement_dir;
+
+	u8 bits2 = 0;
+	if (myplayer->jumped)
+		bits2 |= 1;
+	if (myplayer->landed)
+		bits2 |= 2;
+	*pkt << bits2;
+
+	myplayer->jumped = false;
+	myplayer->landed = false;
 }
 
 void Client::interact(InteractAction action, const PointedThing& pointed)
@@ -1518,7 +1529,7 @@ void Client::sendPlayerPos()
 	player->last_movement_speed  = movement_speed;
 	player->last_movement_dir    = movement_dir;
 
-	NetworkPacket pkt(TOSERVER_PLAYERPOS, 12 + 12 + 4 + 4 + 4 + 1 + 1 + 1 + 4 + 4);
+	NetworkPacket pkt(TOSERVER_PLAYERPOS, 12 + 12 + 4 + 4 + 4 + 1 + 1 + 1 + 4 + 4 + 1);
 
 	writePlayerPos(player, &map, &pkt, camera_inverted);
 

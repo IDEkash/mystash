@@ -95,6 +95,9 @@ public:
 
 	float camera_impact = 0.0f;
 
+	bool jumped = false;
+	bool landed = false;
+
 	bool makes_footstep_sound = true;
 
 	LocalPlayerAnimation last_animation = LocalPlayerAnimation::NO_ANIM;

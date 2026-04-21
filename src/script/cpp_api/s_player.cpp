@@ -77,6 +77,28 @@ void ScriptApiPlayer::on_rightclickplayer(ServerActiveObject *player,
 	runCallbacks(2, RUN_CALLBACKS_MODE_FIRST);
 }
 
+void ScriptApiPlayer::on_jump(ServerActiveObject *player)
+{
+	SCRIPTAPI_PRECHECKHEADER
+	// Get core.registered_on_jumps
+	lua_getglobal(L, "core");
+	lua_getfield(L, -1, "registered_on_jumps");
+	// Call callbacks
+	objectrefGetOrCreate(L, player);
+	runCallbacks(1, RUN_CALLBACKS_MODE_FIRST);
+}
+
+void ScriptApiPlayer::on_land(ServerActiveObject *player)
+{
+	SCRIPTAPI_PRECHECKHEADER
+	// Get core.registered_on_lands
+	lua_getglobal(L, "core");
+	lua_getfield(L, -1, "registered_on_lands");
+	// Call callbacks
+	objectrefGetOrCreate(L, player);
+	runCallbacks(1, RUN_CALLBACKS_MODE_FIRST);
+}
+
 s32 ScriptApiPlayer::on_player_hpchange(ServerActiveObject *player,
 	s32 hp_change, const PlayerHPChangeReason &reason)
 {

@@ -520,6 +520,15 @@ void Server::process_PlayerPos(RemotePlayer *player, PlayerSAO *playersao,
 		m_script->on_cheat(playersao, "moved_too_fast");
 		SendMovePlayer(playersao);
 	}
+
+	if (pkt->hasRemainingBytes()) {
+		u8 bits2;
+		*pkt >> bits2;
+		if (bits2 & 1)
+			m_script->on_jump(playersao);
+		if (bits2 & 2)
+			m_script->on_land(playersao);
+	}
 }
 
 void Server::handleCommand_PlayerPos(NetworkPacket* pkt)
