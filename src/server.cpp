@@ -2108,6 +2108,13 @@ void Server::SendMovePlayerRel(session_t peer_id, const v3f &added_pos)
 	Send(&pkt);
 }
 
+void Server::SendLookDirection(session_t peer_id, float pitch, float yaw)
+{
+	NetworkPacket pkt(TOCLIENT_SET_LOOK_DIRECTION, sizeof(f32) * 2, peer_id);
+	pkt << pitch << yaw;
+	Send(&pkt);
+}
+
 void Server::SendPlayerFov(session_t peer_id)
 {
 	RemotePlayer *player = m_env->getPlayer(peer_id);

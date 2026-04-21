@@ -1,6 +1,19 @@
 # Fork APIs
 
-This fork adds Android `htmlview` (including headless workers + JSON helpers), extra animator helpers, glTF multi-clip animation support, an independent bone transform API with per-part visibility and persistent smoothing, upgraded animation blending with smoothstep easing and event callbacks, a refined physics and movement model, an accessibility sprint toggle, and an improved Animation & Scaling API with auto-normalization.
+This fork adds Android `htmlview` (including headless workers + JSON helpers), extra animator helpers, glTF multi-clip animation support, an independent bone transform API with per-part visibility and persistent smoothing, upgraded animation blending with smoothstep easing and event callbacks, a refined physics and movement model, an accessibility sprint toggle, an improved Animation & Scaling API with auto-normalization, and dedicated look-direction synchronisation.
+
+## Player Synchronisation Improvements
+
+This fork introduces a dedicated network packet for updating look direction independently of position.
+
+### Improved `set_look_vertical` / `set_look_horizontal`
+
+Previously, calling these methods triggered a full "teleport" packet (`TOCLIENT_MOVE_PLAYER`) that reset the player's position on the client. This effectively "froze" the player if called frequently (e.g., for smooth camera animations).
+
+- **New Behavior**: On supported clients (protocol version >= 52), these methods now only sync the look direction. The player can continue moving freely while their camera orientation is controlled by the server.
+- **Backward Compatibility**: Automatically falls back to the old behavior (teleport) for older clients to ensure they still see the orientation change.
+
+---
 
 ## Android: `htmlview` (Lua)
 
