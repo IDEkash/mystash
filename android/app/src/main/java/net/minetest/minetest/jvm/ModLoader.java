@@ -10,6 +10,7 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import androidx.annotation.Keep;
+import net.minetest.minetest.Utils;
 
 @Keep
 public class ModLoader {
@@ -24,10 +25,23 @@ public class ModLoader {
 
     @Keep
     public void loadMods() {
-        File modsDir = new File(context.getFilesDir(), "mods");
+        // Internal storage
+        scanDirectory(new File(context.getFilesDir(), "mods"));
+
+        // External (accessible) storage
+        try {
+            File externalDir = new File(Utils.getUserDataDirectory(context), "jvm_mods");
+            scanDirectory(externalDir);
+        } catch (Exception e) {
+            Log.e(TAG, "Could not access external mods directory", e);
+        }
+    }
+
+    private void scanDirectory(File modsDir) {
         Log.i(TAG, "Scanning for JVM mods in " + modsDir.getAbsolutePath());
         if (!modsDir.exists()) {
             modsDir.mkdirs();
+            return;
         }
 
         File[] mods = modsDir.listFiles();
@@ -55,31 +69,39 @@ public class ModLoader {
 
             File jarFile = new File(modDir, modId + ".jar");
             if (!jarFile.exists()) {
-                // Try looking for any jar file if the name doesn't match ID
                 File[] files = modDir.listFiles((dir, name) -> name.endsWith(".jar"));
                 if (files != null && files.length > 0) {
                     jarFile = files[0];
                 } else {
-                    Log.e(TAG, "Jar file not found for mod: " + modId);
+                    Log.e(TAG, "Jar file not found for mod: " + modId + " in " + modDir.getAbsolutePath());
                     return;
                 }
             }
 
-            Log.i(TAG, "Loading mod " + modId + " with entry " + entryClass);
+            Log.i(TAG, "Attempting to load mod: " + modId + " [" + jarFile.getName() + "]");
+            Log.d(TAG, "Entry class: " + entryClass);
+
+            File optimizedDexDir = context.getDir("dex", Context.MODE_PRIVATE);
 
             DexClassLoader classLoader = new DexClassLoader(
                 jarFile.getAbsolutePath(),
-                context.getDir("dex", Context.MODE_PRIVATE).getAbsolutePath(),
+                optimizedDexDir.getAbsolutePath(),
                 null,
                 context.getClassLoader()
             );
 
-            Class<?> clazz = classLoader.loadClass(entryClass);
-            clazz.getConstructor(EngineAPI.class).newInstance(engineAPI);
-            Log.i(TAG, "Successfully instantiated mod: " + modId);
+            try {
+                Class<?> clazz = classLoader.loadClass(entryClass);
+                clazz.getConstructor(EngineAPI.class).newInstance(engineAPI);
+                Log.i(TAG, ">>> Successfully loaded and started mod: " + modId);
+            } catch (ClassNotFoundException e) {
+                Log.e(TAG, "Entry class " + entryClass + " not found in " + jarFile.getName() + ". Did you dex your JAR?");
+            } catch (NoSuchMethodException e) {
+                Log.e(TAG, "Entry class must have a constructor that accepts EngineAPI: " + entryClass + "(EngineAPI engine)");
+            }
 
         } catch (Exception e) {
-            Log.e(TAG, "Failed to load mod in " + modDir.getAbsolutePath(), e);
+            Log.e(TAG, "Critical failure loading mod in " + modDir.getAbsolutePath(), e);
         }
     }
 
