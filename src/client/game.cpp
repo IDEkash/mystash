@@ -2142,24 +2142,14 @@ bool Game::isTouchShootlineUsed() const
 
 void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 {
-	LocalPlayer *player = client->getEnv().getLocalPlayer();
-	float roll = (player && player->camera_anti_tilt_controller) ? player->camera_tilt : 0.0f;
+	f32 yaw_change = 0;
+	f32 pitch_change = 0;
 
 	if (g_touchcontrols) {
 		// User setting is already applied by TouchControls.
 		f32 sens_scale = getSensitivityScaleFactor();
-		float dx = g_touchcontrols->getYawChange()   * sens_scale;
-		float dy = g_touchcontrols->getPitchChange() * sens_scale;
-
-		if (roll != 0.0f) {
-			v2f d(dx, dy);
-			d.rotateBy(roll);
-			dx = d.X;
-			dy = d.Y;
-		}
-
-		cam->camera_yaw   += dx;
-		cam->camera_pitch += dy;
+		yaw_change   = g_touchcontrols->getYawChange()   * sens_scale;
+		pitch_change = g_touchcontrols->getPitchChange() * sens_scale;
 	} else {
 		v2s32 center(driver->getScreenSize().Width / 2, driver->getScreenSize().Height / 2);
 		v2s32 dist = input->getMousePos() - center;
@@ -2169,18 +2159,8 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 		}
 
 		f32 sens_scale = getSensitivityScaleFactor();
-		float dx = -dist.X * m_cache_mouse_sensitivity * sens_scale;
-		float dy = dist.Y * m_cache_mouse_sensitivity * sens_scale;
-
-		if (roll != 0.0f) {
-			v2f d(dx, dy);
-			d.rotateBy(roll);
-			dx = d.X;
-			dy = d.Y;
-		}
-
-		cam->camera_yaw   += dx;
-		cam->camera_pitch += dy;
+		yaw_change   = -dist.X * m_cache_mouse_sensitivity * sens_scale;
+		pitch_change =  dist.Y * m_cache_mouse_sensitivity * sens_scale;
 
 		if (dist.X != 0 || dist.Y != 0)
 			input->setMousePos(center.X, center.Y);
@@ -2189,19 +2169,20 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 	if (m_cache_enable_joysticks) {
 		f32 sens_scale = getSensitivityScaleFactor();
 		f32 c = m_cache_joystick_frustum_sensitivity * dtime * sens_scale;
-		float dx = -input->joystick.getAxisWithoutDead(JA_FRUSTUM_HORIZONTAL) * c;
-		float dy = input->joystick.getAxisWithoutDead(JA_FRUSTUM_VERTICAL) * c;
-
-		if (roll != 0.0f) {
-			v2f d(dx, dy);
-			d.rotateBy(roll);
-			dx = d.X;
-			dy = d.Y;
-		}
-
-		cam->camera_yaw   += dx;
-		cam->camera_pitch += dy;
+		yaw_change   -= input->joystick.getAxisWithoutDead(JA_FRUSTUM_HORIZONTAL) * c;
+		pitch_change += input->joystick.getAxisWithoutDead(JA_FRUSTUM_VERTICAL) * c;
 	}
+
+	LocalPlayer *player = client->getEnv().getLocalPlayer();
+	if (player && !player->camera_anti_tilt_controller && player->camera_tilt != 0.0f) {
+		v2f change(yaw_change, pitch_change);
+		change.rotateBy(-player->camera_tilt);
+		yaw_change = change.X;
+		pitch_change = change.Y;
+	}
+
+	cam->camera_yaw   += yaw_change;
+	cam->camera_pitch += pitch_change;
 
 	cam->camera_pitch = rangelim(cam->camera_pitch, -90, 90);
 }

@@ -26,8 +26,8 @@ Server-side `ObjectRef` methods for controlling the player's camera.
   - `mode`: string (`"firstperson"`, `"thirdpersonback"`, `"thirdpersonfront"`)
   - `free_look`: boolean (default `false`). If `true`, server-forced orientation updates (via `set_look_vertical` or recoil) are applied additively to the player's current orientation rather than overriding it.
   - `smooth`: boolean (default `false`). If `true`, orientation changes are smoothed on the client (0.05s default window) even if cinematic mode is off.
-  - `tilt`: number (default `0.0`). Sets the camera roll in degrees. Positive values tilt the camera to the left.
-  - `anti_tilt_controller`: boolean (default `false`). If `true`, the player's movement controls (e.g. strafing) are not affected by the camera `tilt`.
+  - `tilt`: number (default `0`). Sets the camera roll (tilt) in degrees.
+  - `anti_tilt_controller`: boolean (default `false`). If `true`, the player's look and movement controls remain fixed to the screen even when the camera is tilted. If `false`, controls rotate with the camera (tilting 90 degrees right means pushing Forward moves you Right in the world).
   - `fov`: number. Sets the Field of View. Set to `0` to reset to client default.
   - `fov_is_multiplier`: boolean (default `false`). If `true`, the `fov` value is treated as a multiplier for the player's base FOV setting.
   - `fov_transition`: number (default `0.0`). Duration in seconds for a smooth FOV transition.

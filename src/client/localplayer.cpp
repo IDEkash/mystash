@@ -1205,15 +1205,11 @@ void LocalPlayer::accelerate(const v3f &target_speed, const f32 max_increase_H,
 {
 	const f32 yaw = getYaw();
 	const f32 pitch = getPitch();
-	const f32 roll = camera_anti_tilt_controller ? 0.0f : camera_tilt;
-
 	v3f flat_speed = m_speed;
-	// Rotate speed vector to be relative to the player's orientation
+	// Rotate speed vector by -yaw and -pitch to make it relative to the player's yaw and pitch
 	flat_speed.rotateXZBy(-yaw);
 	if (use_pitch)
 		flat_speed.rotateYZBy(-pitch);
-	if (roll != 0.0f)
-		flat_speed.rotateXYBy(-roll);
 
 	v3f d_wanted = target_speed - flat_speed;
 	v3f d;
@@ -1238,10 +1234,16 @@ void LocalPlayer::accelerate(const v3f &target_speed, const f32 max_increase_H,
 	}
 
 	// Finally rotate it again
-	if (roll != 0.0f)
-		d.rotateXYBy(roll);
 	if (use_pitch)
 		d.rotateYZBy(pitch);
+
+	if (!camera_anti_tilt_controller && camera_tilt != 0.0f) {
+		v2f horizontal(d.X, d.Z);
+		horizontal.rotateBy(-camera_tilt);
+		d.X = horizontal.X;
+		d.Z = horizontal.Y;
+	}
+
 	d.rotateXZBy(yaw);
 
 	m_speed += d;
