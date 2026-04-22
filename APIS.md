@@ -35,6 +35,34 @@ Server-side `ObjectRef` methods for controlling the player's camera.
 `ObjectRef:get_camera() -> table`
 - Returns a table containing all the fields listed above.
 
+### Camera Filters
+
+`ObjectRef:set_filter(table)`
+- `table` fields:
+  - `brightness`: number (default `0.0`). Linear offset on color values. Negative values darken, positive values brighten.
+  - `contrast`: number (default `1.0`). Scale deviation from mid-tone. Values `< 1.0` reduce contrast (fade towards gray), values `> 1.0` increase contrast.
+  - `saturation`: number (default `1.0`). Scale color saturation. `0.0` for grayscale, `1.0` for normal. (Note: only desaturation towards mid-gray is currently implemented via fixed-function blending).
+
+**Example:**
+```lua
+-- Apply a cinematic look: slightly darker, higher contrast, and desaturated
+player:set_filter({
+    brightness = -0.1,
+    contrast = 1.2,
+    saturation = 0.8
+})
+
+-- Reset filters
+player:set_filter({
+    brightness = 0,
+    contrast = 1,
+    saturation = 1
+})
+```
+
+`ObjectRef:get_filter() -> table`
+- Returns `{brightness, contrast, saturation}`.
+
 ### Field of View
 
 `ObjectRef:set_fov(degrees, is_multiplier?, transition_time?)`

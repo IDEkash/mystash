@@ -9104,6 +9104,11 @@ child will follow movement and rotation of that bone.
       - `third_front`: third-person camera, looking opposite of movement direction
     * Supported by client since 5.12.0.
 * `get_camera()`: Returns the camera parameters as a table as above.
+* `set_filter(params)`: Sets camera filter parameters.
+    * `brightness`: number (default `0.0`). Linear offset on color values.
+    * `contrast`: number (default `1.0`). Scale deviation from mid-tone.
+    * `saturation`: number (default `1.0`). Scale color saturation.
+* `get_filter()`: Returns the camera filter parameters as a table as above.
 * `send_mapblock(blockpos)`:
     * Sends an already loaded mapblock to the player.
     * Returns `false` if nothing was sent (note that this can also mean that

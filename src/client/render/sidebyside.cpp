@@ -70,6 +70,7 @@ void populateSideBySidePipeline(RenderPipeline *pipeline, Client *client, bool h
 		pipeline->addStep(step3D);
 		pipeline->addStep<DrawWield>();
 		pipeline->addStep<MapPostFxStep>();
+		pipeline->addStep<DrawFilters>();
 		pipeline->addStep<DrawHUD>();
 	}
 

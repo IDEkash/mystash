@@ -421,6 +421,12 @@ private:
 	// get_camera(self)
 	static int l_get_camera(lua_State *L);
 
+	// set_filter(self, {params})
+	static int l_set_filter(lua_State *L);
+
+	// get_filter(self)
+	static int l_get_filter(lua_State *L);
+
 	// set_nametag_attributes(self, attributes)
 	static int l_set_nametag_attributes(lua_State *L);
 

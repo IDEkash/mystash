@@ -54,6 +54,11 @@ void DrawHUD::run(PipelineContext &context)
 	context.device->getGUIEnvironment()->drawAll();
 }
 
+void DrawFilters::run(PipelineContext &context)
+{
+	context.hud->drawFilters();
+}
+
 
 void MapPostFxStep::setRenderTarget(RenderTarget * _target)
 {
@@ -147,6 +152,7 @@ void populatePlainPipeline(RenderPipeline *pipeline, Client *client)
 	pipeline->addStep(step3D);
 	pipeline->addStep<DrawWield>();
 	pipeline->addStep<MapPostFxStep>();
+	pipeline->addStep<DrawFilters>();
 
 	step3D = addUpscaling(pipeline, step3D, downscale_factor, client);
 

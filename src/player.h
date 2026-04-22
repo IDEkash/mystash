@@ -39,6 +39,22 @@ struct PlayerFovSpec
 	}
 };
 
+struct PlayerCameraFilter
+{
+	f32 brightness = 0.0f;
+	f32 contrast = 1.0f;
+	f32 saturation = 1.0f;
+
+	inline bool operator==(const PlayerCameraFilter &other) const {
+		return brightness == other.brightness &&
+			contrast == other.contrast &&
+			saturation == other.saturation;
+	}
+	inline bool operator!=(const PlayerCameraFilter &other) const {
+		return !(*this == other);
+	}
+};
+
 struct PlayerControl
 {
 	PlayerControl() = default;
@@ -223,6 +239,19 @@ public:
 		return m_fov_override_spec;
 	}
 
+	bool setFilter(const PlayerCameraFilter &filter)
+	{
+		if (m_camera_filter == filter)
+			return false;
+		m_camera_filter = filter;
+		return true;
+	}
+
+	const PlayerCameraFilter &getFilter() const
+	{
+		return m_camera_filter;
+	}
+
 	const auto &getHudElements() const { return hud; }
 	HudElement* getHud(u32 id);
 	u32         addHud(HudElement* hud);
@@ -240,6 +269,7 @@ protected:
 	v3f m_speed; // velocity; in BS-space
 	u16 m_wield_index = 0;
 	PlayerFovSpec m_fov_override_spec = { 0.0f, false, 0.0f };
+	PlayerCameraFilter m_camera_filter;
 
 private:
 	std::vector<HudElement *> hud;

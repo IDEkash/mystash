@@ -64,6 +64,12 @@ public:
 	virtual void run(PipelineContext &context) override;
 };
 
+class DrawFilters : public RenderStep
+{
+public:
+	void run(PipelineContext &context) override;
+};
+
 /**
  * UpscaleStep step performs rescaling of the image
  * in the source texture 0 to the size of the target.

@@ -1041,3 +1041,90 @@ void Hud::resizeHotbar() {
 		m_displaycenter = v2s32(m_screensize.X/2,m_screensize.Y/2);
 	}
 }
+
+void Hud::drawFilters()
+{
+	LocalPlayer *player = m_client->getEnv().getLocalPlayer();
+	if (!player)
+		return;
+
+	const PlayerCameraFilter &filter = player->getFilter();
+
+	video::IVideoDriver *driver = RenderingEngine::get_video_driver();
+	v2u32 ss = driver->getScreenSize();
+	core::rect<s32> rect(0, 0, ss.X, ss.Y);
+
+	video::SMaterial material;
+	material.Lighting = false;
+	material.ZBuffer = video::ECFN_NEVER;
+	material.ZWriteEnable = false;
+	material.Thickness = 1.0f;
+
+	// 1. Brightness: true linear offset using additive/subtractive blending
+	if (filter.brightness != 0.0f) {
+		f32 b = filter.brightness;
+		material.MaterialType = video::EMT_ONETEXTURE_BLEND;
+		material.MaterialTypeParam = video::pack_textureBlendFunc(
+				video::EBF_ONE, video::EBF_ONE, video::EMFN_MODULATE_1X, video::EAS_NONE);
+
+		if (b > 0) {
+			material.BlendOperation = video::EBO_ADD;
+			driver->setMaterial(material);
+			video::SColor color(255, core::clamp(core::round32(b * 255.0f), 0, 255),
+					core::clamp(core::round32(b * 255.0f), 0, 255),
+					core::clamp(core::round32(b * 255.0f), 0, 255));
+			driver->draw2DRectangle(color, rect, NULL);
+		} else {
+			material.BlendOperation = video::EBO_SUBTRACT;
+			driver->setMaterial(material);
+			video::SColor color(255, core::clamp(core::round32(-b * 255.0f), 0, 255),
+					core::clamp(core::round32(-b * 255.0f), 0, 255),
+					core::clamp(core::round32(-b * 255.0f), 0, 255));
+			driver->draw2DRectangle(color, rect, NULL);
+		}
+	}
+
+	// 2. Contrast
+	if (filter.contrast != 1.0f) {
+		// Approximating contrast change with simple blending is limited.
+		// Lower contrast: pull towards mid-gray using alpha blending.
+		if (filter.contrast < 1.0f) {
+			material.MaterialType = video::EMT_TRANSPARENT_ALPHA_CHANNEL;
+			material.BlendOperation = video::EBO_ADD;
+			driver->setMaterial(material);
+			f32 alpha = 1.0f - filter.contrast;
+			video::SColor color(core::clamp(core::round32(alpha * 255.0f), 0, 255), 128, 128, 128);
+			driver->draw2DRectangle(color, rect, NULL);
+		} else {
+			// Higher contrast: push away from mid-gray.
+			// We can approximate this by using EBF_DST_COLOR blending to "multiply" the screen by itself.
+			// This is effectively a "hard light" or "overlay" style contrast boost.
+			material.MaterialType = video::EMT_ONETEXTURE_BLEND;
+			material.MaterialTypeParam = video::pack_textureBlendFunc(
+					video::EBF_DST_COLOR, video::EBF_ONE, video::EMFN_MODULATE_1X, video::EAS_NONE);
+			material.BlendOperation = video::EBO_ADD;
+			driver->setMaterial(material);
+			f32 amount = core::clamp(filter.contrast - 1.0f, 0.0f, 1.0f);
+			video::SColor color(255, core::clamp(core::round32(amount * 255.0f), 0, 255),
+					core::clamp(core::round32(amount * 255.0f), 0, 255),
+					core::clamp(core::round32(amount * 255.0f), 0, 255));
+			driver->draw2DRectangle(color, rect, NULL);
+		}
+	}
+
+	// 3. Saturation
+	if (filter.saturation < 1.0f) {
+		// Pull towards grayscale (luminance)
+		// Similar to lower contrast, we can pull towards a gray that represents the overall luminance.
+		// Since we don't know the luminance, we use mid-gray as a very rough approximation.
+		material.MaterialType = video::EMT_TRANSPARENT_ALPHA_CHANNEL;
+		material.BlendOperation = video::EBO_ADD;
+		driver->setMaterial(material);
+		f32 alpha = 1.0f - filter.saturation;
+		video::SColor color(core::clamp(core::round32(alpha * 255.0f), 0, 255), 128, 128, 128);
+		driver->draw2DRectangle(color, rect, NULL);
+	}
+
+	// Reset material
+	driver->setMaterial(video::SMaterial());
+}

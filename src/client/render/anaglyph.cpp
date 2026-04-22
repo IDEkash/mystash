@@ -75,5 +75,6 @@ void populateAnaglyphPipeline(RenderPipeline *pipeline, Client *client)
 
 	pipeline->addStep<DrawWield>();
 	pipeline->addStep<MapPostFxStep>();
+	pipeline->addStep<DrawFilters>();
 	pipeline->addStep<DrawHUD>();
 }

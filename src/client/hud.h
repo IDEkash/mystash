@@ -98,6 +98,8 @@ public:
 
 	void drawLuaElements(const v3s16 &camera_offset);
 
+	void drawFilters();
+
 private:
 	bool calculateScreenPos(const v3s16 &camera_offset, HudElement *e, v2s32 *pos);
 	void drawStatbar(v2s32 pos, u16 corner, u16 drawdir,
