@@ -67,7 +67,11 @@ public:
 class DrawFilters : public RenderStep
 {
 public:
-	void run(PipelineContext &context) override;
+	virtual void setRenderSource(RenderSource *) override {}
+	virtual void setRenderTarget(RenderTarget *) override {}
+
+	virtual void reset(PipelineContext &context) override {}
+	virtual void run(PipelineContext &context) override;
 };
 
 /**
