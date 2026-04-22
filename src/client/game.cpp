@@ -2194,7 +2194,7 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 
 		if (roll != 0.0f) {
 			v2f d(dx, dy);
-			d.rotateBy(-roll);
+			d.rotateBy(roll);
 			dx = d.X;
 			dy = d.Y;
 		}
