@@ -24,7 +24,8 @@ bool is_valid_player_name(std::string_view name)
 }
 
 Player::Player(const std::string &name, IItemDefManager *idef):
-	inventory(idef)
+	inventory(idef),
+	m_camera_filter()
 {
 	m_name = name;
 

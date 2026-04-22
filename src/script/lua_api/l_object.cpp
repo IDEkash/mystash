@@ -830,17 +830,17 @@ int ObjectRef::l_set_filter(lua_State *L)
 
 	lua_getfield(L, 2, "brightness");
 	if (lua_isnumber(L, -1))
-		filter.brightness = lua_tonumber(L, -1);
+		filter.brightness = core::clamp((f32)lua_tonumber(L, -1), -1.0f, 1.0f);
 	lua_pop(L, 1);
 
 	lua_getfield(L, 2, "contrast");
 	if (lua_isnumber(L, -1))
-		filter.contrast = lua_tonumber(L, -1);
+		filter.contrast = core::clamp((f32)lua_tonumber(L, -1), 0.0f, 5.0f);
 	lua_pop(L, 1);
 
 	lua_getfield(L, 2, "saturation");
 	if (lua_isnumber(L, -1))
-		filter.saturation = lua_tonumber(L, -1);
+		filter.saturation = core::clamp((f32)lua_tonumber(L, -1), 0.0f, 5.0f);
 	lua_pop(L, 1);
 
 	if (player->setFilter(filter))

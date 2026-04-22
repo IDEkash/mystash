@@ -39,9 +39,9 @@ Server-side `ObjectRef` methods for controlling the player's camera.
 
 `ObjectRef:set_filter(table)`
 - `table` fields:
-  - `brightness`: number (default `0.0`). Linear offset on color values. Negative values darken, positive values brighten.
-  - `contrast`: number (default `1.0`). Scale deviation from mid-tone. Values `< 1.0` reduce contrast (fade towards gray), values `> 1.0` increase contrast.
-  - `saturation`: number (default `1.0`). Scale color saturation. `0.0` for grayscale, `1.0` for normal. (Note: only desaturation towards mid-gray is currently implemented via fixed-function blending).
+  - `brightness`: number (default `0.0`). Linear offset on color values. Range: `-1.0` to `1.0`. Negative values darken, positive values brighten.
+  - `contrast`: number (default `1.0`). Scale deviation from mid-tone. Range: `0.0` to `5.0`. Values `< 1.0` reduce contrast, values `> 1.0` increase contrast.
+  - `saturation`: number (default `1.0`). Scale color saturation. Range: `0.0` to `5.0`. `0.0` for grayscale, `1.0` for normal.
 
 **Example:**
 ```lua

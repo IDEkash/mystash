@@ -64,14 +64,10 @@ public:
 	virtual void run(PipelineContext &context) override;
 };
 
-class DrawFilters : public RenderStep
+class DrawFilters : public TrivialRenderStep
 {
 public:
-	virtual void setRenderSource(RenderSource *) override {}
-	virtual void setRenderTarget(RenderTarget *) override {}
-
-	virtual void reset(PipelineContext &context) override {}
-	virtual void run(PipelineContext &context) override;
+	void run(PipelineContext &context) override;
 };
 
 /**

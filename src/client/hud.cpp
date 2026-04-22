@@ -1074,6 +1074,7 @@ void Hud::drawFilters()
 					core::clamp(core::round32(b * 255.0f), 0, 255));
 			driver->draw2DRectangle(color, rect, NULL);
 		} else {
+			// Subtraction of source from destination: Dest = Dest - Src
 			material.BlendOperation = video::EBO_SUBTRACT;
 			driver->setMaterial(material);
 			video::SColor color(255, core::clamp(core::round32(-b * 255.0f), 0, 255),
@@ -1103,7 +1104,7 @@ void Hud::drawFilters()
 					video::EBF_DST_COLOR, video::EBF_ONE, video::EMFN_MODULATE_1X, video::EAS_NONE);
 			material.BlendOperation = video::EBO_ADD;
 			driver->setMaterial(material);
-			f32 amount = core::clamp(filter.contrast - 1.0f, 0.0f, 1.0f);
+			f32 amount = core::clamp(filter.contrast - 1.0f, 0.0f, 1.0f) * 0.5f;
 			video::SColor color(255, core::clamp(core::round32(amount * 255.0f), 0, 255),
 					core::clamp(core::round32(amount * 255.0f), 0, 255),
 					core::clamp(core::round32(amount * 255.0f), 0, 255));
@@ -1114,8 +1115,7 @@ void Hud::drawFilters()
 	// 3. Saturation
 	if (filter.saturation < 1.0f) {
 		// Pull towards grayscale (luminance)
-		// Similar to lower contrast, we can pull towards a gray that represents the overall luminance.
-		// Since we don't know the luminance, we use mid-gray as a very rough approximation.
+		// Since we don't have the luminance buffer, we use mid-gray as a rough approximation.
 		material.MaterialType = video::EMT_TRANSPARENT_ALPHA_CHANNEL;
 		material.BlendOperation = video::EBO_ADD;
 		driver->setMaterial(material);
