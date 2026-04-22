@@ -1044,7 +1044,7 @@ void Hud::resizeHotbar() {
 
 void Hud::drawFilters()
 {
-	LocalPlayer *player = m_client->getEnv().getLocalPlayer();
+	LocalPlayer *player = client->getEnv().getLocalPlayer();
 	if (!player)
 		return;
 
@@ -1055,9 +1055,8 @@ void Hud::drawFilters()
 	core::rect<s32> rect(0, 0, ss.X, ss.Y);
 
 	video::SMaterial material;
-	material.Lighting = false;
-	material.ZBuffer = video::ECFN_NEVER;
-	material.ZWriteEnable = false;
+	material.ZBuffer = video::ECFN_DISABLED;
+	material.ZWriteEnable = video::EZW_OFF;
 	material.Thickness = 1.0f;
 
 	// 1. Brightness: true linear offset using additive/subtractive blending
