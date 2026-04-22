@@ -23,6 +23,9 @@
 #include "config.h"
 #include "player.h"
 #include "porting.h"
+#ifdef __ANDROID__
+#include "jvm_mod_manager.h"
+#endif
 #include "serialization.h" // SER_FMT_VER_HIGHEST_*
 #include "serverenvironment.h"
 #include "servermap.h"

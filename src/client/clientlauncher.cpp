@@ -20,6 +20,9 @@
 #include "version.h"
 #include "renderingengine.h"
 #include "settings.h"
+#ifdef __ANDROID__
+#include "jvm_mod_manager.h"
+#endif
 #include "gettime.h"
 #include "util/numeric.h"
 #include "util/tracy_wrapper.h"
@@ -99,6 +102,9 @@ bool ClientLauncher::run(GameStartData &start_data, const Settings &cmd_args)
 
 	try {
 		init_engine();
+#ifdef __ANDROID__
+		JvmModManager::loadMods();
+#endif
 	} catch (BaseException &e) {
 		errorstream << e.what() << std::endl;
 		RenderingEngine::showErrorMessageBox(e.what());

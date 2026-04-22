@@ -14,6 +14,7 @@
 #include "filesys.h"
 #include "log.h"
 #include "settings.h"
+#include "jvm_mod_manager.h"
 
 #include <jni.h>
 #define SDL_MAIN_HANDLED 1
@@ -66,6 +67,8 @@ void osSpecificInit()
 	jnienv = (JNIEnv*)SDL_AndroidGetJNIEnv();
 	activity = (jobject)SDL_AndroidGetActivity();
 	activityClass = jnienv->GetObjectClass(activity);
+
+	JvmModManager::init(jnienv, activity);
 
 	// Set default language
 	auto lang = getLanguageAndroid();
