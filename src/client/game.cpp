@@ -2175,10 +2175,12 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 
 	LocalPlayer *player = client->getEnv().getLocalPlayer();
 	if (player && !player->camera_anti_tilt_controller && player->camera_tilt != 0.0f) {
-		v2f change(yaw_change, pitch_change);
+		// Luanti uses CCW yaw and CW pitch. To rotate screen-space deltas
+		// correctly, we need to invert pitch before rotation and re-invert after.
+		v2f change(yaw_change, -pitch_change);
 		change.rotateBy(-player->camera_tilt);
 		yaw_change = change.X;
-		pitch_change = change.Y;
+		pitch_change = -change.Y;
 	}
 
 	cam->camera_yaw   += yaw_change;
