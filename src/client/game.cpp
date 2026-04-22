@@ -2142,11 +2142,14 @@ bool Game::isTouchShootlineUsed() const
 
 void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 {
+	f32 yaw_change = 0;
+	f32 pitch_change = 0;
+
 	if (g_touchcontrols) {
 		// User setting is already applied by TouchControls.
 		f32 sens_scale = getSensitivityScaleFactor();
-		cam->camera_yaw   += g_touchcontrols->getYawChange()   * sens_scale;
-		cam->camera_pitch += g_touchcontrols->getPitchChange() * sens_scale;
+		yaw_change   = g_touchcontrols->getYawChange()   * sens_scale;
+		pitch_change = g_touchcontrols->getPitchChange() * sens_scale;
 	} else {
 		v2s32 center(driver->getScreenSize().Width / 2, driver->getScreenSize().Height / 2);
 		v2s32 dist = input->getMousePos() - center;
@@ -2156,8 +2159,8 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 		}
 
 		f32 sens_scale = getSensitivityScaleFactor();
-		cam->camera_yaw   -= dist.X * m_cache_mouse_sensitivity * sens_scale;
-		cam->camera_pitch += dist.Y * m_cache_mouse_sensitivity * sens_scale;
+		yaw_change   = -dist.X * m_cache_mouse_sensitivity * sens_scale;
+		pitch_change =  dist.Y * m_cache_mouse_sensitivity * sens_scale;
 
 		if (dist.X != 0 || dist.Y != 0)
 			input->setMousePos(center.X, center.Y);
@@ -2166,9 +2169,22 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 	if (m_cache_enable_joysticks) {
 		f32 sens_scale = getSensitivityScaleFactor();
 		f32 c = m_cache_joystick_frustum_sensitivity * dtime * sens_scale;
-		cam->camera_yaw -= input->joystick.getAxisWithoutDead(JA_FRUSTUM_HORIZONTAL) * c;
-		cam->camera_pitch += input->joystick.getAxisWithoutDead(JA_FRUSTUM_VERTICAL) * c;
+		yaw_change   -= input->joystick.getAxisWithoutDead(JA_FRUSTUM_HORIZONTAL) * c;
+		pitch_change += input->joystick.getAxisWithoutDead(JA_FRUSTUM_VERTICAL) * c;
 	}
+
+	LocalPlayer *player = client->getEnv().getLocalPlayer();
+	if (player && !player->camera_anti_tilt_controller && player->camera_tilt != 0.0f) {
+		// Luanti uses CCW yaw and CW pitch. To rotate screen-space deltas
+		// correctly, we need to invert pitch before rotation and re-invert after.
+		v2f change(yaw_change, -pitch_change);
+		change.rotateBy(-player->camera_tilt);
+		yaw_change = change.X;
+		pitch_change = -change.Y;
+	}
+
+	cam->camera_yaw   += yaw_change;
+	cam->camera_pitch += pitch_change;
 
 	cam->camera_pitch = rangelim(cam->camera_pitch, -90, 90);
 }

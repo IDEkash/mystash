@@ -1236,6 +1236,14 @@ void LocalPlayer::accelerate(const v3f &target_speed, const f32 max_increase_H,
 	// Finally rotate it again
 	if (use_pitch)
 		d.rotateYZBy(pitch);
+
+	if (!camera_anti_tilt_controller && camera_tilt != 0.0f) {
+		v2f horizontal(d.X, d.Z);
+		horizontal.rotateBy(-camera_tilt);
+		d.X = horizontal.X;
+		d.Z = horizontal.Y;
+	}
+
 	d.rotateXZBy(yaw);
 
 	m_speed += d;
