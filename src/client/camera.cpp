@@ -403,6 +403,11 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 		rel_cam_up.rotateXYBy(-0.03 * bobdir * bobtmp * M_PI * m_cache_view_bobbing_amount);
 	}
 
+	if (player->camera_tilt != 0.0f) {
+		// Luanti uses CW roll for camera.
+		rel_cam_up.rotateXYBy(-player->camera_tilt);
+	}
+
 	// Compute absolute camera position and target
 	m_headnode->getAbsoluteTransformation().transformVect(m_camera_position, rel_cam_pos);
 	m_camera_direction = m_headnode->getAbsoluteTransformation()

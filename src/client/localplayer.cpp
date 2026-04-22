@@ -1055,6 +1055,10 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 	speedH = v3f(std::sin(control.movement_direction), 0.0f,
 			std::cos(control.movement_direction));
 
+	if (camera_tilt != 0.0f && !camera_anti_tilt_controller) {
+		speedH.rotateXYBy(-camera_tilt);
+	}
+
 	if (m_autojump) {
 		// release autojump after a given time
 		m_autojump_time -= dtime;
