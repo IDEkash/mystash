@@ -16,6 +16,9 @@ public:
 	static void setServer(Server *server) { m_server = server; }
 	static void setClient(Client *client) { m_client = client; }
 
+	static void api_spawnEntity(const std::string &id, float x, float y, float z);
+	static void api_registerMesh(const std::string &name, const std::string &data);
+
 private:
 	static Server *m_server;
 	static Client *m_client;

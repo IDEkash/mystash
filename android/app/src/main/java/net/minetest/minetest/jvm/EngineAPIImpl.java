@@ -12,6 +12,9 @@ public class EngineAPIImpl implements EngineAPI {
     public native void registerModelFormat(String extension, ModelParser parser);
 
     @Override
+    public native void registerMesh(String name, byte[] data);
+
+    @Override
     public native void setFOV(int fov);
 
     @Override

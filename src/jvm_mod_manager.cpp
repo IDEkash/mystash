@@ -61,6 +61,26 @@ void JvmModManager::loadMods()
 	}
 }
 
+void JvmModManager::api_spawnEntity(const std::string &id, float x, float y, float z)
+{
+	if (m_server) {
+		v3f pos(x, y, z);
+		auto sao = std::make_unique<LuaEntitySAO>(&m_server->getEnv(), pos, id, "");
+		m_server->getEnv().addActiveObject(std::move(sao));
+	} else {
+		errorstream << "JNI-API: Cannot spawn entity, server not running" << std::endl;
+	}
+}
+
+void JvmModManager::api_registerMesh(const std::string &name, const std::string &data)
+{
+	if (m_client) {
+		m_client->m_mesh_data[name] = data;
+	} else {
+		errorstream << "JNI-API: Cannot register mesh, client not running" << std::endl;
+	}
+}
+
 // JNI Implementation for EngineAPIImpl
 
 extern "C" JNIEXPORT void JNICALL
@@ -68,13 +88,7 @@ Java_net_minetest_minetest_jvm_EngineAPIImpl_spawnEntity(JNIEnv* env, jobject /*
     const char *nativeId = env->GetStringUTFChars(id, 0);
     actionstream << "JNI-API: spawnEntity(" << nativeId << ", " << x << ", " << y << ", " << z << ")" << std::endl;
 
-	if (JvmModManager::m_server) {
-		v3f pos(x, y, z);
-		auto sao = std::make_unique<LuaEntitySAO>(&JvmModManager::m_server->getEnv(), pos, nativeId, "");
-		JvmModManager::m_server->getEnv().addActiveObject(std::move(sao));
-	} else {
-		errorstream << "JNI-API: Cannot spawn entity, server not running" << std::endl;
-	}
+	JvmModManager::api_spawnEntity(nativeId, x, y, z);
 
     env->ReleaseStringUTFChars(id, nativeId);
 }
@@ -91,16 +105,12 @@ Java_net_minetest_minetest_jvm_EngineAPIImpl_registerMesh(JNIEnv* env, jobject /
     const char *nativeName = env->GetStringUTFChars(name, 0);
     actionstream << "JNI-API: registerMesh(" << nativeName << ")" << std::endl;
 
-	if (JvmModManager::m_client) {
-		jbyte* buffer = env->GetByteArrayElements(data, NULL);
-		jsize length = env->GetArrayLength(data);
+	jbyte* buffer = env->GetByteArrayElements(data, NULL);
+	jsize length = env->GetArrayLength(data);
 
-		JvmModManager::m_client->m_mesh_data[nativeName] = std::string((char*)buffer, length);
+	JvmModManager::api_registerMesh(nativeName, std::string((char*)buffer, length));
 
-		env->ReleaseByteArrayElements(data, buffer, JNI_ABORT);
-	} else {
-		errorstream << "JNI-API: Cannot register mesh, client not running" << std::endl;
-	}
+	env->ReleaseByteArrayElements(data, buffer, JNI_ABORT);
 
     env->ReleaseStringUTFChars(name, nativeName);
 }
