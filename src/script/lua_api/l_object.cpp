@@ -219,6 +219,46 @@ int ObjectRef::l_punch(lua_State *L)
 	return 1;
 }
 
+int ObjectRef::l_set_filter(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	RemotePlayer *player = getplayer(ref);
+	if (player == nullptr)
+		return 0;
+
+	luaL_checktype(L, 2, LUA_TTABLE);
+
+	PlayerCameraFilter filter = player->getFilter();
+
+	getfloatfield(L, 2, "brightness", filter.brightness);
+	getfloatfield(L, 2, "contrast", filter.contrast);
+	getfloatfield(L, 2, "saturation", filter.saturation);
+
+	if (player->setFilter(filter))
+		getServer(L)->SendCamera(player->getPeerId(), player);
+
+	return 0;
+}
+
+int ObjectRef::l_get_filter(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	RemotePlayer *player = getplayer(ref);
+	if (player == nullptr)
+		return 0;
+
+	const PlayerCameraFilter &filter = player->getFilter();
+
+	lua_newtable(L);
+	setfloatfield(L, -1, "brightness", filter.brightness);
+	setfloatfield(L, -1, "contrast", filter.contrast);
+	setfloatfield(L, -1, "saturation", filter.saturation);
+
+	return 1;
+}
+
 // right_click(self, clicker)
 int ObjectRef::l_right_click(lua_State *L)
 {
@@ -3513,6 +3553,8 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod(ObjectRef, get_flags),
 	luamethod(ObjectRef, set_camera),
 	luamethod(ObjectRef, get_camera),
+	luamethod(ObjectRef, set_filter),
+	luamethod(ObjectRef, get_filter),
 
 	{0,0}
 };

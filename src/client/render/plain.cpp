@@ -54,6 +54,94 @@ void DrawHUD::run(PipelineContext &context)
 	context.device->getGUIEnvironment()->drawAll();
 }
 
+void DrawFilters::run(PipelineContext &context)
+{
+	auto *player = context.client->getEnv().getLocalPlayer();
+	const auto &filter = player->getFilter();
+
+	if (filter.brightness == 0.0f && filter.contrast == 1.0f && filter.saturation == 1.0f)
+		return;
+
+	auto *driver = context.device->getVideoDriver();
+
+	video::S3DVertex vertices[4];
+	vertices[0] = video::S3DVertex(-1, -1, 0, 0, 0, -1, video::SColor(255, 255, 255, 255), v2f(0, 1));
+	vertices[1] = video::S3DVertex(-1,  1, 0, 0, 0, -1, video::SColor(255, 255, 255, 255), v2f(0, 0));
+	vertices[2] = video::S3DVertex( 1,  1, 0, 0, 0, -1, video::SColor(255, 255, 255, 255), v2f(1, 0));
+	vertices[3] = video::S3DVertex( 1, -1, 0, 0, 0, -1, video::SColor(255, 255, 255, 255), v2f(1, 1));
+	u16 indices[] = {0, 1, 2, 2, 3, 0};
+
+	const core::matrix4 oldProj = driver->getTransform(video::ETS_PROJECTION);
+	const core::matrix4 oldView = driver->getTransform(video::ETS_VIEW);
+	const core::matrix4 oldWorld = driver->getTransform(video::ETS_WORLD);
+
+	driver->setTransform(video::ETS_PROJECTION, core::IdentityMatrix);
+	driver->setTransform(video::ETS_VIEW, core::IdentityMatrix);
+	driver->setTransform(video::ETS_WORLD, core::IdentityMatrix);
+
+	// Brightness: Linear offset using EBO_ADD / EBO_SUBTRACT
+	if (filter.brightness != 0.0f) {
+		video::SMaterial mat;
+		mat.Lighting = false;
+		mat.ZBuffer = video::ECFN_NEVER;
+		mat.ZWriteEnable = false;
+		mat.AntiAliasing = 0;
+		mat.MaterialType = video::EMT_ONETEXTURE_BLEND;
+
+		float b = std::clamp(filter.brightness, -1.0f, 1.0f);
+		u32 val = (u32)(std::abs(b) * 255.0f);
+		video::SColor color(255, val, val, val);
+		for (int i = 0; i < 4; ++i)
+			vertices[i].Color = color;
+
+		mat.BlendOperation = (b > 0) ? video::EBO_ADD : video::EBO_SUBTRACT;
+		mat.BlendFactor = video::EBF_ONE;
+
+		driver->setMaterial(mat);
+		driver->drawIndexedTriangleList(vertices, 4, indices, 2);
+	}
+
+	// Contrast: alpha blend with mid-gray (0.5)
+	if (filter.contrast != 1.0f) {
+		float c = std::clamp(filter.contrast, 0.0f, 1.0f);
+		video::SMaterial mat;
+		mat.Lighting = false;
+		mat.ZBuffer = video::ECFN_NEVER;
+		mat.ZWriteEnable = false;
+		mat.MaterialType = video::EMT_TRANSPARENT_ALPHA_CHANNEL;
+
+		u32 alpha = (u32)((1.0f - c) * 255.0f);
+		video::SColor gray(alpha, 128, 128, 128);
+		for (int i = 0; i < 4; ++i)
+			vertices[i].Color = gray;
+
+		driver->setMaterial(mat);
+		driver->drawIndexedTriangleList(vertices, 4, indices, 2);
+	}
+
+	// Saturation: HSV S-channel scaling approximation using gray blend
+	if (filter.saturation < 1.0f) {
+		float s = std::clamp(filter.saturation, 0.0f, 1.0f);
+		video::SMaterial mat;
+		mat.Lighting = false;
+		mat.ZBuffer = video::ECFN_NEVER;
+		mat.ZWriteEnable = false;
+		mat.MaterialType = video::EMT_TRANSPARENT_ALPHA_CHANNEL;
+
+		u32 alpha = (u32)((1.0f - s) * 255.0f);
+		video::SColor gray(alpha, 128, 128, 128);
+		for (int i = 0; i < 4; ++i)
+			vertices[i].Color = gray;
+
+		driver->setMaterial(mat);
+		driver->drawIndexedTriangleList(vertices, 4, indices, 2);
+	}
+
+	driver->setTransform(video::ETS_PROJECTION, oldProj);
+	driver->setTransform(video::ETS_VIEW, oldView);
+	driver->setTransform(video::ETS_WORLD, oldWorld);
+}
+
 
 void MapPostFxStep::setRenderTarget(RenderTarget * _target)
 {
@@ -152,6 +240,7 @@ void populatePlainPipeline(RenderPipeline *pipeline, Client *client)
 
 	step3D->setRenderTarget(pipeline->createOwned<ScreenTarget>());
 
+	pipeline->addStep<DrawFilters>();
 	pipeline->addStep<DrawHUD>();
 }
 

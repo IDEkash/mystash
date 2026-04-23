@@ -1605,6 +1605,12 @@ void Client::handleCommand_Camera(NetworkPacket* pkt)
 		*pkt >> player->camera_tilt;
 	}
 
+	if (pkt->getRemainingBytes() >= 12) {
+		PlayerCameraFilter filter;
+		*pkt >> filter.brightness >> filter.contrast >> filter.saturation;
+		player->setFilter(filter);
+	}
+
 	m_client_event_queue.push(new ClientEvent(CE_UPDATE_CAMERA));
 }
 

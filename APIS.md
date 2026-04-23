@@ -46,6 +46,35 @@ Server-side `ObjectRef` methods for controlling the player's camera.
 `ObjectRef:get_fov() -> table`
 - Returns `{fov, is_multiplier, transition_time}`.
 
+### Camera Filters
+
+`ObjectRef:set_filter(table)`
+- `table` fields:
+  - `brightness`: number (default `0.0`). Linear offset on color values. Range `[-1.0, 1.0]`.
+  - `contrast`: number (default `1.0`). Scales deviation from mid-tone. Range `[0.0, 1.0]`.
+  - `saturation`: number (default `1.0`). Approximation using gray-scale blending. Range `[0.0, 1.0]`.
+
+**Example usage:**
+
+```lua
+-- Apply a high-contrast, desaturated "noir" look
+player:set_filter({
+    brightness = -0.1,
+    contrast = 0.8,
+    saturation = 0.2,
+})
+
+-- Reset filters
+player:set_filter({
+    brightness = 0,
+    contrast = 1,
+    saturation = 1,
+})
+```
+
+`ObjectRef:get_filter() -> table`
+- Returns a table containing all the fields listed above.
+
 ---
 
 ## Android: `htmlview` (Lua)

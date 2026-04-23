@@ -81,6 +81,16 @@ private:
 	RenderTarget *m_target;
 };
 
+class DrawFilters : public RenderStep
+{
+public:
+	virtual void setRenderSource(RenderSource *) override {}
+	virtual void setRenderTarget(RenderTarget *) override {}
+
+	virtual void reset(PipelineContext &context) override {}
+	virtual void run(PipelineContext &context) override;
+};
+
 std::unique_ptr<RenderStep> create3DStage(Client *client, v2f scale);
 RenderStep* addUpscaling(RenderPipeline *pipeline, RenderStep *previousStep, v2f downscale_factor, Client *client);
 
