@@ -1120,7 +1120,9 @@ int ScriptApiSecurity::sl_os_setlocale(lua_State *L)
 int ScriptApiSecurity::sl_os_clock(lua_State *L)
 {
 	auto t = clock();
-	t = t - t % (SSCSM_CLOCK_RESOLUTION_US * CLOCKS_PER_SEC / 1'000'000);
+	constexpr long res = SSCSM_CLOCK_RESOLUTION_US * CLOCKS_PER_SEC / 1'000'000;
+	if constexpr (res > 0)
+		t = t - t % res;
 	lua_pushnumber(L, static_cast<lua_Number>(t) / static_cast<lua_Number>(CLOCKS_PER_SEC));
 	return 1;
 }

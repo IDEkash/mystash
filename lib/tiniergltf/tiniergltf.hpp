@@ -735,6 +735,12 @@ template<> MaterialPbrMetallicRoughness as(const Json::Value &o) { return o; }
 
 struct Material {
 	double alphaCutoff;
+#ifdef BLEND
+#undef BLEND
+#endif
+#ifdef OPAQUE
+#undef OPAQUE
+#endif
 	enum class AlphaMode {
 		BLEND,
 		MASK,
