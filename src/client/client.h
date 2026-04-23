@@ -39,6 +39,7 @@ class MapDatabase;
 class MeshUpdateManager;
 class Minimap;
 class ModChannelMgr;
+class JvmModManager;
 class MtEventManager;
 class NetworkPacket;
 class NodeDefManager;

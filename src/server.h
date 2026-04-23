@@ -180,6 +180,7 @@ struct ModIPCStore {
 class Server : public con::PeerHandler, public MapEventReceiver,
 		public IGameDef
 {
+	friend class JvmModManager;
 public:
 	/*
 		NOTE: Every public method should be thread-safe

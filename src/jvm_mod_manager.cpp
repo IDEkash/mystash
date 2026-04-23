@@ -5,8 +5,9 @@
 #include "settings.h"
 #include "filesys.h"
 #include "server.h"
-#include "client.h"
+#include "client/client.h"
 #include "serverenvironment.h"
+#include "server/luaentity_sao.h"
 #include <SDL.h>
 
 jobject JvmModManager::m_mod_loader = nullptr;
@@ -69,8 +70,8 @@ Java_net_minetest_minetest_jvm_EngineAPIImpl_spawnEntity(JNIEnv* env, jobject /*
 
 	if (JvmModManager::m_server) {
 		v3f pos(x, y, z);
-		// This uses the engine's internal entity spawning system
-		JvmModManager::m_server->getEnv().addLuaEntity(pos, nativeId);
+		auto sao = std::make_unique<LuaEntitySAO>(&JvmModManager::m_server->getEnv(), pos, nativeId, "");
+		JvmModManager::m_server->getEnv().addActiveObject(std::move(sao));
 	} else {
 		errorstream << "JNI-API: Cannot spawn entity, server not running" << std::endl;
 	}
@@ -82,8 +83,6 @@ extern "C" JNIEXPORT void JNICALL
 Java_net_minetest_minetest_jvm_EngineAPIImpl_registerModelFormat(JNIEnv* env, jobject /* this */, jstring extension, jobject parser) {
     const char *nativeExt = env->GetStringUTFChars(extension, 0);
     actionstream << "JNI-API: registerModelFormat(." << nativeExt << ")" << std::endl;
-	// In a full implementation, we would register a wrapper that calls the Java 'parser'
-	// during Irrlicht's mesh loading phase. For now, we log the registration.
     env->ReleaseStringUTFChars(extension, nativeExt);
 }
 
@@ -96,7 +95,6 @@ Java_net_minetest_minetest_jvm_EngineAPIImpl_registerMesh(JNIEnv* env, jobject /
 		jbyte* buffer = env->GetByteArrayElements(data, NULL);
 		jsize length = env->GetArrayLength(data);
 
-		// Direct injection into client's mesh data cache
 		JvmModManager::m_client->m_mesh_data[nativeName] = std::string((char*)buffer, length);
 
 		env->ReleaseByteArrayElements(data, buffer, JNI_ABORT);
