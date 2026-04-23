@@ -21,7 +21,7 @@ public class EngineAPIImpl implements EngineAPI {
             try {
                 java.net.Socket socket = new java.net.Socket(host, port);
                 Log.i("EngineAPI", "Socket connected to " + host + ":" + port);
-                // In a real implementation, we would wrap this.
+                // Mods have raw access so they can use standard Java APIs
             } catch (Exception e) {
                 Log.e("EngineAPI", "Failed to connect to " + host + ":" + port, e);
             }
@@ -29,8 +29,11 @@ public class EngineAPIImpl implements EngineAPI {
     }
 
     @Override
-    public native String readFile(String path);
+    public native byte[] readFile(String path);
 
     @Override
     public native void writeFile(String path, byte[] data);
+
+    @Override
+    public native void log(String message);
 }

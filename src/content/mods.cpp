@@ -59,6 +59,7 @@ bool parseModContents(ModSpec &spec)
 	spec.depends.clear();
 	spec.optdepends.clear();
 	spec.is_modpack = false;
+	spec.is_jvm_mod = false;
 	spec.modpack_content.clear();
 
 	std::string conf_filename;
@@ -69,6 +70,11 @@ bool parseModContents(ModSpec &spec)
 		conf_filename = "modpack.conf";
 	} else if (fs::IsFile(spec.path + DIR_DELIM + "modpack.txt")) {
 		spec.is_modpack = true;
+	} else if (fs::IsFile(spec.path + DIR_DELIM + "mod.json")) {
+		spec.is_jvm_mod = true;
+		// A JVM mod needs a JAR file. We'll search for it later in ModLoader.java
+		// but here we just mark it as a valid JVM mod folder.
+		conf_filename = "mod.json";
 	} else if (!fs::IsFile(spec.path + DIR_DELIM + "init.lua")) {
 		return false;
 	} else {
@@ -80,30 +86,53 @@ bool parseModContents(ModSpec &spec)
 		spec.modpack_content = getModsInPath(spec.path, spec.virtual_path, spec.modpack_depth + 1);
 
 	Settings info;
-	if (!conf_filename.empty())
-		info.readConfigFile((spec.path + DIR_DELIM + conf_filename).c_str());
-
-	if (info.exists("name")) {
-		spec.name = info.get("name");
-		spec.is_name_explicit = true;
-	} else if (!spec.is_modpack) {
-		spec.deprecation_msgs.push_back("Mods not having a mod.conf file with the name is deprecated.");
+	if (!conf_filename.empty()) {
+		if (spec.is_jvm_mod) {
+			std::ifstream is((spec.path + DIR_DELIM + conf_filename).c_str(), std::ios::binary);
+			Json::Value root;
+			Json::Reader reader;
+			if (reader.parse(is, root)) {
+				if (root.isMember("id")) {
+					spec.name = root["id"].asString();
+					spec.is_name_explicit = true;
+				}
+				if (root.isMember("description"))
+					spec.desc = root["description"].asString();
+				if (root.isMember("author"))
+					spec.author = root["author"].asString();
+				if (root.isMember("version")) {
+					// We might want to store version string somewhere else,
+					// but release is int.
+				}
+			}
+		} else {
+			info.readConfigFile((spec.path + DIR_DELIM + conf_filename).c_str());
+		}
 	}
 
-	if (info.exists("description"))
-		spec.desc = info.get("description");
-	else if (fs::ReadFile(spec.path + DIR_DELIM + "description.txt", spec.desc))
-		spec.deprecation_msgs.push_back("description.txt is deprecated, please use mod[pack].conf instead.");
+	if (!spec.is_jvm_mod) {
+		if (info.exists("name")) {
+			spec.name = info.get("name");
+			spec.is_name_explicit = true;
+		} else if (!spec.is_modpack) {
+			spec.deprecation_msgs.push_back("Mods not having a mod.conf file with the name is deprecated.");
+		}
 
-	if (info.exists("author"))
-		spec.author = info.get("author");
+		if (info.exists("description"))
+			spec.desc = info.get("description");
+		else if (fs::ReadFile(spec.path + DIR_DELIM + "description.txt", spec.desc))
+			spec.deprecation_msgs.push_back("description.txt is deprecated, please use mod[pack].conf instead.");
 
-	if (info.exists("release"))
-		spec.release = info.getS32("release");
+		if (info.exists("author"))
+			spec.author = info.get("author");
+
+		if (info.exists("release"))
+			spec.release = info.getS32("release");
+	}
 
 
 	// The subsequent fields are not available for modpacks
-	if (spec.is_modpack)
+	if (spec.is_modpack || spec.is_jvm_mod)
 		return true;
 
 

@@ -20,6 +20,9 @@
 #include "mapblock.h"
 #include "nodedef.h"
 #include "particles.h"
+#ifdef __ANDROID__
+#include "jvm_mod_manager.h"
+#endif
 #include "profiler.h"
 #include "remoteplayer.h"
 #include "server/ban.h"
@@ -362,10 +365,18 @@ Server::Server(
 	m_path_mod_data = porting::path_user + DIR_DELIM "mod_data";
 	if (!fs::CreateDir(m_path_mod_data))
 		throw ServerError("Failed to create mod data dir");
+
+#ifdef __ANDROID__
+	JvmModManager::setServer(this);
+#endif
 }
 
 Server::~Server()
 {
+#ifdef __ANDROID__
+	JvmModManager::setServer(nullptr);
+#endif
+
 	// Send shutdown message
 	SendChatMessage(PEER_ID_INEXISTENT, ChatMessage(CHATMESSAGE_TYPE_ANNOUNCE,
 			L"*** Server shutting down"));

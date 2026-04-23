@@ -5,6 +5,7 @@ public interface EngineAPI {
     void registerModelFormat(String extension, ModelParser parser);
     void setFOV(int fov);
     void openSocket(String host, int port);
-    String readFile(String path);
+    byte[] readFile(String path);
     void writeFile(String path, byte[] data);
+    void log(String message);
 }

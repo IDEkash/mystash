@@ -309,7 +309,11 @@ function pkgmgr.render_packagelist(render_list, use_technical_names, with_icon)
 			end
 		elseif v.enabled or v.type == "txp" then
 			icon = 1
-			color = mt_color_green
+			if v.is_jvm_mod then
+				color = "#a000ff" -- Purple for JVM mods
+			else
+				color = mt_color_green
+			end
 		end
 
 		if icon_info then

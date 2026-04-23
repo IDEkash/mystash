@@ -3,6 +3,9 @@
 // Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
 
 #include "client.h"
+#ifdef __ANDROID__
+#include "jvm_mod_manager.h"
+#endif
 
 #include "chatmessage.h"
 #include "client/clientevent.h"
@@ -176,6 +179,10 @@ Client::Client(
 	m_mesh_grid = { g_settings->getU16("client_mesh_chunk") };
 
 	m_sscsm_controller = SSCSMController::create();
+
+#ifdef __ANDROID__
+	JvmModManager::setClient(this);
+#endif
 
 	{
 		auto event1 = std::make_unique<SSCSMEventUpdateVFSFiles>();
@@ -393,6 +400,10 @@ bool Client::isShutdown()
 
 Client::~Client()
 {
+#ifdef __ANDROID__
+	JvmModManager::setClient(nullptr);
+#endif
+
 	m_shutdown = true;
 	if (m_con)
 		m_con->Disconnect();

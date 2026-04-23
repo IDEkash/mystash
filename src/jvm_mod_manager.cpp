@@ -4,11 +4,16 @@
 #include "porting.h"
 #include "settings.h"
 #include "filesys.h"
+#include "server.h"
+#include "client.h"
+#include "serverenvironment.h"
 #include <SDL.h>
 
 jobject JvmModManager::m_mod_loader = nullptr;
 jmethodID JvmModManager::m_load_mods_method = nullptr;
 JavaVM *JvmModManager::m_vm = nullptr;
+Server *JvmModManager::m_server = nullptr;
+Client *JvmModManager::m_client = nullptr;
 
 JNIEnv* JvmModManager::getEnv()
 {
@@ -61,8 +66,15 @@ extern "C" JNIEXPORT void JNICALL
 Java_net_minetest_minetest_jvm_EngineAPIImpl_spawnEntity(JNIEnv* env, jobject /* this */, jstring id, jfloat x, jfloat y, jfloat z) {
     const char *nativeId = env->GetStringUTFChars(id, 0);
     actionstream << "JNI-API: spawnEntity(" << nativeId << ", " << x << ", " << y << ", " << z << ")" << std::endl;
-    // Note: To truly spawn an entity, we need a pointer to ServerEnvironment.
-    // This requires passing the Server instance to JvmModManager.
+
+	if (JvmModManager::m_server) {
+		v3f pos(x, y, z);
+		// This uses the engine's internal entity spawning system
+		JvmModManager::m_server->getEnv().addLuaEntity(pos, nativeId);
+	} else {
+		errorstream << "JNI-API: Cannot spawn entity, server not running" << std::endl;
+	}
+
     env->ReleaseStringUTFChars(id, nativeId);
 }
 
@@ -70,7 +82,29 @@ extern "C" JNIEXPORT void JNICALL
 Java_net_minetest_minetest_jvm_EngineAPIImpl_registerModelFormat(JNIEnv* env, jobject /* this */, jstring extension, jobject parser) {
     const char *nativeExt = env->GetStringUTFChars(extension, 0);
     actionstream << "JNI-API: registerModelFormat(." << nativeExt << ")" << std::endl;
+	// In a full implementation, we would register a wrapper that calls the Java 'parser'
+	// during Irrlicht's mesh loading phase. For now, we log the registration.
     env->ReleaseStringUTFChars(extension, nativeExt);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_net_minetest_minetest_jvm_EngineAPIImpl_registerMesh(JNIEnv* env, jobject /* this */, jstring name, jbyteArray data) {
+    const char *nativeName = env->GetStringUTFChars(name, 0);
+    actionstream << "JNI-API: registerMesh(" << nativeName << ")" << std::endl;
+
+	if (JvmModManager::m_client) {
+		jbyte* buffer = env->GetByteArrayElements(data, NULL);
+		jsize length = env->GetArrayLength(data);
+
+		// Direct injection into client's mesh data cache
+		JvmModManager::m_client->m_mesh_data[nativeName] = std::string((char*)buffer, length);
+
+		env->ReleaseByteArrayElements(data, buffer, JNI_ABORT);
+	} else {
+		errorstream << "JNI-API: Cannot register mesh, client not running" << std::endl;
+	}
+
+    env->ReleaseStringUTFChars(name, nativeName);
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -79,7 +113,7 @@ Java_net_minetest_minetest_jvm_EngineAPIImpl_setFOV(JNIEnv* env, jobject /* this
     g_settings->set("fov", std::to_string(fov));
 }
 
-extern "C" JNIEXPORT jstring JNICALL
+extern "C" JNIEXPORT jbyteArray JNICALL
 Java_net_minetest_minetest_jvm_EngineAPIImpl_readFile(JNIEnv* env, jobject /* this */, jstring path) {
     const char *nativePath = env->GetStringUTFChars(path, 0);
     verbosestream << "JNI-API: readFile(" << nativePath << ")" << std::endl;
@@ -88,7 +122,13 @@ Java_net_minetest_minetest_jvm_EngineAPIImpl_readFile(JNIEnv* env, jobject /* th
     bool success = fs::ReadFile(nativePath, content);
 
     env->ReleaseStringUTFChars(path, nativePath);
-    return env->NewStringUTF(success ? content.c_str() : "");
+
+	if (!success)
+		return nullptr;
+
+	jbyteArray array = env->NewByteArray(content.size());
+	env->SetByteArrayRegion(array, 0, content.size(), (const jbyte*)content.data());
+    return array;
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -103,6 +143,13 @@ Java_net_minetest_minetest_jvm_EngineAPIImpl_writeFile(JNIEnv* env, jobject /* t
 
     env->ReleaseByteArrayElements(data, buffer, JNI_ABORT);
     env->ReleaseStringUTFChars(path, nativePath);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_net_minetest_minetest_jvm_EngineAPIImpl_log(JNIEnv* env, jobject /* this */, jstring message) {
+    const char *nativeMsg = env->GetStringUTFChars(message, 0);
+    actionstream << "JVM-MOD: " << nativeMsg << std::endl;
+    env->ReleaseStringUTFChars(message, nativeMsg);
 }
 
 #endif
