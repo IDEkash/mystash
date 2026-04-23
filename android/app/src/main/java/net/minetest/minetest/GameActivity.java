@@ -62,15 +62,10 @@ import java.util.Objects;
 @Keep
 @SuppressWarnings("unused")
 public class GameActivity extends SDLActivity {
-	private HTMLViewManager mHtmlViewManager;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		View content = SDLActivity.getContentView();
-		if (content instanceof ViewGroup) {
-			mHtmlViewManager = new HTMLViewManager(this, (ViewGroup) content);
-		}
 
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 			boolean needCamera = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED;
@@ -126,93 +121,7 @@ public class GameActivity extends SDLActivity {
 
 	@Override
 	protected void onDestroy() {
-		if (mHtmlViewManager != null)
-			mHtmlViewManager.shutdown();
 		super.onDestroy();
-	}
-
-	public void htmlview_shutdown_all() {
-		if (mHtmlViewManager != null)
-			mHtmlViewManager.shutdown();
-	}
-
-	public void htmlview_run(String id, String html) {
-		if (mHtmlViewManager != null)
-			mHtmlViewManager.htmlview_run(id, html);
-	}
-
-	public void htmlview_run_worker(String id, String html) {
-		if (mHtmlViewManager != null)
-			mHtmlViewManager.htmlview_run_worker(id, html);
-	}
-
-	public void htmlview_run_external(String id, String rootDir, String entry) {
-		if (mHtmlViewManager != null)
-			mHtmlViewManager.htmlview_run_external(id, rootDir, entry);
-	}
-
-	public void htmlview_run_external_worker(String id, String rootDir, String entry) {
-		if (mHtmlViewManager != null)
-			mHtmlViewManager.htmlview_run_external_worker(id, rootDir, entry);
-	}
-
-	public void htmlview_stop(String id) {
-		if (mHtmlViewManager != null)
-			mHtmlViewManager.htmlview_stop(id);
-	}
-
-	public void htmlview_display(String id, int x, int y, int width, int height,
-									boolean visible, boolean fullscreen, boolean safe_area,
-									boolean drag_embed, float border_radius) {
-		if (mHtmlViewManager != null)
-			mHtmlViewManager.htmlview_display(id, x, y, width, height, visible, fullscreen, safe_area,
-				drag_embed, border_radius);
-	}
-
-	public void htmlview_input(String id, boolean blockGameInput) {
-		if (mHtmlViewManager != null)
-			mHtmlViewManager.htmlview_input(id, blockGameInput);
-	}
-
-	public String htmlview_state(String id) {
-		if (mHtmlViewManager != null)
-			return mHtmlViewManager.htmlview_state(id);
-		return "";
-	}
-
-	public void htmlview_reload(String id) {
-		if (mHtmlViewManager != null)
-			mHtmlViewManager.htmlview_reload(id);
-	}
-
-	public void htmlview_focus(String id) {
-		if (mHtmlViewManager != null)
-			mHtmlViewManager.htmlview_focus(id);
-	}
-
-	public void htmlview_send(String id, String message) {
-		if (mHtmlViewManager != null)
-			mHtmlViewManager.htmlview_send(id, message);
-	}
-
-	public void htmlview_navigate(String id, String url) {
-		if (mHtmlViewManager != null)
-			mHtmlViewManager.htmlview_navigate(id, url);
-	}
-
-	public void htmlview_inject(String id, String js) {
-		if (mHtmlViewManager != null)
-			mHtmlViewManager.htmlview_inject(id, js);
-	}
-
-	public void htmlview_pipe(String fromId, String toId) {
-		if (mHtmlViewManager != null)
-			mHtmlViewManager.htmlview_pipe(fromId, toId);
-	}
-
-	public void htmlview_capture(String id, int width, int height) {
-		if (mHtmlViewManager != null)
-			mHtmlViewManager.htmlview_capture(id, width, height);
 	}
 
 	private NotificationManager mNotifyManager;

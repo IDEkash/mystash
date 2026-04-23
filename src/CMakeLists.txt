@@ -503,7 +503,6 @@ set(common_SRCS
 
 if(ANDROID)
 	list(APPEND common_SRCS porting_android.cpp)
-	list(APPEND common_SRCS htmlview_jni.cpp)
 endif()
 
 if(BUILD_UNITTESTS)
