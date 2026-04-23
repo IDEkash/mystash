@@ -10,8 +10,11 @@
 #include "client/client.h"
 #include "client/clientmap.h"
 #include "client/hud.h"
+#include "client/localplayer.h"
 #include "client/minimap.h"
 #include "client/shadows/dynamicshadowsrender.h"
+#include <algorithm>
+#include <cmath>
 #include <IGUIEnvironment.h>
 
 /// Draw3D pipeline step
@@ -65,10 +68,10 @@ void DrawFilters::run(PipelineContext &context)
 	auto *driver = context.device->getVideoDriver();
 
 	video::S3DVertex vertices[4];
-	vertices[0] = video::S3DVertex(-1, -1, 0, 0, 0, -1, video::SColor(255, 255, 255, 255), v2f(0, 1));
-	vertices[1] = video::S3DVertex(-1,  1, 0, 0, 0, -1, video::SColor(255, 255, 255, 255), v2f(0, 0));
-	vertices[2] = video::S3DVertex( 1,  1, 0, 0, 0, -1, video::SColor(255, 255, 255, 255), v2f(1, 0));
-	vertices[3] = video::S3DVertex( 1, -1, 0, 0, 0, -1, video::SColor(255, 255, 255, 255), v2f(1, 1));
+	vertices[0] = video::S3DVertex(-1, -1, 0, 0, 0, -1, video::SColor(255, 255, 255, 255), 0, 1);
+	vertices[1] = video::S3DVertex(-1,  1, 0, 0, 0, -1, video::SColor(255, 255, 255, 255), 0, 0);
+	vertices[2] = video::S3DVertex( 1,  1, 0, 0, 0, -1, video::SColor(255, 255, 255, 255), 1, 0);
+	vertices[3] = video::S3DVertex( 1, -1, 0, 0, 0, -1, video::SColor(255, 255, 255, 255), 1, 1);
 	u16 indices[] = {0, 1, 2, 2, 3, 0};
 
 	const core::matrix4 oldProj = driver->getTransform(video::ETS_PROJECTION);
@@ -82,10 +85,9 @@ void DrawFilters::run(PipelineContext &context)
 	// Brightness: Linear offset using EBO_ADD / EBO_SUBTRACT
 	if (filter.brightness != 0.0f) {
 		video::SMaterial mat;
-		mat.Lighting = false;
 		mat.ZBuffer = video::ECFN_NEVER;
-		mat.ZWriteEnable = false;
-		mat.AntiAliasing = 0;
+		mat.ZWriteEnable = video::EZW_OFF;
+		mat.AntiAliasing = video::EAAM_OFF;
 		mat.MaterialType = video::EMT_ONETEXTURE_BLEND;
 
 		float b = std::clamp(filter.brightness, -1.0f, 1.0f);
@@ -105,9 +107,8 @@ void DrawFilters::run(PipelineContext &context)
 	if (filter.contrast != 1.0f) {
 		float c = std::clamp(filter.contrast, 0.0f, 1.0f);
 		video::SMaterial mat;
-		mat.Lighting = false;
 		mat.ZBuffer = video::ECFN_NEVER;
-		mat.ZWriteEnable = false;
+		mat.ZWriteEnable = video::EZW_OFF;
 		mat.MaterialType = video::EMT_TRANSPARENT_ALPHA_CHANNEL;
 
 		u32 alpha = (u32)((1.0f - c) * 255.0f);
@@ -123,9 +124,8 @@ void DrawFilters::run(PipelineContext &context)
 	if (filter.saturation < 1.0f) {
 		float s = std::clamp(filter.saturation, 0.0f, 1.0f);
 		video::SMaterial mat;
-		mat.Lighting = false;
 		mat.ZBuffer = video::ECFN_NEVER;
-		mat.ZWriteEnable = false;
+		mat.ZWriteEnable = video::EZW_OFF;
 		mat.MaterialType = video::EMT_TRANSPARENT_ALPHA_CHANNEL;
 
 		u32 alpha = (u32)((1.0f - s) * 255.0f);
