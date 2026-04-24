@@ -1373,7 +1373,7 @@ int ModApiEnv::l_forceload_free_block(lua_State *L)
 // get_forceloaded_blocks()
 int ModApiEnv::l_get_forceloaded_blocks(lua_State *L)
 {
-	GET_PLAIN_ENV_PTR;
+	GET_ENV_PTR;
 
 	const std::set<v3s16> *forceloaded = env->getForceloadedBlocks();
 	lua_createtable(L, forceloaded->size(), 0);
@@ -1388,7 +1388,7 @@ int ModApiEnv::l_get_forceloaded_blocks(lua_State *L)
 // get_active_block_count()
 int ModApiEnv::l_get_active_block_count(lua_State *L)
 {
-	GET_PLAIN_ENV_PTR;
+	GET_ENV_PTR;
 
 	lua_pushinteger(L, env->getActiveBlockCount());
 	return 1;
@@ -1397,7 +1397,7 @@ int ModApiEnv::l_get_active_block_count(lua_State *L)
 // get_active_object_count()
 int ModApiEnv::l_get_active_object_count(lua_State *L)
 {
-	GET_PLAIN_ENV_PTR;
+	GET_ENV_PTR;
 
 	u32 count = 0;
 	auto count_cb = [&](ServerActiveObject *obj) {
@@ -1405,7 +1405,8 @@ int ModApiEnv::l_get_active_object_count(lua_State *L)
 			count++;
 		return false;
 	};
-	env->getObjectsInsideRadius({}, 1e10, count_cb);
+	std::vector<ServerActiveObject *> objs;
+	env->getObjectsInsideRadius(objs, {}, 1e10, count_cb);
 
 	lua_pushinteger(L, count);
 	return 1;
