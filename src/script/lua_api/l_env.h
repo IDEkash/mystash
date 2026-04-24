@@ -220,6 +220,15 @@ private:
 	// stops forceloading a position
 	static int l_forceload_free_block(lua_State *L);
 
+	// get_forceloaded_blocks()
+	static int l_get_forceloaded_blocks(lua_State *L);
+
+	// get_active_block_count()
+	static int l_get_active_block_count(lua_State *L);
+
+	// get_active_object_count()
+	static int l_get_active_object_count(lua_State *L);
+
 	// compare_block_status(nodepos)
 	static int l_compare_block_status(lua_State *L);
 

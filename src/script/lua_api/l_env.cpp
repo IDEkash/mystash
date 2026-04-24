@@ -1370,6 +1370,47 @@ int ModApiEnv::l_forceload_free_block(lua_State *L)
 	return 0;
 }
 
+// get_forceloaded_blocks()
+int ModApiEnv::l_get_forceloaded_blocks(lua_State *L)
+{
+	GET_PLAIN_ENV_PTR;
+
+	const std::set<v3s16> *forceloaded = env->getForceloadedBlocks();
+	lua_createtable(L, forceloaded->size(), 0);
+	int i = 0;
+	for (const v3s16 &p : *forceloaded) {
+		push_v3s16(L, p);
+		lua_rawseti(L, -2, ++i);
+	}
+	return 1;
+}
+
+// get_active_block_count()
+int ModApiEnv::l_get_active_block_count(lua_State *L)
+{
+	GET_PLAIN_ENV_PTR;
+
+	lua_pushinteger(L, env->getActiveBlockCount());
+	return 1;
+}
+
+// get_active_object_count()
+int ModApiEnv::l_get_active_object_count(lua_State *L)
+{
+	GET_PLAIN_ENV_PTR;
+
+	u32 count = 0;
+	auto count_cb = [&](ServerActiveObject *obj) {
+		if (!obj->isGone())
+			count++;
+		return false;
+	};
+	env->getObjectsInsideRadius({}, 1e10, count_cb);
+
+	lua_pushinteger(L, count);
+	return 1;
+}
+
 // get_translated_string(lang_code, string)
 int ModApiEnv::l_get_translated_string(lua_State * L)
 {
@@ -1434,6 +1475,9 @@ void ModApiEnv::Initialize(lua_State *L, int top)
 	API_FCT(transforming_liquid_add);
 	API_FCT(forceload_block);
 	API_FCT(forceload_free_block);
+	API_FCT(get_forceloaded_blocks);
+	API_FCT(get_active_block_count);
+	API_FCT(get_active_object_count);
 	API_FCT(compare_block_status);
 	API_FCT(get_translated_string);
 }

@@ -25,6 +25,7 @@
 #include "serverenvironment.h"
 #include "server/player_sao.h"
 #include "fogparams.h"
+#include "version.h"
 
 #include <algorithm>
 
@@ -60,6 +61,74 @@ int ModApiServer::l_get_server_max_lag(lua_State *L)
 {
 	GET_ENV_PTR_NO_MAP_LOCK;
 	lua_pushnumber(L, env->getMaxLagEstimate());
+	return 1;
+}
+
+// get_emerge_status()
+int ModApiServer::l_get_emerge_status(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	EmergeManager *emerge = getServer(L)->getEmergeManager();
+	lua_newtable(L);
+	lua_pushinteger(L, emerge->getQueueSize());
+	lua_setfield(L, -2, "qlen");
+	return 1;
+}
+
+// get_server_info()
+int ModApiServer::l_get_server_info(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	Server *server = getServer(L);
+	lua_newtable(L);
+	lua_pushnumber(L, server->getUptime());
+	lua_setfield(L, -2, "uptime");
+	lua_pushstring(L, server->getStatusString().c_str());
+	lua_setfield(L, -2, "status");
+	lua_pushinteger(L, server->getProtocolVersionMin());
+	lua_setfield(L, -2, "proto_min");
+	lua_pushinteger(L, server->getProtocolVersionMax());
+	lua_setfield(L, -2, "proto_max");
+	return 1;
+}
+
+// get_auth_database_info()
+int ModApiServer::l_get_auth_database_info(lua_State *L)
+{
+	GET_ENV_PTR_NO_MAP_LOCK;
+	AuthDatabase *auth_db = env->getAuthDatabase();
+	lua_newtable(L);
+	if (auth_db) {
+		std::vector<std::string> names;
+		auth_db->listNames(names);
+		lua_pushinteger(L, names.size());
+		lua_setfield(L, -2, "entry_count");
+	}
+	return 1;
+}
+
+// get_player_database_info()
+int ModApiServer::l_get_player_database_info(lua_State *L)
+{
+	GET_PLAIN_ENV_PTR;
+	lua_newtable(L);
+	lua_pushinteger(L, env->getPlayerCount());
+	lua_setfield(L, -2, "online_count");
+	return 1;
+}
+
+// get_mod_storage_info()
+int ModApiServer::l_get_mod_storage_info(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ModStorageDatabase *db = getServer(L)->getModStorageDatabase();
+	lua_newtable(L);
+	if (db) {
+		std::vector<std::string> mods;
+		db->listMods(&mods);
+		lua_pushinteger(L, mods.size());
+		lua_setfield(L, -2, "mod_count");
+	}
 	return 1;
 }
 
@@ -252,7 +321,6 @@ int ModApiServer::l_get_player_information(lua_State *L)
 	lua_pushstring(L, info.vers_string.c_str());
 	lua_settable(L, table);
 
-#ifndef NDEBUG
 	lua_pushstring(L,"serialization_version");
 	lua_pushnumber(L, info.ser_vers);
 	lua_settable(L, table);
@@ -272,7 +340,6 @@ int ModApiServer::l_get_player_information(lua_State *L)
 	lua_pushstring(L,"state");
 	lua_pushstring(L, ClientInterface::state2Name(info.state));
 	lua_settable(L, table);
-#endif
 
 	return 1;
 }
@@ -716,6 +783,14 @@ int ModApiServer::l_get_game_info(lua_State *L)
 	setstringfield(L, -1, "title", game_spec->title);
 	setstringfield(L, -1, "author", game_spec->author);
 	setstringfield(L, -1, "path", game_spec->path);
+
+	lua_newtable(L);
+	setstringfield(L, -1, "project", "Luanti");
+	setstringfield(L, -1, "version", g_version_string);
+	setstringfield(L, -1, "hash", g_version_hash);
+	setstringfield(L, -1, "build_info", g_build_info);
+	lua_setfield(L, -2, "engine");
+
 	return 1;
 }
 
@@ -930,6 +1005,11 @@ void ModApiServer::Initialize(lua_State *L, int top)
 	API_FCT(get_server_status);
 	API_FCT(get_server_uptime);
 	API_FCT(get_server_max_lag);
+	API_FCT(get_emerge_status);
+	API_FCT(get_server_info);
+	API_FCT(get_auth_database_info);
+	API_FCT(get_player_database_info);
+	API_FCT(get_mod_storage_info);
 	API_FCT(get_mod_data_path);
 	API_FCT(get_worldpath);
 	API_FCT(is_singleplayer);

@@ -264,6 +264,8 @@ public:
 	void reportMaxLagEstimate(float f) { m_max_lag_estimate = f; }
 	float getMaxLagEstimate() const { return m_max_lag_estimate; }
 
+	u32 getActiveBlockCount() const { return m_active_blocks.m_list.size(); }
+
 	std::set<v3s16>* getForceloadedBlocks() { return &m_active_blocks.m_forceloaded_list; }
 
 	// Sorted by how ready a mapblock is

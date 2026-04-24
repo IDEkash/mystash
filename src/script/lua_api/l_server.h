@@ -27,6 +27,21 @@ private:
 	// get_server_max_lag()
 	static int l_get_server_max_lag(lua_State *L);
 
+	// get_emerge_status()
+	static int l_get_emerge_status(lua_State *L);
+
+	// get_server_info()
+	static int l_get_server_info(lua_State *L);
+
+	// get_auth_database_info()
+	static int l_get_auth_database_info(lua_State *L);
+
+	// get_player_database_info()
+	static int l_get_player_database_info(lua_State *L);
+
+	// get_mod_storage_info()
+	static int l_get_mod_storage_info(lua_State *L);
+
 	// get_worldpath()
 	static int l_get_worldpath(lua_State *L);
 
