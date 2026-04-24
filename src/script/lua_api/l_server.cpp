@@ -26,6 +26,8 @@
 #include "server/player_sao.h"
 #include "fogparams.h"
 #include "version.h"
+#include "emerge.h"
+#include "database/database.h"
 
 #include <algorithm>
 
@@ -110,7 +112,7 @@ int ModApiServer::l_get_auth_database_info(lua_State *L)
 // get_player_database_info()
 int ModApiServer::l_get_player_database_info(lua_State *L)
 {
-	GET_PLAIN_ENV_PTR;
+	GET_ENV_PTR;
 	lua_newtable(L);
 	lua_pushinteger(L, env->getPlayerCount());
 	lua_setfield(L, -2, "online_count");
