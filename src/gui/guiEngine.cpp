@@ -13,6 +13,7 @@
 #include "content/mods.h"
 #include "filesys.h"
 #include "guiMainMenu.h"
+#include "guiNativeUI.h"
 #include "httpfetch.h"
 #include "irrlicht_changes/static_text.h"
 #include "log.h"

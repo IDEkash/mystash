@@ -8,6 +8,9 @@
 /* Includes                                                                   */
 /******************************************************************************/
 #include "irrlichttypes.h"
+#include <json/json.h>
+#include <string>
+#include <unordered_map>
 #include "guiFormSpecMenu.h"
 #include "client/clouds.h"
 #include "client/sound.h"
@@ -40,6 +43,7 @@ struct image_definition {
 class GUIEngine;
 class RenderingEngine;
 class MainMenuScripting;
+class GUINativeUI;
 struct MainMenuData;
 
 /******************************************************************************/

@@ -119,7 +119,13 @@ void GUINativeUI::parseWidget(const Json::Value &value, gui::IGUIElement *parent
 		if (value.isMember("color")) {
 			parseColorString(value["color"].asString(), color, true);
 		}
-		element = new GUIBox(Environment, parent, -1, rect, color);
+		std::array<video::SColor, 4> colors;
+		colors.fill(color);
+		std::array<video::SColor, 4> bordercolors;
+		bordercolors.fill(video::SColor(0,0,0,0));
+		std::array<s32, 4> borderwidths;
+		borderwidths.fill(0);
+		element = new GUIBox(Environment, parent, -1, rect, colors, bordercolors, borderwidths);
 	} else if (type == "text") {
 		std::wstring text = utf8_to_wide(value.get("value", "").asString());
 		element = Environment->addStaticText(text.c_str(), rect, false, true, parent);

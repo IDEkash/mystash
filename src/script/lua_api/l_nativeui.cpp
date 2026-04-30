@@ -7,6 +7,7 @@
 #include "common/c_content.h"
 #include "gui/guiNativeUI.h"
 #include "gui/guiEngine.h"
+#include "gui/guiBox.h"
 #include "client/renderingengine.h"
 #include "filesys.h"
 #include <json/json.h>
@@ -204,7 +205,9 @@ int ModApiNativeUI::l_set_style(lua_State *L)
 			if (parseColorString(color_str, color, true)) {
 				for (auto const& [name, ui] : engine->m_native_uis) {
 					gui::IGUIElement* widget = ui->getWidget(id);
-					if (widget && widget->getType() == (gui::EGUI_ELEMENT_TYPE)GUI_ELEMENT_ID_BOX) {
+					// GUIBox returns EGUIET_ELEMENT. Since we don't have a unique ID for it,
+					// we just attempt to cast or trust our widget tracking.
+					if (widget && widget->getType() == gui::EGUIET_ELEMENT) {
 						static_cast<GUIBox*>(widget)->setColor(color);
 						lua_pushboolean(L, true);
 						return 1;

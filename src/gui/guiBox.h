@@ -20,6 +20,8 @@ public:
 
 	virtual void draw() override;
 
+	void setColor(video::SColor color) { m_colors.fill(color); }
+
 private:
 	std::array<video::SColor, 4> m_colors;
 	std::array<video::SColor, 4> m_bordercolors;
