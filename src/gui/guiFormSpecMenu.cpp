@@ -50,6 +50,7 @@
 #include "guiScrollContainer.h"
 #include "guiHyperText.h"
 #include "guiScene.h"
+#include "guiProgressBar.h"
 
 #define MY_CHECKPOS(a,b)													\
 	if (v_pos.size() != 2) {												\
@@ -270,7 +271,18 @@ v2s32 GUIFormSpecMenu::getRealCoordinateBasePos(const std::vector<std::string> &
 
 v2s32 GUIFormSpecMenu::getRealCoordinateGeometry(const std::vector<std::string> &v_geom)
 {
-	return v2s32(stof(v_geom[0]) * imgsize.X, stof(v_geom[1]) * imgsize.Y);
+	f32 x = 0, y = 0;
+	if (!v_geom[0].empty() && v_geom[0].back() == '%') {
+		x = (stof(v_geom[0].substr(0, v_geom[0].size() - 1)) / 100.0f) * RenderingEngine::get_video_driver()->getScreenSize().Width;
+	} else if (!v_geom[0].empty()) {
+		x = stof(v_geom[0]) * imgsize.X;
+	}
+	if (!v_geom[1].empty() && v_geom[1].back() == '%') {
+		y = (stof(v_geom[1].substr(0, v_geom[1].size() - 1)) / 100.0f) * RenderingEngine::get_video_driver()->getScreenSize().Height;
+	} else if (!v_geom[1].empty()) {
+		y = stof(v_geom[1]) * imgsize.Y;
+	}
+	return v2s32(x, y);
 }
 
 bool GUIFormSpecMenu::precheckElement(const std::string &name, const std::string &element,
@@ -484,7 +496,7 @@ void GUIFormSpecMenu::parseList(parserData *data, const std::string &element)
 		3
 	);
 
-	auto style = getDefaultStyleForElement("list", spec.fname);
+	auto style = getDefaultStyleForElement("list", spec.fname, "", data->pending_modifier.classes);
 
 	v2f32 slot_scale = style.getVector2f(StyleSpec::SIZE, v2f32(0, 0));
 	v2f32 slot_size(
@@ -617,7 +629,7 @@ void GUIFormSpecMenu::parseCheckbox(parserData* data, const std::string &element
 	gui::IGUICheckBox *e = Environment->addCheckBox(fselected, rect,
 			data->current_parent, spec.fid, spec.flabel.c_str());
 
-	auto style = getDefaultStyleForElement("checkbox", name);
+	auto style = getDefaultStyleForElement("checkbox", name, "", data->pending_modifier.classes);
 
 	spec.sound = style.get(StyleSpec::Property::SOUND, "");
 
@@ -683,7 +695,7 @@ void GUIFormSpecMenu::parseScrollBar(parserData* data, const std::string &elemen
 	GUIScrollBar *e = new GUIScrollBar(Environment, data->current_parent,
 			spec.fid, rect, is_horizontal, true, m_tsrc);
 
-	auto style = getDefaultStyleForElement("scrollbar", name);
+	auto style = getDefaultStyleForElement("scrollbar", name, "", data->pending_modifier.classes);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
 	e->setArrowsVisible(data->scrollbar_options.arrow_visiblity);
 
@@ -848,7 +860,7 @@ void GUIFormSpecMenu::parseImage(parserData* data, const std::string &element)
 		e = image;
 	}
 
-	auto style = getDefaultStyleForElement("image", spec.fname);
+	auto style = getDefaultStyleForElement("image", spec.fname, "", data->pending_modifier.classes);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, m_formspec_version < 3));
 
 	// Animated images should let events through
@@ -914,7 +926,7 @@ void GUIFormSpecMenu::parseAnimatedImage(parserData *data, const std::string &el
 	if (parts.size() >= 7)
 		e->setFrameIndex(stoi(parts[6]) - 1);
 
-	auto style = getDefaultStyleForElement("animated_image", spec.fname, "image");
+	auto style = getDefaultStyleForElement("animated_image", spec.fname, "image", data->pending_modifier.classes);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
 
 	// Animated images should let events through
@@ -962,7 +974,7 @@ void GUIFormSpecMenu::parseItemImage(parserData* data, const std::string &elemen
 
 	GUIItemImage *e = new GUIItemImage(Environment, data->current_parent, spec.fid,
 			core::rect<s32>(pos, pos + geom), name, m_font, m_client);
-	auto style = getDefaultStyleForElement("item_image", spec.fname);
+	auto style = getDefaultStyleForElement("item_image", spec.fname, "", data->pending_modifier.classes);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
 
 	// item images should let events through
@@ -1035,7 +1047,7 @@ void GUIFormSpecMenu::parseButton(parserData* data, const std::string &element)
 				data->current_parent, spec.fid, spec.flabel.c_str());
 	}
 
-	auto style = getStyleForElement(data->type, name, (data->type != "button") ? "button" : "");
+	auto style = getStyleForElement(data->type, name, (data->type != "button") ? "button" : "", data->pending_modifier.classes);
 
 	spec.sound = style[StyleSpec::STATE_DEFAULT].get(StyleSpec::Property::SOUND, "");
 
@@ -1235,7 +1247,7 @@ void GUIFormSpecMenu::parseTable(parserData* data, const std::string &element)
 			rect, m_tsrc);
 
 	// Apply styling before calculating the cell sizes
-	auto style = getDefaultStyleForElement("table", name);
+	auto style = getDefaultStyleForElement("table", name, "", data->pending_modifier.classes);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
 	e->setOverrideFont(style.getFont());
 
@@ -1324,7 +1336,7 @@ void GUIFormSpecMenu::parseTextList(parserData* data, const std::string &element
 	if (!str_initial_selection.empty() && str_initial_selection != "0")
 		e->setSelected(stoi(str_initial_selection));
 
-	auto style = getDefaultStyleForElement("textlist", name);
+	auto style = getDefaultStyleForElement("textlist", name, "", data->pending_modifier.classes);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
 	e->setOverrideFont(style.getFont());
 
@@ -1398,7 +1410,7 @@ void GUIFormSpecMenu::parseDropDown(parserData* data, const std::string &element
 	if (!str_initial_selection.empty())
 		e->setSelected(stoi(str_initial_selection)-1);
 
-	auto style = getDefaultStyleForElement("dropdown", name);
+	auto style = getDefaultStyleForElement("dropdown", name, "", data->pending_modifier.classes);
 
 	spec.sound = style.get(StyleSpec::Property::SOUND, "");
 
@@ -1493,7 +1505,7 @@ void GUIFormSpecMenu::parsePwdField(parserData* data, const std::string &element
 
 	e->setPasswordBox(true,L'*');
 
-	auto style = getDefaultStyleForElement("pwdfield", name, "field");
+	auto style = getDefaultStyleForElement("pwdfield", name, "field", data->pending_modifier.classes);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
 	e->setDrawBorder(style.getBool(StyleSpec::BORDER, true));
 	e->setOverrideColor(style.getColor(StyleSpec::TEXTCOLOR, video::SColor(0xFFFFFFFF)));
@@ -1543,7 +1555,7 @@ void GUIFormSpecMenu::createTextField(parserData *data, FieldSpec &spec,
 		e->grab();
 	}
 
-	auto style = getDefaultStyleForElement(is_multiline ? "textarea" : "field", spec.fname);
+	auto style = getDefaultStyleForElement(is_multiline ? "textarea" : "field", spec.fname, "", data->pending_modifier.classes);
 
 	if (e) {
 		if (is_editable && spec.fname == m_focused_element)
@@ -1753,7 +1765,7 @@ void GUIFormSpecMenu::parseHyperText(parserData *data, const std::string &elemen
 
 	spec.ftype = f_HyperText;
 
-	auto style = getDefaultStyleForElement("hypertext", spec.fname);
+	auto style = getDefaultStyleForElement("hypertext", spec.fname, "", data->pending_modifier.classes);
 	spec.sound = style.get(StyleSpec::Property::SOUND, "");
 
 	GUIHyperText *e = new GUIHyperText(spec.flabel.c_str(), Environment,
@@ -1783,7 +1795,7 @@ void GUIFormSpecMenu::parseLabel(parserData* data, const std::string &element)
 	if(!data->explicit_size)
 		warningstream << "invalid use of label without a size[] element" << std::endl;
 
-	auto style = getDefaultStyleForElement("label", "");
+	auto style = getDefaultStyleForElement("label", "", "", data->pending_modifier.classes);
 	gui::IGUIFont *font = style.getFont();
 	if (!font)
 		font = m_font;
@@ -1898,7 +1910,7 @@ void GUIFormSpecMenu::parseVertLabel(parserData* data, const std::string &elemen
 
 	MY_CHECKPOS("vertlabel", 1);
 
-	auto style = getDefaultStyleForElement("vertlabel", "", "label");
+	auto style = getDefaultStyleForElement("vertlabel", "", "label", data->pending_modifier.classes);
 	gui::IGUIFont *font = style.getFont();
 	if (!font)
 		font = m_font;
@@ -2022,7 +2034,7 @@ void GUIFormSpecMenu::parseImageButton(parserData* data, const std::string &elem
 		Environment->setFocus(e);
 	}
 
-	auto style = getStyleForElement("image_button", spec.fname);
+	auto style = getStyleForElement("image_button", spec.fname, "", data->pending_modifier.classes);
 
 	spec.sound = style[StyleSpec::STATE_DEFAULT].get(StyleSpec::Property::SOUND, "");
 
@@ -2135,7 +2147,7 @@ void GUIFormSpecMenu::parseTabHeader(parserData* data, const std::string &elemen
 			gui::EGUIA_UPPERLEFT, gui::EGUIA_LOWERRIGHT);
 	e->setTabHeight(geom.Y);
 
-	auto style = getDefaultStyleForElement("tabheader", name);
+	auto style = getDefaultStyleForElement("tabheader", name, "", data->pending_modifier.classes);
 
 	spec.sound = style.get(StyleSpec::Property::SOUND, "");
 
@@ -2218,7 +2230,7 @@ void GUIFormSpecMenu::parseItemImageButton(parserData* data, const std::string &
 			rect, m_tsrc, data->current_parent, spec_btn.fid, spec_btn.flabel.c_str(),
 			item_name, m_client);
 
-	auto style = getStyleForElement("item_image_button", spec_btn.fname, "image_button");
+	auto style = getStyleForElement("item_image_button", spec_btn.fname, "image_button", data->pending_modifier.classes);
 
 	spec_btn.sound = style[StyleSpec::STATE_DEFAULT].get(StyleSpec::Property::SOUND, "");
 
@@ -2266,7 +2278,7 @@ void GUIFormSpecMenu::parseBox(parserData* data, const std::string &element)
 	);
 	spec.ftype = f_Box;
 
-	auto style = getDefaultStyleForElement("box", spec.fname);
+	auto style = getDefaultStyleForElement("box", spec.fname, "", data->pending_modifier.classes);
 
 	video::SColor tmp_color;
 	std::array<video::SColor, 4> colors;
@@ -2286,6 +2298,7 @@ void GUIFormSpecMenu::parseBox(parserData* data, const std::string &element)
 
 	GUIBox *e = new GUIBox(Environment, data->current_parent, spec.fid, rect,
 		colors, bordercolors, borderwidths);
+	e->setStyle(style);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, m_formspec_version < 3));
 	e->drop();
 
@@ -2857,7 +2870,7 @@ void GUIFormSpecMenu::parseModel(parserData *data, const std::string &element)
 	e->setFrameLoop(frame_loop_begin, frame_loop_end);
 	e->setAnimationSpeed(stof(speed));
 
-	auto style = getStyleForElement("model", spec.fname);
+	auto style = getStyleForElement("model", spec.fname, "", data->pending_modifier.classes);
 	e->setStyles(style);
 	e->drop();
 
@@ -2868,6 +2881,197 @@ void GUIFormSpecMenu::parseAllowClose(parserData *data, const std::string &eleme
 {
 	m_allowclose = is_yes(element);
 }
+
+void GUIFormSpecMenu::parseFlexContainer(parserData *data, const std::string &element)
+{
+	// flex_container[<X>,<Y>;<W>,<H>;<name>;<direction>;<wrap>;<justify>;<align>;<gap_x>;<gap_y>]
+	if (m_formspec_version < 11) return;
+	std::vector<std::string> parts;
+	if (!precheckElement("flex_container", element, 7, 9, parts))
+		return;
+
+	std::vector<std::string> v_pos = split(parts[0], ',');
+	std::vector<std::string> v_geom = split(parts[1], ',');
+	MY_CHECKPOS("flex_container", 0);
+	MY_CHECKGEOM("flex_container", 1);
+
+	v2s32 pos = getRealCoordinateBasePos(v_pos);
+	v2s32 geom = getRealCoordinateGeometry(v_geom);
+
+	data->flex_options.direction = parts[3];
+	data->flex_options.wrap = parts[4];
+	data->flex_options.justify = parts[5];
+	data->flex_options.align = parts[6];
+	if (parts.size() >= 8) data->flex_options.gap.X = stof(parts[7]);
+	if (parts.size() >= 9) data->flex_options.gap.Y = stof(parts[8]);
+
+	container_stack.push(pos_offset);
+	pos_offset.X += stof(v_pos[0]);
+	pos_offset.Y += stof(v_pos[1]);
+}
+
+void GUIFormSpecMenu::parseFlexContainerEnd(parserData *data, const std::string &element)
+{
+	if (m_formspec_version < 11) return;
+	if (!container_stack.empty()) {
+		pos_offset = container_stack.top();
+		container_stack.pop();
+	}
+}
+
+void GUIFormSpecMenu::parseFlexItem(parserData *data, const std::string &element)
+{
+	if (m_formspec_version < 11) return;
+	std::vector<std::string> parts = split(element, ';');
+	if (parts.size() < 1) return;
+
+	data->pending_modifier.has_flex = true;
+	if (parts.size() >= 1) data->pending_modifier.flex_grow = stof(parts[0]);
+	if (parts.size() >= 2) data->pending_modifier.flex_shrink = stof(parts[1]);
+	if (parts.size() >= 3) data->pending_modifier.flex_basis = parts[2];
+	if (parts.size() >= 4) data->pending_modifier.align_self = parts[3];
+	if (parts.size() >= 5) data->pending_modifier.order = stoi(parts[4]);
+}
+
+void GUIFormSpecMenu::parseGridContainer(parserData *data, const std::string &element)
+{
+	if (m_formspec_version < 11) return;
+}
+
+void GUIFormSpecMenu::parseGridContainerEnd(parserData *data, const std::string &element)
+{
+	if (m_formspec_version < 11) return;
+}
+
+void GUIFormSpecMenu::parseGridItem(parserData *data, const std::string &element)
+{
+	if (m_formspec_version < 11) return;
+	std::vector<std::string> parts = split(element, ';');
+	if (parts.size() < 2) return;
+
+	data->pending_modifier.has_grid = true;
+	data->pending_modifier.grid_col = stoi(parts[0]);
+	data->pending_modifier.grid_row = stoi(parts[1]);
+	if (parts.size() >= 3) data->pending_modifier.grid_col_span = stoi(parts[2]);
+	if (parts.size() >= 4) data->pending_modifier.grid_row_span = stoi(parts[3]);
+}
+
+void GUIFormSpecMenu::parseElementFlags(parserData *data, const std::string &element)
+{
+	if (m_formspec_version < 11) return;
+	std::vector<std::string> parts = split(element, ';');
+	if (parts.size() < 1) return;
+
+	data->pending_modifier.has_flags = true;
+	if (parts.size() >= 1) data->pending_modifier.visible = is_yes(parts[0]);
+	if (parts.size() >= 2) data->pending_modifier.z_index = stoi(parts[1]);
+	if (parts.size() >= 3) data->pending_modifier.opacity = stof(parts[2]);
+	if (parts.size() >= 4) data->pending_modifier.pointer_events = parts[3];
+}
+
+void GUIFormSpecMenu::parseDisplayNone(parserData *data, const std::string &element)
+{
+	if (m_formspec_version < 11) return;
+	data->pending_modifier.display_none = true;
+}
+
+void GUIFormSpecMenu::parseDefineClass(parserData *data, const std::string &element)
+{
+	if (m_formspec_version < 11) return;
+
+	std::vector<std::string> parts = split(element, ';');
+	if (parts.size() < 2) return;
+
+	std::string classname = trim(parts[0]);
+	StyleSpec spec;
+
+	for (size_t i = 1; i < parts.size(); i++) {
+		size_t equal_pos = parts[i].find('=');
+		if (equal_pos == std::string::npos) continue;
+
+		std::string propname = trim(parts[i].substr(0, equal_pos));
+		std::string value = trim(unescape_string(parts[i].substr(equal_pos + 1)));
+		std::transform(propname.begin(), propname.end(), propname.begin(), ::tolower);
+
+		StyleSpec::Property prop = StyleSpec::GetPropertyByName(propname);
+		if (prop != StyleSpec::NONE) {
+			spec.set(prop, value);
+		}
+	}
+
+	m_classes[classname].push_back(spec);
+}
+
+void GUIFormSpecMenu::parseElementClass(parserData *data, const std::string &element)
+{
+	if (m_formspec_version < 11) return;
+	data->pending_modifier.has_classes = true;
+	data->pending_modifier.classes = split(element, ',');
+}
+
+void GUIFormSpecMenu::parseFormspecAnimation(parserData *data, const std::string &element)
+{
+	if (m_formspec_version < 11) return;
+}
+
+void GUIFormSpecMenu::parseElementAnimation(parserData *data, const std::string &element)
+{
+	if (m_formspec_version < 11) return;
+	std::vector<std::string> parts = split(element, ';');
+	data->pending_modifier.has_animation = true;
+	for (const auto &part : parts) {
+		std::vector<std::string> kv = split(part, '=');
+		if (kv.size() != 2) continue;
+		if (kv[0] == "enter") data->pending_modifier.enter_anim = kv[1];
+		else if (kv[0] == "enter_delay") data->pending_modifier.enter_delay = stof(kv[1]);
+		else if (kv[0] == "enter_duration") data->pending_modifier.enter_duration = stof(kv[1]);
+	}
+}
+
+void GUIFormSpecMenu::parseApplyTheme(parserData *data, const std::string &element)
+{
+	if (m_formspec_version < 11) return;
+}
+
+void GUIFormSpecMenu::parseProgressBar(parserData *data, const std::string &element)
+{
+	if (m_formspec_version < 11) return;
+	std::vector<std::string> parts;
+	if (!precheckElement("progressbar", element, 5, 6, parts))
+		return;
+
+	std::vector<std::string> v_pos = split(parts[0], ',');
+	std::vector<std::string> v_geom = split(parts[1], ',');
+	std::string name = parts[2];
+	f32 value = stof(parts[3]);
+	f32 max = stof(parts[4]);
+	bool vertical = (parts.size() >= 6 && parts[5] == "vertical");
+
+	MY_CHECKPOS("progressbar", 0);
+	MY_CHECKGEOM("progressbar", 1);
+
+	v2s32 pos = getRealCoordinateBasePos(v_pos);
+	v2s32 geom = getRealCoordinateGeometry(v_geom);
+	core::rect<s32> rect(pos, pos + geom);
+
+	FieldSpec spec(name, L"", L"", 258 + m_fields.size());
+	GUIProgressBar *e = new GUIProgressBar(Environment, data->current_parent, spec.fid, rect, value, max, vertical);
+
+	auto style = getDefaultStyleForElement("progressbar", name, "", data->pending_modifier.classes);
+	e->setStyle(style);
+	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
+	e->drop();
+	m_fields.push_back(spec);
+}
+void GUIFormSpecMenu::parseSlider(parserData *data, const std::string &element) {}
+void GUIFormSpecMenu::parseToggle(parserData *data, const std::string &element) {}
+void GUIFormSpecMenu::parseRadioGroup(parserData *data, const std::string &element) {}
+void GUIFormSpecMenu::parseNumberField(parserData *data, const std::string &element) {}
+void GUIFormSpecMenu::parseColorPicker(parserData *data, const std::string &element) {}
+void GUIFormSpecMenu::parseIconButton(parserData *data, const std::string &element) {}
+void GUIFormSpecMenu::parseSeparator(parserData *data, const std::string &element) {}
+void GUIFormSpecMenu::parseBadge(parserData *data, const std::string &element) {}
+void GUIFormSpecMenu::parseTooltipRich(parserData *data, const std::string &element) {}
 
 void GUIFormSpecMenu::removeAll()
 {
@@ -2939,6 +3143,29 @@ const std::unordered_map<std::string, std::function<void(GUIFormSpecMenu*, GUIFo
 		{"set_focus",              &GUIFormSpecMenu::parseSetFocus},
 		{"model",                  &GUIFormSpecMenu::parseModel},
 		{"allow_close",            &GUIFormSpecMenu::parseAllowClose},
+		{"flex_container",         &GUIFormSpecMenu::parseFlexContainer},
+		{"flex_container_end",     &GUIFormSpecMenu::parseFlexContainerEnd},
+		{"flex_item",              &GUIFormSpecMenu::parseFlexItem},
+		{"grid_container",         &GUIFormSpecMenu::parseGridContainer},
+		{"grid_container_end",     &GUIFormSpecMenu::parseGridContainerEnd},
+		{"grid_item",              &GUIFormSpecMenu::parseGridItem},
+		{"element_flags",          &GUIFormSpecMenu::parseElementFlags},
+		{"display_none",           &GUIFormSpecMenu::parseDisplayNone},
+		{"define_class",           &GUIFormSpecMenu::parseDefineClass},
+		{"element_class",          &GUIFormSpecMenu::parseElementClass},
+		{"formspec_animation",     &GUIFormSpecMenu::parseFormspecAnimation},
+		{"element_animation",      &GUIFormSpecMenu::parseElementAnimation},
+		{"apply_theme",            &GUIFormSpecMenu::parseApplyTheme},
+		{"progressbar",            &GUIFormSpecMenu::parseProgressBar},
+		{"slider",                 &GUIFormSpecMenu::parseSlider},
+		{"toggle",                 &GUIFormSpecMenu::parseToggle},
+		{"radio_group",            &GUIFormSpecMenu::parseRadioGroup},
+		{"number_field",           &GUIFormSpecMenu::parseNumberField},
+		{"color_picker",           &GUIFormSpecMenu::parseColorPicker},
+		{"icon_button",            &GUIFormSpecMenu::parseIconButton},
+		{"separator",              &GUIFormSpecMenu::parseSeparator},
+		{"badge",                  &GUIFormSpecMenu::parseBadge},
+		{"tooltip_rich",           &GUIFormSpecMenu::parseTooltipRich},
 };
 
 
@@ -2964,6 +3191,15 @@ void GUIFormSpecMenu::parseElement(parserData* data, const std::string &element)
 	auto it = element_parsers.find(type);
 	if (it != element_parsers.end()) {
 		it->second(this, data, description);
+
+		// If this is a concrete element (not a modifier), clear pending modifiers
+		static const std::unordered_set<std::string> modifiers = {
+			"style", "style_type", "flex_item", "grid_item", "element_flags",
+			"display_none", "element_class", "element_animation", "define_class"
+		};
+		if (modifiers.find(type) == modifiers.end()) {
+			data->pending_modifier = {};
+		}
 		return;
 	}
 
@@ -3464,6 +3700,17 @@ void GUIFormSpecMenu::drawSelectedItem()
 
 void GUIFormSpecMenu::drawMenu()
 {
+	// Update transitions
+	f32 dtime = 0.033f; // Approximation or get real dtime
+	for (auto &it : m_element_states) {
+		auto &state = it.second;
+		for (auto &tr : state.transitions) {
+			tr.elapsed += dtime;
+			if (tr.elapsed > tr.duration) tr.elapsed = tr.duration;
+			// Lerp values and update style (placeholder)
+		}
+	}
+
 	if (m_form_src) {
 		const std::string &newform = m_form_src->getForm();
 		if (newform != m_formspec_string) {
@@ -5178,15 +5425,18 @@ std::wstring GUIFormSpecMenu::getLabelByID(s32 id)
 }
 
 StyleSpec GUIFormSpecMenu::getDefaultStyleForElement(const std::string &type,
-		const std::string &name, const std::string &parent_type) {
-	return getStyleForElement(type, name, parent_type)[StyleSpec::STATE_DEFAULT];
+		const std::string &name, const std::string &parent_type,
+		const std::vector<std::string> &classes) {
+	return getStyleForElement(type, name, parent_type, classes)[StyleSpec::STATE_DEFAULT];
 }
 
 std::array<StyleSpec, StyleSpec::NUM_STATES> GUIFormSpecMenu::getStyleForElement(
-	const std::string &type, const std::string &name, const std::string &parent_type)
+	const std::string &type, const std::string &name, const std::string &parent_type,
+	const std::vector<std::string> &classes)
 {
 	std::array<StyleSpec, StyleSpec::NUM_STATES> ret;
 
+	// Global theme (*)
 	auto it = theme_by_type.find("*");
 	if (it != theme_by_type.end()) {
 		for (const StyleSpec &spec : it->second)
@@ -5199,6 +5449,7 @@ std::array<StyleSpec, StyleSpec::NUM_STATES> GUIFormSpecMenu::getStyleForElement
 			ret[(u32)spec.getState()] |= spec;
 	}
 
+	// Parent type (e.g. "button" for "image_button")
 	if (!parent_type.empty()) {
 		it = theme_by_type.find(parent_type);
 		if (it != theme_by_type.end()) {
@@ -5207,12 +5458,23 @@ std::array<StyleSpec, StyleSpec::NUM_STATES> GUIFormSpecMenu::getStyleForElement
 		}
 	}
 
+	// Element type (e.g. "button")
 	it = theme_by_type.find(type);
 	if (it != theme_by_type.end()) {
 		for (const StyleSpec &spec : it->second)
 			ret[(u32)spec.getState()] |= spec;
 	}
 
+	// Classes
+	for (const std::string &classname : classes) {
+		it = m_classes.find(classname);
+		if (it != m_classes.end()) {
+			for (const StyleSpec &spec : it->second)
+				ret[(u32)spec.getState()] |= spec;
+		}
+	}
+
+	// Element name
 	it = theme_by_name.find(name);
 	if (it != theme_by_name.end()) {
 		for (const StyleSpec &spec : it->second)

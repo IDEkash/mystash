@@ -23,6 +23,11 @@ void GUIBox::draw()
 	if (!IsVisible)
 		return;
 
+	f32 opacity = 1.0f;
+	if (m_style.hasProperty(StyleSpec::OPACITY)) {
+		opacity = stof(m_style.get(StyleSpec::OPACITY, "1.0"));
+	}
+
 	std::array<s32, 4> negative_borders = {0, 0, 0, 0};
 	std::array<s32, 4> positive_borders = {0, 0, 0, 0};
 
@@ -93,8 +98,21 @@ void GUIBox::draw()
 
 	video::IVideoDriver *driver = Environment->getVideoDriver();
 
+	if (opacity < 1.0f) {
+		for (size_t i = 0; i < 4; i++) {
+			m_colors[i].setAlpha(m_colors[i].getAlpha() * opacity);
+			m_bordercolors[i].setAlpha(m_bordercolors[i].getAlpha() * opacity);
+		}
+	}
+
 	driver->draw2DRectangle(main_rect, m_colors[0], m_colors[1], m_colors[3],
 		m_colors[2], &AbsoluteClippingRect);
+
+	if (m_style.isNotDefault(StyleSpec::BORDER_RADIUS)) {
+		std::array<f32, 4> radius = m_style.getFloatArray(StyleSpec::BORDER_RADIUS, {0,0,0,0});
+		// Radius implementation would need custom draw calls or shaders.
+		// For now, we'll stick to rectangular boxes as Irrlicht doesn't support rounded rects out of the box.
+	}
 
 	// The border rectangle can be larger than 'AbsoluteClippingRect',
 	// hence clip against the (generally larger) parent.

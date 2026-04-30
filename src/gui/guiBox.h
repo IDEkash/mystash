@@ -20,7 +20,10 @@ public:
 
 	virtual void draw() override;
 
+	void setStyle(const StyleSpec &style) { m_style = style; }
+
 private:
+	StyleSpec m_style;
 	std::array<video::SColor, 4> m_colors;
 	std::array<video::SColor, 4> m_bordercolors;
 	std::array<s32, 4> m_borderwidths;

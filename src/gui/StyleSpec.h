@@ -44,6 +44,26 @@ public:
 		SOUND,
 		SPACING,
 		SIZE,
+		BORDER_RADIUS,
+		BOX_SHADOW,
+		OUTLINE,
+		MARGIN,
+		TEXT_ALIGN,
+		TEXT_SHADOW,
+		LETTER_SPACING,
+		LINE_HEIGHT,
+		TEXT_OVERFLOW,
+		TEXT_TRANSFORM,
+		WHITE_SPACE,
+		FONT_WEIGHT,
+		TEXT_DECORATION,
+		BACKGROUND_GRADIENT,
+		FILTER_BRIGHTNESS,
+		FILTER_BLUR,
+		TINT_COLOR,
+		CLIP_OVERFLOW,
+		TRANSITION,
+		OPACITY,
 		NUM_PROPERTIES,
 		NONE
 	};
@@ -117,6 +137,46 @@ public:
 			return SPACING;
 		} else if (name == "size") {
 			return SIZE;
+		} else if (name == "border_radius") {
+			return BORDER_RADIUS;
+		} else if (name == "box_shadow") {
+			return BOX_SHADOW;
+		} else if (name == "outline") {
+			return OUTLINE;
+		} else if (name == "margin") {
+			return MARGIN;
+		} else if (name == "text_align") {
+			return TEXT_ALIGN;
+		} else if (name == "text_shadow") {
+			return TEXT_SHADOW;
+		} else if (name == "letter_spacing") {
+			return LETTER_SPACING;
+		} else if (name == "line_height") {
+			return LINE_HEIGHT;
+		} else if (name == "text_overflow") {
+			return TEXT_OVERFLOW;
+		} else if (name == "text_transform") {
+			return TEXT_TRANSFORM;
+		} else if (name == "white_space") {
+			return WHITE_SPACE;
+		} else if (name == "font_weight") {
+			return FONT_WEIGHT;
+		} else if (name == "text_decoration") {
+			return TEXT_DECORATION;
+		} else if (name == "background_gradient") {
+			return BACKGROUND_GRADIENT;
+		} else if (name == "filter_brightness") {
+			return FILTER_BRIGHTNESS;
+		} else if (name == "filter_blur") {
+			return FILTER_BLUR;
+		} else if (name == "tint_color") {
+			return TINT_COLOR;
+		} else if (name == "clip_overflow") {
+			return CLIP_OVERFLOW;
+		} else if (name == "transition") {
+			return TRANSITION;
+		} else if (name == "opacity") {
+			return OPACITY;
 		} else {
 			return NONE;
 		}
@@ -216,6 +276,22 @@ public:
 			if (parseColorString(strs[i], color, false, 0xff))
 				def[i] = color;
 		}
+
+		return def;
+	}
+
+	std::array<f32, 4> getFloatArray(Property prop, std::array<f32, 4> def) const
+	{
+		const auto &val = properties[prop];
+		if (val.empty())
+			return def;
+
+		std::vector<std::string> strs;
+		if (!parseArray(val, strs))
+			return def;
+
+		for (size_t i = 0; i < std::min<size_t>(4, strs.size()); i++)
+			def[i] = stof(strs[i]);
 
 		return def;
 	}

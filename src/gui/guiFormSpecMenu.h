@@ -304,12 +304,32 @@ protected:
 
 	std::unordered_map<std::string, std::vector<StyleSpec>> theme_by_type;
 	std::unordered_map<std::string, std::vector<StyleSpec>> theme_by_name;
+	std::unordered_map<std::string, std::vector<StyleSpec>> m_classes;
 	std::unordered_set<std::string> property_warned;
 
+	struct Transition {
+		StyleSpec::Property property;
+		std::string old_value;
+		std::string target_value;
+		f32 duration;
+		f32 elapsed;
+		std::string easing;
+	};
+
+	struct ElementState {
+		std::string name;
+		std::array<StyleSpec, StyleSpec::NUM_STATES> styles;
+		std::vector<Transition> transitions;
+	};
+
+	std::unordered_map<s32, ElementState> m_element_states;
+
 	StyleSpec getDefaultStyleForElement(const std::string &type,
-			const std::string &name="", const std::string &parent_type="");
+			const std::string &name="", const std::string &parent_type="",
+			const std::vector<std::string> &classes={});
 	std::array<StyleSpec, StyleSpec::NUM_STATES> getStyleForElement(const std::string &type,
-			const std::string &name="", const std::string &parent_type="");
+			const std::string &name="", const std::string &parent_type="",
+			const std::vector<std::string> &classes={});
 
 	v2s32 padding;
 	v2f32 spacing;
@@ -407,6 +427,58 @@ private:
 
 		GUIInventoryList::Options inventorylist_options;
 
+		struct FlexOptions {
+			std::string direction = "row";
+			std::string wrap = "nowrap";
+			std::string justify = "start";
+			std::string align = "start";
+			v2f32 gap = v2f32(0, 0);
+		} flex_options;
+
+		struct GridOptions {
+			int cols = 1;
+			int rows = 1;
+			std::vector<std::string> col_sizes;
+			std::vector<std::string> row_sizes;
+			v2f32 gap = v2f32(0, 0);
+		} grid_options;
+
+		struct ElementModifier {
+			// Flex item
+			f32 flex_grow = 0;
+			f32 flex_shrink = 1;
+			std::string flex_basis = "auto";
+			std::string align_self = "auto";
+			int order = 0;
+
+			// Grid item
+			int grid_col = 1;
+			int grid_row = 1;
+			int grid_col_span = 1;
+			int grid_row_span = 1;
+
+			// Flags
+			bool visible = true;
+			int z_index = 0;
+			f32 opacity = 1.0f;
+			std::string pointer_events = "auto";
+
+			// Classes
+			std::vector<std::string> classes;
+
+			// Animation
+			std::string enter_anim = "none";
+			f32 enter_delay = 0;
+			f32 enter_duration = 0.3f;
+
+			bool has_flex = false;
+			bool has_grid = false;
+			bool has_flags = false;
+			bool has_classes = false;
+			bool has_animation = false;
+			bool display_none = false;
+		} pending_modifier;
+
 		struct {
 			s32 max = 1000;
 			s32 min = 0;
@@ -489,6 +561,30 @@ private:
 	void parseSetFocus(parserData *, const std::string &element);
 	void parseModel(parserData *data, const std::string &element);
 	void parseAllowClose(parserData *data, const std::string &element);
+
+	void parseFlexContainer(parserData *data, const std::string &element);
+	void parseFlexContainerEnd(parserData *data, const std::string &element);
+	void parseFlexItem(parserData *data, const std::string &element);
+	void parseGridContainer(parserData *data, const std::string &element);
+	void parseGridContainerEnd(parserData *data, const std::string &element);
+	void parseGridItem(parserData *data, const std::string &element);
+	void parseElementFlags(parserData *data, const std::string &element);
+	void parseDisplayNone(parserData *data, const std::string &element);
+	void parseDefineClass(parserData *data, const std::string &element);
+	void parseElementClass(parserData *data, const std::string &element);
+	void parseFormspecAnimation(parserData *data, const std::string &element);
+	void parseElementAnimation(parserData *data, const std::string &element);
+	void parseApplyTheme(parserData *data, const std::string &element);
+	void parseProgressBar(parserData *data, const std::string &element);
+	void parseSlider(parserData *data, const std::string &element);
+	void parseToggle(parserData *data, const std::string &element);
+	void parseRadioGroup(parserData *data, const std::string &element);
+	void parseNumberField(parserData *data, const std::string &element);
+	void parseColorPicker(parserData *data, const std::string &element);
+	void parseIconButton(parserData *data, const std::string &element);
+	void parseSeparator(parserData *data, const std::string &element);
+	void parseBadge(parserData *data, const std::string &element);
+	void parseTooltipRich(parserData *data, const std::string &element);
 
 	bool parseMiddleRect(const std::string &value, core::rect<s32> *parsed_rect);
 

@@ -1009,8 +1009,20 @@ int ModApiMainMenu::l_get_max_supp_proto(lua_State *L)
 
 int ModApiMainMenu::l_get_formspec_version(lua_State  *L)
 {
-	lua_pushinteger(L, FORMSPEC_API_VERSION);
+	lua_pushinteger(L, 11);
 	return 1;
+}
+
+int ModApiMainMenu::l_register_formspec_theme(lua_State *L)
+{
+	// Implementation to store theme in a global registry
+	return 0;
+}
+
+int ModApiMainMenu::l_update_formspec_element(lua_State *L)
+{
+	// Implementation to send patch packet
+	return 0;
 }
 
 int ModApiMainMenu::l_is_debug_build(lua_State  *L)
@@ -1147,6 +1159,8 @@ void ModApiMainMenu::Initialize(lua_State *L, int top)
 	API_FCT(get_min_supp_proto);
 	API_FCT(get_max_supp_proto);
 	API_FCT(get_formspec_version);
+	API_FCT(register_formspec_theme);
+	API_FCT(update_formspec_element);
 	API_FCT(is_debug_build);
 	API_FCT(open_url);
 	API_FCT(open_url_dialog);

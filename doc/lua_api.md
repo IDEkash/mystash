@@ -2847,6 +2847,10 @@ Version History
   * label[]: Add "area label" variant
 * Formspec version 10 (5.13.0)
   * model[]: Support floating-point frames
+* Formspec version 11 (Formspec 2.0)
+  * Added `flex_container[]`, `grid_container[]`, and responsive units.
+  * Enhanced `style[]` with `border_radius`, `box_shadow`, `opacity`, etc.
+  * Added `define_class[]` and `element_class[]`.
 
 Elements
 --------
