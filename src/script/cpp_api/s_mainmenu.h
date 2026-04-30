@@ -29,6 +29,13 @@ public:
 	void handleMainMenuButtons(const StringMap &fields);
 
 	/**
+	 * process events received from native UI
+	 * @param widget_id the widget identifier
+	 * @param event_type the type of event (e.g. "click")
+	 */
+	void handleNativeEvent(const std::string &widget_id, const std::string &event_type);
+
+	/**
 	 * Called before the menu is closed, either to exit or to join a game
 	 */
 	void beforeClose();

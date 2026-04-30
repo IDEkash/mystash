@@ -98,3 +98,26 @@ void ScriptApiMainMenu::beforeClose()
 
 	lua_pop(L, 1); // Pop error handler
 }
+
+void ScriptApiMainMenu::handleNativeEvent(const std::string &widget_id, const std::string &event_type)
+{
+	SCRIPTAPI_PRECHECKHEADER
+
+	int error_handler = PUSH_ERROR_HANDLER(L);
+
+	// Get handler function
+	lua_getglobal(L, "core");
+	lua_getfield(L, -1, "native_ui_handler");
+	lua_remove(L, -2); // Remove core
+	if (lua_isnil(L, -1)) {
+		lua_pop(L, 2); // Pop handler, error handler
+		return;
+	}
+	luaL_checktype(L, -1, LUA_TFUNCTION);
+
+	// Call it
+	lua_pushstring(L, widget_id.c_str());
+	lua_pushstring(L, event_type.c_str());
+	PCALL_RES(lua_pcall(L, 2, 0, error_handler));
+	lua_pop(L, 1); // Pop error handler
+}

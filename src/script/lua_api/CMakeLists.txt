@@ -39,6 +39,7 @@ set(client_SCRIPT_LUA_API_SRCS
 	${CMAKE_CURRENT_SOURCE_DIR}/l_localplayer.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/l_mainmenu.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/l_mainmenu_sound.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/l_nativeui.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/l_menu_common.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/l_minimap.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/l_particles_local.cpp

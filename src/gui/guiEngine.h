@@ -206,6 +206,11 @@ private:
 	/** the formspec menu */
 	irr_ptr<GUIFormSpecMenu>              m_menu;
 
+	/** native UI layouts */
+	std::unordered_map<std::string, Json::Value> m_native_ui_layouts;
+	/** active native UI instances */
+	std::unordered_map<std::string, GUINativeUI*> m_native_uis;
+
 	/** reference to kill variable managed by SIGINT handler */
 	volatile std::sig_atomic_t           &m_kill;
 
