@@ -47,7 +47,7 @@ void GUINativeUI::drawMenu()
 	video::IVideoDriver* driver = Environment->getVideoDriver();
 	driver->draw2DRectangle(video::SColor(128, 0, 0, 0), AbsoluteRect, &AbsoluteClippingRect);
 
-	// modalMenu::draw() handles drawing children
+	gui::IGUIElement::draw();
 }
 
 bool GUINativeUI::OnEvent(const SEvent &event)
@@ -83,15 +83,12 @@ std::string GUINativeUI::getWidgetID(gui::IGUIElement* element)
 
 void GUINativeUI::clearWidgets()
 {
-	for (auto const& [id, widget] : m_widgets) {
-		// widget is a child of this or another widget, it will be deleted by Irrlicht
-	}
 	m_widgets.clear();
-	Environment->clearFocus();
+	Environment->setFocus(nullptr);
 
 	// Remove all children
-	const core::list<gui::IGUIElement*>& children = getChildren();
-	core::list<gui::IGUIElement*> to_remove;
+	const std::list<gui::IGUIElement*>& children = getChildren();
+	std::list<gui::IGUIElement*> to_remove;
 	for (gui::IGUIElement* child : children) {
 		to_remove.push_back(child);
 	}
@@ -144,7 +141,7 @@ void GUINativeUI::parseWidget(const Json::Value &value, gui::IGUIElement *parent
 			static_cast<gui::IGUIImage*>(element)->setScaleImage(true);
 		}
 	} else if (type == "container") {
-		element = Environment->addEmptyElement(rect, parent);
+		element = new gui::IGUIElement(gui::EGUIET_ELEMENT, Environment, parent, -1, rect);
 	}
 
 	if (element) {

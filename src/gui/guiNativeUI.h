@@ -8,6 +8,8 @@
 #include "irrlichttypes_bloated.h"
 #include <string>
 #include <unordered_map>
+#include <list>
+#include <array>
 #include <json/json.h>
 
 class ISimpleTextureSource;
