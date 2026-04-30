@@ -608,6 +608,18 @@ void Client::handleCommand_MovePlayerRel(NetworkPacket *pkt)
 	player->addPosition(added_pos);
 }
 
+void Client::handleCommand_SetLookDirection(NetworkPacket *pkt)
+{
+	f32 pitch, yaw;
+	*pkt >> pitch >> yaw;
+
+	ClientEvent *event = new ClientEvent();
+	event->type = CE_PLAYER_FORCE_MOVE;
+	event->player_force_move.pitch = pitch;
+	event->player_force_move.yaw = yaw;
+	m_client_event_queue.push(event);
+}
+
 void Client::handleCommand_DeathScreenLegacy(NetworkPacket* pkt)
 {
 	ClientEvent *event = new ClientEvent();
@@ -1580,6 +1592,18 @@ void Client::handleCommand_Camera(NetworkPacket* pkt)
 	u8 tmp;
 	*pkt >> tmp;
 	player->allowed_camera_mode = static_cast<CameraMode>(tmp);
+
+	if (pkt->getRemainingBytes() > 0) {
+		u8 flags;
+		*pkt >> flags;
+		player->camera_free_look = (flags & 1) != 0;
+		player->camera_smooth    = (flags & 2) != 0;
+		player->camera_anti_tilt_controller = (flags & 4) != 0;
+	}
+
+	if (pkt->getRemainingBytes() >= 4) {
+		*pkt >> player->camera_tilt;
+	}
 
 	m_client_event_queue.push(new ClientEvent(CE_UPDATE_CAMERA));
 }

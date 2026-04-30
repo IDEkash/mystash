@@ -7,6 +7,7 @@
 #include "irr_aabb3d.h"
 #include "irr_v3d.h"
 #include <quaternion.h>
+#include <SColor.h>
 #include <string>
 #include <unordered_map>
 
@@ -122,6 +123,13 @@ struct BoneOverride
 	}
 
 	f32 dtime_passed = 0.0f;
+	bool hidden = false;
+	f32 pos_smooth = 0.0f;
+	f32 rot_smooth = 0.0f;
+	f32 scale_smooth = 0.0f;
+
+	video::SColor color = video::SColor(0xFFFFFFFF);
+	f32 glow = 0.0f;
 
 	bool finishedInterpolation() const
 	{
@@ -132,10 +140,12 @@ struct BoneOverride
 
 	bool isIdentity() const
 	{
-		return finishedInterpolation()
+		return !hidden && finishedInterpolation()
 				&& !position.absolute && position.vector == v3f()
 				&& !rotation.absolute && rotation.next == core::quaternion()
-				&& !scale.absolute && scale.vector == v3f(1.0f);
+				&& !scale.absolute && scale.vector == v3f(1.0f)
+				&& pos_smooth == 0.0f && rot_smooth == 0.0f && scale_smooth == 0.0f
+				&& color == video::SColor(0xFFFFFFFF) && glow == 0.0f;
 	}
 };
 

@@ -428,6 +428,7 @@ public:
 	void SendInventory(RemotePlayer *player, bool incremental);
 	void SendMovePlayer(PlayerSAO *sao);
 	void SendMovePlayerRel(session_t peer_id, const v3f &added_pos);
+	void SendLookDirection(session_t peer_id, float pitch, float yaw);
 	void SendPlayerSpeed(session_t peer_id, const v3f &added_vel);
 	void SendPlayerFov(session_t peer_id);
 	void SendCamera(session_t peer_id, Player *player);

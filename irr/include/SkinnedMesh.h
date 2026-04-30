@@ -55,10 +55,16 @@ public:
 	//! Important for legacy reasons pertaining to different mesh loader behavior.
 	SourceFormat getSourceFormat() const { return SrcFormat; }
 
+	struct AnimationEvent {
+		f32 time;
+		std::string name;
+	};
+
 	struct AnimationClip {
 		std::string name;
 		f32 start = 0.0f;
 		f32 end = 0.0f;
+		std::vector<AnimationEvent> events;
 	};
 
 	u32 getAnimationClipCount() const { return AnimationClips.size(); }
@@ -458,9 +464,10 @@ public:
 	//! Adds a new weight to the mesh
 	void addWeight(SJoint *joint, u16 buf, u32 vert_id, f32 strength);
 
-	void addAnimationClip(std::string name, f32 start, f32 end)
+	void addAnimationClip(std::string name, f32 start, f32 end,
+			std::vector<SkinnedMesh::AnimationEvent> events = {})
 	{
-		mesh->AnimationClips.push_back({std::move(name), start, end});
+		mesh->AnimationClips.push_back({std::move(name), start, end, std::move(events)});
 	}
 
 	void clearAnimationClips()

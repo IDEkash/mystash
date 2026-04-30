@@ -3,6 +3,7 @@
 // Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
 
 #include "content_cao.h"
+#include "script/scripting_client.h"
 #include <IBillboardSceneNode.h>
 #include <ICameraSceneNode.h>
 #include <IMeshManipulator.h>
@@ -375,6 +376,22 @@ const v3f GenericCAO::getPosition() const
 	return m_position;
 }
 
+v3f GenericCAO::getBoneWorldPos(const std::string &bone_name)
+{
+	if (!m_animated_meshnode)
+		return getPosition();
+
+	scene::BoneSceneNode *bone = m_animated_meshnode->getJointNode(bone_name.c_str());
+	if (!bone)
+		return getPosition();
+
+	GenericCAO::updateParentChain();
+	m_animated_meshnode->updateAbsolutePosition();
+
+	v3s16 camera_offset = m_env->getCameraOffset();
+	return bone->getAbsolutePosition() + intToFloat(camera_offset, BS);
+}
+
 bool GenericCAO::isImmortal() const
 {
 	return itemgroup_get(getGroups(), "immortal");
@@ -629,8 +646,8 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		updateMaterialType(false);
 
 		auto mesh = make_irr<scene::SMesh>();
-		f32 dx = BS * m_prop.visual_size.X / 2;
-		f32 dy = BS * m_prop.visual_size.Y / 2;
+		f32 dx = BS * m_prop.visual_size.X * m_prop.model_unit_scale.X / 2;
+		f32 dy = BS * m_prop.visual_size.Y * m_prop.model_unit_scale.Y / 2;
 		video::SColor c(0xFFFFFFFF);
 
 		video::S3DVertex vertices[4] = {
@@ -675,7 +692,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		m_meshnode->grab();
 		mesh->drop();
 
-		m_meshnode->setScale(m_prop.visual_size);
+		m_meshnode->setScale(m_prop.visual_size * m_prop.model_unit_scale);
 
 		setSceneNodeMaterials(m_meshnode);
 
@@ -696,7 +713,19 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 			m_animated_meshnode = m_smgr->addAnimatedMeshSceneNode(mesh, m_matrixnode);
 			m_animated_meshnode->grab();
 			mesh->drop(); // The scene node took hold of it
-			m_animated_meshnode->setScale(m_prop.visual_size);
+
+			v3f final_scale = m_prop.visual_size;
+			if (m_prop.auto_normalize || m_prop.target_height > 0.0f) {
+				const core::aabbox3d<f32> &box = mesh->getBoundingBox();
+				float model_height = box.MaxEdge.Y - box.MinEdge.Y;
+				if (m_prop.target_height > 0.0f && model_height > 0.001f) {
+					float s = (m_prop.target_height * BS) / model_height;
+					final_scale = v3f(s, s, s);
+				} else if (m_prop.auto_normalize) {
+					final_scale = v3f(BS, BS, BS);
+				}
+			}
+			m_animated_meshnode->setScale(final_scale * m_prop.model_unit_scale);
 
 			// set vertex colors to ensure alpha is set
 			setMeshColor(m_animated_meshnode->getMesh(), video::SColor(0xFFFFFFFF));
@@ -705,6 +734,14 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 
 			m_animated_meshnode->forEachMaterial([this] (auto &mat) {
 				mat.BackfaceCulling = m_prop.backface_culling;
+			});
+
+			m_animated_meshnode->setOnEventCallback([this](const std::string &name) {
+				m_client->getScript()->on_animation_event(m_id, name);
+			});
+
+			m_animated_meshnode->setOnCycleCallback([this]() {
+				m_client->getScript()->on_animation_cycle(m_id);
 			});
 
 			m_animated_meshnode->setOnAnimateCallback([&](f32 dtime) {
@@ -717,10 +754,27 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 						continue;
 					}
 
-					if (auto *bone = m_animated_meshnode->getJointNode(it->first.c_str())) {
-						bone->setPosition(props.getPosition(bone->getPosition()));
-						bone->setRotation(props.getRotationEulerDeg(bone->getRotation()));
-						bone->setScale(props.getScale(bone->getScale()));
+					if (auto *bone = (scene::ISceneNode *)m_animated_meshnode->getJointNode(it->first.c_str())) {
+						bone->setVisible(!props.hidden);
+						if (!props.hidden) {
+							bone->setPosition(props.getPosition(bone->getPosition()));
+							bone->setRotation(props.getRotationEulerDeg(bone->getRotation()));
+							bone->setScale(props.getScale(bone->getScale()));
+
+							video::SColor color = props.color;
+							if (props.glow > 0 || m_prop.glow > 0) {
+								f32 glow = std::max(props.glow, (f32)m_prop.glow);
+								video::SColor light = encode_light(m_last_light_raw, glow);
+								color.setRed((color.getRed() * light.getRed()) / 255);
+								color.setGreen((color.getGreen() * light.getGreen()) / 255);
+								color.setBlue((color.getBlue() * light.getBlue()) / 255);
+							} else {
+								color.setRed((color.getRed() * m_last_light.getRed()) / 255);
+								color.setGreen((color.getGreen() * m_last_light.getGreen()) / 255);
+								color.setBlue((color.getBlue() * m_last_light.getBlue()) / 255);
+							}
+							setColorParam(bone, color);
+						}
 					}
 					++it;
 				}
@@ -749,7 +803,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		m_wield_meshnode->setItem(item, m_client,
 			(m_prop.visual == OBJECTVISUAL_WIELDITEM));
 
-		m_wield_meshnode->setScale(m_prop.visual_size / 2.0f);
+		m_wield_meshnode->setScale(m_prop.visual_size * m_prop.model_unit_scale / 2.0f);
 		break;
 	} case OBJECTVISUAL_NODE: {
 		auto *mesh = generateNodeMesh(m_client, m_prop.node, m_meshnode_animation);
@@ -760,7 +814,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		m_meshnode->grab();
 		mesh->drop();
 
-		m_meshnode->setScale(m_prop.visual_size);
+		m_meshnode->setScale(m_prop.visual_size * m_prop.model_unit_scale);
 
 		setSceneNodeMaterials(m_meshnode);
 		break;
@@ -770,8 +824,8 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 
 		setSceneNodeMaterials(m_spritenode);
 
-		m_spritenode->setSize(v2f(m_prop.visual_size.X,
-				m_prop.visual_size.Y) * BS);
+		m_spritenode->setSize(v2f(m_prop.visual_size.X * m_prop.model_unit_scale.X,
+				m_prop.visual_size.Y * m_prop.model_unit_scale.Y) * BS);
 		setBillboardTextureMatrix(m_spritenode, 1, 1, 0, 0);
 
 		// This also serves as fallback for unknown visual types
@@ -865,6 +919,7 @@ void GenericCAO::updateLight(u32 day_night_ratio)
 
 	if (light != m_last_light) {
 		m_last_light = light;
+		m_last_light_raw = light_at_pos;
 		setNodeLight(light);
 	}
 }
@@ -981,7 +1036,7 @@ void GenericCAO::step(float dtime, ClientEnvironment *env)
 		m_rotation.Y = wrapDegrees_0_360(player->getYaw());
 		rot_translator.val_current = m_rotation;
 
-		if (m_is_visible) {
+		if (m_is_visible && !m_animation_forced) {
 			LocalPlayerAnimation old_anim = player->last_animation;
 			float old_anim_speed = player->last_animation_speed;
 			m_velocity = v3f(0,0,0);
@@ -1474,6 +1529,9 @@ bool GenericCAO::visualExpiryRequired(const ObjectProperties &new_) const
 		old.mesh != new_.mesh ||
 		old.visual != new_.visual ||
 		old.visual_size != new_.visual_size ||
+		old.model_unit_scale != new_.model_unit_scale ||
+		old.auto_normalize != new_.auto_normalize ||
+		old.target_height != new_.target_height ||
 		old.wield_item != new_.wield_item ||
 		old.colors != new_.colors ||
 		(uses_legacy_texture && old.textures != new_.textures);
@@ -1613,6 +1671,13 @@ void GenericCAO::processMessage(const std::string &data)
 			phys.speed_walk        = readF32(is);
 		}
 
+		// new overrides since 5.16.0 (step_height, speed_sprint)
+		if (canRead(is)) {
+			phys.step_height = readF32(is);
+			if (canRead(is))
+				phys.speed_sprint = readF32(is);
+		}
+
 		if (m_is_local_player) {
 			m_env->getLocalPlayer()->physics_override = phys;
 		}
@@ -1642,23 +1707,24 @@ void GenericCAO::processMessage(const std::string &data)
 		m_animation_clip_index = clip_index;
 		m_animation_clip_name = std::move(clip_name);
 
-		if (!m_is_local_player) {
-			updateAnimation();
-		} else {
+		if (m_is_local_player) {
 			LocalPlayer *player = m_env->getLocalPlayer();
 			// update animation only if local animations present
 			// and received animation is unknown (except idle animation)
 			bool is_known = false;
-			for (int i = 1; i < 4; i++) {
-				if (range.Y == player->local_animations[i].Y)
+			for (int i = 0; i < 4; i++) {
+				if (range == player->local_animations[i]) {
 					is_known = true;
+					break;
+				}
 			}
-			if (!is_known ||
-					(player->local_animations[1].Y + player->local_animations[2].Y < 1)) {
-				updateAnimation();
-			}
-			// FIXME: ^ This code is trash. It's also broken.
+			// If the server sends an animation that isn't one of our standard
+			// local ones, we consider it "forced" and stop overriding it with
+			// our own walk/dig animations.
+			m_animation_forced = !is_known;
 		}
+
+		updateAnimation();
 	} else if (cmd == AO_CMD_SET_ANIMATION_SPEED) {
 		m_animation_speed = readF32(is);
 		updateAnimationSpeed();
@@ -1699,6 +1765,17 @@ void GenericCAO::processMessage(const std::string &data)
 			props.position.absolute = (absoluteFlag & 1) > 0;
 			props.rotation.absolute = (absoluteFlag & 2) > 0;
 			props.scale.absolute = (absoluteFlag & 4) > 0;
+			props.hidden = (absoluteFlag & 8) > 0;
+
+			if (canRead(is)) {
+				props.pos_smooth = readF32(is);
+				props.rot_smooth = readF32(is);
+				props.scale_smooth = readF32(is);
+				if (canRead(is)) {
+					props.color = readARGB8(is);
+					props.glow = readF32(is);
+				}
+			}
 		}
 		m_bone_override[bone] = props;
 	} else if (cmd == AO_CMD_ATTACH_TO) {

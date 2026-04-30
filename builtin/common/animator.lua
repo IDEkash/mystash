@@ -5,6 +5,8 @@ M._event_listeners = {}
 
 M._end_watchers = {}
 
+M._cycle_watchers = {}
+
 function M.register_on_event(cb)
 	assert(type(cb) == "function")
 	table.insert(M._event_listeners, cb)
@@ -19,6 +21,9 @@ function M.unregister_on_event(cb)
 	end
 	return false
 end
+
+M.registeronevent = M.register_on_event
+M.unregisteronevent = M.unregister_on_event
 
 local function anim_sig(obj)
 	local range, speed, blend, loop, clip = obj:get_animation()
@@ -44,8 +49,23 @@ function M.cancel_on_animation_end(obj)
 	M._end_watchers[obj] = nil
 end
 
+function M.on_animation_cycle(obj, cb)
+	assert(obj and obj.is_valid and obj:is_valid())
+	assert(type(cb) == "function")
+	M._cycle_watchers[obj] = cb
+	return obj
+end
+
+function M.cancel_on_animation_cycle(obj)
+	M._cycle_watchers[obj] = nil
+end
+
 if not core.on_animation_end then
 	core.on_animation_end = M.on_animation_end
+end
+
+if not core.on_animation_cycle then
+	core.on_animation_cycle = M.on_animation_cycle
 end
 
 local RAD = math.rad
@@ -267,12 +287,32 @@ function Animator:set_state(name, opts)
 	assert(state, "unknown state: " .. tostring(name))
 	opts = opts or {}
 
+	local old_state = self.current
 	local blend = opts.blend
 	self.current = name
 	self.time_in_state = 0
 	self.prev_frame = nil
 	ensure_sorted_events(state)
 	self:_apply_animation(state, blend)
+
+	if old_state ~= name then
+		local payload = {
+			name = "transition",
+			from = old_state,
+			to = name,
+			blend = blend or state.blend or 0.1,
+			ctx = opts.ctx,
+		}
+		local cb = self.def.on_event
+		if type(cb) == "function" then
+			cb(self, self.object, payload)
+		end
+		for _, gcb in ipairs(M._event_listeners) do
+			if type(gcb) == "function" then
+				gcb(self, self.object, payload)
+			end
+		end
+	end
 end
 
 function Animator:_get_context(dtime)
@@ -492,7 +532,7 @@ function Animator:update(dtime)
 		local to = tr.to
 		local blend = tr.blend
 		if self.current ~= to then
-			self:set_state(to, {blend = blend})
+			self:set_state(to, {blend = blend, ctx = ctx})
 		end
 	end
 
@@ -519,6 +559,29 @@ end
 
 function M.unregister(anim)
 	registry[anim] = nil
+end
+
+if (INIT == "game" or INIT == "client") and core.register_on_animation_event then
+	core.register_on_animation_event(function(obj, event_name)
+		local payload = {
+			name = event_name,
+			engine = true,
+		}
+		for _, gcb in ipairs(M._event_listeners) do
+			if type(gcb) == "function" then
+				gcb(nil, obj, payload)
+			end
+		end
+	end)
+end
+
+if (INIT == "game" or INIT == "client") and core.register_on_animation_cycle then
+	core.register_on_animation_cycle(function(obj)
+		local cb = M._cycle_watchers[obj]
+		if type(cb) == "function" then
+			cb(obj)
+		end
+	end)
 end
 
 if INIT == "game" and core.register_globalstep then
@@ -618,6 +681,16 @@ function M.humanoid(object, clips, opts)
 		{ from = "*", to = "jump", priority = 90, condition = function(ctx)
 			return ctx and ctx.jumping
 		end },
+		{ from = "jump", to = "idle", priority = 95, condition = function(ctx)
+			return ctx and not ctx.jumping and (ctx.hs or 0) < walk_th
+		end },
+		{ from = "jump", to = "walk", priority = 95, condition = function(ctx)
+			local hs = ctx and (ctx.hs or 0) or 0
+			return ctx and not ctx.jumping and hs >= walk_th and hs < run_th
+		end },
+		{ from = "jump", to = "run", priority = 95, condition = function(ctx)
+			return ctx and not ctx.jumping and (ctx.hs or 0) >= run_th
+		end },
 		{ from = "*", to = "run", priority = 10, condition = function(ctx)
 			return ctx and not ctx.attack and not ctx.jumping and (ctx.hs or 0) >= run_th
 		end },
@@ -630,12 +703,46 @@ function M.humanoid(object, clips, opts)
 		end },
 	}
 
+	local user_on_event = opts.on_event
 	local def = {
 		states = states,
 		transitions = transitions,
 		initial = opts.initial or "idle",
 		get_context = opts.get_context,
-		on_event = opts.on_event,
+		on_event = function(animator, object, event)
+			if event.name == "transition" then
+				local ev_name = nil
+				if event.to == "jump" then
+					ev_name = "jump_start"
+				elseif event.from == "jump" then
+					-- Only fire land if we are no longer jumping
+					if not (event.ctx and event.ctx.jumping) then
+						ev_name = "land"
+					end
+				elseif event.to == "attack" then
+					ev_name = "attack_start"
+				end
+
+				if ev_name then
+					local payload = {
+						name = ev_name,
+						from = event.from,
+						to = event.to,
+					}
+					if type(user_on_event) == "function" then
+						user_on_event(animator, object, payload)
+					end
+					for _, gcb in ipairs(M._event_listeners) do
+						if type(gcb) == "function" then
+							gcb(animator, object, payload)
+						end
+					end
+				end
+			end
+			if type(user_on_event) == "function" then
+				user_on_event(animator, object, event)
+			end
+		end,
 		on_step = opts.on_step,
 		initial_blend = opts.initial_blend,
 	}

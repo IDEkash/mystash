@@ -15,6 +15,7 @@
 static constexpr const char *HTMLVIEW_CALLBACKS_RKEY = "HTMLVIEW_CALLBACKS";
 static constexpr const char *HTMLVIEW_JSON_CALLBACKS_RKEY = "HTMLVIEW_JSON_CALLBACKS";
 static constexpr const char *HTMLVIEW_CAPTURE_CALLBACKS_RKEY = "HTMLVIEW_CAPTURE_CALLBACKS";
+static constexpr const char *HTMLVIEW_READY_CALLBACKS_RKEY = "HTMLVIEW_READY_CALLBACKS";
 
 constexpr static u16 HTMLVIEW_MAX_JSON_DEPTH = 1024;
 
@@ -114,6 +115,33 @@ void ScriptApiHTMLView::on_htmlview_capture(const std::string &id, const std::st
 
 	lua_pushlstring(L, png.data(), png.size());
 	PCALL_RES(lua_pcall(L, 1, 0, error_handler));
+
+	lua_pop(L, 1); // callback table
+	lua_remove(L, error_handler);
+}
+
+void ScriptApiHTMLView::on_htmlview_ready(const std::string &id)
+{
+	SCRIPTAPI_PRECHECKHEADER
+
+	int error_handler = PUSH_ERROR_HANDLER(L);
+
+	lua_getfield(L, LUA_REGISTRYINDEX, HTMLVIEW_READY_CALLBACKS_RKEY);
+	if (!lua_istable(L, -1)) {
+		lua_pop(L, 1);
+		lua_remove(L, error_handler);
+		return;
+	}
+
+	lua_pushlstring(L, id.c_str(), id.size());
+	lua_gettable(L, -2);
+	if (!lua_isfunction(L, -1)) {
+		lua_pop(L, 2);
+		lua_remove(L, error_handler);
+		return;
+	}
+
+	PCALL_RES(lua_pcall(L, 0, 0, error_handler));
 
 	lua_pop(L, 1); // callback table
 	lua_remove(L, error_handler);

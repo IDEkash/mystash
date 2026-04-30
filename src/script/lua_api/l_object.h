@@ -130,14 +130,35 @@ private:
 	// get_animation_info(self)
 	static int l_get_animation_info(lua_State *L);
 
+	// get_model_info(self)
+	static int l_get_model_info(lua_State *L);
+
 	// set_bone_position(self, bone, position, rotation)
 	static int l_set_bone_position(lua_State *L);
 
 	// set_bone_rotation(self, bone, x, y, z, opts?)
 	static int l_set_bone_rotation(lua_State *L);
 
+	// set_bone_scale(self, bone, x, y, z, opts?)
+	static int l_set_bone_scale(lua_State *L);
+
+	// set_part_visible(self, bone, visible)
+	static int l_set_part_visible(lua_State *L);
+
+	// set_part_smooth(self, bone, smooth_table)
+	static int l_set_part_smooth(lua_State *L);
+
 	// get_bone_position(self, bone)
 	static int l_get_bone_position(lua_State *L);
+
+	// get_bone_rotation(self, bone)
+	static int l_get_bone_rotation(lua_State *L);
+
+	// get_bone_scale(self, bone)
+	static int l_get_bone_scale(lua_State *L);
+
+	// get_bone_world_pos(self, bone)
+	static int l_get_bone_world_pos(lua_State *L);
 
 	// set_bone_override(self, bone)
 	static int l_set_bone_override(lua_State *L);

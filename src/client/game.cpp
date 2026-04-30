@@ -716,11 +716,16 @@ void Game::run()
 		processUserInput(dtime);
 		// Update camera before player movement to avoid camera lag of one frame
 		updateCameraDirection(&cam_view_target, dtime);
-		if (m_cache_cam_smoothing <= 0.0f) {
+		LocalPlayer *player = client->getEnv().getLocalPlayer();
+		float smoothing = m_cache_cam_smoothing;
+		if (player && player->camera_smooth && smoothing <= 0.0f)
+			smoothing = 0.05f;
+
+		if (smoothing <= 0.0f) {
 			cam_view.camera_yaw = cam_view_target.camera_yaw;
 			cam_view.camera_pitch = cam_view_target.camera_pitch;
 		} else {
-			f32 cam_damp_lambda = 1.0f / m_cache_cam_smoothing * dtime;
+			f32 cam_damp_lambda = 1.0f / smoothing * dtime;
 			cam_view.camera_yaw = damp(
 					cam_view.camera_yaw,
 					cam_view_target.camera_yaw,
@@ -2140,8 +2145,19 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 	if (g_touchcontrols) {
 		// User setting is already applied by TouchControls.
 		f32 sens_scale = getSensitivityScaleFactor();
-		cam->camera_yaw   += g_touchcontrols->getYawChange()   * sens_scale;
-		cam->camera_pitch += g_touchcontrols->getPitchChange() * sens_scale;
+		f32 dx = g_touchcontrols->getYawChange()   * sens_scale;
+		f32 dy = g_touchcontrols->getPitchChange() * sens_scale;
+
+		LocalPlayer *player = client->getEnv().getLocalPlayer();
+		if (player && player->camera_tilt != 0.0f && !player->camera_anti_tilt_controller) {
+			v3f move(dx, dy, 0);
+			move.rotateXYBy(player->camera_tilt);
+			cam->camera_yaw += move.X;
+			cam->camera_pitch += move.Y;
+		} else {
+			cam->camera_yaw   += dx;
+			cam->camera_pitch += dy;
+		}
 	} else {
 		v2s32 center(driver->getScreenSize().Width / 2, driver->getScreenSize().Height / 2);
 		v2s32 dist = input->getMousePos() - center;
@@ -2151,8 +2167,19 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 		}
 
 		f32 sens_scale = getSensitivityScaleFactor();
-		cam->camera_yaw   -= dist.X * m_cache_mouse_sensitivity * sens_scale;
-		cam->camera_pitch += dist.Y * m_cache_mouse_sensitivity * sens_scale;
+		f32 dx = dist.X * m_cache_mouse_sensitivity * sens_scale;
+		f32 dy = dist.Y * m_cache_mouse_sensitivity * sens_scale;
+
+		LocalPlayer *player = client->getEnv().getLocalPlayer();
+		if (player && player->camera_tilt != 0.0f && !player->camera_anti_tilt_controller) {
+			v3f move(dx, -dy, 0);
+			move.rotateXYBy(-player->camera_tilt);
+			cam->camera_yaw -= move.X;
+			cam->camera_pitch -= move.Y;
+		} else {
+			cam->camera_yaw -= dx;
+			cam->camera_pitch += dy;
+		}
 
 		if (dist.X != 0 || dist.Y != 0)
 			input->setMousePos(center.X, center.Y);
@@ -2161,8 +2188,19 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 	if (m_cache_enable_joysticks) {
 		f32 sens_scale = getSensitivityScaleFactor();
 		f32 c = m_cache_joystick_frustum_sensitivity * dtime * sens_scale;
-		cam->camera_yaw -= input->joystick.getAxisWithoutDead(JA_FRUSTUM_HORIZONTAL) * c;
-		cam->camera_pitch += input->joystick.getAxisWithoutDead(JA_FRUSTUM_VERTICAL) * c;
+		f32 dx = input->joystick.getAxisWithoutDead(JA_FRUSTUM_HORIZONTAL) * c;
+		f32 dy = input->joystick.getAxisWithoutDead(JA_FRUSTUM_VERTICAL) * c;
+
+		LocalPlayer *player = client->getEnv().getLocalPlayer();
+		if (player && player->camera_tilt != 0.0f && !player->camera_anti_tilt_controller) {
+			v3f move(dx, -dy, 0);
+			move.rotateXYBy(-player->camera_tilt);
+			cam->camera_yaw -= move.X;
+			cam->camera_pitch -= move.Y;
+		} else {
+			cam->camera_yaw -= dx;
+			cam->camera_pitch += dy;
+		}
 	}
 
 	cam->camera_pitch = rangelim(cam->camera_pitch, -90, 90);
@@ -2364,8 +2402,20 @@ void Game::handleClientEvent_PlayerDamage(ClientEvent *event, CameraOrientation 
 
 void Game::handleClientEvent_PlayerForceMove(ClientEvent *event, CameraOrientation *cam)
 {
-	cam->camera_yaw = event->player_force_move.yaw;
-	cam->camera_pitch = event->player_force_move.pitch;
+	LocalPlayer *player = client->getEnv().getLocalPlayer();
+	if (player && player->camera_free_look) {
+		float delta_yaw = wrapDegrees_180(event->player_force_move.yaw - m_last_forced_yaw);
+		float delta_pitch = event->player_force_move.pitch - m_last_forced_pitch;
+
+		cam->camera_yaw += delta_yaw;
+		cam->camera_pitch += delta_pitch;
+	} else {
+		cam->camera_yaw = event->player_force_move.yaw;
+		cam->camera_pitch = event->player_force_move.pitch;
+	}
+
+	m_last_forced_yaw = event->player_force_move.yaw;
+	m_last_forced_pitch = event->player_force_move.pitch;
 }
 
 void Game::handleClientEvent_DeathscreenLegacy(ClientEvent *event, CameraOrientation *cam)
@@ -2656,6 +2706,17 @@ void Game::handleClientEvent_UpdateCamera(ClientEvent *event, CameraOrientation 
 	// no parameters to update here, this just makes sure the camera is in the
 	// state it should be after something was changed.
 	updateCameraMode();
+
+	LocalPlayer *player = client->getEnv().getLocalPlayer();
+	if (player && player->camera_free_look) {
+		if (!m_free_look_enabled) {
+			m_last_forced_yaw = cam->camera_yaw;
+			m_last_forced_pitch = cam->camera_pitch;
+			m_free_look_enabled = true;
+		}
+	} else {
+		m_free_look_enabled = false;
+	}
 }
 
 void Game::processClientEvents(CameraOrientation *cam)

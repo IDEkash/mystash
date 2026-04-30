@@ -37,6 +37,8 @@ struct PlayerSettings
 	bool aux1_descends = false;
 	bool noclip = false;
 	bool autojump = false;
+	bool accessibility_sprint_enabled = true;
+	bool auto_climb = false;
 
 	void readGlobalSettings();
 	void registerSettingsCallback();
@@ -63,6 +65,7 @@ public:
 	bool in_liquid_stable = false;
 	// Slows down the player when moving through
 	u8 move_resistance = 0;
+	bool in_lava = false;
 	bool is_climbing = false;
 	bool swimming_vertical = false;
 	bool swimming_pitch = false;
@@ -91,6 +94,9 @@ public:
 	f32 last_movement_dir = 0.0f;
 
 	float camera_impact = 0.0f;
+
+	bool jumped = false;
+	bool landed = false;
 
 	bool makes_footstep_sound = true;
 
