@@ -443,9 +443,9 @@ private:
 
 	void parseSize(parserData* data, const std::string &element);
 	void parseContainer(parserData* data, const std::string &element);
-	void parseContainerEnd(parserData* data, const std::string &);
+	void parseContainerEnd(parserData* data, const std::string &element);
 	void parseScrollContainer(parserData *data, const std::string &element);
-	void parseScrollContainerEnd(parserData *data, const std::string &);
+	void parseScrollContainerEnd(parserData *data, const std::string &element);
 	void parseList(parserData* data, const std::string &element);
 	void parseListRing(parserData* data, const std::string &element);
 	void parseCheckbox(parserData* data, const std::string &element);

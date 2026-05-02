@@ -38,6 +38,10 @@ public:
 		PADDING,
 		FONT,
 		FONT_SIZE,
+		VISIBLE,
+		CURSOR,
+		TOOLTIP,
+		MARGIN,
 		COLORS,
 		BORDERCOLORS,
 		BORDERWIDTHS,
@@ -373,16 +377,6 @@ public:
 		return texture;
 	}
 
-	bool getBool(Property prop, bool def) const
-	{
-		const auto &val = properties[prop];
-		if (val.empty()) {
-			return def;
-		}
-
-		return is_yes(val);
-	}
-
 	float getFloat(Property prop, float def) const
 	{
 		const auto &val = properties[prop];
@@ -395,6 +389,16 @@ public:
 		} catch (const std::exception &) {
 			return def;
 		}
+	}
+
+	bool getBool(Property prop, bool def) const
+	{
+		const auto &val = properties[prop];
+		if (val.empty()) {
+			return def;
+		}
+
+		return is_yes(val);
 	}
 
 	inline bool isNotDefault(Property prop) const
