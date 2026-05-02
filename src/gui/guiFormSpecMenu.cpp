@@ -312,14 +312,14 @@ void GUIFormSpecMenu::parseSize(parserData* data, const std::string &element)
 
 void GUIFormSpecMenu::parseContainer(parserData* data, const std::string &element)
 {
-	std::vector<std::string> parts = split(element, ";");
+	std::vector<std::string> parts = split(element, ';');
 
 	if (parts.size() < 1) {
 		errorstream << "Invalid container start element: '" << element << "'" << std::endl;
 		return;
 	}
 
-	std::vector<std::string> v_pos = split(parts[0], ",");
+	std::vector<std::string> v_pos = split(parts[0], ',');
 	if (v_pos.size() < 2) {
 		errorstream << "Invalid container position: '" << parts[0] << "'" << std::endl;
 		return;
@@ -332,7 +332,7 @@ void GUIFormSpecMenu::parseContainer(parserData* data, const std::string &elemen
 	parent_stack.push(data->current_parent);
 
 	if (parts.size() >= 2) {
-		std::vector<std::string> v_geom = split(parts[1], ",");
+		std::vector<std::string> v_geom = split(parts[1], ',');
 		if (v_geom.size() >= 2) {
 			v2s32 pos = getRealCoordinateBasePos(v_pos);
 			v2s32 geom = getRealCoordinateGeometry(v_geom);
