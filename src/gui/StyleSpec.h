@@ -44,6 +44,9 @@ public:
 		SOUND,
 		SPACING,
 		SIZE,
+		VISIBLE,
+		CURSOR,
+		TOOLTIP,
 		NUM_PROPERTIES,
 		NONE
 	};
@@ -117,6 +120,12 @@ public:
 			return SPACING;
 		} else if (name == "size") {
 			return SIZE;
+		} else if (name == "visible") {
+			return VISIBLE;
+		} else if (name == "cursor") {
+			return CURSOR;
+		} else if (name == "tooltip") {
+			return TOOLTIP;
 		} else {
 			return NONE;
 		}

@@ -317,6 +317,7 @@ protected:
 	v2s32 offset;
 	v2f32 pos_offset;
 	std::stack<v2f32> container_stack;
+	std::stack<gui::IGUIElement *> parent_stack;
 
 	InventoryManager *m_invmgr;
 	ISimpleTextureSource *m_tsrc;
@@ -344,6 +345,7 @@ protected:
 	std::vector<std::pair<FieldSpec, GUIScrollBar *>> m_scrollbars;
 	std::vector<std::pair<FieldSpec, std::vector<std::string>>> m_dropdowns;
 	std::vector<gui::IGUIElement *> m_clickthrough_elements;
+	std::vector<gui::IGUIElement *> m_container_clippers;
 	std::vector<std::pair<std::string, GUIScrollContainer *>> m_scroll_containers;
 
 	std::unique_ptr<GUIInventoryList::ItemSpec> m_selected_item;
