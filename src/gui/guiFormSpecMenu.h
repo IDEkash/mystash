@@ -306,6 +306,8 @@ protected:
 	std::unordered_map<std::string, std::vector<StyleSpec>> theme_by_name;
 	std::unordered_set<std::string> property_warned;
 
+	core::rect<s32> applyMargin(const core::rect<s32> &rect, const StyleSpec &style);
+	void applyCommonStyle(gui::IGUIElement *e, FieldSpec &spec, const StyleSpec &style);
 	StyleSpec getDefaultStyleForElement(const std::string &type,
 			const std::string &name="", const std::string &parent_type="");
 	std::array<StyleSpec, StyleSpec::NUM_STATES> getStyleForElement(const std::string &type,
@@ -441,9 +443,9 @@ private:
 
 	void parseSize(parserData* data, const std::string &element);
 	void parseContainer(parserData* data, const std::string &element);
-	void parseContainerEnd(parserData* data, const std::string &element);
+	void parseContainerEnd(parserData* data, const std::string &);
 	void parseScrollContainer(parserData *data, const std::string &element);
-	void parseScrollContainerEnd(parserData *data, const std::string &element);
+	void parseScrollContainerEnd(parserData *data, const std::string &);
 	void parseList(parserData* data, const std::string &element);
 	void parseListRing(parserData* data, const std::string &element);
 	void parseCheckbox(parserData* data, const std::string &element);

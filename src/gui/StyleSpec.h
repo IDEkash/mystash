@@ -47,6 +47,7 @@ public:
 		VISIBLE,
 		CURSOR,
 		TOOLTIP,
+		MARGIN,
 		NUM_PROPERTIES,
 		NONE
 	};
@@ -126,6 +127,8 @@ public:
 			return CURSOR;
 		} else if (name == "tooltip") {
 			return TOOLTIP;
+		} else if (name == "margin") {
+			return MARGIN;
 		} else {
 			return NONE;
 		}
@@ -378,6 +381,20 @@ public:
 		}
 
 		return is_yes(val);
+	}
+
+	float getFloat(Property prop, float def) const
+	{
+		const auto &val = properties[prop];
+		if (val.empty()) {
+			return def;
+		}
+
+		try {
+			return stof(val);
+		} catch (const std::exception &) {
+			return def;
+		}
 	}
 
 	inline bool isNotDefault(Property prop) const
