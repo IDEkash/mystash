@@ -2265,6 +2265,7 @@ void GUIFormSpecMenu::parseItemImageButton(parserData* data, const std::string &
 	spec_btn.sound = style[StyleSpec::STATE_DEFAULT].get(StyleSpec::Property::SOUND, "");
 
 	e_btn->setStyles(style);
+	applyCommonStyle(e_btn, spec_btn, style[StyleSpec::STATE_DEFAULT]);
 
 	if (spec_btn.fname == m_focused_element) {
 		Environment->setFocus(e_btn);

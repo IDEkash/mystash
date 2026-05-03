@@ -2802,6 +2802,8 @@ void Game::updateCamera(f32 dtime)
 void Game::updateCameraMode()
 {
 	LocalPlayer *player = client->getEnv().getLocalPlayer();
+	if (!camera || !player)
+		return;
 
 	// Obey server choice
 	if (player->allowed_camera_mode != CAMERA_MODE_ANY)
