@@ -38,12 +38,20 @@ public:
 		PADDING,
 		FONT,
 		FONT_SIZE,
+		VISIBLE,
+		CURSOR,
+		TOOLTIP,
+		MARGIN,
 		COLORS,
 		BORDERCOLORS,
 		BORDERWIDTHS,
 		SOUND,
 		SPACING,
 		SIZE,
+		VISIBLE,
+		CURSOR,
+		TOOLTIP,
+		MARGIN,
 		NUM_PROPERTIES,
 		NONE
 	};
@@ -117,6 +125,14 @@ public:
 			return SPACING;
 		} else if (name == "size") {
 			return SIZE;
+		} else if (name == "visible") {
+			return VISIBLE;
+		} else if (name == "cursor") {
+			return CURSOR;
+		} else if (name == "tooltip") {
+			return TOOLTIP;
+		} else if (name == "margin") {
+			return MARGIN;
 		} else {
 			return NONE;
 		}
@@ -359,6 +375,20 @@ public:
 		video::ITexture *texture = tsrc->getTexture(val);
 
 		return texture;
+	}
+
+	float getFloat(Property prop, float def) const
+	{
+		const auto &val = properties[prop];
+		if (val.empty()) {
+			return def;
+		}
+
+		try {
+			return stof(val);
+		} catch (const std::exception &) {
+			return def;
+		}
 	}
 
 	bool getBool(Property prop, bool def) const

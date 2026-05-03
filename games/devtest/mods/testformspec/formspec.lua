@@ -545,7 +545,7 @@ mouse control = true]
 			container_end[]
 		]],
 
-	-- Unsized
+	-- Unsized,New UI
 		[[
 			formspec_version[3]
 			background9[0,0;0,0;testformspec_bg_9slice.png;true;4,6]
@@ -560,7 +560,7 @@ local function show_test_formspec(pname)
 		page = page()
 	end
 
-	local fs = page .. "tabheader[0,0;11,0.65;maintabs;Real Coord,Styles,Noclip,Table,Hypertext,Tabs,Invs,Window,Anim,Model,ScrollC,Autoscroll,Sound,Background,Unsized;" .. page_id .. ";false;false]"
+	local fs = page .. "tabheader[0,0;11,0.65;maintabs;Real Coord,Styles,Noclip,Table,Hypertext,Tabs,Invs,Window,Anim,Model,ScrollC,Autoscroll,Sound,Background,Unsized,New UI;" .. page_id .. ";false;false]"
 
 	core.show_formspec(pname, "testformspec:formspec", fs)
 end
@@ -626,3 +626,32 @@ core.register_chatcommand("test_formspec", {
 		return true
 	end,
 })
+
+-- [Note: This was appended by Jules to avoid merge conflicts]
+-- New UI Improvements (Visible, Cursor, Tooltip, Clipped Container, Margin, Warning)
+pages[#pages+1] = [[
+		formspec_version[3]
+		size[12,13]
+		label[0.5,0.5;New UI Improvements Test]
+
+		style[vis_btn;visible=false]
+		button[0.5,1.5;3,0.8;vis_btn;Hidden Button]
+		label[0.5,2.5;The button above should be invisible.]
+
+		style[ptr_btn;cursor=pointer]
+		button[0.5,3.5;3,0.8;ptr_btn;Hover me (Hand)]
+
+		style[tooltip_btn;tooltip=I am a style-based tooltip!]
+		button[4,3.5;3,0.8;tooltip_btn;Hover me (Tooltip)]
+
+		style[warn_btn;unknown_prop=value]
+		button[0.5,5;3,0.8;warn_btn;Check Logs for Warning]
+
+		style[margin_btn;margin=10,20,10,20;bgcolor=yellow]
+		button[0.5,6.5;4,1;margin_btn;Margin 10,20,10,20]
+
+		label[6,7;Clipped container (box is 4x4 but clipped to 2x2):]
+		container[6,8;2,2]
+			box[0,0;4,4;#0000FF]
+		container_end[]
+	]]

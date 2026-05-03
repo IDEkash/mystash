@@ -312,27 +312,65 @@ void GUIFormSpecMenu::parseSize(parserData* data, const std::string &element)
 
 void GUIFormSpecMenu::parseContainer(parserData* data, const std::string &element)
 {
-	std::vector<std::string> parts = split(element, ',');
+	std::vector<std::string> parts = split(element, ';');
 
-	if (parts.size() >= 2) {
-		if (parts[1].find(';') != std::string::npos)
-			parts[1] = parts[1].substr(0, parts[1].find(';'));
-
-		container_stack.push(pos_offset);
-		pos_offset.X += stof(parts[0]);
-		pos_offset.Y += stof(parts[1]);
+	if (parts.size() < 1) {
+		errorstream << "Invalid container start element: '" << element << "'" << std::endl;
 		return;
 	}
-	errorstream<< "Invalid container start element (" << parts.size() << "): '" << element << "'"  << std::endl;
+
+	std::vector<std::string> v_pos = split(parts[0], ',');
+	if (v_pos.size() < 2) {
+		errorstream << "Invalid container position: '" << parts[0] << "'" << std::endl;
+		return;
+	}
+
+	if (v_pos[1].find(';') != std::string::npos)
+		v_pos[1] = v_pos[1].substr(0, v_pos[1].find(';'));
+
+	container_stack.push(pos_offset);
+	parent_stack.push(data->current_parent);
+
+	if (parts.size() >= 2) {
+		std::vector<std::string> v_geom = split(parts[1], ',');
+		if (v_geom.size() >= 2) {
+			v2s32 pos, geom;
+			if (data->real_coordinates) {
+				pos = getRealCoordinateBasePos(v_pos);
+				geom = getRealCoordinateGeometry(v_geom);
+			} else {
+				pos = getElementBasePos(&v_pos);
+				geom.X = stof(v_geom[0]) * spacing.X;
+				geom.Y = stof(v_geom[1]) * spacing.Y;
+			}
+
+			core::rect<s32> rect(pos, pos + geom);
+			gui::IGUIElement *clipper = new gui::IGUIElement(EGUIET_ELEMENT, Environment,
+					data->current_parent, 0, rect);
+			clipper->setNotClipped(false);
+			m_container_clippers.push_back(clipper);
+			clipper->setVisible(true);
+			data->current_parent = clipper;
+
+			pos_offset.X = 0;
+			pos_offset.Y = 0;
+			return;
+		}
+	}
+
+	pos_offset.X += stof(v_pos[0]);
+	pos_offset.Y += stof(v_pos[1]);
 }
 
 void GUIFormSpecMenu::parseContainerEnd(parserData* data, const std::string &)
 {
 	if (container_stack.empty()) {
-		errorstream<< "Invalid container end element, no matching container start element"  << std::endl;
+		errorstream << "Invalid container end element, no matching container start element" << std::endl;
 	} else {
 		pos_offset = container_stack.top();
 		container_stack.pop();
+		data->current_parent = parent_stack.top();
+		parent_stack.pop();
 	}
 }
 
@@ -358,6 +396,8 @@ void GUIFormSpecMenu::parseScrollContainer(parserData *data, const std::string &
 
 	MY_CHECKPOS("scroll_container", 0);
 	MY_CHECKGEOM("scroll_container", 1);
+
+	parent_stack.push(data->current_parent);
 
 	v2s32 pos = getRealCoordinateBasePos(v_pos);
 	v2s32 geom = getRealCoordinateGeometry(v_geom);
@@ -385,7 +425,6 @@ void GUIFormSpecMenu::parseScrollContainer(parserData *data, const std::string &
 	// make mover
 	FieldSpec spec_mover(
 		"",
-		L"",
 		L"",
 		258 + m_fields.size()
 	);
@@ -429,6 +468,7 @@ void GUIFormSpecMenu::parseScrollContainerEnd(parserData *data, const std::strin
 		return;
 	}
 
+	parent_stack.pop();
 	data->current_parent = data->current_parent->getParent()->getParent();
 	pos_offset = container_stack.top();
 	container_stack.pop();
@@ -479,7 +519,6 @@ void GUIFormSpecMenu::parseList(parserData *data, const std::string &element)
 	FieldSpec spec(
 		"",
 		L"",
-		L"",
 		258 + m_fields.size(),
 		3
 	);
@@ -517,7 +556,7 @@ void GUIFormSpecMenu::parseList(parserData *data, const std::string &element)
 			data->inventorylist_options, m_font);
 
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
-
+	applyCommonStyle(e, spec, style);
 	m_inventorylists.push_back(e);
 	m_fields.push_back(spec);
 }
@@ -622,7 +661,7 @@ void GUIFormSpecMenu::parseCheckbox(parserData* data, const std::string &element
 	spec.sound = style.get(StyleSpec::Property::SOUND, "");
 
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
-
+	applyCommonStyle(e, spec, style);
 	if (spec.fname == m_focused_element) {
 		Environment->setFocus(e);
 	}
@@ -669,7 +708,6 @@ void GUIFormSpecMenu::parseScrollBar(parserData* data, const std::string &elemen
 	FieldSpec spec(
 			name,
 			L"",
-			L"",
 			258+m_fields.size()
 		);
 
@@ -685,6 +723,7 @@ void GUIFormSpecMenu::parseScrollBar(parserData* data, const std::string &elemen
 
 	auto style = getDefaultStyleForElement("scrollbar", name);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
+	applyCommonStyle(e, spec, style);
 	e->setArrowsVisible(data->scrollbar_options.arrow_visiblity);
 
 	s32 max = data->scrollbar_options.max;
@@ -816,7 +855,6 @@ void GUIFormSpecMenu::parseImage(parserData* data, const std::string &element)
 	FieldSpec spec(
 		name,
 		L"",
-		L"",
 		258 + m_fields.size(),
 		1
 	);
@@ -850,6 +888,7 @@ void GUIFormSpecMenu::parseImage(parserData* data, const std::string &element)
 
 	auto style = getDefaultStyleForElement("image", spec.fname);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, m_formspec_version < 3));
+	applyCommonStyle(e, spec, style);
 
 	// Animated images should let events through
 	m_clickthrough_elements.push_back(e);
@@ -892,7 +931,6 @@ void GUIFormSpecMenu::parseAnimatedImage(parserData *data, const std::string &el
 	FieldSpec spec(
 		name,
 		L"",
-		L"",
 		258 + m_fields.size()
 	);
 	spec.ftype = f_AnimatedImage;
@@ -916,6 +954,7 @@ void GUIFormSpecMenu::parseAnimatedImage(parserData *data, const std::string &el
 
 	auto style = getDefaultStyleForElement("animated_image", spec.fname, "image");
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
+	applyCommonStyle(e, spec, style);
 
 	// Animated images should let events through
 	m_clickthrough_elements.push_back(e);
@@ -954,7 +993,6 @@ void GUIFormSpecMenu::parseItemImage(parserData* data, const std::string &elemen
 	FieldSpec spec(
 		"",
 		L"",
-		L"",
 		258 + m_fields.size(),
 		2
 	);
@@ -964,6 +1002,7 @@ void GUIFormSpecMenu::parseItemImage(parserData* data, const std::string &elemen
 			core::rect<s32>(pos, pos + geom), name, m_font, m_client);
 	auto style = getDefaultStyleForElement("item_image", spec.fname);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
+	applyCommonStyle(e, spec, style);
 
 	// item images should let events through
 	m_clickthrough_elements.push_back(e);
@@ -1040,7 +1079,7 @@ void GUIFormSpecMenu::parseButton(parserData* data, const std::string &element)
 	spec.sound = style[StyleSpec::STATE_DEFAULT].get(StyleSpec::Property::SOUND, "");
 
 	e->setStyles(style);
-
+	applyCommonStyle(e, spec, style[StyleSpec::STATE_DEFAULT]);
 	if (spec.fname == m_focused_element) {
 		Environment->setFocus(e);
 	}
@@ -1126,7 +1165,6 @@ void GUIFormSpecMenu::parseBackground(parserData* data, const std::string &eleme
 
 	FieldSpec spec(
 		name,
-		L"",
 		L"",
 		258 + m_fields.size()
 	);
@@ -1221,7 +1259,6 @@ void GUIFormSpecMenu::parseTable(parserData* data, const std::string &element)
 	FieldSpec spec(
 		name,
 		L"",
-		L"",
 		258 + m_fields.size()
 	);
 
@@ -1237,6 +1274,7 @@ void GUIFormSpecMenu::parseTable(parserData* data, const std::string &element)
 	// Apply styling before calculating the cell sizes
 	auto style = getDefaultStyleForElement("table", name);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
+	applyCommonStyle(e, spec, style);
 	e->setOverrideFont(style.getFont());
 
 	if (spec.fname == m_focused_element) {
@@ -1297,7 +1335,6 @@ void GUIFormSpecMenu::parseTextList(parserData* data, const std::string &element
 	FieldSpec spec(
 		name,
 		L"",
-		L"",
 		258 + m_fields.size()
 	);
 
@@ -1326,6 +1363,7 @@ void GUIFormSpecMenu::parseTextList(parserData* data, const std::string &element
 
 	auto style = getDefaultStyleForElement("textlist", name);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
+	applyCommonStyle(e, spec, style);
 	e->setOverrideFont(style.getFont());
 
 	m_tables.emplace_back(spec, e);
@@ -1375,7 +1413,6 @@ void GUIFormSpecMenu::parseDropDown(parserData* data, const std::string &element
 	FieldSpec spec(
 		name,
 		L"",
-		L"",
 		258 + m_fields.size()
 	);
 
@@ -1403,7 +1440,7 @@ void GUIFormSpecMenu::parseDropDown(parserData* data, const std::string &element
 	spec.sound = style.get(StyleSpec::Property::SOUND, "");
 
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
-
+	applyCommonStyle(e, spec, style);
 	m_fields.push_back(spec);
 
 	m_dropdowns.emplace_back(spec, std::vector<std::string>());
@@ -1495,6 +1532,7 @@ void GUIFormSpecMenu::parsePwdField(parserData* data, const std::string &element
 
 	auto style = getDefaultStyleForElement("pwdfield", name, "field");
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
+	applyCommonStyle(e, spec, style);
 	e->setDrawBorder(style.getBool(StyleSpec::BORDER, true));
 	e->setOverrideColor(style.getColor(StyleSpec::TEXTCOLOR, video::SColor(0xFFFFFFFF)));
 	e->setOverrideFont(style.getFont());
@@ -1565,7 +1603,8 @@ void GUIFormSpecMenu::createTextField(parserData *data, FieldSpec &spec,
 		}
 
 		e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
-		e->setOverrideColor(style.getColor(StyleSpec::TEXTCOLOR, video::SColor(0xFFFFFFFF)));
+	applyCommonStyle(e, spec, style);
+	e->setOverrideColor(style.getColor(StyleSpec::TEXTCOLOR, video::SColor(0xFFFFFFFF)));
 		bool border = style.getBool(StyleSpec::BORDER, true);
 		e->setDrawBorder(border);
 		e->setDrawBackground(border);
@@ -1758,6 +1797,8 @@ void GUIFormSpecMenu::parseHyperText(parserData *data, const std::string &elemen
 
 	GUIHyperText *e = new GUIHyperText(spec.flabel.c_str(), Environment,
 			data->current_parent, spec.fid, rect, m_client, m_tsrc);
+
+	applyCommonStyle(e, spec, style);
 	e->drop();
 
 	m_fields.push_back(spec);
@@ -1793,7 +1834,6 @@ void GUIFormSpecMenu::parseLabel(parserData* data, const std::string &element)
 		FieldSpec spec(
 			"",
 			L"",
-			L"",
 			258 + m_fields.size(),
 			4
 		);
@@ -1804,7 +1844,8 @@ void GUIFormSpecMenu::parseLabel(parserData* data, const std::string &element)
 		e->setWordWrap(word_wrap);
 
 		e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
-		e->setOverrideColor(style.getColor(StyleSpec::TEXTCOLOR, video::SColor(0xFFFFFFFF)));
+	applyCommonStyle(e, spec, style);
+	e->setOverrideColor(style.getColor(StyleSpec::TEXTCOLOR, video::SColor(0xFFFFFFFF)));
 		e->setOverrideFont(font);
 
 		m_fields.push_back(spec);
@@ -1934,7 +1975,6 @@ void GUIFormSpecMenu::parseVertLabel(parserData* data, const std::string &elemen
 	FieldSpec spec(
 		"",
 		L"",
-		L"",
 		258 + m_fields.size()
 	);
 
@@ -1944,6 +1984,7 @@ void GUIFormSpecMenu::parseVertLabel(parserData* data, const std::string &elemen
 	e->setTextAlignment(gui::EGUIA_CENTER, gui::EGUIA_CENTER);
 
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
+	applyCommonStyle(e, spec, style);
 	e->setOverrideColor(style.getColor(StyleSpec::TEXTCOLOR, video::SColor(0xFFFFFFFF)));
 	e->setOverrideFont(font);
 
@@ -2039,6 +2080,7 @@ void GUIFormSpecMenu::parseImageButton(parserData* data, const std::string &elem
 	}
 
 	e->setStyles(style);
+	applyCommonStyle(e, spec, style[StyleSpec::STATE_DEFAULT]);
 	e->setScaleImage(true);
 
 	m_fields.push_back(spec);
@@ -2095,7 +2137,6 @@ void GUIFormSpecMenu::parseTabHeader(parserData* data, const std::string &elemen
 	FieldSpec spec(
 		name,
 		L"",
-		L"",
 		258 + m_fields.size()
 	);
 
@@ -2140,6 +2181,7 @@ void GUIFormSpecMenu::parseTabHeader(parserData* data, const std::string &elemen
 	spec.sound = style.get(StyleSpec::Property::SOUND, "");
 
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, true));
+	applyCommonStyle(e, spec, style);
 
 	for (const std::string &button : buttons) {
 		auto tab = e->addTab(unescape_translate(unescape_string(
@@ -2223,6 +2265,7 @@ void GUIFormSpecMenu::parseItemImageButton(parserData* data, const std::string &
 	spec_btn.sound = style[StyleSpec::STATE_DEFAULT].get(StyleSpec::Property::SOUND, "");
 
 	e_btn->setStyles(style);
+	applyCommonStyle(e_btn, spec_btn, style[StyleSpec::STATE_DEFAULT]);
 
 	if (spec_btn.fname == m_focused_element) {
 		Environment->setFocus(e_btn);
@@ -2258,8 +2301,7 @@ void GUIFormSpecMenu::parseBox(parserData* data, const std::string &element)
 	}
 
 	FieldSpec spec(
-		"",
-		L"",
+		"__box_" + std::to_string(m_fields.size()),
 		L"",
 		258 + m_fields.size(),
 		-2
@@ -2287,6 +2329,7 @@ void GUIFormSpecMenu::parseBox(parserData* data, const std::string &element)
 	GUIBox *e = new GUIBox(Environment, data->current_parent, spec.fid, rect,
 		colors, bordercolors, borderwidths);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, m_formspec_version < 3));
+	applyCommonStyle(e, spec, style);
 	e->drop();
 
 	m_fields.push_back(spec);
@@ -2423,7 +2466,6 @@ void GUIFormSpecMenu::parseTooltip(parserData* data, const std::string &element)
 
 		FieldSpec fieldspec(
 			"",
-			L"",
 			L"",
 			258 + m_fields.size()
 		);
@@ -2646,7 +2688,7 @@ void GUIFormSpecMenu::parseStyle(parserData *data, const std::string &element)
 
 		StyleSpec::Property prop = StyleSpec::GetPropertyByName(propname);
 		if (prop == StyleSpec::NONE) {
-			if (property_warned.find(propname) != property_warned.end()) {
+			if (property_warned.find(propname) == property_warned.end()) {
 				warningstream << "Invalid style element (Unknown property " << propname << "): '"
 						<< element
 						<< "'" << std::endl;
@@ -2820,7 +2862,6 @@ void GUIFormSpecMenu::parseModel(parserData *data, const std::string &element)
 	FieldSpec spec(
 		name,
 		L"",
-		L"",
 		258 + m_fields.size()
 	);
 
@@ -2859,6 +2900,7 @@ void GUIFormSpecMenu::parseModel(parserData *data, const std::string &element)
 
 	auto style = getStyleForElement("model", spec.fname);
 	e->setStyles(style);
+	applyCommonStyle(e, spec, style[StyleSpec::STATE_DEFAULT]);
 	e->drop();
 
 	m_fields.push_back(spec);
@@ -2887,6 +2929,8 @@ void GUIFormSpecMenu::removeAll()
 		tooltip_rect_it.first->drop();
 	for (auto &clickthrough_it : m_clickthrough_elements)
 		clickthrough_it->drop();
+	for (auto &container_clipper_it : m_container_clippers)
+		container_clipper_it->drop();
 	for (auto &scroll_container_it : m_scroll_containers)
 		scroll_container_it.second->drop();
 }
@@ -3034,6 +3078,7 @@ void GUIFormSpecMenu::regenerateGui(v2u32 screensize)
 	m_inventory_rings.clear();
 	m_dropdowns.clear();
 	m_scroll_containers.clear();
+	m_container_clippers.clear();
 	theme_by_name.clear();
 	theme_by_type.clear();
 	m_clickthrough_elements.clear();
@@ -3079,7 +3124,9 @@ void GUIFormSpecMenu::regenerateGui(v2u32 screensize)
 		m_tooltip_element->grab();
 	}
 
-	std::vector<std::string> elements = split(m_formspec_string,']');
+
+	while (!parent_stack.empty()) parent_stack.pop();
+	std::vector<std::string> elements = split(m_formspec_string, ']');
 	unsigned int i = 0;
 
 	/* try to read version from first element only */
@@ -5175,6 +5222,34 @@ std::wstring GUIFormSpecMenu::getLabelByID(s32 id)
 			return spec.flabel;
 	}
 	return L"";
+}
+
+
+core::rect<s32> GUIFormSpecMenu::applyMargin(const core::rect<s32> &rect, const StyleSpec &style)
+{
+	if (!style.hasProperty(StyleSpec::MARGIN)) return rect;
+	std::array<s32, 4> margins = style.getIntArray(StyleSpec::MARGIN, {0, 0, 0, 0});
+	core::rect<s32> ret = rect;
+	ret.UpperLeftCorner.Y += margins[0];
+	ret.LowerRightCorner.X -= margins[1];
+	ret.LowerRightCorner.Y -= margins[2];
+	ret.UpperLeftCorner.X += margins[3];
+	return ret;
+}
+
+void GUIFormSpecMenu::applyCommonStyle(gui::IGUIElement *e, FieldSpec &spec, const StyleSpec &style)
+{
+	if (!e) return;
+	e->setRelativePosition(applyMargin(e->getRelativePosition(), style));
+	e->setVisible(style.getBool(StyleSpec::VISIBLE, true));
+	if (style.hasProperty(StyleSpec::CURSOR)) {
+		std::string cursor = style.get(StyleSpec::CURSOR, "default");
+		if (cursor == "pointer") spec.fcursor_icon = gui::ECI_HAND;
+		else if (cursor == "default") spec.fcursor_icon = gui::ECI_NORMAL;
+	}
+	if (style.hasProperty(StyleSpec::TOOLTIP)) {
+		m_tooltips[spec.fname] = TooltipSpec(utf8_to_wide(style.get(StyleSpec::TOOLTIP, "")), m_default_tooltip_bgcolor, m_default_tooltip_color);
+	}
 }
 
 StyleSpec GUIFormSpecMenu::getDefaultStyleForElement(const std::string &type,
