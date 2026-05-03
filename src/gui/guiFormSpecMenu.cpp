@@ -329,7 +329,7 @@ void GUIFormSpecMenu::parseContainer(parserData* data, const std::string &elemen
 		v_pos[1] = v_pos[1].substr(0, v_pos[1].find(';'));
 
 	container_stack.push(pos_offset);
-
+	parent_stack.push(data->current_parent);
 
 	if (parts.size() >= 2) {
 		std::vector<std::string> v_geom = split(parts[1], ',');
@@ -370,11 +370,7 @@ void GUIFormSpecMenu::parseContainerEnd(parserData* data, const std::string &)
 		pos_offset = container_stack.top();
 		container_stack.pop();
 		data->current_parent = parent_stack.top();
-
-	}
-} else {
-		pos_offset = container_stack.top();
-		container_stack.pop();
+		parent_stack.pop();
 	}
 }
 
@@ -429,7 +425,6 @@ void GUIFormSpecMenu::parseScrollContainer(parserData *data, const std::string &
 	// make mover
 	FieldSpec spec_mover(
 		"",
-		L"",
 		L"",
 		258 + m_fields.size()
 	);
@@ -524,7 +519,6 @@ void GUIFormSpecMenu::parseList(parserData *data, const std::string &element)
 	FieldSpec spec(
 		"",
 		L"",
-		L"",
 		258 + m_fields.size(),
 		3
 	);
@@ -562,10 +556,6 @@ void GUIFormSpecMenu::parseList(parserData *data, const std::string &element)
 			data->inventorylist_options, m_font);
 
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
 	applyCommonStyle(e, spec, style);
 	m_inventorylists.push_back(e);
 	m_fields.push_back(spec);
@@ -672,10 +662,6 @@ void GUIFormSpecMenu::parseCheckbox(parserData* data, const std::string &element
 
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
 	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
 	if (spec.fname == m_focused_element) {
 		Environment->setFocus(e);
 	}
@@ -722,7 +708,6 @@ void GUIFormSpecMenu::parseScrollBar(parserData* data, const std::string &elemen
 	FieldSpec spec(
 			name,
 			L"",
-			L"",
 			258+m_fields.size()
 		);
 
@@ -738,9 +723,6 @@ void GUIFormSpecMenu::parseScrollBar(parserData* data, const std::string &elemen
 
 	auto style = getDefaultStyleForElement("scrollbar", name);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
 	applyCommonStyle(e, spec, style);
 	e->setArrowsVisible(data->scrollbar_options.arrow_visiblity);
 
@@ -873,7 +855,6 @@ void GUIFormSpecMenu::parseImage(parserData* data, const std::string &element)
 	FieldSpec spec(
 		name,
 		L"",
-		L"",
 		258 + m_fields.size(),
 		1
 	);
@@ -950,7 +931,6 @@ void GUIFormSpecMenu::parseAnimatedImage(parserData *data, const std::string &el
 	FieldSpec spec(
 		name,
 		L"",
-		L"",
 		258 + m_fields.size()
 	);
 	spec.ftype = f_AnimatedImage;
@@ -974,9 +954,6 @@ void GUIFormSpecMenu::parseAnimatedImage(parserData *data, const std::string &el
 
 	auto style = getDefaultStyleForElement("animated_image", spec.fname, "image");
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
 	applyCommonStyle(e, spec, style);
 
 	// Animated images should let events through
@@ -1016,7 +993,6 @@ void GUIFormSpecMenu::parseItemImage(parserData* data, const std::string &elemen
 	FieldSpec spec(
 		"",
 		L"",
-		L"",
 		258 + m_fields.size(),
 		2
 	);
@@ -1026,9 +1002,6 @@ void GUIFormSpecMenu::parseItemImage(parserData* data, const std::string &elemen
 			core::rect<s32>(pos, pos + geom), name, m_font, m_client);
 	auto style = getDefaultStyleForElement("item_image", spec.fname);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
 	applyCommonStyle(e, spec, style);
 
 	// item images should let events through
@@ -1193,7 +1166,6 @@ void GUIFormSpecMenu::parseBackground(parserData* data, const std::string &eleme
 	FieldSpec spec(
 		name,
 		L"",
-		L"",
 		258 + m_fields.size()
 	);
 
@@ -1287,7 +1259,6 @@ void GUIFormSpecMenu::parseTable(parserData* data, const std::string &element)
 	FieldSpec spec(
 		name,
 		L"",
-		L"",
 		258 + m_fields.size()
 	);
 
@@ -1303,9 +1274,6 @@ void GUIFormSpecMenu::parseTable(parserData* data, const std::string &element)
 	// Apply styling before calculating the cell sizes
 	auto style = getDefaultStyleForElement("table", name);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
 	applyCommonStyle(e, spec, style);
 	e->setOverrideFont(style.getFont());
 
@@ -1367,7 +1335,6 @@ void GUIFormSpecMenu::parseTextList(parserData* data, const std::string &element
 	FieldSpec spec(
 		name,
 		L"",
-		L"",
 		258 + m_fields.size()
 	);
 
@@ -1396,9 +1363,6 @@ void GUIFormSpecMenu::parseTextList(parserData* data, const std::string &element
 
 	auto style = getDefaultStyleForElement("textlist", name);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
 	applyCommonStyle(e, spec, style);
 	e->setOverrideFont(style.getFont());
 
@@ -1449,7 +1413,6 @@ void GUIFormSpecMenu::parseDropDown(parserData* data, const std::string &element
 	FieldSpec spec(
 		name,
 		L"",
-		L"",
 		258 + m_fields.size()
 	);
 
@@ -1477,10 +1440,6 @@ void GUIFormSpecMenu::parseDropDown(parserData* data, const std::string &element
 	spec.sound = style.get(StyleSpec::Property::SOUND, "");
 
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
 	applyCommonStyle(e, spec, style);
 	m_fields.push_back(spec);
 
@@ -1574,10 +1533,6 @@ void GUIFormSpecMenu::parsePwdField(parserData* data, const std::string &element
 	auto style = getDefaultStyleForElement("pwdfield", name, "field");
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
 	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
 	e->setDrawBorder(style.getBool(StyleSpec::BORDER, true));
 	e->setOverrideColor(style.getColor(StyleSpec::TEXTCOLOR, video::SColor(0xFFFFFFFF)));
 	e->setOverrideFont(style.getFont());
@@ -1648,10 +1603,6 @@ void GUIFormSpecMenu::createTextField(parserData *data, FieldSpec &spec,
 		}
 
 		e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
 	applyCommonStyle(e, spec, style);
 	e->setOverrideColor(style.getColor(StyleSpec::TEXTCOLOR, video::SColor(0xFFFFFFFF)));
 		bool border = style.getBool(StyleSpec::BORDER, true);
@@ -1846,6 +1797,8 @@ void GUIFormSpecMenu::parseHyperText(parserData *data, const std::string &elemen
 
 	GUIHyperText *e = new GUIHyperText(spec.flabel.c_str(), Environment,
 			data->current_parent, spec.fid, rect, m_client, m_tsrc);
+
+	applyCommonStyle(e, spec, style);
 	e->drop();
 
 	m_fields.push_back(spec);
@@ -1881,7 +1834,6 @@ void GUIFormSpecMenu::parseLabel(parserData* data, const std::string &element)
 		FieldSpec spec(
 			"",
 			L"",
-			L"",
 			258 + m_fields.size(),
 			4
 		);
@@ -1892,10 +1844,6 @@ void GUIFormSpecMenu::parseLabel(parserData* data, const std::string &element)
 		e->setWordWrap(word_wrap);
 
 		e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
 	applyCommonStyle(e, spec, style);
 	e->setOverrideColor(style.getColor(StyleSpec::TEXTCOLOR, video::SColor(0xFFFFFFFF)));
 		e->setOverrideFont(font);
@@ -2027,7 +1975,6 @@ void GUIFormSpecMenu::parseVertLabel(parserData* data, const std::string &elemen
 	FieldSpec spec(
 		"",
 		L"",
-		L"",
 		258 + m_fields.size()
 	);
 
@@ -2037,10 +1984,6 @@ void GUIFormSpecMenu::parseVertLabel(parserData* data, const std::string &elemen
 	e->setTextAlignment(gui::EGUIA_CENTER, gui::EGUIA_CENTER);
 
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
-	applyCommonStyle(e, spec, style);
 	applyCommonStyle(e, spec, style);
 	e->setOverrideColor(style.getColor(StyleSpec::TEXTCOLOR, video::SColor(0xFFFFFFFF)));
 	e->setOverrideFont(font);
@@ -2193,7 +2136,6 @@ void GUIFormSpecMenu::parseTabHeader(parserData* data, const std::string &elemen
 
 	FieldSpec spec(
 		name,
-		L"",
 		L"",
 		258 + m_fields.size()
 	);
@@ -2360,7 +2302,6 @@ void GUIFormSpecMenu::parseBox(parserData* data, const std::string &element)
 	FieldSpec spec(
 		"__box_" + std::to_string(m_fields.size()),
 		L"",
-		L"",
 		258 + m_fields.size(),
 		-2
 	);
@@ -2524,7 +2465,6 @@ void GUIFormSpecMenu::parseTooltip(parserData* data, const std::string &element)
 
 		FieldSpec fieldspec(
 			"",
-			L"",
 			L"",
 			258 + m_fields.size()
 		);
@@ -2921,7 +2861,6 @@ void GUIFormSpecMenu::parseModel(parserData *data, const std::string &element)
 	FieldSpec spec(
 		name,
 		L"",
-		L"",
 		258 + m_fields.size()
 	);
 
@@ -3184,8 +3123,9 @@ void GUIFormSpecMenu::regenerateGui(v2u32 screensize)
 		m_tooltip_element->grab();
 	}
 
+
 	while (!parent_stack.empty()) parent_stack.pop();
-	std::vector<std::string> elements = split(m_formspec_string,']');
+	std::vector<std::string> elements = split(m_formspec_string, ']');
 	unsigned int i = 0;
 
 	/* try to read version from first element only */
