@@ -1587,7 +1587,8 @@ void Client::handleCommand_EyeOffset(NetworkPacket* pkt)
 void Client::handleCommand_Camera(NetworkPacket* pkt)
 {
 	LocalPlayer *player = m_env.getLocalPlayer();
-	assert(player);
+	if (!player)
+		return;
 
 	u8 tmp;
 	*pkt >> tmp;

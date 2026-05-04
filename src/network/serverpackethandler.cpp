@@ -410,6 +410,8 @@ void Server::handleCommand_ClientReady(NetworkPacket* pkt)
 		FogBoundaryParams boundary = player->getFogBoundaryParams();
 		fog_sanitize(boundary);
 		SendSetFogBoundary(peer_id, boundary);
+
+		SendCamera(peer_id, player);
 	}
 
 	// Send shutdown timer if shutdown has been scheduled

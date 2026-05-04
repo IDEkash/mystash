@@ -2155,12 +2155,12 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 		f32 dy = g_touchcontrols->getPitchChange() * sens_scale;
 
 		LocalPlayer *player = client->getEnv().getLocalPlayer();
-		if (player && player->camera_tilt != 0.0f && !player->camera_anti_tilt_controller) {
+		if (player && cam->camera_tilt != 0.0f && !player->camera_anti_tilt_controller) {
 			v3f move(dx, -dy, 0);
 			// Roll is CW, Pitch is CW, Yaw is CCW.
 			// When rolled CW, positive screen-X (right) should increase yaw (CCW)
 			// and decrease pitch (CW) if roll is 90.
-			move.rotateXYBy(-player->camera_tilt);
+			move.rotateXYBy(-cam->camera_tilt);
 			cam->camera_yaw += move.X;
 			cam->camera_pitch -= move.Y;
 		} else {
@@ -2180,9 +2180,9 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 		f32 dy = dist.Y * m_cache_mouse_sensitivity * sens_scale;
 
 		LocalPlayer *player = client->getEnv().getLocalPlayer();
-		if (player && player->camera_tilt != 0.0f && !player->camera_anti_tilt_controller) {
+		if (player && cam->camera_tilt != 0.0f && !player->camera_anti_tilt_controller) {
 			v3f move(dx, -dy, 0);
-			move.rotateXYBy(-player->camera_tilt);
+			move.rotateXYBy(-cam->camera_tilt);
 			cam->camera_yaw -= move.X;
 			cam->camera_pitch -= move.Y;
 		} else {
@@ -2201,9 +2201,9 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 		f32 dy = input->joystick.getAxisWithoutDead(JA_FRUSTUM_VERTICAL) * c;
 
 		LocalPlayer *player = client->getEnv().getLocalPlayer();
-		if (player && player->camera_tilt != 0.0f && !player->camera_anti_tilt_controller) {
+		if (player && cam->camera_tilt != 0.0f && !player->camera_anti_tilt_controller) {
 			v3f move(dx, -dy, 0);
-			move.rotateXYBy(-player->camera_tilt);
+			move.rotateXYBy(-cam->camera_tilt);
 			cam->camera_yaw -= move.X;
 			cam->camera_pitch -= move.Y;
 		} else {
@@ -2825,6 +2825,8 @@ void Game::updateCamera(f32 dtime)
 void Game::updateCameraMode()
 {
 	LocalPlayer *player = client->getEnv().getLocalPlayer();
+	if (!player || !camera)
+		return;
 
 	// Obey server choice
 	if (player->allowed_camera_mode != CAMERA_MODE_ANY)
