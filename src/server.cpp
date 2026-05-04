@@ -1493,7 +1493,7 @@ void Server::SendMovement(session_t peer_id)
 
 void Server::SendAllPlayerState(session_t peer_id)
 {
-	RemotePlayer *player = m_clients.getPlayer(peer_id);
+	RemotePlayer *player = m_env->getPlayer(peer_id);
 	if (!player)
 		return;
 
