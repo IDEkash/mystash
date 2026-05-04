@@ -462,6 +462,11 @@ enum ToClientCommand : u16
 	TOCLIENT_CAMERA = 0x48,
 	/*
 		u8 allowed_camera_mode
+		u8 flags (bit 0: free_look, bit 1: smooth, bit 2: anti_tilt_controller)
+		f32 camera_tilt
+		f32 brightness
+		f32 contrast
+		f32 saturation
 	*/
 
 	TOCLIENT_HUDADD = 0x49,

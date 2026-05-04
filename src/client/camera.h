@@ -177,6 +177,8 @@ public:
 
 	void removeNametag(Nametag *nametag);
 
+	void addTrauma(f32 amount) { m_trauma = core::clamp(m_trauma + amount, 0.0f, 1.0f); }
+
 	void drawNametags();
 
 	inline void addArmInertia(f32 player_yaw);
@@ -206,6 +208,17 @@ private:
 	v3f m_camera_position;
 	// Absolute camera direction
 	v3f m_camera_direction;
+
+	v3f m_lua_pos;
+
+	v3f m_rotation_offset;
+	v3f m_target_rotation_offset;
+	f32 m_rotation_lerp_speed = 0.0f;
+
+	v3f m_eye_offset_first;
+	v3f m_eye_offset_third;
+	v3f m_eye_offset_third_front;
+
 	// Camera offset
 	v3s16 m_camera_offset;
 
@@ -260,4 +273,7 @@ private:
 
 	// Last known light color of the player
 	video::SColor m_player_light_color;
+
+	f32 m_trauma = 0.0f;
+	f32 m_trauma_timer = 0.0f;
 };

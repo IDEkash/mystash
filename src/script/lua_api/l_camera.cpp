@@ -41,14 +41,30 @@ void LuaCamera::create(lua_State *L, Camera *m)
 int LuaCamera::l_set_camera_mode(lua_State *L)
 {
 	Camera *camera = getobject(L, 1);
-	GenericCAO *playercao = getClient(L)->getEnv().getLocalPlayer()->getCAO();
+	LocalPlayer *player = getClient(L)->getEnv().getLocalPlayer();
+	GenericCAO *playercao = player->getCAO();
 	if (!camera)
 		return 0;
 	sanity_check(playercao);
-	if (!lua_isnumber(L, 2))
-		return 0;
 
-	camera->setCameraMode((CameraMode)((int)lua_tonumber(L, 2)));
+	CameraMode old_mode = camera->getCameraMode();
+	CameraMode new_mode;
+	if (lua_isnumber(L, 2)) {
+		new_mode = (CameraMode)((int)lua_tonumber(L, 2));
+	} else if (lua_isstring(L, 2)) {
+		new_mode = CAMERA_MODE_FIRST;
+		string_to_enum(es_CameraMode, new_mode, lua_tostring(L, 2));
+	} else {
+		return 0;
+	}
+
+	if (new_mode == CAMERA_MODE_SPECTATE && old_mode != CAMERA_MODE_SPECTATE) {
+		camera->m_lua_pos = camera->getPosition();
+		camera->m_rotation_offset = v3f(player->getPitch(), player->getYaw(), 0.0f);
+		camera->m_target_rotation_offset = camera->m_rotation_offset;
+	}
+
+	camera->setCameraMode(new_mode);
 	// Make the player visible depending on camera mode.
 	playercao->updateMeshCulling();
 	playercao->setChildrenVisible(camera->getCameraMode() > CAMERA_MODE_FIRST);
@@ -151,6 +167,67 @@ int LuaCamera::l_get_aspect_ratio(lua_State *L)
 	return 1;
 }
 
+// set_pos(self, pos)
+int LuaCamera::l_set_pos(lua_State *L)
+{
+	Camera *camera = getobject(L, 1);
+	if (!camera)
+		return 0;
+	v3f pos = check_v3f(L, 2);
+	camera->m_lua_pos = pos * BS;
+	return 0;
+}
+
+// set_rotation(self, rot)
+int LuaCamera::l_set_rotation(lua_State *L)
+{
+	Camera *camera = getobject(L, 1);
+	if (!camera)
+		return 0;
+	v3f rot = check_v3f(L, 2);
+	camera->m_rotation_offset = rot;
+	camera->m_target_rotation_offset = rot;
+	camera->m_rotation_lerp_speed = 0.0f;
+	return 0;
+}
+
+// add_trauma(self, amount)
+int LuaCamera::l_add_trauma(lua_State *L)
+{
+	Camera *camera = getobject(L, 1);
+	if (!camera)
+		return 0;
+	f32 amount = readParam<f32>(L, 2);
+	camera->addTrauma(amount);
+	return 0;
+}
+
+// set_rotation_offset(self, rot)
+int LuaCamera::l_set_rotation_offset(lua_State *L)
+{
+	Camera *camera = getobject(L, 1);
+	if (!camera)
+		return 0;
+	v3f rot = check_v3f(L, 2);
+	camera->m_rotation_offset = rot;
+	camera->m_target_rotation_offset = rot;
+	camera->m_rotation_lerp_speed = 0.0f;
+	return 0;
+}
+
+// lerp_rotation_offset(self, rot, speed)
+int LuaCamera::l_lerp_rotation_offset(lua_State *L)
+{
+	Camera *camera = getobject(L, 1);
+	if (!camera)
+		return 0;
+	v3f rot = check_v3f(L, 2);
+	f32 speed = readParam<f32>(L, 3);
+	camera->m_target_rotation_offset = rot;
+	camera->m_rotation_lerp_speed = speed;
+	return 0;
+}
+
 Camera *LuaCamera::getobject(LuaCamera *ref)
 {
 	return ref->m_camera;
@@ -190,6 +267,11 @@ const luaL_Reg LuaCamera::methods[] = {
 	luamethod(LuaCamera, get_look_vertical),
 	luamethod(LuaCamera, get_look_horizontal),
 	luamethod(LuaCamera, get_aspect_ratio),
+	luamethod(LuaCamera, set_pos),
+	luamethod_aliased(LuaCamera, set_rotation, set_rotation_offset),
+	luamethod(LuaCamera, add_trauma),
+	luamethod(LuaCamera, set_rotation_offset),
+	luamethod(LuaCamera, lerp_rotation_offset),
 
 	{0, 0}
 };
