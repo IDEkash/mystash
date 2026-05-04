@@ -1,6 +1,6 @@
 # Fork APIs
 
-This fork adds Android `htmlview` (including headless workers + JSON helpers), extra animator helpers, glTF multi-clip animation support, an independent bone transform API with per-part visibility and persistent smoothing, upgraded animation blending with smoothstep easing and event callbacks, a refined physics and movement model, an accessibility sprint toggle, and an improved Animation & Scaling API with auto-normalization.
+This fork adds Android `htmlview` (including headless workers + JSON helpers), extra animator helpers, glTF multi-clip animation support, an independent bone transform API, upgraded animation blending with smoothstep easing and event callbacks, a refined physics and movement model, an accessibility sprint toggle, and an improved Animation & Scaling API with auto-normalization.
 
 ## Android: `htmlview` (Lua)
 
@@ -212,7 +212,7 @@ New methods to query model format details for writing safer, format-agnostic cod
 
 ## Independent Bone Transform API (Lua)
 
-The independent bone transform API is fully implemented and available on all `ObjectRef` (players and entities). Each transform type (position, rotation, scale) is stored and synced independently — calling `set_bone_rotation` will only update the rotation and leave existing position or scale overrides untouched. The API also supports **Per-Part Visibility** for toggling individual bone visibility, and **Persistent Smoothing** for setting default interpolation durations per bone.
+The independent bone transform API is fully implemented and available on all `ObjectRef` (players and entities). Each transform type (position, rotation, scale) is stored and synced independently — calling `set_bone_rotation` will only update the rotation and leave existing position or scale overrides untouched.
 
 ### Setting transforms
 
@@ -229,67 +229,6 @@ The independent bone transform API is fully implemented and available on all `Ob
   - `absolute`: boolean (default `false`). If `true`, the override replaces the animation transform entirely. If `false`, it is added on top of the current animation (ideal for head look and other additive overrides).
   - `interpolation`: float (default `0.0`). The time in seconds to smoothly transition to the new transform value.
 
-### Per-Part Visibility
-
-`ObjectRef:set_part_visible(bone, visible)`
-- Toggles the visibility of a specific bone/part.
-- `bone`: string — The name of the bone.
-- `visible`: boolean — `true` to show, `false` to hide.
-- On the client, a hidden bone calls `bone->setVisible(false)`, which preserves the bone's actual scale state for when it is shown again (superior to scaling to zero).
-
-**Example:**
-
-```lua
--- Hide the helmet part
-player:set_part_visible("Helmet", false)
-
--- Show it again later
-player:set_part_visible("Helmet", true)
-```
-
-### Persistent Smoothing
-
-`ObjectRef:set_part_smooth(bone, table)`
-- Sets persistent smoothing durations for a bone. When you call `set_bone_position` (or rotation/scale) without an explicit `interpolation` duration, the server uses these stored values as the default.
-- `bone`: string — The name of the bone.
-- `table`: A table that can contain:
-  - `position`: float — Duration in seconds for position changes.
-  - `rotation`: float — Duration in seconds for rotation changes.
-  - `scale`: float — Duration in seconds for scale changes.
-
-**Example:**
-
-```lua
--- Define a global smoothing for the head
-player:set_part_smooth("Head", {rotation = 0.5})
-
--- This rotation will now automatically take 0.5s to complete
-player:set_bone_rotation("Head", {x=0, y=45, z=0})
-
--- You can still override it for a specific call if needed
-player:set_bone_rotation("Head", {x=0, y=-45, z=0}, {interpolation = 0.1})
-```
-
-### Bulk override via `set_bone_override`
-
-`ObjectRef:set_bone_override(bone, table)`
-- Sets multiple bone properties at once.
-- `table` supports the standard transform fields (`position`, `rotation`, `scale`) as well as the new fields:
-  - `visible`: boolean — Per-part visibility.
-  - `pos_smooth`: float — Persistent smoothing for position.
-  - `rot_smooth`: float — Persistent smoothing for rotation.
-  - `scale_smooth`: float — Persistent smoothing for scale.
-
-**Example:**
-
-```lua
-player:set_bone_override("RightArm", {
-    visible = true,
-    rot_smooth = 0.2,
-    rotation = { vec = {x=90, y=0, z=0} } -- Will use the 0.2s smooth
-})
-```
-
 ### Querying transforms
 
 `ObjectRef:get_bone_position(bone)`
@@ -305,10 +244,9 @@ Each returns a single vector (`{x,y,z}`) representing the current override for t
 - **Independence**: Each transform (position, rotation, scale) is stored and synced independently. Calling `set_bone_rotation` only updates the rotation; existing position or scale overrides are left untouched.
 - **Client-side blending**: Overrides are applied in the client-side rendering loop after glTF animation blending has occurred. This ensures that animation clips (like walking) do not reset manual overrides (like head looking) every frame.
 - **Synchronization**: Changes made on the server are automatically serialized and sent to all observing clients.
-- **Network protocol**: Bone overrides are sent via `AO_CMD_SET_BONE_POSITION`. The `hidden` visibility state is packed into bit 3 of the flags byte, and smoothing values are appended to the packet. This approach maintains backward compatibility with older clients.
 - **Euler persistence**: The API stores the exact Euler angles you provide, avoiding gimbal lock or "twisting" issues that often occur when converting back and forth between quaternions and Euler angles.
 
-This implementation enables robust Minecraft-style head movement, procedural animations, modular entity attachments, and per-part visibility control for equipment systems.
+This implementation enables robust Minecraft-style head movement, procedural animations, and modular entity attachments.
 
 ## Lua Animator (`core.animator`)
 
