@@ -724,6 +724,7 @@ void Game::run()
 		if (smoothing <= 0.0f) {
 			cam_view.camera_yaw = cam_view_target.camera_yaw;
 			cam_view.camera_pitch = cam_view_target.camera_pitch;
+			cam_view.camera_tilt = cam_view_target.camera_tilt;
 		} else {
 			f32 cam_damp_lambda = 1.0f / smoothing * dtime;
 			cam_view.camera_yaw = damp(
@@ -734,6 +735,11 @@ void Game::run()
 			cam_view.camera_pitch = damp(
 					cam_view.camera_pitch,
 					cam_view_target.camera_pitch,
+					cam_damp_lambda
+			);
+			cam_view.camera_tilt = damp(
+					cam_view.camera_tilt,
+					cam_view_target.camera_tilt,
 					cam_damp_lambda
 			);
 		}
@@ -2150,10 +2156,13 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 
 		LocalPlayer *player = client->getEnv().getLocalPlayer();
 		if (player && player->camera_tilt != 0.0f && !player->camera_anti_tilt_controller) {
-			v3f move(dx, dy, 0);
-			move.rotateXYBy(player->camera_tilt);
+			v3f move(dx, -dy, 0);
+			// Roll is CW, Pitch is CW, Yaw is CCW.
+			// When rolled CW, positive screen-X (right) should increase yaw (CCW)
+			// and decrease pitch (CW) if roll is 90.
+			move.rotateXYBy(-player->camera_tilt);
 			cam->camera_yaw += move.X;
-			cam->camera_pitch += move.Y;
+			cam->camera_pitch -= move.Y;
 		} else {
 			cam->camera_yaw   += dx;
 			cam->camera_pitch += dy;
@@ -2204,6 +2213,10 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 	}
 
 	cam->camera_pitch = rangelim(cam->camera_pitch, -90, 90);
+
+	LocalPlayer *player = client->getEnv().getLocalPlayer();
+	if (player)
+		cam->camera_tilt = player->camera_tilt;
 }
 
 
@@ -2241,6 +2254,7 @@ void Game::updatePlayerControl(const CameraOrientation &cam)
 		isKeyDown(KeyType::PLACE),
 		cam.camera_pitch,
 		cam.camera_yaw,
+		cam.camera_tilt,
 		input->getJoystickSpeed(),
 		input->getJoystickDirection()
 	);
@@ -2407,8 +2421,17 @@ void Game::handleClientEvent_PlayerForceMove(ClientEvent *event, CameraOrientati
 		float delta_yaw = wrapDegrees_180(event->player_force_move.yaw - m_last_forced_yaw);
 		float delta_pitch = event->player_force_move.pitch - m_last_forced_pitch;
 
-		cam->camera_yaw += delta_yaw;
-		cam->camera_pitch += delta_pitch;
+		if (player->camera_tilt != 0.0f && !player->camera_anti_tilt_controller) {
+			// Rotate the server-forced delta by the camera tilt so recoil remains screen-relative.
+			// Luanti uses CCW yaw and CW pitch.
+			v3f move(delta_yaw, -delta_pitch, 0);
+			move.rotateXYBy(-player->camera_tilt);
+			cam->camera_yaw += move.X;
+			cam->camera_pitch -= move.Y;
+		} else {
+			cam->camera_yaw += delta_yaw;
+			cam->camera_pitch += delta_pitch;
+		}
 	} else {
 		cam->camera_yaw = event->player_force_move.yaw;
 		cam->camera_pitch = event->player_force_move.pitch;

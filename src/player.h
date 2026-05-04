@@ -48,7 +48,7 @@ struct PlayerControl
 		bool a_jump, bool a_aux1, bool a_sneak,
 		bool a_zoom,
 		bool a_dig, bool a_place,
-		float a_pitch, float a_yaw,
+		float a_pitch, float a_yaw, float a_tilt,
 		float a_movement_speed, float a_movement_direction
 	)
 	{
@@ -64,6 +64,7 @@ struct PlayerControl
 		place = a_place;
 		pitch = a_pitch;
 		yaw = a_yaw;
+		tilt = a_tilt;
 		movement_speed = a_movement_speed;
 		movement_direction = a_movement_direction;
 	}
@@ -91,6 +92,7 @@ struct PlayerControl
 	// Note: These two are NOT available on the server
 	float pitch = 0.0f;
 	float yaw = 0.0f;
+	float tilt = 0.0f;
 	float movement_speed = 0.0f;
 	float movement_direction = 0.0f;
 };
