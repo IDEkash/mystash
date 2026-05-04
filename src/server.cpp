@@ -1491,6 +1491,25 @@ void Server::SendMovement(session_t peer_id)
 	Send(&pkt);
 }
 
+void Server::SendAllPlayerState(session_t peer_id)
+{
+	RemotePlayer *player = m_clients.getPlayer(peer_id);
+	if (!player)
+		return;
+
+	SendPlayerFov(peer_id);
+	SendCamera(peer_id, player);
+
+	// Ensure the client receives any server-side stored fog/boundary state.
+	FogParams fog = player->getFogParams();
+	fog_sanitize(fog);
+	SendSetFog(peer_id, fog);
+
+	FogBoundaryParams boundary = player->getFogBoundaryParams();
+	fog_sanitize(boundary);
+	SendSetFogBoundary(peer_id, boundary);
+}
+
 void Server::HandlePlayerHPChange(PlayerSAO *playersao, const PlayerHPChangeReason &reason)
 {
 	m_script->player_event(playersao, "health_changed");
