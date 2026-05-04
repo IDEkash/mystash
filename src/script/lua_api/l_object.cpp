@@ -848,8 +848,10 @@ int ObjectRef::l_set_bone_position(lua_State *L)
 		pos = v3f(readParam<float>(L, 3), readParam<float>(L, 4), readParam<float>(L, 5));
 	}
 
+	BoneOverride props = sao->getBoneOverride(bone);
+
 	bool absolute = false;
-	float interpolation = 0.0f;
+	float interpolation = props.pos_smooth;
 	if (!lua_isnoneornil(L, opts_index)) {
 		luaL_checktype(L, opts_index, LUA_TTABLE);
 		lua_getfield(L, opts_index, "absolute");
@@ -861,7 +863,6 @@ int ObjectRef::l_set_bone_position(lua_State *L)
 		lua_pop(L, 1);
 	}
 
-	BoneOverride props = sao->getBoneOverride(bone);
 	props.position.vector = pos;
 	props.position.absolute = absolute;
 	props.position.interp_duration = interpolation;
@@ -890,8 +891,10 @@ int ObjectRef::l_set_bone_rotation(lua_State *L)
 		rot_deg = v3f(readParam<float>(L, 3), readParam<float>(L, 4), readParam<float>(L, 5));
 	}
 
+	BoneOverride props = sao->getBoneOverride(bone);
+
 	bool absolute = false;
-	float interpolation = 0.0f;
+	float interpolation = props.rot_smooth;
 	if (!lua_isnoneornil(L, opts_index)) {
 		luaL_checktype(L, opts_index, LUA_TTABLE);
 		lua_getfield(L, opts_index, "absolute");
@@ -903,7 +906,6 @@ int ObjectRef::l_set_bone_rotation(lua_State *L)
 		lua_pop(L, 1);
 	}
 
-	BoneOverride props = sao->getBoneOverride(bone);
 	props.rotation.next_radians = rot_deg * core::DEGTORAD;
 	props.rotation.next = core::quaternion(props.rotation.next_radians);
 	props.rotation.absolute = absolute;
@@ -937,8 +939,10 @@ int ObjectRef::l_set_bone_scale(lua_State *L)
 		opts_index = 4;
 	}
 
+	BoneOverride props = sao->getBoneOverride(bone);
+
 	bool absolute = false;
-	float interpolation = 0.0f;
+	float interpolation = props.scale_smooth;
 	if (!lua_isnoneornil(L, opts_index)) {
 		luaL_checktype(L, opts_index, LUA_TTABLE);
 		lua_getfield(L, opts_index, "absolute");
@@ -950,7 +954,6 @@ int ObjectRef::l_set_bone_scale(lua_State *L)
 		lua_pop(L, 1);
 	}
 
-	BoneOverride props = sao->getBoneOverride(bone);
 	props.scale.vector = scale;
 	props.scale.absolute = absolute;
 	props.scale.interp_duration = interpolation;
@@ -1006,6 +1009,44 @@ int ObjectRef::l_get_bone_scale(lua_State *L)
 	BoneOverride props = sao->getBoneOverride(bone);
 	push_v3f(L, props.scale.vector);
 	return 1;
+}
+
+// set_part_visible(self, bone, visible)
+int ObjectRef::l_set_part_visible(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	std::string bone = readParam<std::string>(L, 2);
+	bool visible = readParam<bool>(L, 3);
+
+	BoneOverride props = sao->getBoneOverride(bone);
+	props.hidden = !visible;
+	sao->setBoneOverride(bone, props);
+	return 0;
+}
+
+// set_part_smooth(self, bone, smooth_table)
+int ObjectRef::l_set_part_smooth(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	std::string bone = readParam<std::string>(L, 2);
+	luaL_checktype(L, 3, LUA_TTABLE);
+
+	BoneOverride props = sao->getBoneOverride(bone);
+	props.pos_smooth = getfloatfield_default(L, 3, "position", props.pos_smooth);
+	props.rot_smooth = getfloatfield_default(L, 3, "rotation", props.rot_smooth);
+	props.scale_smooth = getfloatfield_default(L, 3, "scale", props.scale_smooth);
+	sao->setBoneOverride(bone, props);
+	return 0;
 }
 
 // set_bone_override(self, bone, override)
@@ -1070,6 +1111,26 @@ int ObjectRef::l_set_bone_override(lua_State *L)
 	}
 	lua_pop(L, 1);
 
+	lua_getfield(L, 3, "visible");
+	if (!lua_isnil(L, -1))
+		props.hidden = !lua_toboolean(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, 3, "pos_smooth");
+	if (lua_isnumber(L, -1))
+		props.pos_smooth = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, 3, "rot_smooth");
+	if (lua_isnumber(L, -1))
+		props.rot_smooth = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, 3, "scale_smooth");
+	if (lua_isnumber(L, -1))
+		props.scale_smooth = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
 	sao->setBoneOverride(bone, props);
 	return 0;
 }
@@ -1096,6 +1157,18 @@ static void push_bone_override(lua_State *L, const BoneOverride &props)
 	push_prop("rotation", props.rotation, props.rotation.next_radians);
 
 	push_prop("scale", props.scale, props.scale.vector);
+
+	lua_pushboolean(L, !props.hidden);
+	lua_setfield(L, -2, "visible");
+
+	lua_pushnumber(L, props.pos_smooth);
+	lua_setfield(L, -2, "pos_smooth");
+
+	lua_pushnumber(L, props.rot_smooth);
+	lua_setfield(L, -2, "rot_smooth");
+
+	lua_pushnumber(L, props.scale_smooth);
+	lua_setfield(L, -2, "scale_smooth");
 
 	// leave only override table on top of the stack
 }
@@ -3247,6 +3320,8 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod_aliased(ObjectRef, set_bone_position, setboneposition),
 	luamethod_aliased(ObjectRef, set_bone_rotation, setbonerotation),
 	luamethod_aliased(ObjectRef, set_bone_scale, setbonescale),
+	luamethod_aliased(ObjectRef, set_part_visible, setpartvisible),
+	luamethod_aliased(ObjectRef, set_part_smooth, setpartsmooth),
 	luamethod_aliased(ObjectRef, get_bone_position, getboneposition),
 	luamethod_aliased(ObjectRef, get_bone_rotation, getbonerotation),
 	luamethod_aliased(ObjectRef, get_bone_scale, getbonescale),
