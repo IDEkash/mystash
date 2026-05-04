@@ -43,7 +43,13 @@ Camera::Camera(MapDrawControl &draw_control, Client *client, RenderingEngine *re
 	m_draw_control(draw_control),
 	m_client(client),
 	m_camera_mode(CAMERA_MODE_FIRST),
-	m_player_light_color(0xFFFFFFFF)
+	m_player_light_color(0xFFFFFFFF),
+	m_lua_pos(0,0,0),
+	m_rotation_offset(0,0,0),
+	m_target_rotation_offset(0,0,0),
+	m_eye_offset_first(0,0,0),
+	m_eye_offset_third(0,0,0),
+	m_eye_offset_third_front(0,0,0)
 {
 	auto smgr = rendering_engine->get_scene_manager();
 	// note: making the camera node a child of the player node
@@ -136,6 +142,22 @@ inline f32 my_modf(f32 x)
 
 void Camera::step(f32 dtime)
 {
+	if (m_rotation_lerp_speed > 0.0f) {
+		f32 t = std::clamp(dtime * m_rotation_lerp_speed, 0.0f, 1.0f);
+		m_rotation_offset = m_rotation_offset * (1.0f - t) + m_target_rotation_offset * t;
+		if (m_rotation_offset.getDistanceFrom(m_target_rotation_offset) < 0.01f) {
+			m_rotation_offset = m_target_rotation_offset;
+			m_rotation_lerp_speed = 0.0f;
+		}
+	}
+
+	if (m_trauma > 0.0f) {
+		m_trauma = std::max(0.0f, m_trauma - dtime * 0.8f);
+		m_trauma_timer += dtime;
+	} else {
+		m_trauma_timer = 0.0f;
+	}
+
 	bool was_under_zero = m_wield_change_timer < 0;
 	m_wield_change_timer = MYMIN(m_wield_change_timer + dtime, 0.125);
 
@@ -313,6 +335,35 @@ void Camera::updateOffset()
 
 void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 {
+	if (m_camera_mode == CAMERA_MODE_SPECTATE) {
+		m_camera_position = m_lua_pos;
+		m_camera_direction = v3f(0, 0, 1);
+		m_camera_direction.rotateYZBy(m_rotation_offset.X);
+		m_camera_direction.rotateXZBy(m_rotation_offset.Y);
+
+		v3f abs_cam_up = v3f(0, 1, 0);
+		abs_cam_up.rotateYZBy(m_rotation_offset.X);
+		abs_cam_up.rotateXZBy(m_rotation_offset.Y);
+		abs_cam_up.rotateXYBy(-m_rotation_offset.Z);
+
+		m_cameranode->setPosition(m_camera_position - intToFloat(m_camera_offset, BS));
+		m_cameranode->setUpVector(abs_cam_up);
+		m_cameranode->setTarget(m_camera_position - intToFloat(m_camera_offset, BS)
+			+ 100 * m_camera_direction);
+		m_cameranode->updateAbsolutePosition();
+
+		m_curr_fov_degrees = m_cache_fov;
+		m_curr_fov_degrees = rangelim(m_curr_fov_degrees, 1.0f, 160.0f);
+		const v2u32 &window_size = RenderingEngine::getWindowSize();
+		m_aspect = (f32) window_size.X / (f32) window_size.Y;
+		m_fov_y = m_curr_fov_degrees * M_PI / 180.0;
+		m_fov_y *= core::clamp(sqrt(16./10. / m_aspect), 1.0, 1.4);
+		m_cameranode->setAspectRatio(m_aspect);
+		m_cameranode->setFOV(m_fov_y);
+		m_cameranode->updateMatrices();
+		return;
+	}
+
 	// Get player position
 	// Smooth the movement when walking up stairs
 	v3f old_player_position = m_playernode->getPosition();
@@ -351,6 +402,14 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	// Get camera tilt timer (hurt animation)
 	float cameratilt = fabs(fabs(player->hurt_tilt_timer-0.75)-0.75);
 
+	// Interpolate eye offsets
+	{
+		f32 t = std::clamp(frametime * 15.0f, 0.0f, 1.0f);
+		m_eye_offset_first = m_eye_offset_first * (1.0f - t) + player->eye_offset_first * t;
+		m_eye_offset_third = m_eye_offset_third * (1.0f - t) + player->eye_offset_third * t;
+		m_eye_offset_third_front = m_eye_offset_third_front * (1.0f - t) + player->eye_offset_third_front * t;
+	}
+
 	// Calculate and translate the head SceneNode offsets
 	{
 		v3f eye_offset = player->getEyeOffset();
@@ -359,15 +418,17 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 			assert(false);
 			break;
 		case CAMERA_MODE_FIRST:
-			eye_offset += player->eye_offset_first;
+			eye_offset += m_eye_offset_first;
 			break;
 		case CAMERA_MODE_THIRD:
-			eye_offset += player->eye_offset_third;
+			eye_offset += m_eye_offset_third;
 			break;
 		case CAMERA_MODE_THIRD_FRONT:
-			eye_offset.X += player->eye_offset_third_front.X;
-			eye_offset.Y += player->eye_offset_third_front.Y;
-			eye_offset.Z -= player->eye_offset_third_front.Z;
+			eye_offset.X += m_eye_offset_third_front.X;
+			eye_offset.Y += m_eye_offset_third_front.Y;
+			eye_offset.Z -= m_eye_offset_third_front.Z;
+			break;
+		case CAMERA_MODE_SPECTATE:
 			break;
 		}
 
@@ -375,7 +436,7 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 		eye_offset.Y += cameratilt * -player->hurt_tilt_strength;
 		m_headnode->setPosition(eye_offset);
 		m_headnode->setRotation(v3f(pitch, 0,
-			cameratilt * player->hurt_tilt_strength));
+			cameratilt * player->hurt_tilt_strength) + m_rotation_offset);
 		m_headnode->updateAbsolutePosition();
 	}
 
@@ -406,6 +467,18 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	if (player->camera_tilt != 0.0f) {
 		// Luanti uses CW roll for camera.
 		rel_cam_up.rotateXYBy(-player->camera_tilt);
+	}
+
+	if (m_trauma > 0.0f) {
+		f32 shake = m_trauma * m_trauma;
+		f32 offset_x = shake * (std::sin(m_trauma_timer * 25.0f) * 0.2f);
+		f32 offset_y = shake * (std::cos(m_trauma_timer * 20.0f) * 0.2f);
+		f32 offset_z = shake * (std::sin(m_trauma_timer * 15.0f) * 0.2f);
+		f32 roll = shake * (std::sin(m_trauma_timer * 30.0f) * 2.0f);
+
+		rel_cam_pos += v3f(offset_x, offset_y, offset_z);
+		rel_cam_target += v3f(offset_x, offset_y, offset_z);
+		rel_cam_up.rotateXYBy(roll);
 	}
 
 	// Compute absolute camera position and target

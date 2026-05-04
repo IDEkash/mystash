@@ -39,6 +39,20 @@ struct PlayerFovSpec
 	}
 };
 
+struct PlayerCameraFilter
+{
+	f32 brightness = 1.0f;
+	f32 contrast = 1.0f;
+	f32 saturation = 1.0f;
+
+	bool operator==(const PlayerCameraFilter &other) const {
+		return brightness == other.brightness && contrast == other.contrast && saturation == other.saturation;
+	}
+	bool operator!=(const PlayerCameraFilter &other) const {
+		return !(*this == other);
+	}
+};
+
 struct PlayerControl
 {
 	PlayerControl() = default;
@@ -132,7 +146,8 @@ enum CameraMode : int {
 	CAMERA_MODE_ANY = 0,
 	CAMERA_MODE_FIRST,
 	CAMERA_MODE_THIRD,
-	CAMERA_MODE_THIRD_FRONT
+	CAMERA_MODE_THIRD_FRONT,
+	CAMERA_MODE_SPECTATE
 };
 
 extern const struct EnumString es_CameraMode[];
@@ -174,6 +189,7 @@ public:
 	bool camera_smooth = false;
 	f32 camera_tilt = 0.0f;
 	bool camera_anti_tilt_controller = false;
+	PlayerCameraFilter m_camera_filter;
 
 	v3f eye_offset_first;
 	v3f eye_offset_third;

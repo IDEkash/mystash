@@ -1041,3 +1041,40 @@ void Hud::resizeHotbar() {
 		m_displaycenter = v2s32(m_screensize.X/2,m_screensize.Y/2);
 	}
 }
+
+void Hud::drawFilters()
+{
+	const PlayerCameraFilter &filter = player->m_camera_filter;
+	if (filter.brightness == 1.0f && filter.contrast == 1.0f && filter.saturation == 1.0f)
+		return;
+
+	video::IVideoDriver *driver = client->getSceneManager()->getVideoDriver();
+	v2u32 screensize = driver->getScreenSize();
+	core::rect<s32> rect(0, 0, screensize.X, screensize.Y);
+
+	// Brightness
+	if (filter.brightness != 1.0f) {
+		float b = filter.brightness - 1.0f;
+		video::SColor brightness_color;
+		if (b > 0) {
+			brightness_color = video::SColor(std::clamp(b, 0.0f, 1.0f) * 255, 255, 255, 255);
+		} else {
+			brightness_color = video::SColor(std::clamp(-b, 0.0f, 1.0f) * 255, 0, 0, 0);
+		}
+		driver->draw2DRectangle(brightness_color, rect, NULL);
+	}
+
+	// Contrast/Saturation approximated by alpha-blending with mid-gray
+	float contrast_factor = std::clamp(filter.contrast, 0.0f, 1.0f);
+	float saturation_factor = std::clamp(filter.saturation, 0.0f, 1.0f);
+
+	if (contrast_factor < 1.0f || saturation_factor < 1.0f) {
+		float blend = 0.0f;
+		if (contrast_factor < 1.0f) blend += (1.0f - contrast_factor);
+		if (saturation_factor < 1.0f) blend += (1.0f - saturation_factor);
+		blend = std::clamp(blend, 0.0f, 1.0f);
+
+		video::SColor gray_overlay(blend * 255, 128, 128, 128);
+		driver->draw2DRectangle(gray_overlay, rect, NULL);
+	}
+}

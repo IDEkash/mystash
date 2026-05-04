@@ -767,32 +767,32 @@ int ObjectRef::l_set_camera(lua_State *L)
 
 	luaL_checktype(L, 2, LUA_TTABLE);
 
-	lua_getfield(L, -1, "mode");
+	lua_getfield(L, 2, "mode");
 	if (lua_isstring(L, -1))
 		string_to_enum(es_CameraMode, player->allowed_camera_mode, lua_tostring(L, -1));
 	lua_pop(L, 1);
 
-	lua_getfield(L, -1, "free_look");
+	lua_getfield(L, 2, "free_look");
 	if (lua_isboolean(L, -1))
 		player->camera_free_look = lua_toboolean(L, -1);
 	lua_pop(L, 1);
 
-	lua_getfield(L, -1, "smooth");
+	lua_getfield(L, 2, "smooth");
 	if (lua_isboolean(L, -1))
 		player->camera_smooth = lua_toboolean(L, -1);
 	lua_pop(L, 1);
 
-	lua_getfield(L, -1, "tilt");
+	lua_getfield(L, 2, "tilt");
 	if (lua_isnumber(L, -1))
 		player->camera_tilt = lua_tonumber(L, -1);
 	lua_pop(L, 1);
 
-	lua_getfield(L, -1, "anti_tilt_controller");
+	lua_getfield(L, 2, "anti_tilt_controller");
 	if (lua_isboolean(L, -1))
 		player->camera_anti_tilt_controller = lua_toboolean(L, -1);
 	lua_pop(L, 1);
 
-	lua_getfield(L, -1, "fov");
+	lua_getfield(L, 2, "fov");
 	if (lua_isnumber(L, -1)) {
 		PlayerFovSpec s = player->getFov();
 		s.fov = lua_tonumber(L, -1);
@@ -814,6 +814,40 @@ int ObjectRef::l_set_camera(lua_State *L)
 
 	getServer(L)->SendCamera(player->getPeerId(), player);
 	return 0;
+}
+
+int ObjectRef::l_set_filter(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	RemotePlayer *player = getplayer(ref);
+	if (player == nullptr)
+		return 0;
+
+	luaL_checktype(L, 2, LUA_TTABLE);
+
+	player->m_camera_filter.brightness = getfloatfield_default(L, 2, "brightness", player->m_camera_filter.brightness);
+	player->m_camera_filter.contrast = getfloatfield_default(L, 2, "contrast", player->m_camera_filter.contrast);
+	player->m_camera_filter.saturation = getfloatfield_default(L, 2, "saturation", player->m_camera_filter.saturation);
+
+	getServer(L)->SendCamera(player->getPeerId(), player);
+	return 0;
+}
+
+int ObjectRef::l_get_filter(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	RemotePlayer *player = getplayer(ref);
+	if (player == nullptr)
+		return 0;
+
+	lua_newtable(L);
+	setfloatfield(L, -1, "brightness", player->m_camera_filter.brightness);
+	setfloatfield(L, -1, "contrast", player->m_camera_filter.contrast);
+	setfloatfield(L, -1, "saturation", player->m_camera_filter.saturation);
+
+	return 1;
 }
 
 int ObjectRef::l_get_camera(lua_State *L)
@@ -3513,6 +3547,8 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod(ObjectRef, get_flags),
 	luamethod(ObjectRef, set_camera),
 	luamethod(ObjectRef, get_camera),
+	luamethod(ObjectRef, set_filter),
+	luamethod(ObjectRef, get_filter),
 
 	{0,0}
 };

@@ -2054,7 +2054,7 @@ void Server::SendSetLighting(session_t peer_id, const Lighting &lighting)
 
 void Server::SendCamera(session_t peer_id, Player *player)
 {
-	NetworkPacket pkt(TOCLIENT_CAMERA, 1 + 1 + 4, peer_id);
+	NetworkPacket pkt(TOCLIENT_CAMERA, 1 + 1 + 4 + 4 + 4 + 4, peer_id);
 
 	pkt << static_cast<u8>(player->allowed_camera_mode);
 
@@ -2065,6 +2065,10 @@ void Server::SendCamera(session_t peer_id, Player *player)
 	pkt << flags;
 
 	pkt << player->camera_tilt;
+
+	pkt << player->m_camera_filter.brightness;
+	pkt << player->m_camera_filter.contrast;
+	pkt << player->m_camera_filter.saturation;
 
 	Send(&pkt);
 }

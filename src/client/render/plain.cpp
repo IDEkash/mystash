@@ -54,6 +54,11 @@ void DrawHUD::run(PipelineContext &context)
 	context.device->getGUIEnvironment()->drawAll();
 }
 
+void DrawFilters::run(PipelineContext &context)
+{
+	context.hud->drawFilters();
+}
+
 
 void MapPostFxStep::setRenderTarget(RenderTarget * _target)
 {
@@ -152,6 +157,7 @@ void populatePlainPipeline(RenderPipeline *pipeline, Client *client)
 
 	step3D->setRenderTarget(pipeline->createOwned<ScreenTarget>());
 
+	pipeline->addStep<DrawFilters>();
 	pipeline->addStep<DrawHUD>();
 }
 

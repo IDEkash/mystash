@@ -15,6 +15,7 @@ const struct EnumString es_CameraMode[] = {
 	{CAMERA_MODE_FIRST, "first"},
 	{CAMERA_MODE_THIRD, "third"},
 	{CAMERA_MODE_THIRD_FRONT, "third_front"},
+	{CAMERA_MODE_SPECTATE, "spectate"},
 	{0, nullptr}
 };
 
