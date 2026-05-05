@@ -314,6 +314,30 @@ int ModApiClient::l_get_csm_restrictions(lua_State *L)
 	return 1;
 }
 
+int ModApiClient::l_set_shader_uniform(lua_State *L)
+{
+	std::string name = luaL_checkstring(L, 1);
+	Player::ShaderUniformValue value;
+
+	if (lua_isboolean(L, 2)) {
+		value = (bool)lua_toboolean(L, 2);
+	} else if (lua_isnumber(L, 2)) {
+		value = (float)lua_tonumber(L, 2);
+	} else if (lua_istable(L, 2)) {
+		video::SColor color;
+		if (read_color(L, 2, &color)) {
+			value = video::SColorf(color);
+		} else {
+			value = read_v3f(L, 2);
+		}
+	} else {
+		return 0;
+	}
+
+	client_set_shader_uniform(name, value);
+	return 0;
+}
+
 void ModApiClient::Initialize(lua_State *L, int top)
 {
 	API_FCT(get_current_modname);
@@ -334,6 +358,7 @@ void ModApiClient::Initialize(lua_State *L, int top)
 	API_FCT(get_builtin_path);
 	API_FCT(get_language);
 	API_FCT(get_csm_restrictions);
+	API_FCT(set_shader_uniform);
 }
 
 void ModApiClient::InitializeSSCSM(lua_State *L, int top)

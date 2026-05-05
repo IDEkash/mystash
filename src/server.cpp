@@ -1508,6 +1508,10 @@ void Server::SendAllPlayerState(session_t peer_id)
 	FogBoundaryParams boundary = player->getFogBoundaryParams();
 	fog_sanitize(boundary);
 	SendSetFogBoundary(peer_id, boundary);
+
+		for (auto const& [name, val] : player->getShaderUniforms()) {
+			SendPlayerUniform(peer_id, name);
+		}
 }
 
 void Server::HandlePlayerHPChange(PlayerSAO *playersao, const PlayerHPChangeReason &reason)
@@ -2027,6 +2031,35 @@ void Server::SendSetMoon(session_t peer_id, const MoonParams &params)
 	{
 		NetworkPacket pkt(TOCLIENT_SET_FOG_BOUNDARY, 0, peer_id);
 		fog_boundary_serialize(pkt, params);
+		Send(&pkt);
+	}
+
+	void Server::SendPlayerUniform(session_t peer_id, const std::string &name)
+	{
+		RemotePlayer *player = m_env->getPlayer(peer_id);
+		if (!player)
+			return;
+
+		const auto &uniforms = player->getShaderUniforms();
+		auto it = uniforms.find(name);
+		if (it == uniforms.end())
+			return;
+
+		NetworkPacket pkt(TOCLIENT_PLAYER_UNIFORM, 0, peer_id);
+		pkt << name;
+
+		const auto &val = it->second;
+		if (std::holds_alternative<bool>(val)) {
+			pkt << (u8)0 << (u8)std::get<bool>(val);
+		} else if (std::holds_alternative<float>(val)) {
+			pkt << (u8)1 << std::get<float>(val);
+		} else if (std::holds_alternative<v3f>(val)) {
+			pkt << (u8)2 << std::get<v3f>(val);
+		} else if (std::holds_alternative<video::SColorf>(val)) {
+			video::SColorf c = std::get<video::SColorf>(val);
+			pkt << (u8)3 << c.r << c.g << c.b << c.a;
+		}
+
 		Send(&pkt);
 	}
 

@@ -421,6 +421,9 @@ private:
 	// get_camera(self)
 	static int l_get_camera(lua_State *L);
 
+	// set_shader_uniform(self, name, value)
+	static int l_set_shader_uniform(lua_State *L);
+
 	// set_nametag_attributes(self, attributes)
 	static int l_set_nametag_attributes(lua_State *L);
 

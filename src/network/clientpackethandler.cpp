@@ -1920,3 +1920,35 @@ void Client::handleCommand_SetFogBoundary(NetworkPacket *pkt)
 	e->set_fog_boundary = new FogBoundaryParams(std::move(params));
 	m_client_event_queue.push(e);
 }
+
+void Client::handleCommand_PlayerUniform(NetworkPacket *pkt)
+{
+	std::string name;
+	*pkt >> name;
+
+	u8 type;
+	*pkt >> type;
+
+	Player::ShaderUniformValue value;
+	if (type == 0) {
+		u8 b;
+		*pkt >> b;
+		value = (bool)b;
+	} else if (type == 1) {
+		float f;
+		*pkt >> f;
+		value = f;
+	} else if (type == 2) {
+		v3f v;
+		*pkt >> v;
+		value = v;
+	} else if (type == 3) {
+		video::SColorf c;
+		*pkt >> c.r >> c.g >> c.b >> c.a;
+		value = c;
+	} else {
+		return;
+	}
+
+	client_set_shader_uniform(name, value);
+}

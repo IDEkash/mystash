@@ -9,6 +9,8 @@
 #include "util/basic_macros.h"
 #include <string>
 #include <string_view>
+#include <map>
+#include <variant>
 
 #define PLAYERNAME_SIZE 20
 
@@ -237,11 +239,25 @@ public:
 	// Get actual usable number of hotbar items (clamped to size of "main" list)
 	u16 getMaxHotbarItemcount();
 
+	typedef std::variant<bool, float, v3f, video::SColorf> ShaderUniformValue;
+
+	void setShaderUniform(const std::string &name, const ShaderUniformValue &value)
+	{
+		m_shader_uniforms[name] = value;
+	}
+
+	const std::map<std::string, ShaderUniformValue>& getShaderUniforms() const
+	{
+		return m_shader_uniforms;
+	}
+
 protected:
 	std::string m_name;
 	v3f m_speed; // velocity; in BS-space
 	u16 m_wield_index = 0;
 	PlayerFovSpec m_fov_override_spec = { 0.0f, false, 0.0f };
+
+	std::map<std::string, ShaderUniformValue> m_shader_uniforms;
 
 private:
 	std::vector<HudElement *> hud;
