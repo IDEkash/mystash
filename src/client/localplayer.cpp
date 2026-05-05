@@ -732,6 +732,9 @@ void LocalPlayer::move(f32 dtime, Environment *env,
 	float player_stepheight = (m_cao == nullptr) ? 0.0f :
 		(touching_ground ? m_cao->getStepHeight() : (0.2f * BS));
 
+	if (physics_override.step_height >= 0.0f)
+		player_stepheight = physics_override.step_height * BS;
+
 	v3f accel_f(0, -gravity, 0);
 	const v3f initial_position = position;
 	const v3f initial_speed = m_speed;
