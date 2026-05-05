@@ -65,6 +65,10 @@
 #include "database/database-files.h"
 #include "database/database-sqlite3.h"
 
+#ifdef __ANDROID__
+#include "htmlview_jni.h"
+#endif
+
 #include <IAnimatedMesh.h>
 #include <IFileSystem.h>
 #include <json/json.h>
@@ -595,6 +599,10 @@ void Client::step(float dtime)
 		event->dtime = dtime;
 		m_sscsm_controller->runEvent(this, std::move(event));
 	}
+
+#ifdef __ANDROID__
+	htmlview_jni_poll(m_script);
+#endif
 
 	// Step environment (also handles player controls)
 	m_env.step(dtime);
