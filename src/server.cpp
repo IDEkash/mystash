@@ -1509,9 +1509,9 @@ void Server::SendAllPlayerState(session_t peer_id)
 	fog_sanitize(boundary);
 	SendSetFogBoundary(peer_id, boundary);
 
-		for (auto const& [name, val] : player->getShaderUniforms()) {
-			SendPlayerUniform(peer_id, name);
-		}
+	for (auto const& [name, val] : player->getShaderUniforms()) {
+		SendPlayerUniform(peer_id, name);
+	}
 }
 
 void Server::HandlePlayerHPChange(PlayerSAO *playersao, const PlayerHPChangeReason &reason)

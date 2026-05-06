@@ -19,6 +19,7 @@
 #include "map.h"
 #include "util/string.h"
 #include "nodedef.h"
+#include "client/shader.h"
 
 #define checkCSMRestrictionFlag(flag) \
 	( getClient(L)->checkCSMRestrictionFlag(CSMRestrictionFlags::flag) )

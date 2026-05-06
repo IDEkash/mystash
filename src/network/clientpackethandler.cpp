@@ -35,6 +35,7 @@
 #include "skyparams.h"
 #include "fogparams.h"
 #include "particles.h"
+#include "client/shader.h"
 #include <memory>
 #include <sstream>
 
