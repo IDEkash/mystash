@@ -35,6 +35,7 @@
 #include "skyparams.h"
 #include "fogparams.h"
 #include "particles.h"
+#include "client/shader.h"
 #include <memory>
 #include <sstream>
 
@@ -1587,7 +1588,8 @@ void Client::handleCommand_EyeOffset(NetworkPacket* pkt)
 void Client::handleCommand_Camera(NetworkPacket* pkt)
 {
 	LocalPlayer *player = m_env.getLocalPlayer();
-	assert(player);
+	if (!player)
+		return;
 
 	u8 tmp;
 	*pkt >> tmp;
@@ -1598,6 +1600,11 @@ void Client::handleCommand_Camera(NetworkPacket* pkt)
 		*pkt >> flags;
 		player->camera_free_look = (flags & 1) != 0;
 		player->camera_smooth    = (flags & 2) != 0;
+		player->camera_anti_tilt_controller = (flags & 4) != 0;
+	}
+
+	if (pkt->getRemainingBytes() >= 4) {
+		*pkt >> player->camera_tilt;
 	}
 
 	m_client_event_queue.push(new ClientEvent(CE_UPDATE_CAMERA));
@@ -1913,4 +1920,36 @@ void Client::handleCommand_SetFogBoundary(NetworkPacket *pkt)
 	e->type = CE_SET_FOG_BOUNDARY;
 	e->set_fog_boundary = new FogBoundaryParams(std::move(params));
 	m_client_event_queue.push(e);
+}
+
+void Client::handleCommand_PlayerUniform(NetworkPacket *pkt)
+{
+	std::string name;
+	*pkt >> name;
+
+	u8 type;
+	*pkt >> type;
+
+	Player::ShaderUniformValue value;
+	if (type == 0) {
+		u8 b;
+		*pkt >> b;
+		value = (bool)b;
+	} else if (type == 1) {
+		float f;
+		*pkt >> f;
+		value = f;
+	} else if (type == 2) {
+		v3f v;
+		*pkt >> v;
+		value = v;
+	} else if (type == 3) {
+		video::SColorf c;
+		*pkt >> c.r >> c.g >> c.b >> c.a;
+		value = c;
+	} else {
+		return;
+	}
+
+	client_set_shader_uniform(name, value);
 }

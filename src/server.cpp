@@ -1491,6 +1491,29 @@ void Server::SendMovement(session_t peer_id)
 	Send(&pkt);
 }
 
+void Server::SendAllPlayerState(session_t peer_id)
+{
+	RemotePlayer *player = m_env->getPlayer(peer_id);
+	if (!player)
+		return;
+
+	SendPlayerFov(peer_id);
+	SendCamera(peer_id, player);
+
+	// Ensure the client receives any server-side stored fog/boundary state.
+	FogParams fog = player->getFogParams();
+	fog_sanitize(fog);
+	SendSetFog(peer_id, fog);
+
+	FogBoundaryParams boundary = player->getFogBoundaryParams();
+	fog_sanitize(boundary);
+	SendSetFogBoundary(peer_id, boundary);
+
+	for (auto const& [name, val] : player->getShaderUniforms()) {
+		SendPlayerUniform(peer_id, name);
+	}
+}
+
 void Server::HandlePlayerHPChange(PlayerSAO *playersao, const PlayerHPChangeReason &reason)
 {
 	m_script->player_event(playersao, "health_changed");
@@ -2011,6 +2034,35 @@ void Server::SendSetMoon(session_t peer_id, const MoonParams &params)
 		Send(&pkt);
 	}
 
+	void Server::SendPlayerUniform(session_t peer_id, const std::string &name)
+	{
+		RemotePlayer *player = m_env->getPlayer(peer_id);
+		if (!player)
+			return;
+
+		const auto &uniforms = player->getShaderUniforms();
+		auto it = uniforms.find(name);
+		if (it == uniforms.end())
+			return;
+
+		NetworkPacket pkt(TOCLIENT_PLAYER_UNIFORM, 0, peer_id);
+		pkt << name;
+
+		const auto &val = it->second;
+		if (std::holds_alternative<bool>(val)) {
+			pkt << (u8)0 << (u8)std::get<bool>(val);
+		} else if (std::holds_alternative<float>(val)) {
+			pkt << (u8)1 << std::get<float>(val);
+		} else if (std::holds_alternative<v3f>(val)) {
+			pkt << (u8)2 << std::get<v3f>(val);
+		} else if (std::holds_alternative<video::SColorf>(val)) {
+			video::SColorf c = std::get<video::SColorf>(val);
+			pkt << (u8)3 << c.r << c.g << c.b << c.a;
+		}
+
+		Send(&pkt);
+	}
+
 	void Server::SendCloudParams(session_t peer_id, const CloudParams &params)
 	{
 	NetworkPacket pkt(TOCLIENT_CLOUD_PARAMS, 0, peer_id);
@@ -2054,14 +2106,17 @@ void Server::SendSetLighting(session_t peer_id, const Lighting &lighting)
 
 void Server::SendCamera(session_t peer_id, Player *player)
 {
-	NetworkPacket pkt(TOCLIENT_CAMERA, 1 + 1, peer_id);
+	NetworkPacket pkt(TOCLIENT_CAMERA, 1 + 1 + 4, peer_id);
 
 	pkt << static_cast<u8>(player->allowed_camera_mode);
 
 	u8 flags = 0;
-	if (player->camera_free_look) flags |= 1;
-	if (player->camera_smooth)    flags |= 2;
+	if (player->camera_free_look)             flags |= 1;
+	if (player->camera_smooth)                flags |= 2;
+	if (player->camera_anti_tilt_controller)  flags |= 4;
 	pkt << flags;
+
+	pkt << player->camera_tilt;
 
 	Send(&pkt);
 }

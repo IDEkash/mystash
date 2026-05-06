@@ -9,6 +9,8 @@
 #include "util/basic_macros.h"
 #include <string>
 #include <string_view>
+#include <map>
+#include <variant>
 
 #define PLAYERNAME_SIZE 20
 
@@ -48,7 +50,7 @@ struct PlayerControl
 		bool a_jump, bool a_aux1, bool a_sneak,
 		bool a_zoom,
 		bool a_dig, bool a_place,
-		float a_pitch, float a_yaw,
+		float a_pitch, float a_yaw, float a_tilt,
 		float a_movement_speed, float a_movement_direction
 	)
 	{
@@ -64,6 +66,7 @@ struct PlayerControl
 		place = a_place;
 		pitch = a_pitch;
 		yaw = a_yaw;
+		tilt = a_tilt;
 		movement_speed = a_movement_speed;
 		movement_direction = a_movement_direction;
 	}
@@ -91,6 +94,7 @@ struct PlayerControl
 	// Note: These two are NOT available on the server
 	float pitch = 0.0f;
 	float yaw = 0.0f;
+	float tilt = 0.0f;
 	float movement_speed = 0.0f;
 	float movement_direction = 0.0f;
 };
@@ -172,6 +176,8 @@ public:
 	CameraMode allowed_camera_mode = CAMERA_MODE_ANY;
 	bool camera_free_look = false;
 	bool camera_smooth = false;
+	f32 camera_tilt = 0.0f;
+	bool camera_anti_tilt_controller = false;
 
 	v3f eye_offset_first;
 	v3f eye_offset_third;
@@ -233,11 +239,25 @@ public:
 	// Get actual usable number of hotbar items (clamped to size of "main" list)
 	u16 getMaxHotbarItemcount();
 
+	typedef std::variant<bool, float, v3f, video::SColorf> ShaderUniformValue;
+
+	void setShaderUniform(const std::string &name, const ShaderUniformValue &value)
+	{
+		m_shader_uniforms[name] = value;
+	}
+
+	const std::map<std::string, ShaderUniformValue>& getShaderUniforms() const
+	{
+		return m_shader_uniforms;
+	}
+
 protected:
 	std::string m_name;
 	v3f m_speed; // velocity; in BS-space
 	u16 m_wield_index = 0;
 	PlayerFovSpec m_fov_override_spec = { 0.0f, false, 0.0f };
+
+	std::map<std::string, ShaderUniformValue> m_shader_uniforms;
 
 private:
 	std::vector<HudElement *> hud;

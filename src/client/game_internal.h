@@ -169,8 +169,8 @@ protected:
 	void toggleFullViewRange();
 	void checkZoomEnabled();
 
-	void updateCameraDirection(CameraOrientation *cam, float dtime);
-	void updateCameraOrientation(CameraOrientation *cam, float dtime);
+	void updateCameraDirection(CameraOrientation *cam, float dtime, float current_tilt);
+	void updateCameraOrientation(CameraOrientation *cam, float dtime, float current_tilt);
 	bool getTogglableKeyState(GameKeyType key, bool toggling_enabled, bool prev_key_state);
 	void updatePlayerControl(const CameraOrientation &cam);
 	void updatePauseState();

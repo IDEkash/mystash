@@ -219,6 +219,35 @@ int ObjectRef::l_punch(lua_State *L)
 	return 1;
 }
 
+int ObjectRef::l_set_shader_uniform(lua_State *L)
+{
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	RemotePlayer *player = getplayer(ref);
+	if (player == nullptr)
+		return 0;
+
+	std::string name = luaL_checkstring(L, 2);
+
+	if (lua_isboolean(L, 3)) {
+		player->setShaderUniform(name, (bool)lua_toboolean(L, 3));
+	} else if (lua_isnumber(L, 3)) {
+		player->setShaderUniform(name, (float)lua_tonumber(L, 3));
+	} else if (lua_istable(L, 3)) {
+		video::SColor color;
+		if (read_color(L, 3, &color)) {
+			player->setShaderUniform(name, video::SColorf(color));
+		} else {
+			player->setShaderUniform(name, read_v3f(L, 3));
+		}
+	} else {
+		return 0;
+	}
+
+	getServer(L)->SendPlayerUniform(player->getPeerId(), name);
+
+	return 0;
+}
+
 // right_click(self, clicker)
 int ObjectRef::l_right_click(lua_State *L)
 {
@@ -782,6 +811,16 @@ int ObjectRef::l_set_camera(lua_State *L)
 		player->camera_smooth = lua_toboolean(L, -1);
 	lua_pop(L, 1);
 
+	lua_getfield(L, -1, "tilt");
+	if (lua_isnumber(L, -1))
+		player->camera_tilt = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "anti_tilt_controller");
+	if (lua_isboolean(L, -1))
+		player->camera_anti_tilt_controller = lua_toboolean(L, -1);
+	lua_pop(L, 1);
+
 	lua_getfield(L, -1, "fov");
 	if (lua_isnumber(L, -1)) {
 		PlayerFovSpec s = player->getFov();
@@ -818,6 +857,8 @@ int ObjectRef::l_get_camera(lua_State *L)
 	setstringfield(L, -1, "mode", enum_to_string(es_CameraMode, player->allowed_camera_mode));
 	setboolfield(L, -1, "free_look", player->camera_free_look);
 	setboolfield(L, -1, "smooth", player->camera_smooth);
+	setfloatfield(L, -1, "tilt", player->camera_tilt);
+	setboolfield(L, -1, "anti_tilt_controller", player->camera_anti_tilt_controller);
 
 	PlayerFovSpec fov = player->getFov();
 	setfloatfield(L, -1, "fov", fov.fov);
@@ -3501,6 +3542,7 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod(ObjectRef, get_flags),
 	luamethod(ObjectRef, set_camera),
 	luamethod(ObjectRef, get_camera),
+	luamethod(ObjectRef, set_shader_uniform),
 
 	{0,0}
 };

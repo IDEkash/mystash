@@ -717,7 +717,15 @@ enum ToClientCommand : u16
 			f32 player yaw
 		*/
 
-		TOCLIENT_NUM_MSG_TYPES = 0x68,
+		TOCLIENT_PLAYER_UNIFORM = 0x68,
+		/*
+			u16 len
+			u8[len] name
+			u8 type (0=bool, 1=float, 2=v3f, 3=SColorf)
+			[u8 val | f32 val | v3f val | SColorf val]
+		*/
+
+		TOCLIENT_NUM_MSG_TYPES = 0x69,
 	};
 
 enum ToServerCommand : u16

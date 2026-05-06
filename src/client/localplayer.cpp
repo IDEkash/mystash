@@ -947,6 +947,7 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 
 	setPitch(control.pitch);
 	setYaw(control.yaw);
+	setTilt(control.tilt);
 
 	// Nullify speed and don't run positioning code if the player is attached
 	if (getParent()) {
@@ -1054,6 +1055,10 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 
 	speedH = v3f(std::sin(control.movement_direction), 0.0f,
 			std::cos(control.movement_direction));
+
+	if (getTilt() != 0.0f && !camera_anti_tilt_controller) {
+		speedH.rotateXYBy(-getTilt());
+	}
 
 	if (m_autojump) {
 		// release autojump after a given time
@@ -1205,11 +1210,14 @@ void LocalPlayer::accelerate(const v3f &target_speed, const f32 max_increase_H,
 {
 	const f32 yaw = getYaw();
 	const f32 pitch = getPitch();
+	const f32 tilt = getTilt();
 	v3f flat_speed = m_speed;
-	// Rotate speed vector by -yaw and -pitch to make it relative to the player's yaw and pitch
+	// Rotate speed vector by -yaw, -pitch and -tilt to make it relative to the player's orientation
 	flat_speed.rotateXZBy(-yaw);
 	if (use_pitch)
 		flat_speed.rotateYZBy(-pitch);
+	if (tilt != 0.0f && !camera_anti_tilt_controller)
+		flat_speed.rotateXYBy(tilt);
 
 	v3f d_wanted = target_speed - flat_speed;
 	v3f d;
@@ -1234,6 +1242,8 @@ void LocalPlayer::accelerate(const v3f &target_speed, const f32 max_increase_H,
 	}
 
 	// Finally rotate it again
+	if (tilt != 0.0f && !camera_anti_tilt_controller)
+		d.rotateXYBy(-tilt);
 	if (use_pitch)
 		d.rotateYZBy(pitch);
 	d.rotateXZBy(yaw);

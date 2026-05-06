@@ -320,6 +320,7 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 
 	f32 yaw = player->getYaw();
 	f32 pitch = player->getPitch();
+	f32 tilt = player->getTilt();
 
 	// This is worse than `LocalPlayer::getPosition()` but
 	// mods expect the player head to be at the parent's position
@@ -401,6 +402,11 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 		rel_cam_pos += bobvec * m_cache_view_bobbing_amount;
 		rel_cam_target += bobvec * m_cache_view_bobbing_amount;
 		rel_cam_up.rotateXYBy(-0.03 * bobdir * bobtmp * M_PI * m_cache_view_bobbing_amount);
+	}
+
+	if (tilt != 0.0f) {
+		// Luanti uses CW roll for camera.
+		rel_cam_up.rotateXYBy(-tilt);
 	}
 
 	// Compute absolute camera position and target
