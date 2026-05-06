@@ -432,6 +432,7 @@ public:
 	void SendPlayerSpeed(session_t peer_id, const v3f &added_vel);
 	void SendPlayerFov(session_t peer_id);
 	void SendCamera(session_t peer_id, Player *player);
+	void SendPlayerUniform(session_t peer_id, const std::string &name);
 	void SendAllPlayerState(session_t peer_id);
 
 	void SendMinimapModes(session_t peer_id,
@@ -572,7 +573,6 @@ private:
 	void SendSetStars(session_t peer_id, const StarParams &params);
 	void SendSetFog(session_t peer_id, const FogParams &params);
 	void SendSetFogBoundary(session_t peer_id, const FogBoundaryParams &params);
-	void SendPlayerUniform(session_t peer_id, const std::string &name);
 	void SendCloudParams(session_t peer_id, const CloudParams &params);
 	void SendOverrideDayNightRatio(session_t peer_id, bool do_override, float ratio);
 	void SendSetLighting(session_t peer_id, const Lighting &lighting);
