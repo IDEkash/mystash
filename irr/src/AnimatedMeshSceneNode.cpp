@@ -736,12 +736,14 @@ void AnimatedMeshSceneNode::animateJoints()
 
 		auto from = skinnedMesh->animateMesh(BlendCurrentFrameNr);
 		auto to = skinnedMesh->animateMesh(getFrameNr());
-		// Bug 5: replaced assert with safe fallback on joint count mismatch.
+
 		if (from.size() != to.size()) {
+			// Joint count mismatch during blend — skip blend, use new pose directly
 			BlendActive = false;
 			updateJointSceneNodes(to);
 			return;
 		}
+
 		for (size_t i = 0; i < to.size(); ++i)
 			to[i] = blendVariantTransform(from[i], to[i], weight);
 		updateJointSceneNodes(to);

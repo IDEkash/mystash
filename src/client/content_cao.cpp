@@ -745,7 +745,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 			});
 
 			m_animated_meshnode->setOnAnimateCallback([this](f32 dtime) {
-				// Bug 1: guard against destruction race
+				// guard against destruction race
 				if (!m_animated_meshnode)
 					return;
 				for (auto it = m_bone_override.begin(); it != m_bone_override.end();) {
@@ -1444,9 +1444,9 @@ void GenericCAO::updateAnimation()
 		if (!clip && m_animation_clip_type != 0)
 			clip = skinned->getAnimationClip(0);
 		if (clip) {
-			// Bug 2: safety: clamp range within clip and ensure it's not degenerate
 			range.X = clip->start + std::max(0.f, range.X);
 			range.Y = std::min(clip->start + range.Y, clip->end);
+			// safety: ensure range is never degenerate
 			if (range.Y - range.X < 0.001f)
 				range.Y = range.X + 0.001f;
 		}

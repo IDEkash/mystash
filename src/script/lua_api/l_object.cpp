@@ -502,7 +502,7 @@ int ObjectRef::l_set_animation(lua_State *L)
 				frame_range *= 24.0f;
 				frame_speed *= 24.0f;
 			}
-			// Bug 2: for glTF with clip: range is relative offset within clip in seconds
+			// for glTF with clip: range is relative offset within clip in seconds
 			// no conversion needed but clamp to [0, clip_duration] later in updateAnimation
 		} else if (time_mode == "frames") {
 			if (is_gltf) {

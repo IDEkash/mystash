@@ -1056,12 +1056,11 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 	speedH = v3f(std::sin(control.movement_direction), 0.0f,
 			std::cos(control.movement_direction));
 
-	// Bug 3: tilt velocity spike no longer crashes physics on fast tilt changes.
-	// Ensure camera_anti_tilt_controller is read before applying tilt rotation.
 	if (getTilt() != 0.0f && !camera_anti_tilt_controller) {
+		// Bug 3: Read camera_anti_tilt_controller before applying tilt to speedH
 		speedH.rotateXYBy(-getTilt());
 
-		// safety reset on bad tilt math
+		// Bug 3: safety reset on bad tilt math to prevent physics crash
 		if (!std::isfinite(speedH.X) || !std::isfinite(speedH.Z))
 			speedH = v3f(0.f, 0.f, 0.f);
 	}
