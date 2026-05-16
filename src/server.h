@@ -432,6 +432,8 @@ public:
 	void SendPlayerSpeed(session_t peer_id, const v3f &added_vel);
 	void SendPlayerFov(session_t peer_id);
 	void SendCamera(session_t peer_id, Player *player);
+	void SendPlayerUniform(session_t peer_id, const std::string &name);
+	void SendAllPlayerState(session_t peer_id);
 
 	void SendMinimapModes(session_t peer_id,
 			std::vector<MinimapMode> &modes,

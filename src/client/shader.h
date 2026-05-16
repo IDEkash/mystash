@@ -13,6 +13,7 @@
 #include <variant>
 #include "nodedef.h"
 #include "tile.h" // MaterialType
+#include "player.h"
 
 /*
 	shader.{h,cpp}: Shader handling stuff.
@@ -308,6 +309,9 @@ public:
 };
 
 IWritableShaderSource *createShaderSource();
+
+void client_set_shader_uniform(const std::string &name, const Player::ShaderUniformValue &value);
+void client_clear_shader_uniforms();
 
 void dumpShaderProgram(std::ostream &output_stream,
 	const std::string &program_type, std::string_view program);
