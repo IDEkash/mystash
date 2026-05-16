@@ -602,7 +602,8 @@ if INIT == "game" and core.register_globalstep then
 					local rx = range and (range.x or range[1]) or 0
 					local ry = range and (range.y or range[2]) or 0
 					local sp = speed or 0
-					if loop == false and sp ~= 0 and ry > rx then
+					-- Bug 4: prevent end watcher from firing on looping or degenerate animations
+					if loop == false and sp ~= 0 and ry > rx and (ry - rx) > 0.001 then
 						local dur = (ry - rx) / math.abs(sp)
 						w.end_us = w.start_us + math.floor(dur * 1000000)
 					end

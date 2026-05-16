@@ -134,6 +134,9 @@ public:
 	void setPitch(f32 pitch) { m_pitch = pitch; }
 	f32 getPitch() const { return m_pitch; }
 
+	void setTilt(f32 tilt) { m_tilt = tilt; }
+	f32 getTilt() const { return m_tilt; }
+
 	inline void setPosition(const v3f &position)
 	{
 		m_position = position;
@@ -222,6 +225,7 @@ private:
 	u16 m_breath = PLAYER_MAX_BREATH_DEFAULT;
 	f32 m_yaw = 0.0f;
 	f32 m_pitch = 0.0f;
+	f32 m_tilt = 0.0f;
 	aabb3f m_collisionbox = aabb3f(-BS * 0.30f, 0.0f, -BS * 0.30f, BS * 0.30f,
 		BS * 1.75f, BS * 0.30f);
 	float m_eye_height = 1.625f;

@@ -19,8 +19,12 @@
 #include "gettext.h"
 #include "log.h"
 #include "client/tile.h"
+#include "player.h"
 
 #include <mt_opengl.h>
+
+static std::mutex g_lua_shader_uniforms_mutex;
+static std::map<std::string, Player::ShaderUniformValue> g_lua_shader_uniforms;
 
 /*
 	A cache from shader name to shader path
@@ -344,6 +348,71 @@ public:
 		{ return new MainShaderUniformSetter(); }
 };
 
+class LuaShaderUniformSetter : public IShaderUniformSetter
+{
+	struct UniformIDs {
+		s32 v = -1;
+		s32 p = -1;
+	};
+	std::map<std::string, UniformIDs> m_id_cache;
+
+public:
+	void onSetUniforms(video::IMaterialRendererServices *services) override
+	{
+		std::lock_guard<std::mutex> lock(g_lua_shader_uniforms_mutex);
+		for (auto const& [name, val] : g_lua_shader_uniforms) {
+			auto &ids = m_id_cache[name];
+			if (ids.v == -1) {
+				ids.v = services->getVertexShaderConstantID(name.c_str());
+				ids.p = services->getPixelShaderConstantID(name.c_str());
+			}
+
+			if (std::holds_alternative<float>(val)) {
+				float f = std::get<float>(val);
+				services->setVertexShaderConstant(ids.v, &f, 1);
+				services->setPixelShaderConstant(ids.p, &f, 1);
+			} else if (std::holds_alternative<bool>(val)) {
+				float f = std::get<bool>(val) ? 1.0f : 0.0f;
+				services->setVertexShaderConstant(ids.v, &f, 1);
+				services->setPixelShaderConstant(ids.p, &f, 1);
+			} else if (std::holds_alternative<v3f>(val)) {
+				v3f v = std::get<v3f>(val);
+				float f[3] = {v.X, v.Y, v.Z};
+				services->setVertexShaderConstant(ids.v, f, 3);
+				services->setPixelShaderConstant(ids.p, f, 3);
+			} else if (std::holds_alternative<video::SColorf>(val)) {
+				video::SColorf c = std::get<video::SColorf>(val);
+				float f[4] = {c.r, c.g, c.b, c.a};
+				services->setVertexShaderConstant(ids.v, f, 4);
+				services->setPixelShaderConstant(ids.p, f, 4);
+			}
+		}
+	}
+};
+
+class LuaShaderUniformSetterFactory : public IShaderUniformSetterFactory
+{
+public:
+	virtual IShaderUniformSetter* create(const std::string &name)
+	{
+		// Don't add to shadow shaders to avoid overhead
+		if (str_starts_with(name, "shadow/"))
+			return nullptr;
+		return new LuaShaderUniformSetter();
+	}
+};
+
+void client_set_shader_uniform(const std::string &name, const Player::ShaderUniformValue &value)
+{
+	std::lock_guard<std::mutex> lock(g_lua_shader_uniforms_mutex);
+	g_lua_shader_uniforms[name] = value;
+}
+
+void client_clear_shader_uniforms()
+{
+	std::lock_guard<std::mutex> lock(g_lua_shader_uniforms_mutex);
+	g_lua_shader_uniforms.clear();
+}
 
 /*
 	ShaderSource
@@ -471,6 +540,7 @@ ShaderSource::ShaderSource()
 	// Add global stuff
 	addShaderConstantSetter(std::make_unique<MainShaderConstantSetter>());
 	addShaderUniformSetterFactory(std::make_unique<MainShaderUniformSetterFactory>());
+	addShaderUniformSetterFactory(std::make_unique<LuaShaderUniformSetterFactory>());
 
 	auto *driver = RenderingEngine::get_video_driver();
 	const auto driver_type = driver->getDriverType();

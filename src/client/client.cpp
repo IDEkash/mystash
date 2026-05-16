@@ -434,6 +434,8 @@ Client::~Client()
 	for (auto &csp : m_sounds_client_to_server)
 		m_sound->freeId(csp.first);
 	m_sounds_client_to_server.clear();
+
+	client_clear_shader_uniforms();
 }
 
 void Client::connect(const Address &address, const std::string &address_name)

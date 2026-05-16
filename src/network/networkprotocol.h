@@ -462,8 +462,6 @@ enum ToClientCommand : u16
 	TOCLIENT_CAMERA = 0x48,
 	/*
 		u8 allowed_camera_mode
-		u8 flags (bit 0: free_look, bit 1: smooth, bit 2: anti_tilt_controller)
-		f32 camera_tilt
 	*/
 
 	TOCLIENT_HUDADD = 0x49,
@@ -719,7 +717,15 @@ enum ToClientCommand : u16
 			f32 player yaw
 		*/
 
-		TOCLIENT_NUM_MSG_TYPES = 0x68,
+		TOCLIENT_PLAYER_UNIFORM = 0x68,
+		/*
+			u16 len
+			u8[len] name
+			u8 type (0=bool, 1=float, 2=v3f, 3=SColorf)
+			[u8 val | f32 val | v3f val | SColorf val]
+		*/
+
+		TOCLIENT_NUM_MSG_TYPES = 0x69,
 	};
 
 enum ToServerCommand : u16
