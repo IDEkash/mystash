@@ -3,9 +3,9 @@ core.animator = M
 
 M._event_listeners = {}
 
-M._end_watchers = {}
+M._end_watchers = setmetatable({}, {__mode = "k"})   -- weak keys to prevent ObjectRef leaks
 
-M._cycle_watchers = {}
+M._cycle_watchers = setmetatable({}, {__mode = "k"})  -- weak keys to prevent ObjectRef leaks
 
 function M.register_on_event(cb)
 	assert(type(cb) == "function")
@@ -521,6 +521,7 @@ end
 
 function Animator:update(dtime)
 	if not self:is_valid() then
+		self.object = nil  -- release ObjectRef so GC can collect it
 		return false
 	end
 

@@ -744,7 +744,8 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 				m_client->getScript()->on_animation_cycle(m_id);
 			});
 
-			m_animated_meshnode->setOnAnimateCallback([&](f32 dtime) {
+			m_animated_meshnode->setOnAnimateCallback([this](f32 dtime) {
+				if (!m_animated_meshnode) return; // guard: node may outlive CAO
 				for (auto it = m_bone_override.begin(); it != m_bone_override.end();) {
 					BoneOverride &props = it->second;
 					props.dtime_passed += dtime;
