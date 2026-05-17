@@ -503,7 +503,6 @@ set(common_SRCS
 
 if(ANDROID)
 	list(APPEND common_SRCS porting_android.cpp)
-	list(APPEND common_SRCS htmlview_jni.cpp)
 endif()
 
 if(BUILD_UNITTESTS)
@@ -799,6 +798,7 @@ if(BUILD_SERVER)
 	target_link_libraries(
 		${PROJECT_NAME}server
 		${ZLIB_LIBRARIES}
+		tiniergltf::tiniergltf
 		${ZSTD_LIBRARY}
 		${SQLITE3_LIBRARY}
 		${JSON_LIBRARY}

@@ -42,9 +42,6 @@
 #include "util/tracy_wrapper.h"
 #include "version.h"
 
-#ifdef __ANDROID__
-#include "htmlview_jni.h"
-#endif
 
 // Mapgen
 #include "emerge.h"
@@ -645,9 +642,6 @@ void Server::stop()
 
 	infostream<<"Server: Threads stopped"<<std::endl;
 
-#ifdef __ANDROID__
-	htmlview_jni_shutdown_all();
-#endif
 }
 
 void Server::step()
@@ -674,9 +668,6 @@ void Server::AsyncRunStep(float dtime, bool initial_step)
 		return;
 	}
 
-#ifdef __ANDROID__
-	htmlview_jni_poll(getScriptIface());
-#endif
 
 	{
 		// Send blocks to clients

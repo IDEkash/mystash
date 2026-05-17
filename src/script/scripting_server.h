@@ -8,7 +8,6 @@
 #include "cpp_api/s_env.h"
 #include "cpp_api/s_inventory.h"
 #include "cpp_api/s_modchannels.h"
-#include "cpp_api/s_htmlview.h"
 #include "cpp_api/s_node.h"
 #include "cpp_api/s_player.h"
 #include "cpp_api/s_server.h"
@@ -27,7 +26,6 @@ class ServerScripting:
 		public ScriptApiDetached,
 		public ScriptApiEntity,
 		public ScriptApiEnv,
-		public ScriptApiHTMLView,
 		public ScriptApiModChannels,
 		public ScriptApiNode,
 		public ScriptApiPlayer,

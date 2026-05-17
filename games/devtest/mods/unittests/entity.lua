@@ -226,7 +226,7 @@ local function test_get_bone_rot(_, pos)
 			assert(euler_angles:distance(override.rotation.vec:apply(math.deg)) < 1e-3)
 		end
 		local deg = 1e3 * vector.new(math.random(), math.random(), math.random())
-		obj:set_bone_position("bonename", vector.zero(), deg)
+		obj:set_bone_rotation("bonename", deg)
 		assert_similar(deg)
 		local rad = 3 * math.pi * vector.new(math.random(), math.random(), math.random())
 		obj:set_bone_override("bonename", {rotation = {vec = rad}})
