@@ -10,8 +10,15 @@
 
 #include "irrlichttypes_bloated.h"
 #include <string>
+#include <jni.h>
 
 namespace porting {
+
+extern jobject activity;
+extern jclass activityClass;
+
+JNIEnv *getJNIEnv();
+
 /**
  * Show a text input dialog in Java
  * @param hint Hint to be shown
