@@ -735,7 +735,9 @@ int ObjectRef::l_set_eye_offset(lua_State *L)
 	v3f offset_third = readParam<v3f>(L, 3, v3f(0, 0, 0));
 	v3f offset_third_front = readParam<v3f>(L, 4, offset_third);
 
-	if (!offset_first.isFinite() || !offset_third.isFinite() || !offset_third_front.isFinite())
+	if (!std::isfinite(offset_first.X) || !std::isfinite(offset_first.Y) || !std::isfinite(offset_first.Z) ||
+			!std::isfinite(offset_third.X) || !std::isfinite(offset_third.Y) || !std::isfinite(offset_third.Z) ||
+			!std::isfinite(offset_third_front.X) || !std::isfinite(offset_third_front.Y) || !std::isfinite(offset_third_front.Z))
 		return 0;
 
 	// Prevent abuse of offset values (keep player always visible)
@@ -912,7 +914,7 @@ int ObjectRef::l_set_bone_position(lua_State *L)
 		pos = v3f(readParam<float>(L, 3), readParam<float>(L, 4), readParam<float>(L, 5));
 	}
 
-	if (!pos.isFinite())
+	if (!std::isfinite(pos.X) || !std::isfinite(pos.Y) || !std::isfinite(pos.Z))
 		return 0;
 
 	BoneOverride props = sao->getBoneOverride(bone);
@@ -958,7 +960,7 @@ int ObjectRef::l_set_bone_rotation(lua_State *L)
 		rot_deg = v3f(readParam<float>(L, 3), readParam<float>(L, 4), readParam<float>(L, 5));
 	}
 
-	if (!rot_deg.isFinite())
+	if (!std::isfinite(rot_deg.X) || !std::isfinite(rot_deg.Y) || !std::isfinite(rot_deg.Z))
 		return 0;
 
 	BoneOverride props = sao->getBoneOverride(bone);
@@ -1009,7 +1011,7 @@ int ObjectRef::l_set_bone_scale(lua_State *L)
 		opts_index = 4;
 	}
 
-	if (!scale.isFinite())
+	if (!std::isfinite(scale.X) || !std::isfinite(scale.Y) || !std::isfinite(scale.Z))
 		return 0;
 
 	BoneOverride props = sao->getBoneOverride(bone);
@@ -1169,7 +1171,7 @@ int ObjectRef::l_set_bone_override(lua_State *L)
 		lua_getfield(L, -1, "vec");
 		if (!lua_isnil(L, -1)) {
 			v3f v = check_v3f(L, -1);
-			if (v.isFinite())
+			if (std::isfinite(v.X) && std::isfinite(v.Y) && std::isfinite(v.Z))
 				props.position.vector = v;
 		}
 		lua_pop(L, 1);
@@ -1183,7 +1185,7 @@ int ObjectRef::l_set_bone_override(lua_State *L)
 		lua_getfield(L, -1, "vec");
 		if (!lua_isnil(L, -1)) {
 			v3f v = check_v3f(L, -1);
-			if (v.isFinite()) {
+			if (std::isfinite(v.X) && std::isfinite(v.Y) && std::isfinite(v.Z)) {
 				props.rotation.next_radians = v;
 				props.rotation.next = core::quaternion(props.rotation.next_radians);
 			}
@@ -1198,7 +1200,7 @@ int ObjectRef::l_set_bone_override(lua_State *L)
 	if (!lua_isnil(L, -1)) {
 		lua_getfield(L, -1, "vec");
 		v3f v = lua_isnil(L, -1) ? v3f(1) : check_v3f(L, -1);
-		if (v.isFinite())
+		if (std::isfinite(v.X) && std::isfinite(v.Y) && std::isfinite(v.Z))
 			props.scale.vector = v;
 		lua_pop(L, 1);
 

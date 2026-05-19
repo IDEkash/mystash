@@ -348,7 +348,7 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	}
 
 	// Set player node transformation
-	if (player_position.isFinite())
+	if (std::isfinite(player_position.X) && std::isfinite(player_position.Y) && std::isfinite(player_position.Z))
 		m_playernode->setPosition(player_position);
 	if (std::isfinite(yaw))
 		m_playernode->setRotation(v3f(0, -1 * yaw, 0));
@@ -380,11 +380,11 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 
 		// Set head node transformation
 		eye_offset.Y += cameratilt * -player->hurt_tilt_strength;
-		if (eye_offset.isFinite())
+		if (std::isfinite(eye_offset.X) && std::isfinite(eye_offset.Y) && std::isfinite(eye_offset.Z))
 			m_headnode->setPosition(eye_offset);
 
 		v3f head_rot(pitch, 0, cameratilt * player->hurt_tilt_strength + player->camera_tilt);
-		if (head_rot.isFinite())
+		if (std::isfinite(head_rot.X) && std::isfinite(head_rot.Y) && std::isfinite(head_rot.Z))
 			m_headnode->setRotation(head_rot);
 
 		m_headnode->updateAbsolutePosition();
@@ -424,7 +424,9 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	v3f abs_cam_up = m_headnode->getAbsoluteTransformation()
 			.rotateAndScaleVect(rel_cam_up);
 
-	if (!m_camera_position.isFinite() || !m_camera_direction.isFinite() || !abs_cam_up.isFinite()) {
+	if (!std::isfinite(m_camera_position.X) || !std::isfinite(m_camera_position.Y) || !std::isfinite(m_camera_position.Z) ||
+			!std::isfinite(m_camera_direction.X) || !std::isfinite(m_camera_direction.Y) || !std::isfinite(m_camera_direction.Z) ||
+			!std::isfinite(abs_cam_up.X) || !std::isfinite(abs_cam_up.Y) || !std::isfinite(abs_cam_up.Z)) {
 		return;
 	}
 
