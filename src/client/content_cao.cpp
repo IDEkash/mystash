@@ -424,6 +424,9 @@ scene::AnimatedMeshSceneNode *GenericCAO::getAnimatedMeshSceneNode() const
 
 void GenericCAO::setChildrenVisible(bool toset)
 {
+	if (!m_env)
+		return;
+
 	for (object_t cao_id : m_attachment_child_ids) {
 		GenericCAO *obj = m_env->getGenericCAO(cao_id);
 		if (obj) {
@@ -484,8 +487,9 @@ void GenericCAO::setAttachment(object_t parent_id, const std::string &bone,
 		m_is_visible = true;
 	} else if (!m_is_local_player) {
 		// Objects attached to the local player should be hidden in first person
+		Camera *cam = m_client->getCamera();
 		m_is_visible = !m_attached_to_local ||
-			m_client->getCamera()->getCameraMode() != CAMERA_MODE_FIRST;
+			(cam && cam->getCameraMode() != CAMERA_MODE_FIRST);
 		m_force_visible = false;
 	} else {
 		// Local players need to have this set,
@@ -553,6 +557,9 @@ void GenericCAO::removeFromScene(bool permanent)
 		m_meshnode->drop();
 		m_meshnode = nullptr;
 	} else if (m_animated_meshnode)	{
+		m_animated_meshnode->setOnEventCallback(nullptr);
+		m_animated_meshnode->setOnCycleCallback(nullptr);
+		m_animated_meshnode->setOnAnimateCallback(nullptr);
 		m_animated_meshnode->remove();
 		m_animated_meshnode->drop();
 		m_animated_meshnode = nullptr;
@@ -744,7 +751,10 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 				m_client->getScript()->on_animation_cycle(m_id);
 			});
 
-			m_animated_meshnode->setOnAnimateCallback([&](f32 dtime) {
+			m_animated_meshnode->setOnAnimateCallback([this](f32 dtime) {
+				if (!m_animated_meshnode)
+					return;
+
 				for (auto it = m_bone_override.begin(); it != m_bone_override.end();) {
 					BoneOverride &props = it->second;
 					props.dtime_passed += dtime;
@@ -1910,10 +1920,14 @@ std::string GenericCAO::debugInfoText()
 
 void GenericCAO::updateMeshCulling()
 {
-	if (!m_is_local_player)
+	if (!m_is_local_player || !m_client)
 		return;
 
-	const bool hidden = m_client->getCamera()->getCameraMode() == CAMERA_MODE_FIRST;
+	Camera *cam = m_client->getCamera();
+	if (!cam)
+		return;
+
+	const bool hidden = cam->getCameraMode() == CAMERA_MODE_FIRST;
 
 	scene::ISceneNode *node = getSceneNode();
 

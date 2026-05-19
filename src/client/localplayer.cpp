@@ -1215,10 +1215,11 @@ void LocalPlayer::accelerate(const v3f &target_speed, const f32 max_increase_H,
 	v3f d;
 
 	// Then compare the horizontal and vertical components with the wanted speed
-	if (max_increase_H > 0.0f) {
+	if (max_increase_H > 0.001f) {
 		v3f d_wanted_H = d_wanted * v3f(1.0f, 0.0f, 1.0f);
-		if (d_wanted_H.getLength() > max_increase_H)
-			d += d_wanted_H.normalize() * max_increase_H;
+		float len = d_wanted_H.getLength();
+		if (len > max_increase_H)
+			d += d_wanted_H * (max_increase_H / len);
 		else
 			d += d_wanted_H;
 	}

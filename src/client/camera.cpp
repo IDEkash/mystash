@@ -102,7 +102,8 @@ v3f Camera::getHeadPosition() const
 void Camera::notifyFovChange()
 {
 	LocalPlayer *player = m_client->getEnv().getLocalPlayer();
-	assert(player);
+	if (!player)
+		return;
 
 	PlayerFovSpec spec = player->getFov();
 
@@ -313,6 +314,9 @@ void Camera::updateOffset()
 
 void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 {
+	if (!player || !m_playernode || !m_headnode || !m_cameranode)
+		return;
+
 	// Get player position
 	// Smooth the movement when walking up stairs
 	v3f old_player_position = m_playernode->getPosition();
@@ -329,7 +333,7 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 
 	// Smooth the camera movement after the player instantly moves upward due to stepheight.
 	// The smoothing usually continues until the camera position reaches the player position.
-	float player_stepheight = player->getCAO() ? player->getCAO()->getStepHeight() : HUGE_VALF;
+	float player_stepheight = player->getCAO() ? player->getCAO()->getStepHeight() : 100.0f;
 	float upward_movement = player_position.Y - old_player_position.Y;
 	if (upward_movement < 0.01f || upward_movement > player_stepheight) {
 		m_stepheight_smooth_active = false;
@@ -344,19 +348,22 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	}
 
 	// Set player node transformation
-	m_playernode->setPosition(player_position);
-	m_playernode->setRotation(v3f(0, -1 * yaw, 0));
+	if (player_position.isFinite())
+		m_playernode->setPosition(player_position);
+	if (std::isfinite(yaw))
+		m_playernode->setRotation(v3f(0, -1 * yaw, 0));
 	m_playernode->updateAbsolutePosition();
 
 	// Get camera tilt timer (hurt animation)
 	float cameratilt = fabs(fabs(player->hurt_tilt_timer-0.75)-0.75);
+	if (!std::isfinite(cameratilt)) cameratilt = 0.0f;
 
 	// Calculate and translate the head SceneNode offsets
 	{
 		v3f eye_offset = player->getEyeOffset();
 		switch(m_camera_mode) {
 		case CAMERA_MODE_ANY:
-			assert(false);
+			FATAL_ERROR("Invalid camera mode CAMERA_MODE_ANY");
 			break;
 		case CAMERA_MODE_FIRST:
 			eye_offset += player->eye_offset_first;
@@ -373,9 +380,13 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 
 		// Set head node transformation
 		eye_offset.Y += cameratilt * -player->hurt_tilt_strength;
-		m_headnode->setPosition(eye_offset);
-		m_headnode->setRotation(v3f(pitch, 0,
-			cameratilt * player->hurt_tilt_strength + player->camera_tilt));
+		if (eye_offset.isFinite())
+			m_headnode->setPosition(eye_offset);
+
+		v3f head_rot(pitch, 0, cameratilt * player->hurt_tilt_strength + player->camera_tilt);
+		if (head_rot.isFinite())
+			m_headnode->setRotation(head_rot);
+
 		m_headnode->updateAbsolutePosition();
 	}
 
@@ -383,7 +394,9 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	// Compute relative camera position and target
 	v3f rel_cam_pos = v3f(0,0,0);
 	v3f rel_cam_target = v3f(0,0,1);
+	rel_cam_target.Z = 1.0f;
 	v3f rel_cam_up = v3f(0,1,0);
+	rel_cam_up.Y = 1.0f;
 
 	if (m_cache_view_bobbing_amount != 0.0f && m_view_bobbing_anim != 0.0f &&
 		m_camera_mode < CAMERA_MODE_THIRD) {
@@ -411,6 +424,20 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	v3f abs_cam_up = m_headnode->getAbsoluteTransformation()
 			.rotateAndScaleVect(rel_cam_up);
 
+	if (!m_camera_position.isFinite() || !m_camera_direction.isFinite() || !abs_cam_up.isFinite()) {
+		return;
+	}
+
+	if (m_camera_direction.getLengthSQ() < 0.001f)
+		m_camera_direction = v3f(0, 0, 1);
+	else
+		m_camera_direction.normalize();
+
+	if (abs_cam_up.getLengthSQ() < 0.001f)
+		abs_cam_up = v3f(0, 1, 0);
+	else
+		abs_cam_up.normalize();
+
 	// Reposition the camera for third person view
 	if (m_camera_mode > CAMERA_MODE_FIRST)
 	{
@@ -426,13 +453,13 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 		for (int i = BS; i <= BS * 2.75; i++) {
 			my_cp.X = m_camera_position.X + m_camera_direction.X * -i;
 			my_cp.Z = m_camera_position.Z + m_camera_direction.Z * -i;
-			if (i > 12)
+			if (i > 1.2f * BS)
 				my_cp.Y = m_camera_position.Y + (m_camera_direction.Y * -i);
 
 			// Prevent camera positioned inside nodes
 			const NodeDefManager *nodemgr = m_client->ndef();
-			MapNode n = m_client->getEnv().getClientMap()
-				.getNode(floatToInt(my_cp, BS));
+			ClientMap &map = m_client->getEnv().getClientMap();
+			MapNode n = map.getNode(floatToInt(my_cp, BS));
 
 			const ContentFeatures& features = nodemgr->get(n);
 			if (features.walkable) {
@@ -492,11 +519,16 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 
 	// FOV and aspect ratio
 	const v2u32 &window_size = RenderingEngine::getWindowSize();
-	m_aspect = (f32) window_size.X / (f32) window_size.Y;
+	m_aspect = (f32) window_size.X / (f32) std::max<u32>(window_size.Y, 1);
 	m_fov_y = m_curr_fov_degrees * M_PI / 180.0;
 	// Increase vertical FOV on lower aspect ratios (<16:10)
 	m_fov_y *= core::clamp(sqrt(16./10. / m_aspect), 1.0, 1.4);
 	m_fov_x = 2 * atan(m_aspect * tan(0.5 * m_fov_y));
+	if (std::isnan(m_fov_x) || std::isinf(m_fov_x))
+		m_fov_x = 1.0f;
+	if (std::isnan(m_fov_y) || std::isinf(m_fov_y))
+		m_fov_y = 1.0f;
+
 	m_cameranode->setAspectRatio(m_aspect);
 	m_cameranode->setFOV(m_fov_y);
 

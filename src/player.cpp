@@ -24,6 +24,9 @@ bool is_valid_player_name(std::string_view name)
 }
 
 Player::Player(const std::string &name, IItemDefManager *idef):
+	eye_offset_first(0, 0, 0),
+	eye_offset_third(0, 0, 0),
+	eye_offset_third_front(0, 0, 0),
 	inventory(idef)
 {
 	m_name = name;

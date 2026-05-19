@@ -102,11 +102,14 @@ static std::string readJavaString(JNIEnv *env, jstring j_str)
 		return "";
 	// Get string as a UTF-8 C string
 	const char *c_str = env->GetStringUTFChars(j_str, nullptr);
+	if (!c_str) {
+		env->ExceptionClear();
+		return "";
+	}
 	// Save it
-	std::string str(c_str ? c_str : "");
+	std::string str(c_str);
 	// And free the C string
-	if (c_str)
-		env->ReleaseStringUTFChars(j_str, c_str);
+	env->ReleaseStringUTFChars(j_str, c_str);
 	return str;
 }
 

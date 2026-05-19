@@ -2174,7 +2174,7 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 	}
 
 	LocalPlayer *player = client->getEnv().getLocalPlayer();
-	if (player && !player->camera_anti_tilt_controller && player->camera_tilt != 0.0f) {
+	if (player && !player->camera_anti_tilt_controller && std::isfinite(player->camera_tilt) && player->camera_tilt != 0.0f) {
 		// Luanti uses CCW yaw and CW pitch. To rotate screen-space deltas
 		// correctly, we need to invert pitch before rotation and re-invert after.
 		v2f change(yaw_change, -pitch_change);
@@ -2183,8 +2183,10 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 		pitch_change = -change.Y;
 	}
 
-	cam->camera_yaw   += yaw_change;
-	cam->camera_pitch += pitch_change;
+	if (std::isfinite(yaw_change))
+		cam->camera_yaw   += yaw_change;
+	if (std::isfinite(pitch_change))
+		cam->camera_pitch += pitch_change;
 
 	cam->camera_pitch = rangelim(cam->camera_pitch, -90, 90);
 }
@@ -2785,10 +2787,15 @@ void Game::updateCamera(f32 dtime)
 void Game::updateCameraMode()
 {
 	LocalPlayer *player = client->getEnv().getLocalPlayer();
+	if (!player || !camera)
+		return;
 
 	// Obey server choice
-	if (player->allowed_camera_mode != CAMERA_MODE_ANY)
-		camera->setCameraMode(player->allowed_camera_mode);
+	if (player->allowed_camera_mode != CAMERA_MODE_ANY) {
+		int mode_int = (int)player->allowed_camera_mode;
+		if (mode_int >= CAMERA_MODE_FIRST && mode_int <= CAMERA_MODE_THIRD_FRONT)
+			camera->setCameraMode(player->allowed_camera_mode);
+	}
 
 	GenericCAO *playercao = player->getCAO();
 	if (playercao) {
