@@ -1215,10 +1215,11 @@ void LocalPlayer::accelerate(const v3f &target_speed, const f32 max_increase_H,
 	v3f d;
 
 	// Then compare the horizontal and vertical components with the wanted speed
-	if (max_increase_H > 0.0f) {
+	if (max_increase_H > 0.001f) {
 		v3f d_wanted_H = d_wanted * v3f(1.0f, 0.0f, 1.0f);
-		if (d_wanted_H.getLength() > max_increase_H)
-			d += d_wanted_H.normalize() * max_increase_H;
+		float len = d_wanted_H.getLength();
+		if (len > max_increase_H)
+			d += d_wanted_H * (max_increase_H / std::max(len, 0.0001f));
 		else
 			d += d_wanted_H;
 	}
@@ -1237,7 +1238,7 @@ void LocalPlayer::accelerate(const v3f &target_speed, const f32 max_increase_H,
 	if (use_pitch)
 		d.rotateYZBy(pitch);
 
-	if (!camera_anti_tilt_controller && camera_tilt != 0.0f) {
+	if (!camera_anti_tilt_controller && std::isfinite(camera_tilt) && camera_tilt != 0.0f) {
 		v2f horizontal(d.X, d.Z);
 		horizontal.rotateBy(-camera_tilt);
 		d.X = horizontal.X;

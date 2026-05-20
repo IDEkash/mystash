@@ -7,11 +7,9 @@
 
 #include "config.h"
 #include "log.h"
+#include "porting_android.h"
 
 #include <jni.h>
-#define SDL_MAIN_HANDLED 1
-#include <SDL.h>
-
 #include <deque>
 #include <mutex>
 #include <unordered_map>
@@ -41,200 +39,138 @@ static std::string readJavaString(JNIEnv *env, jstring j_str)
 	if (!j_str)
 		return "";
 	const char *c_str = env->GetStringUTFChars(j_str, nullptr);
-	std::string str(c_str ? c_str : "");
-	if (c_str)
-		env->ReleaseStringUTFChars(j_str, c_str);
+	if (!c_str) {
+		if (env->ExceptionCheck())
+			env->ExceptionClear();
+		return "";
+	}
+	std::string str(c_str);
+	env->ReleaseStringUTFChars(j_str, c_str);
 	return str;
-}
-
-static bool getActivityEnv(JNIEnv **out_env, jobject *out_activity, jclass *out_activity_class)
-{
-	JNIEnv *env = (JNIEnv *)SDL_AndroidGetJNIEnv();
-	if (!env)
-		return false;
-	jobject activity = (jobject)SDL_AndroidGetActivity();
-	if (!activity)
-		return false;
-	jclass activityClass = env->GetObjectClass(activity);
-	if (!activityClass)
-		return false;
-	*out_env = env;
-	*out_activity = activity;
-	*out_activity_class = activityClass;
-	return true;
 }
 
 static void callVoidMethod2Str(const char *method_name, const std::string &a, const std::string &b)
 {
-	JNIEnv *env;
-	jobject activity;
-	jclass activityClass;
-	if (!getActivityEnv(&env, &activity, &activityClass))
-		return;
-
-	jmethodID mid = env->GetMethodID(activityClass, method_name,
+	JNIEnv *env = porting::getJNIEnv();
+	jmethodID mid = env->GetMethodID(porting::activityClass, method_name,
 		"(Ljava/lang/String;Ljava/lang/String;)V");
 	if (!mid) {
 		errorstream << "htmlview_jni: missing method " << method_name << std::endl;
-		env->DeleteLocalRef(activityClass);
 		return;
 	}
 
 	jstring ja = env->NewStringUTF(a.c_str());
 	jstring jb = env->NewStringUTF(b.c_str());
-	env->CallVoidMethod(activity, mid, ja, jb);
+	env->CallVoidMethod(porting::activity, mid, ja, jb);
 	if (ja)
 		env->DeleteLocalRef(ja);
 	if (jb)
 		env->DeleteLocalRef(jb);
-	env->DeleteLocalRef(activityClass);
 }
 
 static void callVoidMethod3Str(const char *method_name, const std::string &a,
 		const std::string &b, const std::string &c)
 {
-	JNIEnv *env;
-	jobject activity;
-	jclass activityClass;
-	if (!getActivityEnv(&env, &activity, &activityClass))
-		return;
-
-	jmethodID mid = env->GetMethodID(activityClass, method_name,
+	JNIEnv *env = porting::getJNIEnv();
+	jmethodID mid = env->GetMethodID(porting::activityClass, method_name,
 		"(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
 	if (!mid) {
 		errorstream << "htmlview_jni: missing method " << method_name << std::endl;
-		env->DeleteLocalRef(activityClass);
 		return;
 	}
 
 	jstring ja = env->NewStringUTF(a.c_str());
 	jstring jb = env->NewStringUTF(b.c_str());
 	jstring jc = env->NewStringUTF(c.c_str());
-	env->CallVoidMethod(activity, mid, ja, jb, jc);
+	env->CallVoidMethod(porting::activity, mid, ja, jb, jc);
 	if (ja)
 		env->DeleteLocalRef(ja);
 	if (jb)
 		env->DeleteLocalRef(jb);
 	if (jc)
 		env->DeleteLocalRef(jc);
-	env->DeleteLocalRef(activityClass);
 }
 
 static void callVoidMethod1Str(const char *method_name, const std::string &a)
 {
-	JNIEnv *env;
-	jobject activity;
-	jclass activityClass;
-	if (!getActivityEnv(&env, &activity, &activityClass))
-		return;
-
-	jmethodID mid = env->GetMethodID(activityClass, method_name,
+	JNIEnv *env = porting::getJNIEnv();
+	jmethodID mid = env->GetMethodID(porting::activityClass, method_name,
 		"(Ljava/lang/String;)V");
 	if (!mid) {
 		errorstream << "htmlview_jni: missing method " << method_name << std::endl;
-		env->DeleteLocalRef(activityClass);
 		return;
 	}
 
 	jstring ja = env->NewStringUTF(a.c_str());
-	env->CallVoidMethod(activity, mid, ja);
+	env->CallVoidMethod(porting::activity, mid, ja);
 	if (ja)
 		env->DeleteLocalRef(ja);
-	env->DeleteLocalRef(activityClass);
 }
 
 static void callVoidMethod1Str2Int(const char *method_name, const std::string &a,
 			int b, int c)
 {
-	JNIEnv *env;
-	jobject activity;
-	jclass activityClass;
-	if (!getActivityEnv(&env, &activity, &activityClass))
-		return;
-
-	jmethodID mid = env->GetMethodID(activityClass, method_name,
+	JNIEnv *env = porting::getJNIEnv();
+	jmethodID mid = env->GetMethodID(porting::activityClass, method_name,
 		"(Ljava/lang/String;II)V");
 	if (!mid) {
 		errorstream << "htmlview_jni: missing method " << method_name << std::endl;
-		env->DeleteLocalRef(activityClass);
 		return;
 	}
 
 	jstring ja = env->NewStringUTF(a.c_str());
 	jint jb = b;
 	jint jc = c;
-	env->CallVoidMethod(activity, mid, ja, jb, jc);
+	env->CallVoidMethod(porting::activity, mid, ja, jb, jc);
 	if (ja)
 		env->DeleteLocalRef(ja);
-	env->DeleteLocalRef(activityClass);
 }
 
 static void callVoidMethod0(const char *method_name)
 {
-	JNIEnv *env;
-	jobject activity;
-	jclass activityClass;
-	if (!getActivityEnv(&env, &activity, &activityClass))
-		return;
-
-	jmethodID mid = env->GetMethodID(activityClass, method_name, "()V");
+	JNIEnv *env = porting::getJNIEnv();
+	jmethodID mid = env->GetMethodID(porting::activityClass, method_name, "()V");
 	if (!mid) {
 		errorstream << "htmlview_jni: missing method " << method_name << std::endl;
-		env->DeleteLocalRef(activityClass);
 		return;
 	}
 
-	env->CallVoidMethod(activity, mid);
-	env->DeleteLocalRef(activityClass);
+	env->CallVoidMethod(porting::activity, mid);
 }
 
 static void callVoidMethod1Str1Bool(const char *method_name, const std::string &a, bool b)
 {
-	JNIEnv *env;
-	jobject activity;
-	jclass activityClass;
-	if (!getActivityEnv(&env, &activity, &activityClass))
-		return;
-
-	jmethodID mid = env->GetMethodID(activityClass, method_name, "(Ljava/lang/String;Z)V");
+	JNIEnv *env = porting::getJNIEnv();
+	jmethodID mid = env->GetMethodID(porting::activityClass, method_name, "(Ljava/lang/String;Z)V");
 	if (!mid) {
 		errorstream << "htmlview_jni: missing method " << method_name << std::endl;
-		env->DeleteLocalRef(activityClass);
 		return;
 	}
 
 	jstring ja = env->NewStringUTF(a.c_str());
 	jboolean jb = b;
-	env->CallVoidMethod(activity, mid, ja, jb);
+	env->CallVoidMethod(porting::activity, mid, ja, jb);
 	if (ja)
 		env->DeleteLocalRef(ja);
-	env->DeleteLocalRef(activityClass);
 }
 
 static std::string callStringMethod1Str(const char *method_name, const std::string &a)
 {
-	JNIEnv *env;
-	jobject activity;
-	jclass activityClass;
-	if (!getActivityEnv(&env, &activity, &activityClass))
-		return "";
-
-	jmethodID mid = env->GetMethodID(activityClass, method_name,
+	JNIEnv *env = porting::getJNIEnv();
+	jmethodID mid = env->GetMethodID(porting::activityClass, method_name,
 		"(Ljava/lang/String;)Ljava/lang/String;");
 	if (!mid) {
 		errorstream << "htmlview_jni: missing method " << method_name << std::endl;
-		env->DeleteLocalRef(activityClass);
 		return "";
 	}
 
 	jstring ja = env->NewStringUTF(a.c_str());
-	jstring jr = (jstring)env->CallObjectMethod(activity, mid, ja);
+	jstring jr = (jstring)env->CallObjectMethod(porting::activity, mid, ja);
 	if (ja)
 		env->DeleteLocalRef(ja);
 	std::string r = readJavaString(env, jr);
 	if (jr)
 		env->DeleteLocalRef(jr);
-	env->DeleteLocalRef(activityClass);
 	return r;
 }
 
@@ -289,17 +225,12 @@ void htmlview_jni_display(const std::string &id, int x, int y, int w, int h,
 		bool visible, bool fullscreen, bool safe_area,
 		bool drag_embed, float border_radius)
 {
-	JNIEnv *env;
-	jobject activity;
-	jclass activityClass;
-	if (!getActivityEnv(&env, &activity, &activityClass))
-		return;
+	JNIEnv *env = porting::getJNIEnv();
 
-	jmethodID mid = env->GetMethodID(activityClass, "htmlview_display",
+	jmethodID mid = env->GetMethodID(porting::activityClass, "htmlview_display",
 		"(Ljava/lang/String;IIIIZZZZF)V");
 	if (!mid) {
 		errorstream << "htmlview_jni: missing method htmlview_display" << std::endl;
-		env->DeleteLocalRef(activityClass);
 		return;
 	}
 
@@ -314,10 +245,9 @@ void htmlview_jni_display(const std::string &id, int x, int y, int w, int h,
 	jboolean jdrag = drag_embed;
 	jfloat jrad = border_radius;
 	
-	env->CallVoidMethod(activity, mid, jid, jx, jy, jw, jh, jvis, jfull, jsafe, jdrag, jrad);
+	env->CallVoidMethod(porting::activity, mid, jid, jx, jy, jw, jh, jvis, jfull, jsafe, jdrag, jrad);
 	if (jid)
 		env->DeleteLocalRef(jid);
-	env->DeleteLocalRef(activityClass);
 }
 
 void htmlview_jni_input(const std::string &id, bool block_game_input)
@@ -347,28 +277,22 @@ void htmlview_jni_pipe(const std::string &fromId, const std::string &toId)
 
 void htmlview_jni_shared_set(const std::string &key, const char *val)
 {
-	JNIEnv *env;
-	jobject activity;
-	jclass activityClass;
-	if (!getActivityEnv(&env, &activity, &activityClass))
-		return;
+	JNIEnv *env = porting::getJNIEnv();
 
-	jmethodID mid = env->GetMethodID(activityClass, "htmlview_shared_set",
+	jmethodID mid = env->GetMethodID(porting::activityClass, "htmlview_shared_set",
 		"(Ljava/lang/String;Ljava/lang/String;)V");
 	if (!mid) {
 		errorstream << "htmlview_jni: missing method htmlview_shared_set" << std::endl;
-		env->DeleteLocalRef(activityClass);
 		return;
 	}
 
 	jstring jk = env->NewStringUTF(key.c_str());
 	jstring jv = val ? env->NewStringUTF(val) : nullptr;
-	env->CallVoidMethod(activity, mid, jk, jv);
+	env->CallVoidMethod(porting::activity, mid, jk, jv);
 	if (jk)
 		env->DeleteLocalRef(jk);
 	if (jv)
 		env->DeleteLocalRef(jv);
-	env->DeleteLocalRef(activityClass);
 }
 
 std::string htmlview_jni_shared_get(const std::string &key)

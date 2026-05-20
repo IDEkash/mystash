@@ -2174,7 +2174,7 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 	}
 
 	LocalPlayer *player = client->getEnv().getLocalPlayer();
-	if (player && !player->camera_anti_tilt_controller && player->camera_tilt != 0.0f) {
+	if (player && !player->camera_anti_tilt_controller && std::isfinite(player->camera_tilt) && player->camera_tilt != 0.0f) {
 		// Luanti uses CCW yaw and CW pitch. To rotate screen-space deltas
 		// correctly, we need to invert pitch before rotation and re-invert after.
 		v2f change(yaw_change, -pitch_change);
@@ -2183,8 +2183,10 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 		pitch_change = -change.Y;
 	}
 
-	cam->camera_yaw   += yaw_change;
-	cam->camera_pitch += pitch_change;
+	if (std::isfinite(yaw_change))
+		cam->camera_yaw   += yaw_change;
+	if (std::isfinite(pitch_change))
+		cam->camera_pitch += pitch_change;
 
 	cam->camera_pitch = rangelim(cam->camera_pitch, -90, 90);
 }
@@ -2785,10 +2787,15 @@ void Game::updateCamera(f32 dtime)
 void Game::updateCameraMode()
 {
 	LocalPlayer *player = client->getEnv().getLocalPlayer();
+	if (!player || !camera)
+		return;
 
 	// Obey server choice
-	if (player->allowed_camera_mode != CAMERA_MODE_ANY)
-		camera->setCameraMode(player->allowed_camera_mode);
+	if (player->allowed_camera_mode != CAMERA_MODE_ANY) {
+		int mode_int = (int)player->allowed_camera_mode;
+		if (mode_int >= CAMERA_MODE_FIRST && mode_int <= CAMERA_MODE_THIRD_FRONT)
+			camera->setCameraMode(player->allowed_camera_mode);
+	}
 
 	GenericCAO *playercao = player->getCAO();
 	if (playercao) {
@@ -2902,11 +2909,14 @@ void Game::processPlayerInteraction(f32 dtime, bool show_hud)
 		shootline.end += intToFloat(camera_offset, BS);
 	}
 
-	PointedThing pointed = updatePointedThing(shootline,
-			selected_def.liquids_pointable,
-			selected_def.pointabilities,
-			!runData.btn_down_for_dig,
-			camera_offset);
+	PointedThing pointed;
+	if (shootline.getLengthSQ() > 0.001f) {
+		pointed = updatePointedThing(shootline,
+				selected_def.liquids_pointable,
+				selected_def.pointabilities,
+				!runData.btn_down_for_dig,
+				camera_offset);
+	}
 
 	if (pointed != runData.pointed_old)
 		infostream << "Pointing at " << pointed.dump() << std::endl;
@@ -3045,13 +3055,13 @@ PointedThing Game::updatePointedThing(
 
 		runData.selected_object = client->getEnv().getActiveObject(result.object_id);
 		aabb3f selection_box{{0.0f, 0.0f, 0.0f}};
-		if (show_entity_selectionbox && runData.selected_object->doShowSelectionBox() &&
+		if (runData.selected_object && show_entity_selectionbox && runData.selected_object->doShowSelectionBox() &&
 				runData.selected_object->getSelectionBox(&selection_box)) {
 			v3f pos = runData.selected_object->getPosition();
 			selectionboxes->push_back(selection_box);
 			hud->setSelectionPos(pos, camera_offset);
 			GenericCAO* gcao = dynamic_cast<GenericCAO*>(runData.selected_object);
-			if (gcao != nullptr && gcao->getProperties().rotate_selectionbox)
+			if (gcao != nullptr && gcao->getSceneNode() && gcao->getProperties().rotate_selectionbox)
 				hud->setSelectionRotationRadians(gcao->getSceneNode()
 						->getAbsoluteTransformation().getRotationRadians());
 			else
@@ -3872,7 +3882,9 @@ void Game::drawScene(ProfilerGraph *graph, RunStats *stats)
 	TimeTaker tt_draw("Draw scene", nullptr, PRECISION_MICRO);
 	this->driver->beginScene(true, true, sky_color);
 
-	assert(player);
+	if (!player)
+		return;
+
 	bool draw_wield_tool = (this->m_game_ui->m_flags.show_hud &&
 			(player->hud_flags & HUD_FLAG_WIELDITEM_VISIBLE) &&
 			(this->camera->getCameraMode() == CAMERA_MODE_FIRST));

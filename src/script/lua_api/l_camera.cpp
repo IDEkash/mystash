@@ -41,14 +41,25 @@ void LuaCamera::create(lua_State *L, Camera *m)
 int LuaCamera::l_set_camera_mode(lua_State *L)
 {
 	Camera *camera = getobject(L, 1);
-	GenericCAO *playercao = getClient(L)->getEnv().getLocalPlayer()->getCAO();
 	if (!camera)
 		return 0;
-	sanity_check(playercao);
+
+	LocalPlayer *player = getClient(L)->getEnv().getLocalPlayer();
+	if (!player)
+		return 0;
+
+	GenericCAO *playercao = player->getCAO();
+	if (!playercao)
+		return 0;
+
 	if (!lua_isnumber(L, 2))
 		return 0;
 
-	camera->setCameraMode((CameraMode)((int)lua_tonumber(L, 2)));
+	int mode_int = (int)lua_tonumber(L, 2);
+	if (mode_int < CAMERA_MODE_FIRST || mode_int > CAMERA_MODE_THIRD_FRONT)
+		return 0;
+
+	camera->setCameraMode((CameraMode)mode_int);
 	// Make the player visible depending on camera mode.
 	playercao->updateMeshCulling();
 	playercao->setChildrenVisible(camera->getCameraMode() > CAMERA_MODE_FIRST);

@@ -304,9 +304,16 @@ void GenericCAO::processInitData(const std::string &data)
 	m_name = deSerializeString16(is);
 	m_is_player = readU8(is);
 	m_id = readU16(is);
-	m_position = readV3F32(is);
-	m_rotation = readV3F32(is);
+	v3f pos = readV3F32(is);
+	v3f rot = readV3F32(is);
 	m_hp = readU16(is);
+
+	if (!std::isfinite(pos.X) || !std::isfinite(pos.Y) || !std::isfinite(pos.Z) ||
+			!std::isfinite(rot.X) || !std::isfinite(rot.Y) || !std::isfinite(rot.Z))
+		return;
+
+	m_position = pos;
+	m_rotation = rot;
 
 	if (m_is_player) {
 		// Check if it's the current player
@@ -332,6 +339,12 @@ void GenericCAO::processInitData(const std::string &data)
 
 GenericCAO::~GenericCAO()
 {
+	if (m_is_local_player && m_env) {
+		LocalPlayer *player = m_env->getLocalPlayer();
+		if (player && player->getCAO() == this) {
+			player->setCAO(nullptr);
+		}
+	}
 	removeFromScene(true);
 }
 
@@ -350,8 +363,11 @@ void GenericCAO::updateParentChain() const
 		return;
 	// Update the entire chain of nodes to ensure absolute position is correct
 	std::vector<scene::ISceneNode *> chain;
-	for (scene::ISceneNode *node = m_matrixnode; node; node = node->getParent())
+	scene::ISceneNode *node = m_matrixnode;
+	// Add a safety limit to prevent infinite loops from malformed scene graphs
+	for (int i = 0; node && i < 100; node = node->getParent(), i++)
 		chain.push_back(node);
+
 	for (auto it = chain.rbegin(); it != chain.rend(); ++it)
 		(*it)->updateAbsolutePosition();
 }
@@ -422,13 +438,17 @@ scene::AnimatedMeshSceneNode *GenericCAO::getAnimatedMeshSceneNode() const
 	return m_animated_meshnode;
 }
 
-void GenericCAO::setChildrenVisible(bool toset)
+void GenericCAO::setChildrenVisible(bool toset, u16 depth)
 {
+	if (!m_env || depth > 100)
+		return;
+
 	for (object_t cao_id : m_attachment_child_ids) {
 		GenericCAO *obj = m_env->getGenericCAO(cao_id);
 		if (obj) {
 			// Check if the entity is forced to appear in first person.
 			obj->setVisible(obj->m_force_visible ? true : toset);
+			obj->setChildrenVisible(toset, depth + 1);
 		}
 	}
 }
@@ -484,8 +504,9 @@ void GenericCAO::setAttachment(object_t parent_id, const std::string &bone,
 		m_is_visible = true;
 	} else if (!m_is_local_player) {
 		// Objects attached to the local player should be hidden in first person
+		Camera *cam = m_client->getCamera();
 		m_is_visible = !m_attached_to_local ||
-			m_client->getCamera()->getCameraMode() != CAMERA_MODE_FIRST;
+			(cam && cam->getCameraMode() != CAMERA_MODE_FIRST);
 		m_force_visible = false;
 	} else {
 		// Local players need to have this set,
@@ -553,6 +574,9 @@ void GenericCAO::removeFromScene(bool permanent)
 		m_meshnode->drop();
 		m_meshnode = nullptr;
 	} else if (m_animated_meshnode)	{
+		m_animated_meshnode->setOnEventCallback(nullptr);
+		m_animated_meshnode->setOnCycleCallback(nullptr);
+		m_animated_meshnode->setOnAnimateCallback(nullptr);
 		m_animated_meshnode->remove();
 		m_animated_meshnode->drop();
 		m_animated_meshnode = nullptr;
@@ -737,14 +761,19 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 			});
 
 			m_animated_meshnode->setOnEventCallback([this](const std::string &name) {
-				m_client->getScript()->on_animation_event(m_id, name);
+				if (m_client && m_client->modsLoaded())
+					m_client->getScript()->on_animation_event(m_id, name);
 			});
 
 			m_animated_meshnode->setOnCycleCallback([this]() {
-				m_client->getScript()->on_animation_cycle(m_id);
+				if (m_client && m_client->modsLoaded())
+					m_client->getScript()->on_animation_cycle(m_id);
 			});
 
-			m_animated_meshnode->setOnAnimateCallback([&](f32 dtime) {
+			m_animated_meshnode->setOnAnimateCallback([this](f32 dtime) {
+				if (!m_animated_meshnode)
+					return;
+
 				for (auto it = m_bone_override.begin(); it != m_bone_override.end();) {
 					BoneOverride &props = it->second;
 					props.dtime_passed += dtime;
@@ -1021,7 +1050,8 @@ void GenericCAO::updateNodePos()
 		getPosRotMatrix().setTranslation(pos);
 		if (node != m_spritenode) { // rotate if not a sprite
 			v3f rot = m_is_local_player ? -m_rotation : -rot_translator.val_current;
-			setPitchYawRoll(getPosRotMatrix(), rot);
+			if (std::isfinite(rot.X) && std::isfinite(rot.Y) && std::isfinite(rot.Z))
+				setPitchYawRoll(getPosRotMatrix(), rot);
 		}
 	}
 }
@@ -1113,7 +1143,7 @@ void GenericCAO::step(float dtime, ClientEnvironment *env)
 				scene::ISceneNode *child_node = obj->getSceneNode();
 				// The node's parent is always an IDummyTraformationSceneNode,
 				// so we need to reparent that one instead.
-				if (child_node)
+				if (child_node && child_node->getParent())
 					child_node->getParent()->setParent(m_smgr->getRootSceneNode());
 			}
 		}
@@ -1428,7 +1458,7 @@ void GenericCAO::updateTextures(std::string mod)
 
 void GenericCAO::updateAnimation()
 {
-	if (!m_animated_meshnode)
+	if (!m_animated_meshnode || !m_animated_meshnode->getMesh())
 		return;
 
 	v2f range = m_animation_range;
@@ -1597,10 +1627,21 @@ void GenericCAO::processMessage(const std::string &data)
 	} else if (cmd == AO_CMD_UPDATE_POSITION) {
 		// Not sent by the server if this object is an attachment.
 		// We might however get here if the server notices the object being detached before the client.
-		m_position = readV3F32(is);
-		m_velocity = readV3F32(is);
-		m_acceleration = readV3F32(is);
-		m_rotation = readV3F32(is);
+		v3f pos = readV3F32(is);
+		v3f vel = readV3F32(is);
+		v3f acc = readV3F32(is);
+		v3f rot = readV3F32(is);
+
+		if (!std::isfinite(pos.X) || !std::isfinite(pos.Y) || !std::isfinite(pos.Z) ||
+				!std::isfinite(vel.X) || !std::isfinite(vel.Y) || !std::isfinite(vel.Z) ||
+				!std::isfinite(acc.X) || !std::isfinite(acc.Y) || !std::isfinite(acc.Z) ||
+				!std::isfinite(rot.X) || !std::isfinite(rot.Y) || !std::isfinite(rot.Z))
+			return;
+
+		m_position = pos;
+		m_velocity = vel;
+		m_acceleration = acc;
+		m_rotation = rot;
 
 		m_rotation = wrapDegrees_0_360_v3f(m_rotation);
 		bool do_interpolate = readU8(is);
@@ -1685,6 +1726,11 @@ void GenericCAO::processMessage(const std::string &data)
 		v2f range = readV2F32(is);
 		float speed = readF32(is);
 		float blend = readF32(is);
+
+		if (!std::isfinite(range.X) || !std::isfinite(range.Y) ||
+				!std::isfinite(speed) || !std::isfinite(blend))
+			return;
+
 		// these are sent inverted so we get true when the server sends nothing
 		bool loop = !readU8(is);
 
@@ -1726,8 +1772,11 @@ void GenericCAO::processMessage(const std::string &data)
 
 		updateAnimation();
 	} else if (cmd == AO_CMD_SET_ANIMATION_SPEED) {
-		m_animation_speed = readF32(is);
-		updateAnimationSpeed();
+		float speed = readF32(is);
+		if (std::isfinite(speed)) {
+			m_animation_speed = speed;
+			updateAnimationSpeed();
+		}
 	} else if (cmd == AO_CMD_SET_BONE_POSITION) {
 		std::string bone = deSerializeString16(is);
 		auto it = m_bone_override.find(bone);
@@ -1747,8 +1796,15 @@ void GenericCAO::processMessage(const std::string &data)
 			props.scale.interp_duration = 0.0f;
 		}
 		// Read new values
-		props.position.vector = readV3F32(is);
-		props.rotation.next = core::quaternion(readV3F32(is) * core::DEGTORAD);
+		v3f pos = readV3F32(is);
+		v3f rot = readV3F32(is);
+
+		if (!std::isfinite(pos.X) || !std::isfinite(pos.Y) || !std::isfinite(pos.Z) ||
+				!std::isfinite(rot.X) || !std::isfinite(rot.Y) || !std::isfinite(rot.Z))
+			return;
+
+		props.position.vector = pos;
+		props.rotation.next = core::quaternion(rot * core::DEGTORAD);
 
 		if (!canRead(is)) {
 			// For PROTOCOL_VERSION < 44
@@ -1757,10 +1813,19 @@ void GenericCAO::processMessage(const std::string &data)
 			props.rotation.absolute = true;
 		} else {
 			// For PROTOCOL_VERSION >= 44
-			props.scale.vector = readV3F32(is);
-			props.position.interp_duration = readF32(is);
-			props.rotation.interp_duration = readF32(is);
-			props.scale.interp_duration = readF32(is);
+			v3f scale = readV3F32(is);
+			float interp_pos = readF32(is);
+			float interp_rot = readF32(is);
+			float interp_scale = readF32(is);
+
+			if (!std::isfinite(scale.X) || !std::isfinite(scale.Y) || !std::isfinite(scale.Z) ||
+					!std::isfinite(interp_pos) || !std::isfinite(interp_rot) || !std::isfinite(interp_scale))
+				return;
+
+			props.scale.vector = scale;
+			props.position.interp_duration = interp_pos;
+			props.rotation.interp_duration = interp_rot;
+			props.scale.interp_duration = interp_scale;
 			u8 absoluteFlag = readU8(is);
 			props.position.absolute = (absoluteFlag & 1) > 0;
 			props.rotation.absolute = (absoluteFlag & 2) > 0;
@@ -1783,6 +1848,11 @@ void GenericCAO::processMessage(const std::string &data)
 		std::string bone = deSerializeString16(is);
 		v3f position = readV3F32(is);
 		v3f rotation = readV3F32(is);
+
+		if (!std::isfinite(position.X) || !std::isfinite(position.Y) || !std::isfinite(position.Z) ||
+				!std::isfinite(rotation.X) || !std::isfinite(rotation.Y) || !std::isfinite(rotation.Z))
+			return;
+
 		bool force_visible = false;
 		if (canRead(is)) {
 			// >= 5.4.0-dev
@@ -1910,10 +1980,14 @@ std::string GenericCAO::debugInfoText()
 
 void GenericCAO::updateMeshCulling()
 {
-	if (!m_is_local_player)
+	if (!m_is_local_player || !m_client)
 		return;
 
-	const bool hidden = m_client->getCamera()->getCameraMode() == CAMERA_MODE_FIRST;
+	Camera *cam = m_client->getCamera();
+	if (!cam)
+		return;
+
+	const bool hidden = cam->getCameraMode() == CAMERA_MODE_FIRST;
 
 	scene::ISceneNode *node = getSceneNode();
 
