@@ -1882,7 +1882,10 @@ void Client::handleCommand_MinimapModes(NetworkPacket *pkt)
 
 void Client::handleCommand_SetLighting(NetworkPacket *pkt)
 {
-	Lighting& lighting = m_env.getLocalPlayer()->getLighting();
+	LocalPlayer *player = m_env.getLocalPlayer();
+	if (!player)
+		return;
+	Lighting& lighting = player->getLighting();
 
 	*pkt >> lighting.shadow_intensity;
 	do {

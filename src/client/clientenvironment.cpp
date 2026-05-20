@@ -80,7 +80,8 @@ void ClientEnvironment::step(float dtime)
 
 	// Get local player
 	LocalPlayer *lplayer = getLocalPlayer();
-	assert(lplayer);
+	if (!lplayer)
+		return;
 	// collision info queue
 	std::vector<CollisionInfo> player_collisions;
 
@@ -422,7 +423,8 @@ void ClientEnvironment::processActiveObjectMessage(u16 id, const std::string &da
 void ClientEnvironment::damageLocalPlayer(u16 damage, bool handle_hp)
 {
 	LocalPlayer *lplayer = getLocalPlayer();
-	assert(lplayer);
+	if (!lplayer)
+		return;
 
 	if (handle_hp) {
 		if (lplayer->hp > damage)

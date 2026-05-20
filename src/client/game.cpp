@@ -2909,11 +2909,14 @@ void Game::processPlayerInteraction(f32 dtime, bool show_hud)
 		shootline.end += intToFloat(camera_offset, BS);
 	}
 
-	PointedThing pointed = updatePointedThing(shootline,
-			selected_def.liquids_pointable,
-			selected_def.pointabilities,
-			!runData.btn_down_for_dig,
-			camera_offset);
+	PointedThing pointed;
+	if (shootline.getLengthSQ() > 0.001f) {
+		pointed = updatePointedThing(shootline,
+				selected_def.liquids_pointable,
+				selected_def.pointabilities,
+				!runData.btn_down_for_dig,
+				camera_offset);
+	}
 
 	if (pointed != runData.pointed_old)
 		infostream << "Pointing at " << pointed.dump() << std::endl;
@@ -3052,13 +3055,13 @@ PointedThing Game::updatePointedThing(
 
 		runData.selected_object = client->getEnv().getActiveObject(result.object_id);
 		aabb3f selection_box{{0.0f, 0.0f, 0.0f}};
-		if (show_entity_selectionbox && runData.selected_object->doShowSelectionBox() &&
+		if (runData.selected_object && show_entity_selectionbox && runData.selected_object->doShowSelectionBox() &&
 				runData.selected_object->getSelectionBox(&selection_box)) {
 			v3f pos = runData.selected_object->getPosition();
 			selectionboxes->push_back(selection_box);
 			hud->setSelectionPos(pos, camera_offset);
 			GenericCAO* gcao = dynamic_cast<GenericCAO*>(runData.selected_object);
-			if (gcao != nullptr && gcao->getProperties().rotate_selectionbox)
+			if (gcao != nullptr && gcao->getSceneNode() && gcao->getProperties().rotate_selectionbox)
 				hud->setSelectionRotationRadians(gcao->getSceneNode()
 						->getAbsoluteTransformation().getRotationRadians());
 			else
@@ -3879,7 +3882,9 @@ void Game::drawScene(ProfilerGraph *graph, RunStats *stats)
 	TimeTaker tt_draw("Draw scene", nullptr, PRECISION_MICRO);
 	this->driver->beginScene(true, true, sky_color);
 
-	assert(player);
+	if (!player)
+		return;
+
 	bool draw_wield_tool = (this->m_game_ui->m_flags.show_hud &&
 			(player->hud_flags & HUD_FLAG_WIELDITEM_VISIBLE) &&
 			(this->camera->getCameraMode() == CAMERA_MODE_FIRST));

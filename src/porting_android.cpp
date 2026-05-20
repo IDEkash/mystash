@@ -59,18 +59,43 @@ extern "C" int SDL_Main(int _argc, char *_argv[])
 namespace porting {
 jobject      activity;
 jclass       activityClass;
+JavaVM      *javaVM;
 
 JNIEnv *getJNIEnv()
 {
 	JNIEnv *env = (JNIEnv *)SDL_AndroidGetJNIEnv();
-	FATAL_ERROR_IF(!env, "Could not get JNIEnv");
-	return env;
+	if (env)
+		return env;
+
+	if (javaVM) {
+		int status = javaVM->GetEnv((void**)&env, JNI_VERSION_1_6);
+		if (status == JNI_OK)
+			return env;
+		if (status == JNI_EDETACHED) {
+#ifdef __ANDROID__
+			if (javaVM->AttachCurrentThread(&env, nullptr) == JNI_OK)
+#else
+			if (javaVM->AttachCurrentThread((void**)&env, nullptr) == JNI_OK)
+#endif
+				return env;
+		}
+	}
+
+	FATAL_ERROR("Could not get JNIEnv");
+	return nullptr;
 }
 
 void osSpecificInit()
 {
-	JNIEnv *env = getJNIEnv();
-	activity = env->NewGlobalRef((jobject)SDL_AndroidGetActivity());
+	JNIEnv *env = (JNIEnv *)SDL_AndroidGetJNIEnv();
+	FATAL_ERROR_IF(!env, "osSpecificInit: Could not get JNIEnv");
+
+	env->GetJavaVM(&javaVM);
+
+	jobject localActivity = (jobject)SDL_AndroidGetActivity();
+	activity = env->NewGlobalRef(localActivity);
+	env->DeleteLocalRef(localActivity);
+
 	jclass localClass = env->GetObjectClass(activity);
 	activityClass = (jclass)env->NewGlobalRef(localClass);
 	env->DeleteLocalRef(localClass);
@@ -103,7 +128,8 @@ static std::string readJavaString(JNIEnv *env, jstring j_str)
 	// Get string as a UTF-8 C string
 	const char *c_str = env->GetStringUTFChars(j_str, nullptr);
 	if (!c_str) {
-		env->ExceptionClear();
+		if (env->ExceptionCheck())
+			env->ExceptionClear();
 		return "";
 	}
 	// Save it
@@ -122,8 +148,8 @@ bool setSystemPaths()
 				"getUserDataPath", "()Ljava/lang/String;");
 		FATAL_ERROR_IF(getUserDataPath==nullptr,
 				"porting::initializePathsAndroid unable to find Java getUserDataPath method");
-		jobject result = env->CallObjectMethod(activity, getUserDataPath);
-		std::string str = readJavaString(env, (jstring) result);
+		jstring result = (jstring)env->CallObjectMethod(activity, getUserDataPath);
+		std::string str = readJavaString(env, result);
 		if (result)
 			env->DeleteLocalRef(result);
 		path_user = str;
@@ -136,8 +162,8 @@ bool setSystemPaths()
 				"getCachePath", "()Ljava/lang/String;");
 		FATAL_ERROR_IF(getCachePath==nullptr,
 				"porting::initializePathsAndroid unable to find Java getCachePath method");
-		jobject result = env->CallObjectMethod(activity, getCachePath);
-		path_cache = readJavaString(env, (jstring) result);
+		jstring result = (jstring)env->CallObjectMethod(activity, getCachePath);
+		path_cache = readJavaString(env, result);
 		if (result)
 			env->DeleteLocalRef(result);
 	}
@@ -267,9 +293,9 @@ std::string getInputDialogMessage()
 	FATAL_ERROR_IF(dialogvalue == nullptr,
 			"porting::getInputDialogMessage unable to find Java getDialogMessage method");
 
-	jobject result = env->CallObjectMethod(activity,
+	jstring result = (jstring)env->CallObjectMethod(activity,
 			dialogvalue);
-	std::string str = readJavaString(env, (jstring) result);
+	std::string str = readJavaString(env, result);
 	if (result)
 		env->DeleteLocalRef(result);
 	return str;
@@ -346,9 +372,9 @@ std::string getLanguageAndroid()
 	FATAL_ERROR_IF(getLanguage == nullptr,
 		"porting::getLanguageAndroid unable to find Java getLanguage method");
 
-	jobject result = env->CallObjectMethod(activity,
+	jstring result = (jstring)env->CallObjectMethod(activity,
 			getLanguage);
-	std::string str = readJavaString(env, (jstring) result);
+	std::string str = readJavaString(env, result);
 	if (result)
 		env->DeleteLocalRef(result);
 	return str;

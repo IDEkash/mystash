@@ -244,7 +244,7 @@ public:
 		m_is_visible = toset;
 	}
 
-	void setChildrenVisible(bool toset);
+	void setChildrenVisible(bool toset, u16 depth = 0);
 	void setAttachment(object_t parent_id, const std::string &bone, v3f position,
 			v3f rotation, bool force_visible) override;
 	void getAttachment(object_t *parent_id, std::string *bone, v3f *position,

@@ -40,7 +40,8 @@ static std::string readJavaString(JNIEnv *env, jstring j_str)
 		return "";
 	const char *c_str = env->GetStringUTFChars(j_str, nullptr);
 	if (!c_str) {
-		env->ExceptionClear();
+		if (env->ExceptionCheck())
+			env->ExceptionClear();
 		return "";
 	}
 	std::string str(c_str);

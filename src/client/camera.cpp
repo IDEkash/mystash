@@ -96,6 +96,8 @@ Camera::~Camera()
 
 v3f Camera::getHeadPosition() const
 {
+	if (!m_headnode)
+		return m_camera_position;
 	return m_headnode->getAbsolutePosition();
 }
 
@@ -228,6 +230,10 @@ static inline v2f dir(const v2f &pos_dist)
 
 void Camera::addArmInertia(f32 player_yaw)
 {
+	if (!std::isfinite(player_yaw) || !std::isfinite(m_last_cam_pos.X) || !std::isfinite(m_last_cam_pos.Y) ||
+			!std::isfinite(m_camera_direction.Y))
+		return;
+
 	m_cam_vel.X = std::fabs(rangelim(m_last_cam_pos.X - player_yaw,
 		-100.0f, 100.0f) / 0.016f) * 0.01f;
 	m_cam_vel.Y = std::fabs((m_last_cam_pos.Y - m_camera_direction.Y) / 0.016f);
@@ -300,6 +306,9 @@ void Camera::addArmInertia(f32 player_yaw)
 
 void Camera::updateOffset()
 {
+	if (!std::isfinite(m_camera_position.X) || !std::isfinite(m_camera_position.Y) || !std::isfinite(m_camera_position.Z))
+		return;
+
 	v3f cp = m_camera_position / BS;
 
 	// Update offset if too far away from the center of the map
@@ -351,11 +360,11 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	if (std::isfinite(player_position.X) && std::isfinite(player_position.Y) && std::isfinite(player_position.Z))
 		m_playernode->setPosition(player_position);
 	if (std::isfinite(yaw))
-		m_playernode->setRotation(v3f(0, -1 * yaw, 0));
+		m_playernode->setRotation(v3f(0, -1.0f * yaw, 0.0f));
 	m_playernode->updateAbsolutePosition();
 
 	// Get camera tilt timer (hurt animation)
-	float cameratilt = fabs(fabs(player->hurt_tilt_timer-0.75)-0.75);
+	float cameratilt = std::abs(std::abs(player->hurt_tilt_timer - 0.75f) - 0.75f);
 	if (!std::isfinite(cameratilt)) cameratilt = 0.0f;
 
 	// Calculate and translate the head SceneNode offsets
@@ -445,29 +454,42 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	{
 		v3f my_cp = m_camera_position;
 
-		if (m_camera_mode == CAMERA_MODE_THIRD_FRONT)
-			m_camera_direction *= -1;
+		v3f reposition_dir = m_camera_direction;
+		if (m_camera_mode == CAMERA_MODE_THIRD_FRONT) {
+			reposition_dir *= -1.0f;
+			m_camera_direction *= -1.0f;
+		}
 
-		my_cp.Y += 2;
+		my_cp.Y += 0.2f * BS;
 
 		// Calculate new position
 		bool abort = false;
 		for (int i = BS; i <= BS * 2.75; i++) {
-			my_cp.X = m_camera_position.X + m_camera_direction.X * -i;
-			my_cp.Z = m_camera_position.Z + m_camera_direction.Z * -i;
+			my_cp.X = m_camera_position.X + reposition_dir.X * -i;
+			my_cp.Z = m_camera_position.Z + reposition_dir.Z * -i;
 			if (i > 1.2f * BS)
-				my_cp.Y = m_camera_position.Y + (m_camera_direction.Y * -i);
+				my_cp.Y = m_camera_position.Y + (reposition_dir.Y * -i);
+
+			if (!std::isfinite(my_cp.X) || !std::isfinite(my_cp.Y) || !std::isfinite(my_cp.Z)) {
+				abort = true;
+				break;
+			}
 
 			// Prevent camera positioned inside nodes
 			const NodeDefManager *nodemgr = m_client->ndef();
 			ClientMap &map = m_client->getEnv().getClientMap();
-			MapNode n = map.getNode(floatToInt(my_cp, BS));
+			v3s16 p = floatToInt(my_cp, BS);
+			bool is_valid_pos;
+			MapNode n = map.getNode(p, &is_valid_pos);
+
+			if (!is_valid_pos)
+				continue;
 
 			const ContentFeatures& features = nodemgr->get(n);
 			if (features.walkable) {
-				my_cp.X += m_camera_direction.X*-1*-BS/2;
-				my_cp.Z += m_camera_direction.Z*-1*-BS/2;
-				my_cp.Y += m_camera_direction.Y*-1*-BS/2;
+				my_cp.X += reposition_dir.X*-1*-BS/2;
+				my_cp.Z += reposition_dir.Z*-1*-BS/2;
+				my_cp.Y += reposition_dir.Y*-1*-BS/2;
 				abort = true;
 				break;
 			}
@@ -522,13 +544,15 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	// FOV and aspect ratio
 	const v2u32 &window_size = RenderingEngine::getWindowSize();
 	m_aspect = (f32) window_size.X / (f32) std::max<u32>(window_size.Y, 1);
+	if (!std::isfinite(m_aspect) || m_aspect <= 0.0f) m_aspect = 1.0f;
+
 	m_fov_y = m_curr_fov_degrees * M_PI / 180.0;
 	// Increase vertical FOV on lower aspect ratios (<16:10)
 	m_fov_y *= core::clamp(sqrt(16./10. / m_aspect), 1.0, 1.4);
-	m_fov_x = 2 * atan(m_aspect * tan(0.5 * m_fov_y));
-	if (std::isnan(m_fov_x) || std::isinf(m_fov_x))
+	m_fov_x = 2.0f * std::atan(m_aspect * std::tan(0.5f * m_fov_y));
+	if (!std::isfinite(m_fov_x))
 		m_fov_x = 1.0f;
-	if (std::isnan(m_fov_y) || std::isinf(m_fov_y))
+	if (!std::isfinite(m_fov_y))
 		m_fov_y = 1.0f;
 
 	m_cameranode->setAspectRatio(m_aspect);
@@ -765,9 +789,10 @@ Nametag *Camera::addNametag(const Nametag &params)
 void Camera::removeNametag(Nametag *nametag)
 {
 	auto it = std::find(m_nametags.begin(), m_nametags.end(), nametag);
-	assert(it != m_nametags.end());
-	m_nametags.erase(it);
-	delete nametag;
+	if (it != m_nametags.end()) {
+		m_nametags.erase(it);
+		delete nametag;
+	}
 }
 
 std::array<core::plane3d<f32>, 4> Camera::getFrustumCullPlanes() const

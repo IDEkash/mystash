@@ -119,7 +119,6 @@ public:
 
 	void setCAO(GenericCAO *toset)
 	{
-		assert(!m_cao); // Pre-condition
 		m_cao = toset;
 	}
 
