@@ -10,7 +10,9 @@
 #include "network/networkprotocol.h"
 #include "serialization.h"
 #include <json/json.h>
+#ifndef ERR_NO_ZSTD
 #include <zstd.h>
+#endif
 #include "cpp_api/s_security.h"
 #include "porting.h"
 #include "convert_json.h"

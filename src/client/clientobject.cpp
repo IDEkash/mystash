@@ -4,6 +4,8 @@
 
 #include "clientobject.h"
 #include "debug.h"
+#include "sceneobject_cao.h"
+#include "content_cao.h"
 
 /*
 	ClientActiveObject
@@ -25,6 +27,11 @@ ClientActiveObject::~ClientActiveObject()
 std::unique_ptr<ClientActiveObject> ClientActiveObject::create(ActiveObjectType type,
 		Client *client, ClientEnvironment *env)
 {
+	if (type == ACTIVEOBJECT_TYPE_GENERIC)
+		return std::make_unique<GenericCAO>(client, env);
+	if (type == ACTIVEOBJECT_TYPE_SCENEOBJECT)
+		return std::make_unique<SceneObjectCAO>(0, client, env);
+
 	// Find factory function
 	auto n = m_types.find(type);
 	if (n == m_types.end()) {

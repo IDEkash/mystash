@@ -7,7 +7,9 @@
 #include "util/serialize.h"
 
 #include <zlib.h>
+#ifndef ERR_NO_ZSTD
 #include <zstd.h>
+#endif
 #include <memory>
 
 /* report a zlib or i/o error */
@@ -176,6 +178,7 @@ void decompressZlib(std::istream &is, std::ostream &os, size_t limit)
 	}
 }
 
+#ifndef ERR_NO_ZSTD
 struct ZSTD_Deleter {
 	void operator() (ZSTD_CStream* cstream) {
 		ZSTD_freeCStream(cstream);
@@ -271,6 +274,16 @@ void decompressZstd(std::istream &is, std::ostream &os)
 			throw SerializationError("decompressZstd: unget failed");
 	}
 }
+#else
+void compressZstd(const u8 *data, size_t data_size, std::ostream &os, int level)
+{
+	throw SerializationError("compressZstd: not supported");
+}
+void decompressZstd(std::istream &is, std::ostream &os)
+{
+	throw SerializationError("decompressZstd: not supported");
+}
+#endif
 
 void compress(const u8 *data, u32 size, std::ostream &os, u8 version, int level)
 {
