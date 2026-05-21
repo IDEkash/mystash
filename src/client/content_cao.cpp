@@ -881,7 +881,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 
 		if (!attachment_prop.source_bone.empty()) {
 			for (u32 i = 0; i < node->getJointCount(); i++) {
-				scene::IBoneSceneNode *bone = node->getJointNode(i);
+				scene::BoneSceneNode *bone = node->getJointNode(i);
 				if (bone) {
 					bool keep = false;
 					scene::ISceneNode *curr = bone;
