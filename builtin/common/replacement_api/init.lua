@@ -51,11 +51,11 @@ function replacement_api.replace_parts(params)
 			mesh = source_def.initial_properties.mesh,
 			bone = bone,
 			source_bone = source_bone_name,
-			position = {x=0, y=0, z=0},
-			rotation = {x=0, y=0, z=0},
-			scale = 1,
+			position = source_bone.position or {x=0, y=0, z=0},
+			rotation = source_bone.rotation or {x=0, y=0, z=0},
+			scale = source_bone.scale or 1,
 			textures = textures,
-			inherit_animation = true,
+			inherit_animation = source_bone.inherit_animation ~= false,
 			force_visible = force_visible,
 		})
 	end

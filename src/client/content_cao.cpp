@@ -553,6 +553,9 @@ void GenericCAO::removeFromScene(bool permanent)
 		m_meshnode->drop();
 		m_meshnode = nullptr;
 	} else if (m_animated_meshnode)	{
+		m_animated_meshnode->setOnEventCallback(nullptr);
+		m_animated_meshnode->setOnCycleCallback(nullptr);
+		m_animated_meshnode->setOnAnimateCallback(nullptr);
 		m_animated_meshnode->remove();
 		m_animated_meshnode->drop();
 		m_animated_meshnode = nullptr;
@@ -752,7 +755,9 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 				m_client->getScript()->on_animation_cycle(m_id);
 			});
 
-			m_animated_meshnode->setOnAnimateCallback([&](f32 dtime) {
+			m_animated_meshnode->setOnAnimateCallback([this](f32 dtime) {
+				if (!m_animated_meshnode)
+					return;
 				for (auto it = m_bone_override.begin(); it != m_bone_override.end();) {
 					BoneOverride &props = it->second;
 					props.dtime_passed += dtime;
@@ -880,19 +885,33 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		});
 
 		if (!attachment_prop.source_bone.empty()) {
+			// First, hide everything
 			for (u32 i = 0; i < node->getJointCount(); i++) {
-				scene::BoneSceneNode *bone = node->getJointNode(i);
-				if (bone) {
-					bool keep = false;
-					scene::ISceneNode *curr = bone;
-					while (curr && curr != node) {
-						if (curr->getName() == attachment_prop.source_bone) {
-							keep = true;
-							break;
-						}
-						curr = curr->getParent();
-					}
-					bone->setVisible(keep);
+				if (scene::BoneSceneNode *bone = node->getJointNode(i))
+					bone->setVisible(false);
+			}
+
+			// Show source_bone and its children
+			if (scene::BoneSceneNode *source_bone = node->getJointNode(attachment_prop.source_bone.c_str())) {
+				source_bone->setVisible(true);
+
+				// Show all ancestors of source_bone up to the node
+				for (scene::ISceneNode *curr = source_bone->getParent(); curr && curr != node; curr = curr->getParent()) {
+					curr->setVisible(true);
+				}
+
+		// source_bone and its descendants are now visible
+		// We use a non-recursive stack-based traversal for safety
+				std::vector<scene::ISceneNode*> stack;
+				stack.push_back(source_bone);
+		u32 safety_counter = 0;
+		while (!stack.empty() && safety_counter < 1000) {
+					scene::ISceneNode* curr = stack.back();
+					stack.pop_back();
+					curr->setVisible(true);
+					for (auto const& child : curr->getChildren())
+						stack.push_back(child);
+			safety_counter++;
 				}
 			}
 		}

@@ -725,8 +725,8 @@ Replaces one or more parts of a target entity.
   - `source_entity`: string (name of a registered entity to pull the replacement mesh and textures from).
   - `parts`: table (mapping of target bone names to source bone names).
     - Example: `parts = { head = "robot_head", ["arm.R"] = "arm_cannon" }`
-    - You can also pass a table per part for custom textures and visibility:
-      - `parts = { head = { bone = "robot_head", textures = {"metal.png"}, force_visible = true } }`
+    - You can also pass a table per part for more control:
+      - `parts = { head = { bone = "robot_head", textures = {"metal.png"}, force_visible = true, position = {x=0,y=1,z=0}, rotation = {x=0,y=0,z=0}, scale = 1, inherit_animation = true } }`
 
 ### `replacement_api.restore_part(entity, bone)`
 Restores a previously replaced part to its original state.
