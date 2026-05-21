@@ -316,6 +316,7 @@ const std::array<const char *, 38> object_property_keys = {
 	"shaded",
 	"damage_texture_modifier",
 	"show_on_minimap",
+	"visual_attachments",
 	// "node" is intentionally not here as it's gated behind `fallback` below!
 	"nametag_fontsize",
 	"nametag_scale_z",
@@ -534,6 +535,52 @@ void read_object_properties(lua_State *L, int index,
 
 	getstringfield(L, -1, "damage_texture_modifier", prop->damage_texture_modifier);
 
+	lua_getfield(L, -1, "visual_attachments");
+	if (lua_istable(L, -1)) {
+		prop->visual_attachments.clear();
+		int table = lua_gettop(L);
+		lua_pushnil(L);
+		while (lua_next(L, table) != 0) {
+			if (lua_istable(L, -1)) {
+				VisualAttachment attachment;
+				getstringfield(L, -1, "mesh", attachment.mesh);
+				getstringfield(L, -1, "bone", attachment.bone);
+				getstringfield(L, -1, "source_bone", attachment.source_bone);
+				lua_getfield(L, -1, "position");
+				if (lua_istable(L, -1))
+					attachment.position = read_v3f(L, -1);
+				lua_pop(L, 1);
+				lua_getfield(L, -1, "rotation");
+				if (lua_istable(L, -1))
+					attachment.rotation = read_v3f(L, -1);
+				lua_pop(L, 1);
+				lua_getfield(L, -1, "scale");
+				if (lua_istable(L, -1)) {
+					attachment.scale = read_v3f(L, -1);
+				} else if (lua_isnumber(L, -1)) {
+					float s = lua_tonumber(L, -1);
+					attachment.scale = v3f(s, s, s);
+				}
+				lua_pop(L, 1);
+				lua_getfield(L, -1, "textures");
+				if (lua_istable(L, -1)) {
+					int tex_table = lua_gettop(L);
+					lua_pushnil(L);
+					while (lua_next(L, tex_table) != 0) {
+						if (lua_isstring(L, -1))
+							attachment.textures.emplace_back(lua_tostring(L, -1));
+						lua_pop(L, 1);
+					}
+				}
+				lua_pop(L, 1);
+				getboolfield(L, -1, "inherit_animation", attachment.inherit_animation);
+				prop->visual_attachments.push_back(attachment);
+			}
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+
 	// Remember to update object_property_keys above
 	// when adding a new property
 }
@@ -648,6 +695,34 @@ void push_object_properties(lua_State *L, const ObjectProperties *prop)
 	lua_setfield(L, -2, "damage_texture_modifier");
 	lua_pushboolean(L, prop->show_on_minimap);
 	lua_setfield(L, -2, "show_on_minimap");
+
+	lua_createtable(L, prop->visual_attachments.size(), 0);
+	for (u32 i = 0; i < prop->visual_attachments.size(); i++) {
+		const auto &attachment = prop->visual_attachments[i];
+		lua_newtable(L);
+		lua_pushstring(L, attachment.mesh.c_str());
+		lua_setfield(L, -2, "mesh");
+		lua_pushstring(L, attachment.bone.c_str());
+		lua_setfield(L, -2, "bone");
+		lua_pushstring(L, attachment.source_bone.c_str());
+		lua_setfield(L, -2, "source_bone");
+		push_v3f(L, attachment.position);
+		lua_setfield(L, -2, "position");
+		push_v3f(L, attachment.rotation);
+		lua_setfield(L, -2, "rotation");
+		push_v3f(L, attachment.scale);
+		lua_setfield(L, -2, "scale");
+		lua_createtable(L, attachment.textures.size(), 0);
+		for (u32 j = 0; j < attachment.textures.size(); j++) {
+			lua_pushstring(L, attachment.textures[j].c_str());
+			lua_rawseti(L, -2, j + 1);
+		}
+		lua_setfield(L, -2, "textures");
+		lua_pushboolean(L, attachment.inherit_animation);
+		lua_setfield(L, -2, "inherit_animation");
+		lua_rawseti(L, -2, i + 1);
+	}
+	lua_setfield(L, -2, "visual_attachments");
 
 	// Remember to update object_property_keys above
 	// when adding a new property

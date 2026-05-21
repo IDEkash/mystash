@@ -568,6 +568,14 @@ void GenericCAO::removeFromScene(bool permanent)
 
 	m_meshnode_animation.clear();
 
+	for (auto &attachment : m_visual_attachments) {
+		if (attachment.node) {
+			attachment.node->remove();
+			attachment.node->drop();
+		}
+	}
+	m_visual_attachments.clear();
+
 	if (m_matrixnode) {
 		m_matrixnode->remove();
 		m_matrixnode->drop();
@@ -836,6 +844,62 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		break;
 	}
 
+	for (const auto &attachment_prop : m_prop.visual_attachments) {
+		scene::IAnimatedMesh *mesh = m_client->getMesh(attachment_prop.mesh, true);
+		if (!mesh) {
+			m_visual_attachments.push_back({nullptr, false});
+			continue;
+		}
+
+		scene::ISceneNode *parent_node = m_matrixnode;
+		if (m_animated_meshnode && !attachment_prop.bone.empty()) {
+			parent_node = m_animated_meshnode->getJointNode(attachment_prop.bone.c_str());
+		}
+
+		if (!parent_node) {
+			mesh->drop();
+			m_visual_attachments.push_back({nullptr, false});
+			continue;
+		}
+
+		scene::AnimatedMeshSceneNode *node = m_smgr->addAnimatedMeshSceneNode(mesh, parent_node);
+		node->grab();
+		mesh->drop();
+
+		node->setPosition(attachment_prop.position);
+		node->setRotation(attachment_prop.rotation);
+		node->setScale(attachment_prop.scale);
+
+		// set vertex colors to ensure alpha is set
+		setMeshColor(node->getMesh(), video::SColor(0xFFFFFFFF));
+
+		setSceneNodeMaterials(node, mesh->needsHwSkinning());
+
+		node->forEachMaterial([this](auto &mat) {
+			mat.BackfaceCulling = m_prop.backface_culling;
+		});
+
+		if (!attachment_prop.source_bone.empty()) {
+			for (u32 i = 0; i < node->getJointCount(); i++) {
+				scene::IBoneSceneNode *bone = node->getJointNode(i);
+				if (bone) {
+					bool keep = false;
+					scene::ISceneNode *curr = bone;
+					while (curr && curr != node) {
+						if (curr->getName() == attachment_prop.source_bone) {
+							keep = true;
+							break;
+						}
+						curr = curr->getParent();
+					}
+					bone->setVisible(keep);
+				}
+			}
+		}
+
+		m_visual_attachments.push_back({node, attachment_prop.inherit_animation});
+	}
+
 	/* don't update while punch texture modifier is active */
 	if (m_reset_textures_timer < 0)
 		updateTextures(m_current_texture_modifier);
@@ -935,9 +999,13 @@ void GenericCAO::setNodeLight(const video::SColor &light_color)
 
 	{
 		auto *node = getSceneNode();
-		if (!node)
-			return;
-		setColorParam(node, light_color);
+		if (node)
+			setColorParam(node, light_color);
+	}
+
+	for (auto &attachment : m_visual_attachments) {
+		if (attachment.node)
+			setColorParam(attachment.node, light_color);
 	}
 }
 
@@ -1346,6 +1414,28 @@ void GenericCAO::updateTextures(std::string mod)
 	m_previous_texture_modifier = m_current_texture_modifier;
 	m_current_texture_modifier = mod;
 
+	for (u32 i = 0; i < m_visual_attachments.size(); i++) {
+		auto &attachment = m_visual_attachments[i];
+		if (!attachment.node)
+			continue;
+		const auto &attachment_prop = m_prop.visual_attachments[i];
+
+		for (u32 j = 0; j < attachment.node->getMaterialCount(); ++j) {
+			const auto texture_idx = attachment.node->getMesh()->getTextureSlot(j);
+			if (texture_idx >= attachment_prop.textures.size())
+				continue;
+			std::string texturestring = attachment_prop.textures[texture_idx];
+			if (texturestring.empty())
+				continue;
+			texturestring += mod;
+
+			video::SMaterial &material = attachment.node->getMaterial(j);
+			material.MaterialType = m_material_type;
+			material.BackfaceCulling = m_prop.backface_culling;
+			setMaterialTextureAndFilters(material, texturestring, tsrc);
+		}
+	}
+
 	if (m_spritenode) {
 		if (m_prop.visual == OBJECTVISUAL_SPRITE) {
 			std::string texturestring = "no_texture.png";
@@ -1428,6 +1518,13 @@ void GenericCAO::updateTextures(std::string mod)
 
 void GenericCAO::updateAnimation()
 {
+	for (auto &attachment : m_visual_attachments) {
+		if (attachment.node && attachment.inherit_animation) {
+			attachment.node->setAnimation(m_animation_range.X, m_animation_range.Y,
+				m_animation_speed, m_animation_loop, m_animation_blend);
+		}
+	}
+
 	if (!m_animated_meshnode)
 		return;
 
@@ -1451,6 +1548,11 @@ void GenericCAO::updateAnimation()
 
 void GenericCAO::updateAnimationSpeed()
 {
+	for (auto &attachment : m_visual_attachments) {
+		if (attachment.node && attachment.inherit_animation)
+			attachment.node->setAnimationSpeed(m_animation_speed);
+	}
+
 	if (!m_animated_meshnode)
 		return;
 
@@ -1522,6 +1624,7 @@ bool GenericCAO::visualExpiryRequired(const ObjectProperties &new_) const
 		(new_.visual == OBJECTVISUAL_WIELDITEM || new_.visual == OBJECTVISUAL_ITEM);
 	// Ordered to compare primitive types before std::vectors
 	return old.backface_culling != new_.backface_culling ||
+		old.visual_attachments != new_.visual_attachments ||
 		old.is_visible != new_.is_visible ||
 		old.shaded != new_.shaded ||
 		old.use_texture_alpha != new_.use_texture_alpha ||
@@ -1925,23 +2028,38 @@ void GenericCAO::updateMeshCulling()
 		node->forEachMaterial([=] (auto &mat) {
 			mat.FrontfaceCulling = hidden;
 		});
-		return;
+	} else {
+		if (hidden) {
+			// Hide the mesh by culling both front and
+			// back faces. Serious hackyness but it works for our
+			// purposes. This also preserves the skeletal armature.
+			node->forEachMaterial([] (auto &mat) {
+				mat.BackfaceCulling = true;
+				mat.FrontfaceCulling = true;
+			});
+		} else {
+			// Restore mesh visibility.
+			node->forEachMaterial([this] (auto &mat) {
+				mat.BackfaceCulling = m_prop.backface_culling;
+				mat.FrontfaceCulling = false;
+			});
+		}
 	}
 
-	if (hidden) {
-		// Hide the mesh by culling both front and
-		// back faces. Serious hackyness but it works for our
-		// purposes. This also preserves the skeletal armature.
-		node->forEachMaterial([] (auto &mat) {
-			mat.BackfaceCulling = true;
-			mat.FrontfaceCulling = true;
-		});
-	} else {
-		// Restore mesh visibility.
-		node->forEachMaterial([this] (auto &mat) {
-			mat.BackfaceCulling = m_prop.backface_culling;
-			mat.FrontfaceCulling = false;
-		});
+	for (auto &attachment : m_visual_attachments) {
+		if (!attachment.node)
+			continue;
+		if (hidden) {
+			attachment.node->forEachMaterial([] (auto &mat) {
+				mat.BackfaceCulling = true;
+				mat.FrontfaceCulling = true;
+			});
+		} else {
+			attachment.node->forEachMaterial([this] (auto &mat) {
+				mat.BackfaceCulling = m_prop.backface_culling;
+				mat.FrontfaceCulling = false;
+			});
+		}
 	}
 }
 

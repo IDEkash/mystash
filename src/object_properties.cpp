@@ -53,6 +53,18 @@ std::string ObjectProperties::dump() const
 		os << "\"" << texture << "\" ";
 	}
 	os << "]";
+	os << ", visual_attachments=[";
+	for (const auto &attachment : visual_attachments) {
+		os << "{mesh=" << attachment.mesh << ", bone=" << attachment.bone
+			<< ", source_bone=" << attachment.source_bone
+			<< ", position=" << attachment.position << ", rotation=" << attachment.rotation
+			<< ", scale=" << attachment.scale << ", inherit_animation=" << attachment.inherit_animation
+			<< ", textures=[";
+		for (const auto &texture : attachment.textures)
+			os << "\"" << texture << "\" ";
+		os << "]} ";
+	}
+	os << "]";
 	os << ", colors=[";
 	for (const video::SColor &color : colors)
 		put_color(os, color);
@@ -100,7 +112,7 @@ static inline auto tie(const ObjectProperties &o)
 {
 	// Make sure to add new members to this list!
 	return std::tie(
-	o.textures, o.colors, o.collisionbox, o.selectionbox, o.visual, o.mesh,
+	o.textures, o.visual_attachments, o.colors, o.collisionbox, o.selectionbox, o.visual, o.mesh,
 	o.damage_texture_modifier, o.nametag, o.infotext, o.wield_item, o.visual_size,
 	o.nametag_color, o.nametag_bgcolor, o.nametag_fontsize, o.spritediv,
 	o.initial_sprite_basepos,
@@ -225,6 +237,20 @@ void ObjectProperties::serialize(std::ostream &os) const
 	writeU8(os, auto_normalize);
 	writeF32(os, target_height);
 
+	writeU16(os, visual_attachments.size());
+	for (const auto &attachment : visual_attachments) {
+		os << serializeString16(attachment.mesh);
+		os << serializeString16(attachment.bone);
+		os << serializeString16(attachment.source_bone);
+		writeV3F32(os, attachment.position);
+		writeV3F32(os, attachment.rotation);
+		writeV3F32(os, attachment.scale);
+		writeU16(os, attachment.textures.size());
+		for (const auto &texture : attachment.textures)
+			os << serializeString16(texture);
+		writeU8(os, attachment.inherit_animation);
+	}
+
 	// Add stuff only at the bottom.
 	// Never remove anything, because we don't want new versions of this!
 }
@@ -334,6 +360,26 @@ void ObjectProperties::deSerialize(std::istream &is)
 	model_unit_scale = readV3F32(is);
 	auto_normalize = readU8(is);
 	target_height = readF32(is);
+
+	if (!canRead(is))
+		return;
+
+	visual_attachments.clear();
+	u16 attachment_count = readU16(is);
+	for (u16 i = 0; i < attachment_count; i++) {
+		VisualAttachment attachment;
+		attachment.mesh = deSerializeString16(is);
+		attachment.bone = deSerializeString16(is);
+		attachment.source_bone = deSerializeString16(is);
+		attachment.position = readV3F32(is);
+		attachment.rotation = readV3F32(is);
+		attachment.scale = readV3F32(is);
+		u16 texture_count = readU16(is);
+		for (u16 j = 0; j < texture_count; j++)
+			attachment.textures.push_back(deSerializeString16(is));
+		attachment.inherit_animation = readU8(is);
+		visual_attachments.push_back(attachment);
+	}
 
 	//if (!canRead(is))
 	//	return;

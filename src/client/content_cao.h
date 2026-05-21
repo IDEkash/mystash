@@ -67,6 +67,11 @@ struct MeshAnimationInfo {
 	TileLayer tile;
 };
 
+struct CAOVisualAttachment {
+	scene::AnimatedMeshSceneNode *node = nullptr;
+	bool inherit_animation = false;
+};
+
 /*
 	GenericCAO
 */
@@ -132,6 +137,8 @@ private:
 
 	// stores position and rotation for each bone name
 	BoneOverrideMap m_bone_override;
+
+	std::vector<CAOVisualAttachment> m_visual_attachments;
 
 	// Attachments
 	object_t m_attachment_parent_id = 0;

@@ -28,11 +28,38 @@ enum ObjectVisual : u8 {
 extern const EnumString es_ObjectVisual[];
 
 
+struct VisualAttachment
+{
+	std::string mesh;
+	std::string bone;
+	std::string source_bone;
+	v3f position = v3f(0, 0, 0);
+	v3f rotation = v3f(0, 0, 0);
+	v3f scale = v3f(1, 1, 1);
+	std::vector<std::string> textures;
+	bool inherit_animation = true;
+
+	bool operator==(const VisualAttachment &other) const
+	{
+		return mesh == other.mesh && bone == other.bone &&
+			source_bone == other.source_bone &&
+			position == other.position && rotation == other.rotation &&
+			scale == other.scale && textures == other.textures &&
+			inherit_animation == other.inherit_animation;
+	}
+
+	bool operator!=(const VisualAttachment &other) const
+	{
+		return !(*this == other);
+	}
+};
+
 struct ObjectProperties
 {
 	/* member variables ordered roughly by size */
 
 	std::vector<std::string> textures;
+	std::vector<VisualAttachment> visual_attachments;
 	std::vector<video::SColor> colors; // Currently unused
 	// Values are BS=1
 	aabb3f collisionbox = aabb3f(-0.5f, -0.5f, -0.5f, 0.5f, 0.5f, 0.5f);
