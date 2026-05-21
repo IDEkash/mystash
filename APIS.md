@@ -713,5 +713,47 @@ Extended volumetric and height-based fog controls.
   - `boundary`: table (FogBoundaryParams)
 
 ---
+
+## Entity Part Replacement API (Lua)
+
+A high-level API for modular character customization, allowing you to dynamically replace specific parts (bones) of an entity or player with different meshes.
+
+### `replacement_api.replace_parts(params)`
+Replaces one or more parts of a target entity.
+- `params`: table
+  - `target_entity`: `ObjectRef` (the entity to modify).
+  - `source_entity`: string (name of a registered entity to pull the replacement mesh and textures from).
+  - `parts`: table (mapping of target bone names to source bone names).
+    - Example: `parts = { head = "robot_head", ["arm.R"] = "arm_cannon" }`
+    - You can also pass a table per part for custom textures and visibility:
+      - `parts = { head = { bone = "robot_head", textures = {"metal.png"}, force_visible = true } }`
+
+### `replacement_api.restore_part(entity, bone)`
+Restores a previously replaced part to its original state.
+- `entity`: `ObjectRef`
+- `bone`: string (the target bone name to restore).
+
+### `replacement_api.clear_replacements(entity)`
+Removes all part replacements from the entity and restores its original model.
+
+### `replacement_api.get_replaced_parts(entity) -> list`
+Returns an array of bone names that currently have replacements applied.
+
+### Low-level Engine Support (`set_properties`)
+
+The API is built on a new `visual_attachments` field in `ObjectProperties`. You can use it directly for more advanced control:
+
+- `visual_attachments`: array of attachment tables
+  - `mesh`: string (mesh filename)
+  - `bone`: string (parent bone on the base entity)
+  - `source_bone`: string (optional: isolates a specific bone and its children from the attachment mesh, hiding the rest)
+  - `position`: vector (offset from bone)
+  - `rotation`: vector (degrees)
+  - `scale`: vector or number
+  - `textures`: array of strings
+  - `inherit_animation`: boolean (default `true`: synced with parent's animation range/speed)
+  - `force_visible`: boolean (default `false`: if `true`, the attachment is visible in first-person view)
+
+---
 - **More Soon!**
-- Latest Update: April, 27, 2026
+- Latest Update: May 21, 2026

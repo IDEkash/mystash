@@ -23,14 +23,25 @@ function replacement_api.replace_parts(params)
 	end
 
 	for bone, source_bone in pairs(parts) do
+		-- Remove existing replacement for this bone if it exists
+		for i = #props.visual_attachments, 1, -1 do
+			if props.visual_attachments[i].bone == bone then
+				table.remove(props.visual_attachments, i)
+			end
+		end
+
 		-- Hide the original bone
 		target:set_bone_override(bone, { visible = false })
 
 		local textures = source_def.initial_properties.textures
 		local source_bone_name = source_bone
+		local force_visible = false
 		if type(source_bone) == "table" then
 			if source_bone.textures then
 				textures = source_bone.textures
+			end
+			if source_bone.force_visible ~= nil then
+				force_visible = source_bone.force_visible
 			end
 			source_bone_name = source_bone.bone or source_bone[1]
 		end
@@ -45,6 +56,7 @@ function replacement_api.replace_parts(params)
 			scale = 1,
 			textures = textures,
 			inherit_animation = true,
+			force_visible = force_visible,
 		})
 	end
 

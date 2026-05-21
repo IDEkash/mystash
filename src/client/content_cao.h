@@ -70,6 +70,7 @@ struct MeshAnimationInfo {
 struct CAOVisualAttachment {
 	scene::AnimatedMeshSceneNode *node = nullptr;
 	bool inherit_animation = false;
+	bool force_visible = false;
 };
 
 /*

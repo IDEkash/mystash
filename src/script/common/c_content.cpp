@@ -574,6 +574,7 @@ void read_object_properties(lua_State *L, int index,
 				}
 				lua_pop(L, 1);
 				getboolfield(L, -1, "inherit_animation", attachment.inherit_animation);
+				getboolfield(L, -1, "force_visible", attachment.force_visible);
 				prop->visual_attachments.push_back(attachment);
 			}
 			lua_pop(L, 1);
@@ -720,6 +721,8 @@ void push_object_properties(lua_State *L, const ObjectProperties *prop)
 		lua_setfield(L, -2, "textures");
 		lua_pushboolean(L, attachment.inherit_animation);
 		lua_setfield(L, -2, "inherit_animation");
+		lua_pushboolean(L, attachment.force_visible);
+		lua_setfield(L, -2, "force_visible");
 		lua_rawseti(L, -2, i + 1);
 	}
 	lua_setfield(L, -2, "visual_attachments");

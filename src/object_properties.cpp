@@ -59,6 +59,7 @@ std::string ObjectProperties::dump() const
 			<< ", source_bone=" << attachment.source_bone
 			<< ", position=" << attachment.position << ", rotation=" << attachment.rotation
 			<< ", scale=" << attachment.scale << ", inherit_animation=" << attachment.inherit_animation
+			<< ", force_visible=" << attachment.force_visible
 			<< ", textures=[";
 		for (const auto &texture : attachment.textures)
 			os << "\"" << texture << "\" ";
@@ -249,6 +250,7 @@ void ObjectProperties::serialize(std::ostream &os) const
 		for (const auto &texture : attachment.textures)
 			os << serializeString16(texture);
 		writeU8(os, attachment.inherit_animation);
+		writeU8(os, attachment.force_visible);
 	}
 
 	// Add stuff only at the bottom.
@@ -378,6 +380,8 @@ void ObjectProperties::deSerialize(std::istream &is)
 		for (u16 j = 0; j < texture_count; j++)
 			attachment.textures.push_back(deSerializeString16(is));
 		attachment.inherit_animation = readU8(is);
+		if (canRead(is))
+			attachment.force_visible = readU8(is);
 		visual_attachments.push_back(attachment);
 	}
 

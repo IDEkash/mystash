@@ -897,7 +897,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 			}
 		}
 
-		m_visual_attachments.push_back({node, attachment_prop.inherit_animation});
+		m_visual_attachments.push_back({node, attachment_prop.inherit_animation, attachment_prop.force_visible});
 	}
 
 	/* don't update while punch texture modifier is active */
@@ -2049,7 +2049,7 @@ void GenericCAO::updateMeshCulling()
 	for (auto &attachment : m_visual_attachments) {
 		if (!attachment.node)
 			continue;
-		if (hidden) {
+		if (hidden && !attachment.force_visible) {
 			attachment.node->forEachMaterial([] (auto &mat) {
 				mat.BackfaceCulling = true;
 				mat.FrontfaceCulling = true;

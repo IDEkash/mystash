@@ -38,6 +38,7 @@ struct VisualAttachment
 	v3f scale = v3f(1, 1, 1);
 	std::vector<std::string> textures;
 	bool inherit_animation = true;
+	bool force_visible = false;
 
 	bool operator==(const VisualAttachment &other) const
 	{
@@ -45,7 +46,8 @@ struct VisualAttachment
 			source_bone == other.source_bone &&
 			position == other.position && rotation == other.rotation &&
 			scale == other.scale && textures == other.textures &&
-			inherit_animation == other.inherit_animation;
+			inherit_animation == other.inherit_animation &&
+			force_visible == other.force_visible;
 	}
 
 	bool operator!=(const VisualAttachment &other) const
