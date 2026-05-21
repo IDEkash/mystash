@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
 #include "s_object.h"
+#include "s_internal.h"
 #include "common/c_content.h"
 #include "common/c_converter.h"
 #include "lua_api/l_object.h"
@@ -17,8 +18,26 @@ void ScriptApiObject::sceneobject_step(u16 id, float dtime)
 		lua_pushstring(L, "update");
 		lua_pushnumber(L, dtime);
 
-		if (lua_pcall(L, 3, 0, error_handler))
-			script_error(L, "error: %s", lua_tostring(L, -1));
+		if (lua_pcall(L, 3, 0, 0))
+			scriptError(LUA_ERRRUN, __FUNCTION__);
+	} else {
+		lua_pop(L, 1);
+	}
+	lua_pop(L, 1);
+}
+
+void ScriptApiObject::sceneobject_on_destroy(u16 id)
+{
+	SCRIPTAPI_PRECHECKHEADER
+
+	push_objectRef(L, id);
+	lua_getfield(L, -1, "fire");
+	if (lua_isfunction(L, -1)) {
+		lua_pushvalue(L, -2); // self
+		lua_pushstring(L, "destroy");
+
+		if (lua_pcall(L, 2, 0, 0))
+			scriptError(LUA_ERRRUN, __FUNCTION__);
 	} else {
 		lua_pop(L, 1);
 	}
@@ -41,8 +60,8 @@ void ScriptApiObject::sceneobject_on_punch(u16 id, ServerActiveObject *puncher,
 		else
 			lua_pushnil(L);
 
-		if (lua_pcall(L, 3, 0, error_handler))
-			script_error(L, "error: %s", lua_tostring(L, -1));
+		if (lua_pcall(L, 3, 0, 0))
+			scriptError(LUA_ERRRUN, __FUNCTION__);
 	} else {
 		lua_pop(L, 1);
 	}
@@ -63,8 +82,8 @@ void ScriptApiObject::sceneobject_on_rightclick(u16 id, ServerActiveObject *clic
 		else
 			lua_pushnil(L);
 
-		if (lua_pcall(L, 3, 0, error_handler))
-			script_error(L, "error: %s", lua_tostring(L, -1));
+		if (lua_pcall(L, 3, 0, 0))
+			scriptError(LUA_ERRRUN, __FUNCTION__);
 	} else {
 		lua_pop(L, 1);
 	}

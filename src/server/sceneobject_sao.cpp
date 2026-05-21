@@ -14,14 +14,45 @@ SceneObjectSAO::SceneObjectSAO(ServerEnvironment *env, v3f pos) :
 {
 }
 
+SceneObjectSAO::SceneObjectSAO(ServerEnvironment *env, v3f pos, const std::string &data) :
+	ServerActiveObject(env, pos)
+{
+	std::istringstream is(data, std::ios::binary);
+	u8 version = readU8(is);
+	if (version != 1) return;
+
+	m_attachment_position = readV3F32(is);
+	m_rotation = readV3F32(is);
+	m_scale = readV3F32(is);
+	m_texture = deSerializeString16(is);
+	m_color = readARGB8(is);
+
+	u32 v_count = readU32(is);
+	for (u32 i = 0; i < v_count; ++i) m_vertices.push_back(readV3F32(is));
+	u32 f_count = readU32(is);
+	for (u32 i = 0; i < f_count; ++i) m_faces.push_back(readU16(is));
+	u32 uv_count = readU32(is);
+	for (u32 i = 0; i < uv_count; ++i) m_uvs.push_back(readV2F32(is));
+
+	m_guid.deSerialize(is);
+	updateCollisionBox();
+}
+
 SceneObjectSAO::~SceneObjectSAO()
 {
 	clearChildAttachments();
 }
 
+void SceneObjectSAO::removingFromEnvironment()
+{
+	m_env->getScriptIface()->sceneobject_on_destroy(m_id);
+}
+
 void SceneObjectSAO::step(float dtime, bool send_recommended)
 {
 	m_env->getScriptIface()->sceneobject_step(m_id, dtime);
+
+	setBasePosition(getWorldPos());
 
 	if (m_auto_sync && send_recommended) {
 		sync();
@@ -79,9 +110,43 @@ void SceneObjectSAO::getStaticData(std::string *result) const
 
 void SceneObjectSAO::setPos(const v3f &pos)
 {
-	setBasePosition(pos);
+	m_attachment_position = pos;
 	m_transform_dirty = true;
 	m_smooth_pos.active = false;
+}
+
+v3f SceneObjectSAO::getWorldPos() const
+{
+	if (m_attachment_parent_id == 0)
+		return m_attachment_position;
+
+	ServerActiveObject *parent = getParent();
+	if (!parent)
+		return m_attachment_position;
+
+	core::matrix4 pmat;
+	pmat.setTranslation(parent->getBasePosition());
+	// SAO doesn't necessarily have a simple rotation getter that we can use for matrix mult
+	// But SceneObjectSAO does.
+	if (parent->getType() == ACTIVEOBJECT_TYPE_SCENEOBJECT) {
+		pmat.setRotationDegrees(((SceneObjectSAO*)parent)->getRot());
+	}
+
+	v3f res = m_attachment_position;
+	pmat.transformVect(res);
+	return res;
+}
+
+v3f SceneObjectSAO::getWorldRot() const
+{
+	if (m_attachment_parent_id == 0)
+		return m_rotation;
+
+	ServerActiveObject *parent = getParent();
+	if (!parent || parent->getType() != ACTIVEOBJECT_TYPE_SCENEOBJECT)
+		return m_rotation;
+
+	return ((SceneObjectSAO*)parent)->getWorldRot() + m_rotation; // Simplistic
 }
 
 void SceneObjectSAO::setRot(v3f rot)
@@ -286,9 +351,19 @@ void SceneObjectSAO::updateCollisionBox()
 		m_collision_box = aabb3f(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5);
 		return;
 	}
-	m_collision_box.reset(m_vertices[0]);
-	for (size_t i = 1; i < m_vertices.size(); ++i)
-		m_collision_box.addInternalPoint(m_vertices[i]);
+
+	core::matrix4 mat;
+	mat.setScale(m_scale);
+	mat.setRotationDegrees(m_rotation);
+
+	v3f v = m_vertices[0];
+	mat.transformVect(v);
+	m_collision_box.reset(v);
+	for (size_t i = 1; i < m_vertices.size(); ++i) {
+		v = m_vertices[i];
+		mat.transformVect(v);
+		m_collision_box.addInternalPoint(v);
+	}
 }
 
 void SceneObjectSAO::sendTransform()

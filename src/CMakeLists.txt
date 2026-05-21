@@ -265,7 +265,11 @@ endif(ENABLE_OPENSSL)
 
 
 find_package(ZLIB REQUIRED)
-# find_package(Zstd REQUIRED)
+find_package(Zstd)
+if(NOT ZSTD_FOUND)
+	set(ZSTD_INCLUDE_DIR "")
+	set(ZSTD_LIBRARY "")
+endif()
 
 
 if(NOT MSVC)
@@ -584,7 +588,7 @@ include_directories(
 )
 include_directories(SYSTEM
 	${ZLIB_INCLUDE_DIR}
-	# ${ZSTD_INCLUDE_DIR}
+	${ZSTD_INCLUDE_DIR}
 	${SQLITE3_INCLUDE_DIR}
 	${LUA_INCLUDE_DIR}
 	${GMP_INCLUDE_DIR}
@@ -706,7 +710,7 @@ if(BUILD_CLIENT)
 			${ZLIB_LIBRARIES}
 			IrrlichtMt::IrrlichtMt
 			tiniergltf::tiniergltf
-			# ${ZSTD_LIBRARY}
+			${ZSTD_LIBRARY}
 			${SOUND_LIBRARIES}
 			${SQLITE3_LIBRARY}
 		${LUA_LIBRARY}
@@ -800,7 +804,7 @@ if(BUILD_SERVER)
 		${PROJECT_NAME}server
 		tiniergltf::tiniergltf
 		${ZLIB_LIBRARIES}
-		# ${ZSTD_LIBRARY}
+		${ZSTD_LIBRARY}
 		${SQLITE3_LIBRARY}
 		${JSON_LIBRARY}
 		${LUA_LIBRARY}

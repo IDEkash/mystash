@@ -5,6 +5,7 @@
 #pragma once
 #include "cpp_api/s_base.h"
 #include "cpp_api/s_entity.h"
+#include "cpp_api/s_object.h"
 #include "cpp_api/s_env.h"
 #include "cpp_api/s_inventory.h"
 #include "cpp_api/s_modchannels.h"
@@ -26,6 +27,7 @@ class ServerScripting:
 		public ScriptApiAsync,
 		public ScriptApiDetached,
 		public ScriptApiEntity,
+		public ScriptApiObject,
 		public ScriptApiEnv,
 		public ScriptApiHTMLView,
 		public ScriptApiModChannels,

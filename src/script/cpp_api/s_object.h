@@ -4,7 +4,7 @@
 #pragma once
 
 #include "cpp_api/s_base.h"
-#include "irr_v3f.h"
+#include "irr_v3d.h"
 #include "tool.h"
 
 class ScriptApiObject : virtual public ScriptApiBase
@@ -14,4 +14,5 @@ public:
 	void sceneobject_on_punch(u16 id, ServerActiveObject *puncher,
 			float time_from_last_punch, const ToolCapabilities &toolcap, v3f dir);
 	void sceneobject_on_rightclick(u16 id, ServerActiveObject *clicker);
+	void sceneobject_on_destroy(u16 id);
 };

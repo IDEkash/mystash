@@ -11,6 +11,7 @@
 class ServerActiveObject;
 class LuaEntitySAO;
 class PlayerSAO;
+class SceneObjectSAO;
 class RemotePlayer;
 
 /*
@@ -44,6 +45,8 @@ private:
 	static LuaEntitySAO* getluaobject(ObjectRef *ref);
 
 	static PlayerSAO* getplayersao(ObjectRef *ref);
+
+	static SceneObjectSAO* getsceneobject(ObjectRef *ref);
 
 	static RemotePlayer *getplayer(ObjectRef *ref);
 
@@ -198,6 +201,21 @@ private:
 
 	// is_player(self)
 	static int l_is_player(lua_State *L);
+
+	/* SceneObjectSAO-only */
+	static int l_set_vertices(lua_State *L);
+	static int l_set_faces(lua_State *L);
+	static int l_set_vertex(lua_State *L);
+	static int l_set_uv(lua_State *L);
+	static int l_set_texture(lua_State *L);
+	static int l_set_color(lua_State *L);
+	static int l_set_scale(lua_State *L);
+	static int l_get_scale(lua_State *L);
+	static int l_get_world_pos(lua_State *L);
+	static int l_get_world_rot(lua_State *L);
+	static int l_cancel_smooth(lua_State *L);
+	static int l_set_sync(lua_State *L);
+	static int l_sync(lua_State *L);
 
 	/* LuaEntitySAO-only */
 

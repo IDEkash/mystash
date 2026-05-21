@@ -23,6 +23,7 @@
 #include "hud_element.h"
 #include "server/luaentity_sao.h"
 #include "server/player_sao.h"
+#include "server/sceneobject_sao.h"
 #include "server/serverinventorymgr.h"
 
 using object_t = ServerActiveObject::object_t;
@@ -57,6 +58,16 @@ PlayerSAO* ObjectRef::getplayersao(ObjectRef *ref)
 	if (sao->getType() != ACTIVEOBJECT_TYPE_PLAYER)
 		return nullptr;
 	return (PlayerSAO*)sao;
+}
+
+SceneObjectSAO* ObjectRef::getsceneobject(ObjectRef *ref)
+{
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return nullptr;
+	if (sao->getType() != ACTIVEOBJECT_TYPE_SCENEOBJECT)
+		return nullptr;
+	return (SceneObjectSAO*)sao;
 }
 
 RemotePlayer *ObjectRef::getplayer(ObjectRef *ref)
@@ -142,7 +153,17 @@ int ObjectRef::l_get_pos(lua_State *L)
 	if (sao == nullptr)
 		return 0;
 
-	push_v3f(L, sao->getBasePosition() / BS);
+	if (sao->getType() == ACTIVEOBJECT_TYPE_SCENEOBJECT) {
+		object_t parent_id;
+		std::string bone;
+		v3f pos;
+		v3f rot;
+		bool force_visible;
+		sao->getAttachment(&parent_id, &bone, &pos, &rot, &force_visible);
+		push_v3f(L, pos / BS);
+	} else {
+		push_v3f(L, sao->getBasePosition() / BS);
+	}
 	return 1;
 }
 
@@ -1494,6 +1515,205 @@ int ObjectRef::l_is_player(lua_State *L)
 	RemotePlayer *player = getplayer(ref);
 	lua_pushboolean(L, (player != nullptr));
 	return 1;
+}
+
+/* SceneObjectSAO-only */
+
+int ObjectRef::l_set_vertices(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	SceneObjectSAO *sos = getsceneobject(checkObject<ObjectRef>(L, 1));
+	if (!sos) return 0;
+	luaL_checktype(L, 2, LUA_TTABLE);
+	std::vector<v3f> vertices;
+	int table = lua_gettop(L);
+	lua_pushnil(L);
+	while (lua_next(L, table) != 0) {
+		vertices.push_back(check_v3f(L, -1) * BS);
+		lua_pop(L, 1);
+	}
+	sos->setVertices(vertices);
+	return 0;
+}
+
+int ObjectRef::l_set_faces(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	SceneObjectSAO *sos = getsceneobject(checkObject<ObjectRef>(L, 1));
+	if (!sos) return 0;
+	luaL_checktype(L, 2, LUA_TTABLE);
+	std::vector<u16> faces;
+	int table = lua_gettop(L);
+	lua_pushnil(L);
+	while (lua_next(L, table) != 0) {
+		if (lua_istable(L, -1)) {
+			// Handle { {1,2,3}, ... }
+			for (int i = 1; i <= 3; ++i) {
+				lua_rawgeti(L, -1, i);
+				faces.push_back(luaL_checkinteger(L, -1) - 1);
+				lua_pop(L, 1);
+			}
+		} else {
+			// Fallback to flat list
+			faces.push_back(luaL_checkinteger(L, -1) - 1);
+		}
+		lua_pop(L, 1);
+	}
+	sos->setFaces(faces);
+	return 0;
+}
+
+int ObjectRef::l_set_vertex(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	SceneObjectSAO *sos = getsceneobject(checkObject<ObjectRef>(L, 1));
+	if (!sos) return 0;
+	u32 index = luaL_checkinteger(L, 2) - 1;
+	v3f pos = check_v3f(L, 3) * BS;
+	sos->setVertex(index, pos);
+	return 0;
+}
+
+int ObjectRef::l_set_uv(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	SceneObjectSAO *sos = getsceneobject(checkObject<ObjectRef>(L, 1));
+	if (!sos) return 0;
+	luaL_checktype(L, 2, LUA_TTABLE);
+
+	// Internal storage is per-vertex for SOS for now.
+	// If modder uses { {face=1, uv={{0,0},{1,0},{1,1}}}, ... }
+	// We map them to the vertices assigned to that face.
+
+	int table = lua_gettop(L);
+	lua_pushnil(L);
+	while (lua_next(L, table) != 0) {
+		if (lua_istable(L, -1)) {
+			lua_getfield(L, -1, "face");
+			int face_idx = lua_tointeger(L, -1) - 1;
+			lua_pop(L, 1);
+
+			lua_getfield(L, -1, "uv");
+			if (lua_istable(L, -1)) {
+				// Get the indices for this face
+				const auto &faces = sos->getFaces();
+				if ((size_t)face_idx * 3 + 2 < faces.size()) {
+					for (int i = 0; i < 3; ++i) {
+						lua_rawgeti(L, -1, i + 1);
+						v2f uv = read_v2f(L, -1);
+						sos->setVertexUV(faces[face_idx * 3 + i], uv);
+						lua_pop(L, 1);
+					}
+				}
+			}
+			lua_pop(L, 1);
+		}
+		lua_pop(L, 1);
+	}
+	return 0;
+}
+
+int ObjectRef::l_set_texture(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	SceneObjectSAO *sos = getsceneobject(checkObject<ObjectRef>(L, 1));
+	if (!sos) return 0;
+	sos->setTexture(luaL_checkstring(L, 2));
+	return 0;
+}
+
+int ObjectRef::l_set_color(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	SceneObjectSAO *sos = getsceneobject(checkObject<ObjectRef>(L, 1));
+	if (!sos) return 0;
+	video::SColor color;
+	read_color(L, 2, &color);
+	sos->setColor(color);
+	return 0;
+}
+
+int ObjectRef::l_set_scale(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	SceneObjectSAO *sos = getsceneobject(checkObject<ObjectRef>(L, 1));
+	if (!sos) return 0;
+	v3f scale = check_v3f(L, 2);
+	if (lua_istable(L, 3)) {
+		bool smooth = getboolfield_default(L, 3, "smooth", false);
+		float time = getfloatfield_default(L, 3, "time", 0.0f);
+		if (smooth) {
+			sos->setScaleSmooth(scale, time);
+			return 0;
+		}
+	}
+	sos->setScale(scale);
+	return 0;
+}
+
+int ObjectRef::l_get_scale(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	SceneObjectSAO *sos = getsceneobject(checkObject<ObjectRef>(L, 1));
+	if (!sos) return 0;
+	push_v3f(L, sos->getScale());
+	return 1;
+}
+
+int ObjectRef::l_get_world_pos(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ServerActiveObject *sao = getobject(checkObject<ObjectRef>(L, 1));
+	if (!sao) return 0;
+
+	if (sao->getType() == ACTIVEOBJECT_TYPE_SCENEOBJECT) {
+		push_v3f(L, ((SceneObjectSAO*)sao)->getWorldPos() / BS);
+	} else {
+		push_v3f(L, sao->getBasePosition() / BS);
+	}
+	return 1;
+}
+
+int ObjectRef::l_get_world_rot(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ServerActiveObject *sao = getobject(checkObject<ObjectRef>(L, 1));
+	if (!sao) return 0;
+
+	if (sao->getType() == ACTIVEOBJECT_TYPE_SCENEOBJECT) {
+		push_v3f(L, ((SceneObjectSAO*)sao)->getWorldRot() * core::DEGTORAD);
+	} else {
+		// Fallback for other objects if needed
+		push_v3f(L, v3f(0, 0, 0));
+	}
+	return 1;
+}
+
+int ObjectRef::l_cancel_smooth(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	SceneObjectSAO *sos = getsceneobject(checkObject<ObjectRef>(L, 1));
+	if (!sos) return 0;
+	sos->cancelSmooth(luaL_checkstring(L, 2));
+	return 0;
+}
+
+int ObjectRef::l_set_sync(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	SceneObjectSAO *sos = getsceneobject(checkObject<ObjectRef>(L, 1));
+	if (!sos) return 0;
+	sos->setSync(lua_toboolean(L, 2));
+	return 0;
+}
+
+int ObjectRef::l_sync(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	SceneObjectSAO *sos = getsceneobject(checkObject<ObjectRef>(L, 1));
+	if (!sos) return 0;
+	sos->sync();
+	return 0;
 }
 
 // set_nametag_attributes(self, attributes)
@@ -3428,6 +3648,23 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod(ObjectRef, set_observers),
 	luamethod(ObjectRef, get_observers),
 	luamethod(ObjectRef, get_effective_observers),
+
+	// SceneObjectSAO
+	luamethod(ObjectRef, set_vertices),
+	luamethod(ObjectRef, set_faces),
+	luamethod(ObjectRef, set_vertex),
+	luamethod(ObjectRef, set_uv),
+	luamethod(ObjectRef, set_texture),
+	luamethod(ObjectRef, set_color),
+	luamethod(ObjectRef, set_scale),
+	luamethod(ObjectRef, get_scale),
+	luamethod(ObjectRef, get_world_pos),
+	luamethod(ObjectRef, get_world_rot),
+	luamethod_aliased(ObjectRef, get_world_pos, get_world_position),
+	luamethod_aliased(ObjectRef, get_world_rot, get_world_rotation),
+	luamethod(ObjectRef, cancel_smooth),
+	luamethod(ObjectRef, set_sync),
+	luamethod(ObjectRef, sync),
 
 	luamethod_aliased(ObjectRef, set_velocity, setvelocity),
 	luamethod_aliased(ObjectRef, add_velocity, add_player_velocity),

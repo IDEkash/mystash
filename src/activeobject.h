@@ -27,6 +27,8 @@ enum ActiveObjectType {
 	ACTIVEOBJECT_TYPE_PLAYER = 100,
 // Special type, only exists as CAO
 	ACTIVEOBJECT_TYPE_GENERIC = 101,
+
+	ACTIVEOBJECT_TYPE_SCENEOBJECT = 102,
 };
 // Other types are defined in content_object.h
 
@@ -57,7 +59,14 @@ enum ActiveObjectCommand {
 	AO_CMD_OBSOLETE1,
 	// ^ UPDATE_NAMETAG_ATTRIBUTES deprecated since 0.4.14, removed in 5.3.0
 	AO_CMD_SPAWN_INFANT,
-	AO_CMD_SET_ANIMATION_SPEED
+	AO_CMD_SET_ANIMATION_SPEED,
+
+	AO_CMD_SOS_SET_VERTICES,
+	AO_CMD_SOS_SET_FACES,
+	AO_CMD_SOS_SET_VERTEX,
+	AO_CMD_SOS_SET_UV,
+	AO_CMD_SOS_SET_TRANSFORM,
+	AO_CMD_SOS_SET_VISUAL,
 };
 
 struct BoneOverride

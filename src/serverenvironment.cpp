@@ -36,6 +36,7 @@
 #endif
 #include "server/luaentity_sao.h"
 #include "server/player_sao.h"
+#include "server/sceneobject_sao.h"
 
 // A number that is much smaller than the timeout for particle spawners should/could ever be
 #define PARTICLE_SPAWNER_NO_EXPIRY -1024.f
@@ -1569,6 +1570,8 @@ std::unique_ptr<ServerActiveObject> ServerEnvironment::createSAO(ActiveObjectTyp
 	switch (type) {
 		case ACTIVEOBJECT_TYPE_LUAENTITY:
 			return std::make_unique<LuaEntitySAO>(this, pos, data);
+		case ACTIVEOBJECT_TYPE_SCENEOBJECT:
+			return std::make_unique<SceneObjectSAO>(this, pos, data);
 		default:
 			warningstream << "ServerActiveObject: No factory for type=" << type << std::endl;
 	}

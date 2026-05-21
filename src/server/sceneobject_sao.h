@@ -11,10 +11,13 @@ class SceneObjectSAO : public ServerActiveObject
 {
 public:
 	SceneObjectSAO(ServerEnvironment *env, v3f pos);
+	SceneObjectSAO(ServerEnvironment *env, v3f pos, const std::string &data);
 	~SceneObjectSAO();
 
 	ActiveObjectType getType() const override { return ACTIVEOBJECT_TYPE_SCENEOBJECT; }
 	ActiveObjectType getSendType() const override { return ACTIVEOBJECT_TYPE_SCENEOBJECT; }
+
+	void removingFromEnvironment() override;
 
 	void step(float dtime, bool send_recommended) override;
 	std::string getClientInitializationData(u16 protocol_version) override;
@@ -32,6 +35,9 @@ public:
 
 	v3f getRot() const { return m_rotation; }
 	v3f getScale() const { return m_scale; }
+
+	v3f getWorldPos() const;
+	v3f getWorldRot() const;
 
 	void setPosSmooth(v3f pos, float time);
 	void setRotSmooth(v3f rot, float time);
