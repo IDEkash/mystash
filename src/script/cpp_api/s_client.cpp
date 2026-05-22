@@ -11,6 +11,7 @@
 #include "lua_api/l_item.h"
 #include "itemdef.h"
 #include "s_item.h"
+#include <limits>
 
 void ScriptApiClient::on_mods_loaded()
 {
@@ -271,9 +272,9 @@ float ScriptApiClient::on_shadow_generate(v3s16 blockpos, float x, float z)
 
 	lua_getglobal(L, "core");
 	lua_getfield(L, -1, "registered_on_shadow_generate");
-	if (lua_isnil(L, -1)) {
+	if (lua_isnil(L, -1) || lua_objlen(L, -1) == 0) {
 		lua_pop(L, 2);
-		return 0.0f;
+		return std::numeric_limits<float>::quiet_NaN();
 	}
 
 	push_v3s16(L, blockpos);

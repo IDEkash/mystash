@@ -2,6 +2,7 @@
 
 #include "irr_v3d.h"
 #include "irrlichttypes.h"
+#include <S3DVertex.h>
 #include <map>
 #include <mutex>
 #include <vector>
@@ -46,6 +47,7 @@ private:
 	std::mutex m_queue_mutex;
 	std::vector<v3s16> m_queue;
 	std::map<v3s16, MeshData> m_finished_data;
+	std::map<v3s16, std::vector<float>> m_heightmaps;
 
 	u64 m_seed;
 	float m_clear_timer = 0.0f;

@@ -646,8 +646,8 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		updateMaterialType(false);
 
 		auto mesh = make_irr<scene::SMesh>();
-		f32 dx = BS * m_prop.visual_size.X * m_prop.model_unit_scale.X / 2;
-		f32 dy = BS * m_prop.visual_size.Y * m_prop.model_unit_scale.Y / 2;
+		f32 dx = BS / 2;
+		f32 dy = BS / 2;
 		video::SColor c(0xFFFFFFFF);
 
 		video::S3DVertex vertices[4] = {
@@ -685,6 +685,16 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		mesh->recalculateBoundingBox();
 		m_meshnode = m_smgr->addMeshSceneNode(mesh.get(), m_matrixnode);
 		m_meshnode->grab();
+
+		v3f final_scale = m_prop.visual_size;
+		if (m_prop.auto_normalize || m_prop.target_height > 0.0f) {
+			float model_height = BS;
+			if (m_prop.target_height > 0.0f && model_height > 0.001f) {
+				float s = (m_prop.target_height * BS) / model_height;
+				final_scale *= s;
+			}
+		}
+		m_meshnode->setScale(final_scale * m_prop.model_unit_scale);
 		break;
 	} case OBJECTVISUAL_CUBE: {
 		scene::IMesh *mesh = createCubeMesh(v3f(BS,BS,BS));
@@ -694,12 +704,13 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 
 		v3f final_scale = m_prop.visual_size;
 		if (m_prop.auto_normalize || m_prop.target_height > 0.0f) {
-			float model_height = BS;
+			const core::aabbox3d<f32> &box = m_meshnode->getMesh()->getBoundingBox();
+			float model_height = box.MaxEdge.Y - box.MinEdge.Y;
 			if (m_prop.target_height > 0.0f && model_height > 0.001f) {
 				float s = (m_prop.target_height * BS) / model_height;
 				final_scale *= s;
 			} else if (m_prop.auto_normalize) {
-				final_scale *= 1.0f;
+				final_scale *= (BS / std::max(model_height, 0.001f));
 			}
 		}
 		m_meshnode->setScale(final_scale * m_prop.model_unit_scale);
@@ -813,7 +824,18 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		m_wield_meshnode->setItem(item, m_client,
 			(m_prop.visual == OBJECTVISUAL_WIELDITEM));
 
-		m_wield_meshnode->setScale(m_prop.visual_size * m_prop.model_unit_scale / 2.0f);
+		v3f final_scale = m_prop.visual_size / 2.0f;
+		if (m_prop.auto_normalize || m_prop.target_height > 0.0f) {
+			const core::aabbox3d<f32> &box = m_wield_meshnode->getMesh()->getBoundingBox();
+			float model_height = box.MaxEdge.Y - box.MinEdge.Y;
+			if (m_prop.target_height > 0.0f && model_height > 0.001f) {
+				float s = (m_prop.target_height * BS) / model_height;
+				final_scale *= s;
+			} else if (m_prop.auto_normalize) {
+				final_scale *= (BS / std::max(model_height, 0.001f));
+			}
+		}
+		m_wield_meshnode->setScale(final_scale * m_prop.model_unit_scale);
 		break;
 	} case OBJECTVISUAL_NODE: {
 		auto *mesh = generateNodeMesh(m_client, m_prop.node, m_meshnode_animation);
@@ -826,13 +848,13 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 
 		v3f final_scale = m_prop.visual_size;
 		if (m_prop.auto_normalize || m_prop.target_height > 0.0f) {
-			const core::aabbox3d<f32> &box = mesh->getBoundingBox();
+			const core::aabbox3d<f32> &box = m_meshnode->getMesh()->getBoundingBox();
 			float model_height = box.MaxEdge.Y - box.MinEdge.Y;
 			if (m_prop.target_height > 0.0f && model_height > 0.001f) {
 				float s = (m_prop.target_height * BS) / model_height;
 				final_scale *= s;
 			} else if (m_prop.auto_normalize) {
-				final_scale *= 1.0f; // BS / BS
+				final_scale *= (BS / std::max(model_height, 0.001f));
 			}
 		}
 		m_meshnode->setScale(final_scale * m_prop.model_unit_scale);
@@ -845,8 +867,17 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 
 		setSceneNodeMaterials(m_spritenode);
 
-		m_spritenode->setSize(v2f(m_prop.visual_size.X * m_prop.model_unit_scale.X,
-				m_prop.visual_size.Y * m_prop.model_unit_scale.Y) * BS);
+		v2f final_size = v2f(m_prop.visual_size.X, m_prop.visual_size.Y);
+		if (m_prop.auto_normalize || m_prop.target_height > 0.0f) {
+			float model_height = 1.0f; // Normalized sprites are 1 node high
+			if (m_prop.target_height > 0.0f) {
+				float s = m_prop.target_height / model_height;
+				final_size *= s;
+			}
+		}
+
+		m_spritenode->setSize(final_size * v2f(m_prop.model_unit_scale.X,
+				m_prop.model_unit_scale.Y) * BS);
 		setBillboardTextureMatrix(m_spritenode, 1, 1, 0, 0);
 
 		// This also serves as fallback for unknown visual types
