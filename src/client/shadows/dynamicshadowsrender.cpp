@@ -32,6 +32,10 @@ ShadowRenderer::ShadowRenderer(IrrlichtDevice *device, Client *client) :
 	m_shadow_map_max_distance = g_settings->getFloat("shadow_map_max_distance");
 
 	m_shadow_map_texture_size = g_settings->getU32("shadow_map_texture_size");
+#ifdef __ANDROID__
+	// Optimize shadow map resolution for mobile GPUs
+	m_shadow_map_texture_size = std::min(m_shadow_map_texture_size, 1024u);
+#endif
 
 	m_shadow_map_texture_32bit = g_settings->getBool("shadow_map_texture_32bit");
 	m_shadow_map_colored = g_settings->getBool("shadow_map_color");

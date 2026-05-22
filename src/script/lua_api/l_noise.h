@@ -64,6 +64,7 @@ class LuaValueNoiseMap : public ModApiBase
 	static int l_calc_2d_map(lua_State *L);
 	static int l_calc_3d_map(lua_State *L);
 	static int l_get_map_slice(lua_State *L);
+	static int l_get_raw_buffer(lua_State *L);
 
 public:
 	LuaValueNoiseMap(const NoiseParams *np, s32 seed, v3s16 size);

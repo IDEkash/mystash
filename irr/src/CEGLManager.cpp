@@ -435,7 +435,7 @@ bool CEGLManager::generateContext()
 	switch (Params.DriverType) {
 	case EDT_OGLES2:
 	case EDT_WEBGL1:
-		OpenGLESVersion = 2;
+		OpenGLESVersion = 3; // Try GLES 3 first
 		break;
 	default:
 		break;
@@ -450,7 +450,13 @@ bool CEGLManager::generateContext()
 
 	EglContext = eglCreateContext(EglDisplay, EglConfig, EGL_NO_CONTEXT, ContextAttrib);
 
-	if (testEGLError()) {
+	if (EglContext == EGL_NO_CONTEXT && OpenGLESVersion == 3) {
+		OpenGLESVersion = 2;
+		ContextAttrib[1] = OpenGLESVersion;
+		EglContext = eglCreateContext(EglDisplay, EglConfig, EGL_NO_CONTEXT, ContextAttrib);
+	}
+
+	if (testEGLError() || EglContext == EGL_NO_CONTEXT) {
 		os::Printer::log("Could not create EGL context.", ELL_ERROR);
 		return false;
 	}

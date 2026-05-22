@@ -194,7 +194,7 @@ public:
 	f32 movement_liquid_sink;
 	f32 movement_gravity;
 
-	v2f local_animations[4];
+	v2f local_animations[8];
 	float local_animation_speed;
 
 	std::string inventory_formspec;

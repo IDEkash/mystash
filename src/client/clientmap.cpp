@@ -5,6 +5,7 @@
 #include "clientmap.h"
 #include "client.h"
 #include "client/mesh.h"
+#include "meshgen/landscape_preview.h"
 #include "mapblock_mesh.h"
 #include <IMaterialRenderer.h>
 #include <ISceneManager.h>
@@ -170,6 +171,7 @@ ClientMap::ClientMap(
 	m_control(control),
 	m_drawlist(MapBlockComparer(v3s16(0,0,0)))
 {
+	m_landscape_preview = std::make_unique<LandscapePreview>(client);
 
 	/*
 	 * @Liso: Sadly C++ doesn't have introspection, so the only way we have to know
@@ -268,6 +270,9 @@ void ClientMap::OnRegisterSceneNode()
 	{
 		SceneManager->registerNodeForRendering(this, scene::ESNRP_SOLID);
 		SceneManager->registerNodeForRendering(this, scene::ESNRP_TRANSPARENT);
+
+		if (m_landscape_preview)
+			m_landscape_preview->step(0.016f, m_camera_position); // approx dtime
 	}
 
 	ISceneNode::OnRegisterSceneNode();
@@ -983,6 +988,34 @@ void ClientMap::renderMap(video::IVideoDriver* driver, s32 pass)
 	ZoneScoped;
 
 	const bool is_transparent_pass = pass == scene::ESNRP_TRANSPARENT;
+
+	if (pass == scene::ESNRP_SOLID) {
+		const v3s16 cam_pos_nodes = floatToInt(m_camera_position, BS);
+		v3s16 p_min, p_max;
+		getBlocksInViewRange(cam_pos_nodes, &p_min, &p_max);
+
+		for (s16 z = p_min.Z; z <= p_max.Z; z++)
+		for (s16 y = p_min.Y; y <= p_max.Y; y++)
+		for (s16 x = p_min.X; x <= p_max.X; x++) {
+			v3s16 bp(x, y, z);
+			if (m_drawlist.find(bp) != m_drawlist.end())
+				continue;
+
+			// If block is missing, render landscape preview
+			scene::IMesh *preview = m_landscape_preview->getOrCreateMesh(bp);
+			if (preview && preview->getMeshBufferCount() > 0) {
+				core::matrix4 m;
+				m.setTranslation(intToFloat(bp * MAP_BLOCKSIZE - m_camera_offset, BS));
+				driver->setTransform(video::ETS_WORLD, m);
+
+				for (u32 i = 0; i < preview->getMeshBufferCount(); i++) {
+					scene::IMeshBuffer *buf = preview->getMeshBuffer(i);
+					driver->setMaterial(buf->getMaterial());
+					driver->drawMeshBuffer(buf);
+				}
+			}
+		}
+	}
 
 	std::string prefix;
 	if (pass == scene::ESNRP_SOLID)

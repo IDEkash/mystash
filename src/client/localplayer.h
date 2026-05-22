@@ -24,7 +24,10 @@ enum class LocalPlayerAnimation
 	NO_ANIM,
 	WALK_ANIM,
 	DIG_ANIM,
-	WD_ANIM // walking + digging
+	WD_ANIM, // walking + digging
+	RUN_ANIM,
+	JUMP_ANIM,
+	IDLE_ANIM
 };
 
 struct PlayerSettings

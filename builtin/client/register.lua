@@ -21,3 +21,4 @@ core.registered_on_modchannel_signal, core.register_on_modchannel_signal = make_
 core.registered_on_inventory_open, core.register_on_inventory_open = make_registration()
 core.registered_on_animation_event, core.register_on_animation_event = make_registration()
 core.registered_on_animation_cycle, core.register_on_animation_cycle = make_registration()
+core.registered_on_shadow_generates, core.register_on_shadow_generate = make_registration()

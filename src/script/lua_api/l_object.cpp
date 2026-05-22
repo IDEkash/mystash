@@ -454,20 +454,7 @@ int ObjectRef::l_set_animation(lua_State *L)
 		frame_loop = getboolfield_default(L, opts, "frame_loop", frame_loop);
 
 		std::string time_mode = getstringfield_default(L, opts, "time_mode", "auto");
-		if (time_mode == "auto") {
-			if (is_gltf) {
-				// For glTF, if speed is suspiciously high (legacy default was 15),
-				// modder probably didn't realize it's a multiplier now.
-				if (frame_speed > 5.0f) {
-					warningstream << "set_animation: high speed (" << frame_speed
-						<< ") used with glTF model '" << mesh << "'. "
-						<< "For glTF, speed is a multiplier (normal=1.0)." << std::endl;
-				}
-			} else {
-				// For non-glTF, if modder used small range (e.g. 0-1) and speed=1,
-				// they might be thinking in seconds. But we don't have duration info here easily.
-			}
-		} else if (time_mode == "seconds") {
+		if (time_mode == "seconds") {
 			if (!is_gltf) {
 				// Convert seconds to frames using 24 FPS (typical for B3D in Minetest)
 				frame_range *= 24.0f;

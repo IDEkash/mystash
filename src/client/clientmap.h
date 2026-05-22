@@ -24,6 +24,7 @@ struct MapDrawControl
 
 class Client;
 class RenderingEngine;
+class LandscapePreview;
 
 enum CameraMode : int;
 
@@ -185,4 +186,6 @@ private:
 
 	bool m_loops_occlusion_culler;
 	bool m_enable_raytraced_culling;
+
+	std::unique_ptr<LandscapePreview> m_landscape_preview;
 };

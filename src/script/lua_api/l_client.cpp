@@ -314,6 +314,14 @@ int ModApiClient::l_get_csm_restrictions(lua_State *L)
 	return 1;
 }
 
+// get_map_seed()
+int ModApiClient::l_get_map_seed(lua_State *L)
+{
+	u64 seed = getClient(L)->getMapSeed();
+	lua_pushstring(L, std::to_string(seed).c_str());
+	return 1;
+}
+
 void ModApiClient::Initialize(lua_State *L, int top)
 {
 	API_FCT(get_current_modname);
@@ -334,6 +342,7 @@ void ModApiClient::Initialize(lua_State *L, int top)
 	API_FCT(get_builtin_path);
 	API_FCT(get_language);
 	API_FCT(get_csm_restrictions);
+	API_FCT(get_map_seed);
 }
 
 void ModApiClient::InitializeSSCSM(lua_State *L, int top)

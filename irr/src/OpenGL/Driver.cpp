@@ -1693,6 +1693,19 @@ ITexture *COpenGL3DriverBase::addRenderTargetTextureCubemap(const u32 sideLen, c
 	return renderTargetTexture;
 }
 
+ITexture *COpenGL3DriverBase::addArrayTexture(const io::path &name, IImage **images, u32 count)
+{
+	if (!count || !images)
+		return nullptr;
+
+	std::vector<IImage *> imgs(images, images + count);
+	COpenGL3Texture *tex = new COpenGL3Texture(name, imgs, ETT_2D_ARRAY, this);
+	addTexture(tex);
+	tex->drop();
+
+	return tex;
+}
+
 SDriverLimits COpenGL3DriverBase::getLimits() const
 {
 	SDriverLimits ret;

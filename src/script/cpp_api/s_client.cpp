@@ -265,6 +265,35 @@ void ScriptApiClient::on_animation_cycle(u16 id)
 	}
 }
 
+float ScriptApiClient::on_shadow_generate(v3s16 blockpos, float x, float z)
+{
+	SCRIPTAPI_PRECHECKHEADER_SAFE(0.0f)
+
+	lua_getglobal(L, "core");
+	lua_getfield(L, -1, "registered_on_shadow_generate");
+	if (lua_isnil(L, -1)) {
+		lua_pop(L, 2);
+		return 0.0f;
+	}
+
+	push_v3s16(L, blockpos);
+	lua_pushnumber(L, x);
+	lua_pushnumber(L, z);
+
+	try {
+		runCallbacks(3, RUN_CALLBACKS_MODE_OR);
+	} catch (LuaError &e) {
+		getClient()->setFatalError(e);
+		return 0.0f;
+	}
+
+	float result = 0.0f;
+	if (lua_isnumber(L, -1))
+		result = lua_tonumber(L, -1);
+	lua_pop(L, 2); // result and core
+	return result;
+}
+
 void ScriptApiClient::setEnv(ClientEnvironment *env)
 {
 	ScriptApiBase::setEnv(env);

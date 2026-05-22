@@ -1553,7 +1553,7 @@ void Client::handleCommand_LocalPlayerAnimations(NetworkPacket* pkt)
 	LocalPlayer *player = m_env.getLocalPlayer();
 	assert(player != NULL);
 
-	for (int i = 0; i < 4; ++i) {
+	for (int i = 0; i < 8; ++i) {
 		if (getProtoVersion() >= 46) {
 			*pkt >> player->local_animations[i];
 		} else {

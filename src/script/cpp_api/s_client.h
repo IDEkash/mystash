@@ -45,5 +45,8 @@ public:
 	void on_animation_event(u16 id, const std::string &name);
 	void on_animation_cycle(u16 id);
 
+	// Client-side shadow mapgen
+	float on_shadow_generate(v3s16 blockpos, float x, float z);
+
 	void setEnv(ClientEnvironment *env);
 };

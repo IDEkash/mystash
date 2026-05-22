@@ -692,7 +692,17 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		m_meshnode->grab();
 		mesh->drop();
 
-		m_meshnode->setScale(m_prop.visual_size * m_prop.model_unit_scale);
+		v3f final_scale = m_prop.visual_size;
+		if (m_prop.auto_normalize || m_prop.target_height > 0.0f) {
+			float model_height = BS;
+			if (m_prop.target_height > 0.0f && model_height > 0.001f) {
+				float s = (m_prop.target_height * BS) / model_height;
+				final_scale *= s;
+			} else if (m_prop.auto_normalize) {
+				final_scale *= 1.0f;
+			}
+		}
+		m_meshnode->setScale(final_scale * m_prop.model_unit_scale);
 
 		setSceneNodeMaterials(m_meshnode);
 
@@ -720,9 +730,9 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 				float model_height = box.MaxEdge.Y - box.MinEdge.Y;
 				if (m_prop.target_height > 0.0f && model_height > 0.001f) {
 					float s = (m_prop.target_height * BS) / model_height;
-					final_scale = v3f(s, s, s);
+					final_scale *= s;
 				} else if (m_prop.auto_normalize) {
-					final_scale = v3f(BS, BS, BS);
+					final_scale *= (BS / std::max(model_height, 0.001f));
 				}
 			}
 			m_animated_meshnode->setScale(final_scale * m_prop.model_unit_scale);
@@ -814,7 +824,18 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 		m_meshnode->grab();
 		mesh->drop();
 
-		m_meshnode->setScale(m_prop.visual_size * m_prop.model_unit_scale);
+		v3f final_scale = m_prop.visual_size;
+		if (m_prop.auto_normalize || m_prop.target_height > 0.0f) {
+			const core::aabbox3d<f32> &box = mesh->getBoundingBox();
+			float model_height = box.MaxEdge.Y - box.MinEdge.Y;
+			if (m_prop.target_height > 0.0f && model_height > 0.001f) {
+				float s = (m_prop.target_height * BS) / model_height;
+				final_scale *= s;
+			} else if (m_prop.auto_normalize) {
+				final_scale *= 1.0f; // BS / BS
+			}
+		}
+		m_meshnode->setScale(final_scale * m_prop.model_unit_scale);
 
 		setSceneNodeMaterials(m_meshnode);
 		break;
@@ -1065,23 +1086,35 @@ void GenericCAO::step(float dtime, ClientEnvironment *env)
 			if (controls.sneak && walking)
 				new_speed /= 2;
 
-			if (walking && (controls.dig || controls.place)) {
+			bool running = walking && (new_speed > player->movement_speed_walk * 1.1f);
+			bool jumping = !player->touching_ground && !player->in_liquid && !player->is_climbing;
+
+			if (jumping) {
+				new_anim = player->local_animations[5];
+				player->last_animation = LocalPlayerAnimation::JUMP_ANIM;
+			} else if (walking && (controls.dig || controls.place)) {
 				new_anim = player->local_animations[3];
 				player->last_animation = LocalPlayerAnimation::WD_ANIM;
+			} else if (running) {
+				new_anim = player->local_animations[4];
+				player->last_animation = LocalPlayerAnimation::RUN_ANIM;
 			} else if (walking) {
 				new_anim = player->local_animations[1];
 				player->last_animation = LocalPlayerAnimation::WALK_ANIM;
 			} else if (controls.dig || controls.place) {
 				new_anim = player->local_animations[2];
 				player->last_animation = LocalPlayerAnimation::DIG_ANIM;
+			} else {
+				new_anim = player->local_animations[0];
+				player->last_animation = LocalPlayerAnimation::IDLE_ANIM;
 			}
 
 			// Apply animations if input detected and not attached
-			// or set idle animation
-			if ((new_anim.X + new_anim.Y) > 0 && !getParent()) {
+			if (!getParent()) {
 				allow_update = true;
 				m_animation_range = new_anim;
-				m_animation_speed = new_speed;
+				m_animation_speed = (player->last_animation == LocalPlayerAnimation::IDLE_ANIM) ?
+					player->local_animation_speed : new_speed;
 				player->last_animation_speed = m_animation_speed;
 			} else {
 				player->last_animation = LocalPlayerAnimation::NO_ANIM;
@@ -1712,7 +1745,7 @@ void GenericCAO::processMessage(const std::string &data)
 			// update animation only if local animations present
 			// and received animation is unknown (except idle animation)
 			bool is_known = false;
-			for (int i = 0; i < 4; i++) {
+			for (int i = 0; i < 8; i++) {
 				if (range == player->local_animations[i]) {
 					is_known = true;
 					break;

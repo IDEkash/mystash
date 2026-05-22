@@ -22,4 +22,7 @@ public:
 
 	// Called after generating a piece of map, before writing it to the map
 	void on_generated(BlockMakeData *bmdata, u32 seed);
+
+	// Called before generating a piece of map. If it returns true, C++ generation is skipped.
+	bool on_make_chunk(BlockMakeData *bmdata);
 };

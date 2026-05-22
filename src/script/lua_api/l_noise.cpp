@@ -375,6 +375,7 @@ luaL_Reg LuaValueNoiseMap::methods[] = {
 	luamethod_aliased(LuaValueNoiseMap, get_3d_map_flat, get3dMap_flat),
 	luamethod_aliased(LuaValueNoiseMap, calc_3d_map,     calc3dMap),
 	luamethod_aliased(LuaValueNoiseMap, get_map_slice,   getMapSlice),
+	luamethod(LuaValueNoiseMap, get_raw_buffer),
 	{0,0}
 };
 
@@ -616,6 +617,17 @@ int LuaSecureRandom::l_next_bytes(lua_State *L)
 		lua_pushlstring(L, output_buf, count);
 	}
 
+	return 1;
+}
+
+int LuaValueNoiseMap::l_get_raw_buffer(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	LuaValueNoiseMap *o = checkObject<LuaValueNoiseMap>(L, 1);
+	Noise *n = o->noise;
+
+	size_t bufsize = (size_t)n->sx * n->sy * n->sz * sizeof(float);
+	lua_pushlstring(L, (const char *)n->result, bufsize);
 	return 1;
 }
 
