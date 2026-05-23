@@ -15,6 +15,7 @@
 #include "filesys.h"
 #include "content/content.h"
 #include "content/subgames.h"
+#include "content/world_metadata.h"
 #include "mapgen/mapgen.h"
 #include "settings.h"
 #include "clientdynamicinfo.h"
