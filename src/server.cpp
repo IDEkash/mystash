@@ -4404,7 +4404,7 @@ void dedicated_server_loop(Server &server, volatile std::sig_atomic_t &kill)
 		sleep_ms((int)(steplen*1000.0f));
 		server.step();
 
-		if (server.isShutdownRequested() || kill)
+		if (server.isShutdownRequested() || server.isWorldSwitchRequested() || kill)
 			break;
 
 		/*

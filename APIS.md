@@ -772,5 +772,47 @@ These methods use binary strings to transfer data between C++ and Lua, bypassing
 - Values must be binary strings of correct length, or an integer for `"blockseed"`.
 
 ---
+
+## Dimensions and World Metadata System
+
+This fork introduces a dedicated system for managing multiple worlds (dimensions) with persistent metadata and seamless in-session switching.
+
+### World Metadata (`worldmeta.json`)
+
+Each world folder contains a `worldmeta.json` file with the following fields:
+- `name`: string — The display name of the world.
+- `seed`: string — The map seed.
+- `mapgen`: string — The mapgen name (e.g., `"v7"`, `"flat"`).
+- `visible`: boolean (default `true`) — Whether the world should be listed in the main menu.
+- `hidden`: boolean (default `false`) — If `true`, the world is completely ignored by discovery.
+- `linked_mods`: array of strings — Absolute paths to mod directories that should be mounted into this world at runtime.
+
+### Dimension API (Lua)
+
+The `dimension` table provides methods for programmatic world management.
+
+`dimension.create_world(name, gameid, opts?) -> success, path_or_error`
+- Creates a new world directory and initializes it with the specified game and options.
+- `opts`:
+  - `visible`: boolean (default `true`)
+  - `hidden`: boolean (default `false`)
+  - `seed`: string (optional)
+  - `mapgen`: string (optional)
+  - `linked_mods`: array of strings (optional)
+- Returns `true` and the absolute path to the world on success, or `false` and an error message.
+
+`dimension.delete_world(path) -> success`
+- Fully removes the world directory and its entry from the global index.
+- Does not unload the world if it is currently active.
+
+`dimension.link_mod(world_path, mod_path) -> success`
+- Adds a mod directory path to the `linked_mods` list in the world's metadata.
+- These mods are "virtually mounted" when the world starts, meaning they are loaded without being copied into the world folder.
+
+`dimension.enter_world(world_path)`
+- Triggers a seamless transition to the target world for all players in the current session.
+- The engine unloads the current map, entities, and environment, then re-initializes using the target world's parameters and linked mods.
+
+---
 - **More Soon!**
-- Latest Update: April, 27, 2026
+- Latest Update: May, 23, 2026
