@@ -286,8 +286,8 @@ std::string getWorldPathEnv()
 
 std::vector<WorldSpec> getAvailableWorlds()
 {
-	WorldIndex index;
-	if (readWorldIndex(index)) {
+	WorldDirIndex index;
+	if (readWorldDirIndex(index)) {
 		std::vector<WorldSpec> worlds;
 		for (const auto &entry : index.worlds) {
 			WorldMetadata meta;
@@ -324,7 +324,7 @@ std::vector<WorldSpec> getAvailableWorlds()
 				continue;
 			std::string fullpath = worldspath + DIR_DELIM + dln.name;
 
-			WorldIndexEntry entry;
+			WorldDirIndexEntry entry;
 			entry.path = fullpath;
 
 			WorldMetadata meta;
@@ -357,7 +357,7 @@ std::vector<WorldSpec> getAvailableWorlds()
 	}
 
 	if (!index.worlds.empty())
-		writeWorldIndex(index);
+		writeWorldDirIndex(index);
 
 	infostream << worlds.size() << " found." << std::endl;
 	return worlds;
@@ -449,8 +449,8 @@ void loadGameConfAndInitWorld(const std::string &path, const std::string &name,
 	writeWorldMetadata(final_path, meta);
 
 	// Update world_index.json
-	WorldIndex index;
-	readWorldIndex(index);
+	WorldDirIndex index;
+	readWorldDirIndex(index);
 	bool found = false;
 	for (auto &entry : index.worlds) {
 		if (entry.path == final_path) {
@@ -460,12 +460,12 @@ void loadGameConfAndInitWorld(const std::string &path, const std::string &name,
 		}
 	}
 	if (!found) {
-		WorldIndexEntry entry;
+		WorldDirIndexEntry entry;
 		entry.path = final_path;
 		entry.name = name;
 		index.worlds.push_back(entry);
 	}
-	writeWorldIndex(index);
+	writeWorldDirIndex(index);
 
 	// The Settings object is no longer needed for created worlds
 	if (new_game_settings)

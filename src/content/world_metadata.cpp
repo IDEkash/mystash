@@ -34,11 +34,11 @@ Json::Value WorldMetadata::toJson() const {
     return root;
 }
 
-void WorldIndex::fromJson(const Json::Value &root) {
+void WorldDirIndex::fromJson(const Json::Value &root) {
     if (root.isMember("worlds") && root["worlds"].isArray()) {
         worlds.clear();
         for (const auto &w : root["worlds"]) {
-            WorldIndexEntry entry;
+            WorldDirIndexEntry entry;
             entry.path = w.get("path", "").asString();
             entry.name = w.get("name", "").asString();
             worlds.push_back(entry);
@@ -46,7 +46,7 @@ void WorldIndex::fromJson(const Json::Value &root) {
     }
 }
 
-Json::Value WorldIndex::toJson() const {
+Json::Value WorldDirIndex::toJson() const {
     Json::Value root;
     Json::Value worlds_arr(Json::arrayValue);
     for (const auto &w : worlds) {
@@ -81,7 +81,7 @@ bool writeWorldMetadata(const std::string &world_path, const WorldMetadata &meta
     return fs::safeWriteToFile(path, content);
 }
 
-bool readWorldIndex(WorldIndex &index) {
+bool readWorldDirIndex(WorldDirIndex &index) {
     std::string path = porting::path_user + DIR_DELIM + "worlds" + DIR_DELIM + "world_index.json";
     std::ifstream is(path.c_str(), std::ios::binary);
     if (!is.good()) return false;
@@ -96,7 +96,7 @@ bool readWorldIndex(WorldIndex &index) {
     return true;
 }
 
-bool writeWorldIndex(const WorldIndex &index) {
+bool writeWorldDirIndex(const WorldDirIndex &index) {
     std::string path = porting::path_user + DIR_DELIM + "worlds" + DIR_DELIM + "world_index.json";
     Json::StreamWriterBuilder builder;
     std::string content = Json::writeString(builder, index.toJson());

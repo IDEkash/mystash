@@ -87,15 +87,15 @@ int ModApiDimension::l_delete_world(lua_State *L) {
         return 1;
     }
 
-    WorldIndex index;
-    readWorldIndex(index);
+    WorldDirIndex index;
+    readWorldDirIndex(index);
     for (auto it = index.worlds.begin(); it != index.worlds.end(); ++it) {
         if (it->path == path) {
             index.worlds.erase(it);
             break;
         }
     }
-    writeWorldIndex(index);
+    writeWorldDirIndex(index);
 
     lua_pushboolean(L, true);
     return 1;
