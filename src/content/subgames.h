@@ -68,6 +68,9 @@ struct WorldSpec
 	std::string path;
 	std::string name;
 	std::string gameid;
+	bool visible = true;
+	bool hidden = false;
+	std::vector<std::string> linked_mods;
 
 	WorldSpec(const std::string &path = "", const std::string &name = "",
 			const std::string &gameid = "") :

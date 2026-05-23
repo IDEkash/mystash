@@ -4319,6 +4319,12 @@ void Server::requestShutdown(const std::string &msg, bool reconnect, float delay
 	m_shutdown_state.trigger(delay, msg, reconnect);
 }
 
+void Server::requestWorldSwitch(const std::string &world_path)
+{
+	m_world_switch_requested = true;
+	m_requested_world_path = world_path;
+}
+
 std::unique_ptr<PlayerSAO> Server::emergePlayer(const char *name, session_t peer_id,
 	u16 proto_version)
 {

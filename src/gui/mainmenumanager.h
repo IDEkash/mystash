@@ -170,6 +170,9 @@ public:
 	bool touchscreenlayout_requested = false;
 	bool shutdown_requested = false;
 	std::string show_open_url_dialog = "";
+
+	bool world_switch_requested = false;
+	std::string requested_world_path;
 };
 
 extern MainGameCallback *g_gamecallback;

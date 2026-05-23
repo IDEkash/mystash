@@ -223,15 +223,28 @@ bool ClientLauncher::run(GameStartData &start_data, const Settings &cmd_args)
 			if (!m_rendering_engine->run() || *kill)
 				break;
 
-			the_game(
-				kill,
-				input,
-				m_rendering_engine,
-				start_data,
-				error_message,
-				chat_backend,
-				&reconnect_requested
-			);
+			while (!*kill && !g_gamecallback->shutdown_requested) {
+				the_game(
+					kill,
+					input,
+					m_rendering_engine,
+					start_data,
+					error_message,
+					chat_backend,
+					&reconnect_requested
+				);
+
+				if (g_gamecallback->world_switch_requested) {
+					start_data.world_path = g_gamecallback->requested_world_path;
+					start_data.world_spec.path = start_data.world_path;
+					start_data.world_spec.gameid = getWorldGameId(start_data.world_path, true);
+					start_data.game_spec = findWorldSubgame(start_data.world_path);
+					g_gamecallback->world_switch_requested = false;
+					actionstream << "Client switching world to " << start_data.world_path << std::endl;
+				} else {
+					break;
+				}
+			}
 #ifdef NDEBUG
 		} catch (std::exception &e) {
 			error_message = "Some exception: ";

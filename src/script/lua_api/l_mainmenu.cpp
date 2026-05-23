@@ -296,6 +296,10 @@ int ModApiMainMenu::l_get_worlds(lua_State *L)
 		lua_pushstring(L, world.gameid.c_str());
 		lua_settable(L, top_lvl2);
 
+		lua_pushstring(L,"visible");
+		lua_pushboolean(L, world.visible);
+		lua_settable(L, top_lvl2);
+
 		lua_settable(L, top);
 		index++;
 	}
@@ -673,10 +677,22 @@ int ModApiMainMenu::l_delete_world(lua_State *L)
 		return 1;
 	}
 	const WorldSpec &spec = worlds[world_id];
-	if (!fs::RecursiveDelete(spec.path)) {
+	std::string path = spec.path;
+	if (!fs::RecursiveDelete(path)) {
 		lua_pushstring(L, "Failed to delete world");
 		return 1;
 	}
+
+	WorldIndex index;
+	readWorldIndex(index);
+	for (auto it = index.worlds.begin(); it != index.worlds.end(); ++it) {
+		if (it->path == path) {
+			index.worlds.erase(it);
+			break;
+		}
+	}
+	writeWorldIndex(index);
+
 	return 0;
 }
 

@@ -13,6 +13,7 @@
 #include "lua_api/l_auth.h"
 #include "lua_api/l_base.h"
 #include "lua_api/l_craft.h"
+#include "lua_api/l_dimension.h"
 #include "lua_api/l_env.h"
 #include "lua_api/l_inventory.h"
 #include "lua_api/l_item.h"
@@ -146,6 +147,7 @@ void ServerScripting::InitializeModApi(lua_State *L, int top)
 	ModApiAsync::Initialize(L, top);
 	ModApiAuth::Initialize(L, top);
 	ModApiCraft::Initialize(L, top);
+	ModApiDimension::Initialize(L, top);
 	ModApiEnv::Initialize(L, top);
 	ModApiInventory::Initialize(L, top);
 	ModApiItem::Initialize(L, top);

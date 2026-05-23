@@ -1180,17 +1180,29 @@ static bool run_dedicated_server(const GameParams &game_params, const Settings &
 		volatile auto &kill = *porting::signal_handler_killstatus();
 
 		try {
-			// Create server
-			Server server(game_params.world_path, game_params.game_spec,
-					false, bind_addr, true, &iface);
+			GameParams current_params = game_params;
+			while (!kill) {
+				// Create server
+				Server server(current_params.world_path, current_params.game_spec,
+						false, bind_addr, true, &iface);
 
-			g_term_console.setup(&iface, &kill, admin_nick);
+				g_term_console.setup(&iface, &kill, admin_nick);
 
-			g_term_console.start();
+				if (!g_term_console.isRunning())
+					g_term_console.start();
 
-			server.start();
-			// Run server
-			dedicated_server_loop(server, kill);
+				server.start();
+				// Run server
+				dedicated_server_loop(server, kill);
+
+				if (server.isWorldSwitchRequested()) {
+					current_params.world_path = server.getRequestedWorldPath();
+					current_params.game_spec = findWorldSubgame(current_params.world_path);
+					actionstream << "Switching world to " << current_params.world_path << std::endl;
+				} else {
+					break;
+				}
+			}
 		} catch (const ModError &e) {
 			g_term_console.stopAndWaitforThread();
 			errorstream << "ModError: " << e.what() << std::endl;
@@ -1214,15 +1226,25 @@ static bool run_dedicated_server(const GameParams &game_params, const Settings &
 	} {
 #endif
 		try {
-			// Create server
-			Server server(game_params.world_path, game_params.game_spec, false,
-				bind_addr, true);
-			server.start();
-
-			// Run server
+			GameParams current_params = game_params;
 			volatile auto &kill = *porting::signal_handler_killstatus();
-			dedicated_server_loop(server, kill);
+			while (!kill) {
+				// Create server
+				Server server(current_params.world_path, current_params.game_spec, false,
+					bind_addr, true);
+				server.start();
 
+				// Run server
+				dedicated_server_loop(server, kill);
+
+				if (server.isWorldSwitchRequested()) {
+					current_params.world_path = server.getRequestedWorldPath();
+					current_params.game_spec = findWorldSubgame(current_params.world_path);
+					actionstream << "Switching world to " << current_params.world_path << std::endl;
+				} else {
+					break;
+				}
+			}
 		} catch (const ModError &e) {
 			errorstream << "ModError: " << e.what() << std::endl;
 			return false;

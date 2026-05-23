@@ -7,6 +7,7 @@
 #include "log.h"
 #include "scripting_server.h"
 #include "content/subgames.h"
+#include "content/world_metadata.h"
 #include "porting.h"
 
 /**
@@ -20,6 +21,14 @@ ServerModManager::ServerModManager(const std::string &worldpath, SubgameSpec gam
 	// Add all game mods and all world mods
 	configuration.addGameMods(gamespec);
 	configuration.addModsInPath(worldpath + DIR_DELIM + "worldmods", "worldmods");
+
+	// Add linked mods from worldmeta.json
+	WorldMetadata meta;
+	if (readWorldMetadata(worldpath, meta)) {
+		for (const auto &mod_path : meta.linked_mods) {
+			configuration.addModsInPath(mod_path, "linked_mods");
+		}
+	}
 
 	// Load normal mods
 	std::string worldmt = worldpath + DIR_DELIM + "world.mt";

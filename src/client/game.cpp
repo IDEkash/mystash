@@ -745,6 +745,12 @@ void Game::run()
 
 		step(dtime);
 
+		if (server && server->isWorldSwitchRequested()) {
+			g_gamecallback->world_switch_requested = true;
+			g_gamecallback->requested_world_path = server->getRequestedWorldPath();
+			break;
+		}
+
 		processClientEvents(&cam_view_target);
 		updateDebugState();
 		// Update camera here so it is in-sync with CAO position

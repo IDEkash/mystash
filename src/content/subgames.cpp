@@ -13,6 +13,7 @@
 #include "map_settings_manager.h"
 #include "util/string.h"
 #include "exceptions.h"
+#include "content/world_metadata.h"
 
 // The maximum number of identical world names allowed
 #define MAX_WORLD_NAMES 100
@@ -285,6 +286,26 @@ std::string getWorldPathEnv()
 
 std::vector<WorldSpec> getAvailableWorlds()
 {
+	WorldIndex index;
+	if (readWorldIndex(index)) {
+		std::vector<WorldSpec> worlds;
+		for (const auto &entry : index.worlds) {
+			WorldMetadata meta;
+			if (readWorldMetadata(entry.path, meta)) {
+				if (meta.hidden)
+					continue;
+				std::string gameid = getWorldGameId(entry.path, true);
+				WorldSpec spec(entry.path, meta.name, gameid);
+				spec.visible = meta.visible;
+				spec.hidden = meta.hidden;
+				spec.linked_mods = meta.linked_mods;
+				worlds.push_back(spec);
+			}
+		}
+		return worlds;
+	}
+
+	// Fallback to scanning if index doesn't exist
 	std::vector<WorldSpec> worlds;
 	std::set<std::string> worldspaths;
 
@@ -302,31 +323,42 @@ std::vector<WorldSpec> getAvailableWorlds()
 			if (!dln.dir)
 				continue;
 			std::string fullpath = worldspath + DIR_DELIM + dln.name;
-			std::string name = getWorldName(fullpath, dln.name);
-			// Just allow filling in the gameid always for now
-			bool can_be_legacy = true;
-			std::string gameid = getWorldGameId(fullpath, can_be_legacy);
-			WorldSpec spec(fullpath, name, gameid);
-			if (!spec.isValid()) {
-				infostream << "(invalid: " << name << ") ";
-			} else {
-				infostream << name << " ";
+
+			WorldIndexEntry entry;
+			entry.path = fullpath;
+
+			WorldMetadata meta;
+			if (readWorldMetadata(fullpath, meta)) {
+				entry.name = meta.name;
+				index.worlds.push_back(entry);
+
+				if (meta.hidden)
+					continue;
+				std::string gameid = getWorldGameId(fullpath, true);
+				WorldSpec spec(fullpath, meta.name, gameid);
+				spec.visible = meta.visible;
+				spec.hidden = meta.hidden;
+				spec.linked_mods = meta.linked_mods;
 				worlds.push_back(spec);
+			} else {
+				std::string name = getWorldName(fullpath, dln.name);
+				std::string gameid = getWorldGameId(fullpath, true);
+				WorldSpec spec(fullpath, name, gameid);
+				if (spec.isValid()) {
+					infostream << name << " ";
+					worlds.push_back(spec);
+
+					entry.name = name;
+					index.worlds.push_back(entry);
+				}
 			}
 		}
 		infostream << std::endl;
 	}
-	// Check old world location
-	do {
-		std::string fullpath = porting::path_user + DIR_DELIM + "world";
-		if (!fs::PathExists(fullpath))
-			break;
-		std::string name = "Old World";
-		std::string gameid = getWorldGameId(fullpath, true);
-		WorldSpec spec(fullpath, name, gameid);
-		infostream << "Old world found." << std::endl;
-		worlds.push_back(spec);
-	} while (false);
+
+	if (!index.worlds.empty())
+		writeWorldIndex(index);
+
 	infostream << worlds.size() << " found." << std::endl;
 	return worlds;
 }
@@ -397,14 +429,43 @@ void loadGameConfAndInitWorld(const std::string &path, const std::string &name,
 
 	// Create map_meta.txt if does not already exist
 	std::string map_meta_path = final_path + DIR_DELIM + "map_meta.txt";
+	std::string seed = g_settings->get("fixed_map_seed");
 	if (!fs::PathExists(map_meta_path)) {
 		MapSettingsManager mgr(map_meta_path);
 
-		mgr.setMapSetting("seed", g_settings->get("fixed_map_seed"));
+		mgr.setMapSetting("seed", seed);
 
 		mgr.makeMapgenParams();
 		mgr.saveMapMeta();
 	}
+
+	// Create worldmeta.json
+	WorldMetadata meta;
+	meta.name = name;
+	meta.seed = seed;
+	meta.mapgen = g_settings->get("mg_name");
+	meta.visible = true;
+	meta.hidden = false;
+	writeWorldMetadata(final_path, meta);
+
+	// Update world_index.json
+	WorldIndex index;
+	readWorldIndex(index);
+	bool found = false;
+	for (auto &entry : index.worlds) {
+		if (entry.path == final_path) {
+			entry.name = name;
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		WorldIndexEntry entry;
+		entry.path = final_path;
+		entry.name = name;
+		index.worlds.push_back(entry);
+	}
+	writeWorldIndex(index);
 
 	// The Settings object is no longer needed for created worlds
 	if (new_game_settings)

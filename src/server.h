@@ -276,6 +276,10 @@ public:
 	// request server to shutdown
 	void requestShutdown(const std::string &msg, bool reconnect, float delay = 0.0f);
 
+	void requestWorldSwitch(const std::string &world_path);
+	bool isWorldSwitchRequested() const { return m_world_switch_requested; }
+	std::string getRequestedWorldPath() const { return m_requested_world_path; }
+
 	// Returns -1 if failed, sound handle on success
 	// Envlock
 	s32 playSound(ServerPlayingSound &params, bool ephemeral=false);
@@ -773,6 +777,9 @@ private:
 
 	ChatInterface *m_admin_chat;
 	std::string m_admin_nick;
+
+	bool m_world_switch_requested = false;
+	std::string m_requested_world_path;
 
 	// If a mod error occurs while shutting down, the error message will be
 	// written into this.
