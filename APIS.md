@@ -713,5 +713,64 @@ Extended volumetric and height-based fog controls.
   - `boundary`: table (FogBoundaryParams)
 
 ---
+
+## Mapgen API (Lua)
+
+Exposes internal map generation steps and high-performance data access to Lua. These functions are primarily intended for use within the emerge thread.
+
+### New Generation Hooks
+
+`core.register_on_make_chunk(function(vmanip, minp, maxp, blockseed))`
+- Fired in the emerge thread before the internal C++ `makeChunk` call.
+- **Return `true`**: Suppresses the internal engine mapgen for this chunk. Modders are responsible for filling the `vmanip` with terrain.
+- **Return `false` or `nil`**: Internal mapgen proceeds as usual.
+
+### Manual Generation Steps
+
+Available in the emerge thread. These allow modders to selectively trigger engine generation logic.
+
+`core.generate_biomes()`
+- Triggers biome node placement (top/filler/stone/water) and builds the biomemap.
+
+`core.dust_top_nodes()`
+- Triggers the "dust" (e.g., snow) placement step based on the biomemap.
+
+`core.generate_caves(max_stone_y)`
+- Triggers engine cave generation (noise-intersection and random-walk).
+
+`core.generate_dungeons(max_stone_y)`
+- Triggers engine dungeon generation.
+
+### High-Performance Raw Access
+
+These methods use binary strings to transfer data between C++ and Lua, bypassing the overhead of large Lua tables.
+
+#### VoxelManip (Raw)
+- `VoxelManip:get_data_raw() -> string` (u16 content IDs)
+- `VoxelManip:set_data_raw(string)`
+- `VoxelManip:get_light_data_raw() -> string` (u8 light values)
+- `VoxelManip:set_light_data_raw(string)`
+- `VoxelManip:get_param2_data_raw() -> string` (u8 param2 values)
+- `VoxelManip:set_param2_data_raw(string)`
+
+#### ValueNoiseMap (Raw)
+- `ValueNoiseMap:get_raw_buffer() -> string` (float noise values)
+
+### Mapgen Objects
+
+`core.get_mapgen_object(name)`
+- New names supported:
+  - `"heightmap_raw"`: Returns `s16` buffer.
+  - `"biomemap_raw"`: Returns `u16` buffer.
+  - `"heatmap_raw"`: Returns `float` buffer.
+  - `"humiditymap_raw"`: Returns `float` buffer.
+  - `"blockseed"`: Returns integer.
+
+`core.set_mapgen_object(name, value)`
+- Allows modifying internal mapgen state.
+- Supported names: `"heightmap"`, `"biomemap"`, `"heatmap"`, `"humiditymap"`, `"blockseed"`.
+- Values must be binary strings of correct length, or an integer for `"blockseed"`.
+
+---
 - **More Soon!**
 - Latest Update: April, 27, 2026
