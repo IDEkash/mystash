@@ -59,3 +59,38 @@ void ScriptApiMapgen::on_generated(BlockMakeData *bmdata, u32 seed)
 	lua_pushnil(L);
 	lua_setfield(L, -2, "vmanip");
 }
+
+bool ScriptApiMapgen::on_make_chunk(BlockMakeData *bmdata, u32 seed)
+{
+	SCRIPTAPI_PRECHECKHEADER
+	assert(lua_checkstack(L, 20));
+
+	LuaVoxelManip::create(L, bmdata->vmanip, true);
+	const int vmanip = lua_gettop(L);
+
+	// Store vmanip globally (used by helpers)
+	lua_getglobal(L, "core");
+	lua_pushvalue(L, vmanip);
+	lua_setfield(L, -2, "vmanip");
+
+	v3s16 minp = bmdata->blockpos_min * MAP_BLOCKSIZE;
+	v3s16 maxp = bmdata->blockpos_max * MAP_BLOCKSIZE +
+				 v3s16(1,1,1) * (MAP_BLOCKSIZE - 1);
+
+	// Call callbacks
+	lua_getfield(L, -1, "registered_on_make_chunks");
+	lua_pushvalue(L, vmanip);
+	push_v3s16(L, minp);
+	push_v3s16(L, maxp);
+	lua_pushnumber(L, seed);
+	runCallbacks(4, RUN_CALLBACKS_MODE_OR_SC);
+
+	bool ret = readParam<bool>(L, -1);
+	lua_pop(L, 1); // return val
+
+	// Unset core.vmanip again
+	lua_pushnil(L);
+	lua_setfield(L, -2, "vmanip");
+
+	return ret;
+}

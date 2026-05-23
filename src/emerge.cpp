@@ -177,15 +177,7 @@ void EmergeManager::initMapgens(MapgenParams *params)
 		<< Mapgen::getMapgenName(params->mgtype)
 		<< " and chunksize=" << params->chunksize << std::endl;
 
-	/*
-	 * Singlenode is currently the only mapgen not affected by the
-	 * unfinished slice bug, so allow multiple threads by default.
-	 * We do this for the Lua mapgens who benefit from this (since singlenode
-	 * itself isn't very useful).
-	 * see <https://github.com/luanti-org/luanti/issues/9357>
-	 */
-	bool multithread = params->mgtype == MAPGEN_SINGLENODE;
-	initThreads(multithread);
+	initThreads(true);
 
 	v3s16 csize = params->chunksize * MAP_BLOCKSIZE;
 	biomegen = biomemgr->createBiomeGen(BIOMEGEN_ORIGINAL, params->bparams, csize);
@@ -730,14 +722,25 @@ void *EmergeThread::run()
 			bool error = false;
 			m_trans_liquid = &bmdata.transforming_liquid;
 
-			{
+			v3s16 node_min = bmdata.blockpos_min * MAP_BLOCKSIZE;
+			m_mapgen->blockseed = Mapgen::getBlockSeed2(node_min, bmdata.seed);
+
+			bool skip_internal = false;
+			try {
+				skip_internal = m_script->on_make_chunk(&bmdata, m_mapgen->blockseed);
+			} catch (const LuaError &e) {
+				m_server->setAsyncFatalError(e);
+				error = true;
+			}
+
+			if (!error && !skip_internal) {
 				ScopeProfiler sp(g_profiler,
 					"EmergeThread: Mapgen::makeChunk", SPT_AVG);
 
 				m_mapgen->makeChunk(&bmdata);
 			}
 
-			{
+			if (!error) {
 				ScopeProfiler sp(g_profiler,
 					"EmergeThread: Lua on_generated", SPT_AVG);
 

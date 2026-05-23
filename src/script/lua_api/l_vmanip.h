@@ -26,6 +26,8 @@ private:
 	static int l_initialize(lua_State *L);
 	static int l_get_data(lua_State *L);
 	static int l_set_data(lua_State *L);
+	static int l_get_data_raw(lua_State *L);
+	static int l_set_data_raw(lua_State *L);
 	static int l_write_to_map(lua_State *L);
 
 	static int l_get_node_at(lua_State *L);
@@ -38,9 +40,13 @@ private:
 	static int l_set_lighting(lua_State *L);
 	static int l_get_light_data(lua_State *L);
 	static int l_set_light_data(lua_State *L);
+	static int l_get_light_data_raw(lua_State *L);
+	static int l_set_light_data_raw(lua_State *L);
 
 	static int l_get_param2_data(lua_State *L);
 	static int l_set_param2_data(lua_State *L);
+	static int l_get_param2_data_raw(lua_State *L);
+	static int l_set_param2_data_raw(lua_State *L);
 
 	static int l_was_modified(lua_State *L);
 	static int l_get_emerged_area(lua_State *L);

@@ -23,6 +23,52 @@ int LuaVoxelManip::gc_object(lua_State *L)
 	return 0;
 }
 
+int LuaVoxelManip::l_get_data_raw(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	LuaVoxelManip *o = checkObject<LuaVoxelManip>(L, 1);
+	MMVManip *vm = o->vm;
+	const u32 volume = vm->m_area.getVolume();
+
+	// We can't just return m_data as it's an array of MapNode, which contains param1 and param2.
+	// Mapgen users often want just the content IDs.
+	// However, to be "fully exposed", maybe they want the raw nodes?
+	// Let's provide a buffer of content IDs (u16).
+
+	std::vector<content_t> contents(volume);
+	for (u32 i = 0; i != volume; i++) {
+		contents[i] = (vm->m_flags[i] & VOXELFLAG_NO_DATA) ? CONTENT_IGNORE : vm->m_data[i].getContent();
+	}
+
+	lua_pushlstring(L, (const char *)contents.data(), volume * sizeof(content_t));
+	return 1;
+}
+
+int LuaVoxelManip::l_set_data_raw(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	LuaVoxelManip *o = checkObject<LuaVoxelManip>(L, 1);
+	MMVManip *vm = o->vm;
+
+	size_t len;
+	const char *data = luaL_checklstring(L, 2, &len);
+
+	u32 volume = vm->m_area.getVolume();
+	if (len != volume * sizeof(content_t))
+		throw LuaError("Invalid data length");
+
+	const content_t *contents = (const content_t *)data;
+	for (u32 i = 0; i != volume; i++) {
+		vm->m_data[i].setContent(contents[i]);
+	}
+
+	vm->clearFlags(vm->m_area, VOXELFLAG_NO_DATA);
+
+	return 0;
+}
+
 int LuaVoxelManip::l_read_from_map(lua_State *L)
 {
 	MAP_LOCK_REQUIRED;
@@ -135,6 +181,45 @@ int LuaVoxelManip::l_set_data(lua_State *L)
 	return 0;
 }
 
+int LuaVoxelManip::l_get_light_data_raw(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	LuaVoxelManip *o = checkObject<LuaVoxelManip>(L, 1);
+	MMVManip *vm = o->vm;
+	const u32 volume = vm->m_area.getVolume();
+
+	std::vector<u8> lights(volume);
+	for (u32 i = 0; i != volume; i++) {
+		lights[i] = (vm->m_flags[i] & VOXELFLAG_NO_DATA) ? 0 : vm->m_data[i].param1;
+	}
+
+	lua_pushlstring(L, (const char *)lights.data(), volume * sizeof(u8));
+	return 1;
+}
+
+int LuaVoxelManip::l_set_light_data_raw(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	LuaVoxelManip *o = checkObject<LuaVoxelManip>(L, 1);
+	MMVManip *vm = o->vm;
+
+	size_t len;
+	const char *data = luaL_checklstring(L, 2, &len);
+
+	u32 volume = vm->m_area.getVolume();
+	if (len != volume * sizeof(u8))
+		throw LuaError("Invalid light data length");
+
+	const u8 *lights = (const u8 *)data;
+	for (u32 i = 0; i != volume; i++) {
+		vm->m_data[i].param1 = lights[i];
+	}
+
+	return 0;
+}
+
 int LuaVoxelManip::l_write_to_map(lua_State *L)
 {
 	LuaVoxelManip *o = checkObject<LuaVoxelManip>(L, 1);
@@ -162,6 +247,45 @@ int LuaVoxelManip::l_write_to_map(lua_State *L)
 	event.type = MEET_OTHER;
 	event.setModifiedBlocks(modified_blocks);
 	map->dispatchEvent(event);
+
+	return 0;
+}
+
+int LuaVoxelManip::l_get_param2_data_raw(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	LuaVoxelManip *o = checkObject<LuaVoxelManip>(L, 1);
+	MMVManip *vm = o->vm;
+	const u32 volume = vm->m_area.getVolume();
+
+	std::vector<u8> param2(volume);
+	for (u32 i = 0; i != volume; i++) {
+		param2[i] = (vm->m_flags[i] & VOXELFLAG_NO_DATA) ? 0 : vm->m_data[i].param2;
+	}
+
+	lua_pushlstring(L, (const char *)param2.data(), volume * sizeof(u8));
+	return 1;
+}
+
+int LuaVoxelManip::l_set_param2_data_raw(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	LuaVoxelManip *o = checkObject<LuaVoxelManip>(L, 1);
+	MMVManip *vm = o->vm;
+
+	size_t len;
+	const char *data = luaL_checklstring(L, 2, &len);
+
+	u32 volume = vm->m_area.getVolume();
+	if (len != volume * sizeof(u8))
+		throw LuaError("Invalid param2 data length");
+
+	const u8 *param2 = (const u8 *)data;
+	for (u32 i = 0; i != volume; i++) {
+		vm->m_data[i].param2 = param2[i];
+	}
 
 	return 0;
 }
@@ -485,6 +609,8 @@ const luaL_Reg LuaVoxelManip::methods[] = {
 	luamethod(LuaVoxelManip, initialize),
 	luamethod(LuaVoxelManip, get_data),
 	luamethod(LuaVoxelManip, set_data),
+	luamethod(LuaVoxelManip, get_data_raw),
+	luamethod(LuaVoxelManip, set_data_raw),
 	luamethod(LuaVoxelManip, get_node_at),
 	luamethod(LuaVoxelManip, set_node_at),
 	luamethod(LuaVoxelManip, write_to_map),
@@ -494,8 +620,12 @@ const luaL_Reg LuaVoxelManip::methods[] = {
 	luamethod(LuaVoxelManip, set_lighting),
 	luamethod(LuaVoxelManip, get_light_data),
 	luamethod(LuaVoxelManip, set_light_data),
+	luamethod(LuaVoxelManip, get_light_data_raw),
+	luamethod(LuaVoxelManip, set_light_data_raw),
 	luamethod(LuaVoxelManip, get_param2_data),
 	luamethod(LuaVoxelManip, set_param2_data),
+	luamethod(LuaVoxelManip, get_param2_data_raw),
+	luamethod(LuaVoxelManip, set_param2_data_raw),
 	luamethod(LuaVoxelManip, was_modified),
 	luamethod(LuaVoxelManip, get_emerged_area),
 	luamethod(LuaVoxelManip, close),

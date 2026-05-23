@@ -44,6 +44,11 @@ struct EnumString ModApiMapgen::es_MapgenObject[] =
 	{MGOBJ_HEATMAP,   "heatmap"},
 	{MGOBJ_HUMIDMAP,  "humiditymap"},
 	{MGOBJ_GENNOTIFY, "gennotify"},
+	{MGOBJ_HEIGHTMAP, "heightmap_raw"},
+	{MGOBJ_BIOMEMAP,  "biomemap_raw"},
+	{MGOBJ_HEATMAP,   "heatmap_raw"},
+	{MGOBJ_HUMIDMAP,  "humiditymap_raw"},
+	{MGOBJ_BLOCKSEED, "blockseed"},
 	{0, NULL},
 };
 
@@ -603,6 +608,7 @@ int ModApiMapgen::l_get_mapgen_object(lua_State *L)
 		throw LuaError("Must only be called in a mapgen thread!");
 
 	size_t maplen = mg->csize.X * mg->csize.Z;
+	bool raw = std::string(mgobjstr).find("_raw") != std::string::npos;
 
 	switch (mgobj) {
 	case MGOBJ_VMANIP: {
@@ -623,10 +629,14 @@ int ModApiMapgen::l_get_mapgen_object(lua_State *L)
 		if (!mg->heightmap)
 			return 0;
 
-		lua_createtable(L, maplen, 0);
-		for (size_t i = 0; i != maplen; i++) {
-			lua_pushinteger(L, mg->heightmap[i]);
-			lua_rawseti(L, -2, i + 1);
+		if (raw) {
+			lua_pushlstring(L, (const char *)mg->heightmap, maplen * sizeof(s16));
+		} else {
+			lua_createtable(L, maplen, 0);
+			for (size_t i = 0; i != maplen; i++) {
+				lua_pushinteger(L, mg->heightmap[i]);
+				lua_rawseti(L, -2, i + 1);
+			}
 		}
 
 		return 1;
@@ -635,10 +645,14 @@ int ModApiMapgen::l_get_mapgen_object(lua_State *L)
 		if (!mg->biomegen)
 			return 0;
 
-		lua_createtable(L, maplen, 0);
-		for (size_t i = 0; i != maplen; i++) {
-			lua_pushinteger(L, mg->biomegen->biomemap[i]);
-			lua_rawseti(L, -2, i + 1);
+		if (raw) {
+			lua_pushlstring(L, (const char *)mg->biomegen->biomemap, maplen * sizeof(biome_t));
+		} else {
+			lua_createtable(L, maplen, 0);
+			for (size_t i = 0; i != maplen; i++) {
+				lua_pushinteger(L, mg->biomegen->biomemap[i]);
+				lua_rawseti(L, -2, i + 1);
+			}
 		}
 
 		return 1;
@@ -649,10 +663,14 @@ int ModApiMapgen::l_get_mapgen_object(lua_State *L)
 
 		BiomeGenOriginal *bg = (BiomeGenOriginal *)mg->biomegen;
 
-		lua_createtable(L, maplen, 0);
-		for (size_t i = 0; i != maplen; i++) {
-			lua_pushnumber(L, bg->heatmap[i]);
-			lua_rawseti(L, -2, i + 1);
+		if (raw) {
+			lua_pushlstring(L, (const char *)bg->heatmap, maplen * sizeof(float));
+		} else {
+			lua_createtable(L, maplen, 0);
+			for (size_t i = 0; i != maplen; i++) {
+				lua_pushnumber(L, bg->heatmap[i]);
+				lua_rawseti(L, -2, i + 1);
+			}
 		}
 
 		return 1;
@@ -664,12 +682,20 @@ int ModApiMapgen::l_get_mapgen_object(lua_State *L)
 
 		BiomeGenOriginal *bg = (BiomeGenOriginal *)mg->biomegen;
 
-		lua_createtable(L, maplen, 0);
-		for (size_t i = 0; i != maplen; i++) {
-			lua_pushnumber(L, bg->humidmap[i]);
-			lua_rawseti(L, -2, i + 1);
+		if (raw) {
+			lua_pushlstring(L, (const char *)bg->humidmap, maplen * sizeof(float));
+		} else {
+			lua_createtable(L, maplen, 0);
+			for (size_t i = 0; i != maplen; i++) {
+				lua_pushnumber(L, bg->humidmap[i]);
+				lua_rawseti(L, -2, i + 1);
+			}
 		}
 
+		return 1;
+	}
+	case MGOBJ_BLOCKSEED: {
+		lua_pushinteger(L, mg->blockseed);
 		return 1;
 	}
 	case MGOBJ_GENNOTIFY: {
@@ -713,6 +739,72 @@ int ModApiMapgen::l_get_mapgen_object(lua_State *L)
 	return 0;
 }
 
+
+// set_mapgen_object(objectname, value)
+int ModApiMapgen::l_set_mapgen_object(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	const char *mgobjstr = lua_tostring(L, 1);
+
+	int mgobjint;
+	if (!string_to_enum(es_MapgenObject, mgobjint, mgobjstr ? mgobjstr : ""))
+		return 0;
+
+	enum MapgenObject mgobj = (MapgenObject)mgobjint;
+
+	Mapgen *mg = getMapgen(L);
+	if (!mg)
+		throw LuaError("Must only be called in a mapgen thread!");
+
+	size_t maplen = mg->csize.X * mg->csize.Z;
+
+	size_t len;
+	const char *data = luaL_checklstring(L, 2, &len);
+
+	switch (mgobj) {
+	case MGOBJ_HEIGHTMAP: {
+		if (!mg->heightmap)
+			return 0;
+		if (len != maplen * sizeof(s16))
+			throw LuaError("Invalid heightmap length");
+		memcpy(mg->heightmap, data, len);
+		return 0;
+	}
+	case MGOBJ_BIOMEMAP: {
+		if (!mg->biomegen)
+			return 0;
+		if (len != maplen * sizeof(biome_t))
+			throw LuaError("Invalid biomemap length");
+		memcpy(mg->biomegen->biomemap, data, len);
+		return 0;
+	}
+	case MGOBJ_HEATMAP: {
+		if (!mg->biomegen || mg->biomegen->getType() != BIOMEGEN_ORIGINAL)
+			return 0;
+		if (len != maplen * sizeof(float))
+			throw LuaError("Invalid heatmap length");
+		memcpy(((BiomeGenOriginal *)mg->biomegen)->heatmap, data, len);
+		return 0;
+	}
+	case MGOBJ_HUMIDMAP: {
+		if (!mg->biomegen || mg->biomegen->getType() != BIOMEGEN_ORIGINAL)
+			return 0;
+		if (len != maplen * sizeof(float))
+			throw LuaError("Invalid humiditymap length");
+		memcpy(((BiomeGenOriginal *)mg->biomegen)->humidmap, data, len);
+		return 0;
+	}
+	case MGOBJ_BLOCKSEED: {
+		mg->blockseed = lua_tointeger(L, 2);
+		return 0;
+	}
+	default:
+		throw LuaError("Unsupported mapgen object for setting");
+	}
+
+	return 0;
+}
 
 // get_spawn_level(x = num, z = num)
 int ModApiMapgen::l_get_spawn_level(lua_State *L)
@@ -1606,6 +1698,84 @@ int ModApiMapgen::l_generate_ores(lua_State *L)
 }
 
 
+// generate_biomes()
+int ModApiMapgen::l_generate_biomes(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	Mapgen *mg = getMapgen(L);
+	if (!mg)
+		throw LuaError("Must only be called in a mapgen thread!");
+
+	if (mg->getType() == MAPGEN_SINGLENODE)
+		return 0;
+
+	((MapgenBasic *)mg)->generateBiomes();
+
+	return 0;
+}
+
+
+// dust_top_nodes()
+int ModApiMapgen::l_dust_top_nodes(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	Mapgen *mg = getMapgen(L);
+	if (!mg)
+		throw LuaError("Must only be called in a mapgen thread!");
+
+	if (mg->getType() == MAPGEN_SINGLENODE)
+		return 0;
+
+	((MapgenBasic *)mg)->dustTopNodes();
+
+	return 0;
+}
+
+
+// generate_caves(max_stone_y)
+int ModApiMapgen::l_generate_caves(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	Mapgen *mg = getMapgen(L);
+	if (!mg)
+		throw LuaError("Must only be called in a mapgen thread!");
+
+	if (mg->getType() == MAPGEN_SINGLENODE)
+		return 0;
+
+	s16 max_stone_y = luaL_checkinteger(L, 1);
+
+	MapgenBasic *mgb = (MapgenBasic *)mg;
+	mgb->generateCavesNoiseIntersection(max_stone_y);
+	mgb->generateCavesRandomWalk(max_stone_y, mgb->large_cave_depth);
+
+	return 0;
+}
+
+
+// generate_dungeons(max_stone_y)
+int ModApiMapgen::l_generate_dungeons(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	Mapgen *mg = getMapgen(L);
+	if (!mg)
+		throw LuaError("Must only be called in a mapgen thread!");
+
+	if (mg->getType() == MAPGEN_SINGLENODE)
+		return 0;
+
+	s16 max_stone_y = luaL_checkinteger(L, 1);
+
+	((MapgenBasic *)mg)->generateDungeons(max_stone_y);
+
+	return 0;
+}
+
+
 // generate_decorations(vm, p1, p2, use_mapgen_biomes)
 int ModApiMapgen::l_generate_decorations(lua_State *L)
 {
@@ -2074,6 +2244,7 @@ void ModApiMapgen::Initialize(lua_State *L, int top)
 	API_FCT(get_humidity);
 	API_FCT(get_biome_data);
 	API_FCT(get_mapgen_object);
+	API_FCT(set_mapgen_object);
 	API_FCT(get_spawn_level);
 
 	API_FCT(get_mapgen_params);
@@ -2102,6 +2273,10 @@ void ModApiMapgen::Initialize(lua_State *L, int top)
 
 	API_FCT(generate_ores);
 	API_FCT(generate_decorations);
+	API_FCT(generate_biomes);
+	API_FCT(dust_top_nodes);
+	API_FCT(generate_caves);
+	API_FCT(generate_dungeons);
 	API_FCT(create_schematic);
 	API_FCT(place_schematic);
 	API_FCT(place_schematic_on_vmanip);
@@ -2118,6 +2293,7 @@ void ModApiMapgen::InitializeEmerge(lua_State *L, int top)
 	API_FCT(get_humidity);
 	API_FCT(get_biome_data);
 	API_FCT(get_mapgen_object);
+	API_FCT(set_mapgen_object);
 
 	API_FCT(get_seed);
 	API_FCT(get_mapgen_params);
@@ -2132,6 +2308,10 @@ void ModApiMapgen::InitializeEmerge(lua_State *L, int top)
 
 	API_FCT(generate_ores);
 	API_FCT(generate_decorations);
+	API_FCT(generate_biomes);
+	API_FCT(dust_top_nodes);
+	API_FCT(generate_caves);
+	API_FCT(generate_dungeons);
 	API_FCT(place_schematic_on_vmanip);
 	API_FCT(spawn_tree_on_vmanip);
 	API_FCT(serialize_schematic);

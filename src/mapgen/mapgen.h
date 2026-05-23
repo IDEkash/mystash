@@ -47,7 +47,8 @@ enum MapgenObject {
 	MGOBJ_BIOMEMAP,
 	MGOBJ_HEATMAP,
 	MGOBJ_HUMIDMAP,
-	MGOBJ_GENNOTIFY
+	MGOBJ_GENNOTIFY,
+	MGOBJ_BLOCKSEED
 };
 
 enum GenNotifyType {
@@ -274,6 +275,7 @@ private:
 	inheriting MapgenBasic.
 */
 class MapgenBasic : public Mapgen {
+	friend class ModApiMapgen;
 public:
 	MapgenBasic(int mapgenid, MapgenParams *params, EmergeParams *emerge);
 	virtual ~MapgenBasic();

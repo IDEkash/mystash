@@ -42,6 +42,10 @@ private:
 	// returns the requested object used during map generation
 	static int l_get_mapgen_object(lua_State *L);
 
+	// set_mapgen_object(objectname, value)
+	// sets the requested object used during map generation
+	static int l_set_mapgen_object(lua_State *L);
+
 	// get_spawn_level(x = num, z = num)
 	static int l_get_spawn_level(lua_State *L);
 
@@ -119,6 +123,18 @@ private:
 
 	// generate_decorations(vm, p1, p2)
 	static int l_generate_decorations(lua_State *L);
+
+	// generate_biomes()
+	static int l_generate_biomes(lua_State *L);
+
+	// dust_top_nodes()
+	static int l_dust_top_nodes(lua_State *L);
+
+	// generate_caves(max_stone_y)
+	static int l_generate_caves(lua_State *L);
+
+	// generate_dungeons(max_stone_y)
+	static int l_generate_dungeons(lua_State *L);
 
 	// clear_registered_ores
 	static int l_clear_registered_ores(lua_State *L);
