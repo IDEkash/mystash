@@ -276,6 +276,7 @@ private:
 */
 class MapgenBasic : public Mapgen {
 	friend class ModApiMapgen;
+	friend class EmergeThread;
 public:
 	MapgenBasic(int mapgenid, MapgenParams *params, EmergeParams *emerge);
 	virtual ~MapgenBasic();
