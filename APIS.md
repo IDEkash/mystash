@@ -741,6 +741,12 @@ Available in the emerge thread. These allow modders to selectively trigger engin
 `core.generate_dungeons(max_stone_y)`
 - Triggers engine dungeon generation.
 
+`core.calc_biome_noise(pos)`
+- Triggers noise calculation for the current chunk (used by `generate_biomes`).
+
+`core.update_heightmap(minp, maxp)`
+- Updates the internal heightmap for the specified node range.
+
 ### High-Performance Raw Access
 
 These methods use binary strings to transfer data between C++ and Lua, bypassing the overhead of large Lua tables.

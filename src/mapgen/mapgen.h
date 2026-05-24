@@ -276,7 +276,6 @@ private:
 */
 class MapgenBasic : public Mapgen {
 	friend class ModApiMapgen;
-	friend class EmergeThread;
 public:
 	MapgenBasic(int mapgenid, MapgenParams *params, EmergeParams *emerge);
 	virtual ~MapgenBasic();
@@ -288,15 +287,15 @@ public:
 	virtual bool generateCavernsNoise(s16 max_stone_y);
 	virtual void generateDungeons(s16 max_stone_y);
 
-protected:
-	BiomeManager *m_bmgr = nullptr;
-
-	Noise *noise_filler_depth = nullptr;
-
 	v3s16 node_min;
 	v3s16 node_max;
 	v3s16 full_node_min;
 	v3s16 full_node_max;
+
+protected:
+	BiomeManager *m_bmgr = nullptr;
+
+	Noise *noise_filler_depth = nullptr;
 
 	content_t c_stone;
 	content_t c_water_source;

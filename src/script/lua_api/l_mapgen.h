@@ -136,6 +136,12 @@ private:
 	// generate_dungeons(max_stone_y)
 	static int l_generate_dungeons(lua_State *L);
 
+	// calc_biome_noise(pos)
+	static int l_calc_biome_noise(lua_State *L);
+
+	// update_heightmap(minp, maxp)
+	static int l_update_heightmap(lua_State *L);
+
 	// clear_registered_ores
 	static int l_clear_registered_ores(lua_State *L);
 

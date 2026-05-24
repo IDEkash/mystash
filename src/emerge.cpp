@@ -732,19 +732,30 @@ void *EmergeThread::run()
 
 			v3s16 node_min = bmdata.blockpos_min * MAP_BLOCKSIZE;
 			v3s16 node_max = (bmdata.blockpos_max + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+			v3s16 full_node_min = (bmdata.blockpos_min - 1) * MAP_BLOCKSIZE;
+			v3s16 full_node_max = (bmdata.blockpos_max + 2) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
 
 			m_mapgen->generating = true;
 			m_mapgen->vm = bmdata.vmanip;
 			m_mapgen->ndef = bmdata.nodedef;
-			m_mapgen->blockseed = Mapgen::getBlockSeed2(node_min, bmdata.seed);
 
-			// For MapgenBasic based mapgens, initialize these for Lua methods
-			if (m_mapgen->getType() != MAPGEN_SINGLENODE) {
-				MapgenBasic *mgb = (MapgenBasic *)m_mapgen;
-				mgb->node_min = node_min;
-				mgb->node_max = node_max;
-				mgb->full_node_min = (bmdata.blockpos_min - 1) * MAP_BLOCKSIZE;
-				mgb->full_node_max = (bmdata.blockpos_max + 2) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+			MapgenType mgtype = m_mapgen->getType();
+			if (mgtype == MAPGEN_V6) {
+				m_mapgen->blockseed = ((MapgenV6 *)m_mapgen)->get_blockseed(bmdata.seed, node_min);
+				MapgenV6 *mgv6 = (MapgenV6 *)m_mapgen;
+				mgv6->node_min = node_min;
+				mgv6->node_max = node_max;
+				mgv6->full_node_min = full_node_min;
+				mgv6->full_node_max = full_node_max;
+			} else {
+				m_mapgen->blockseed = Mapgen::getBlockSeed2(node_min, bmdata.seed);
+				if (mgtype != MAPGEN_SINGLENODE) {
+					MapgenBasic *mgb = (MapgenBasic *)m_mapgen;
+					mgb->node_min = node_min;
+					mgb->node_max = node_max;
+					mgb->full_node_min = full_node_min;
+					mgb->full_node_max = full_node_max;
+				}
 			}
 
 			bool skip_internal = false;

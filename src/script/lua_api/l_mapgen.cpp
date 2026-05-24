@@ -1785,6 +1785,42 @@ int ModApiMapgen::l_generate_dungeons(lua_State *L)
 }
 
 
+// calc_biome_noise(pos)
+int ModApiMapgen::l_calc_biome_noise(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	Mapgen *mg = getMapgen(L);
+	if (!mg)
+		throw LuaError("Must only be called in a mapgen thread!");
+
+	v3s16 pmin = read_v3s16(L, 1);
+
+	if (mg->biomegen)
+		mg->biomegen->calcBiomeNoise(pmin);
+
+	return 0;
+}
+
+
+// update_heightmap(minp, maxp)
+int ModApiMapgen::l_update_heightmap(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+
+	Mapgen *mg = getMapgen(L);
+	if (!mg)
+		throw LuaError("Must only be called in a mapgen thread!");
+
+	v3s16 pmin = read_v3s16(L, 1);
+	v3s16 pmax = read_v3s16(L, 2);
+
+	mg->updateHeightmap(pmin, pmax);
+
+	return 0;
+}
+
+
 // generate_decorations(vm, p1, p2, use_mapgen_biomes)
 int ModApiMapgen::l_generate_decorations(lua_State *L)
 {
@@ -2286,6 +2322,8 @@ void ModApiMapgen::Initialize(lua_State *L, int top)
 	API_FCT(dust_top_nodes);
 	API_FCT(generate_caves);
 	API_FCT(generate_dungeons);
+	API_FCT(calc_biome_noise);
+	API_FCT(update_heightmap);
 	API_FCT(create_schematic);
 	API_FCT(place_schematic);
 	API_FCT(place_schematic_on_vmanip);
@@ -2321,6 +2359,8 @@ void ModApiMapgen::InitializeEmerge(lua_State *L, int top)
 	API_FCT(dust_top_nodes);
 	API_FCT(generate_caves);
 	API_FCT(generate_dungeons);
+	API_FCT(calc_biome_noise);
+	API_FCT(update_heightmap);
 	API_FCT(place_schematic_on_vmanip);
 	API_FCT(spawn_tree_on_vmanip);
 	API_FCT(serialize_schematic);
