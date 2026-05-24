@@ -177,7 +177,15 @@ void EmergeManager::initMapgens(MapgenParams *params)
 		<< Mapgen::getMapgenName(params->mgtype)
 		<< " and chunksize=" << params->chunksize << std::endl;
 
-	initThreads(true);
+	/*
+	 * Singlenode is currently the only mapgen not affected by the
+	 * unfinished slice bug, so allow multiple threads by default.
+	 * We do this for the Lua mapgens who benefit from this (since singlenode
+	 * itself isn't very useful).
+	 * see <https://github.com/luanti-org/luanti/issues/9357>
+	 */
+	bool multithread = params->mgtype == MAPGEN_SINGLENODE;
+	initThreads(multithread);
 
 	v3s16 csize = params->chunksize * MAP_BLOCKSIZE;
 	biomegen = biomemgr->createBiomeGen(BIOMEGEN_ORIGINAL, params->bparams, csize);
@@ -622,7 +630,7 @@ MapBlock *EmergeThread::finishGen(v3s16 pos, BlockMakeData *bmdata,
 	/*
 		Clear mapgen state
 	*/
-	assert(!m_mapgen->generating);
+	m_mapgen->generating = false;
 	m_mapgen->gennotify.clearEvents();
 	m_mapgen->vm = nullptr;
 
@@ -723,7 +731,21 @@ void *EmergeThread::run()
 			m_trans_liquid = &bmdata.transforming_liquid;
 
 			v3s16 node_min = bmdata.blockpos_min * MAP_BLOCKSIZE;
+			v3s16 node_max = (bmdata.blockpos_max + v3s16(1, 1, 1)) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+
+			m_mapgen->generating = true;
+			m_mapgen->vm = bmdata.vmanip;
+			m_mapgen->ndef = bmdata.nodedef;
 			m_mapgen->blockseed = Mapgen::getBlockSeed2(node_min, bmdata.seed);
+
+			// For MapgenBasic based mapgens, initialize these for Lua methods
+			if (m_mapgen->getType() != MAPGEN_SINGLENODE) {
+				MapgenBasic *mgb = (MapgenBasic *)m_mapgen;
+				mgb->node_min = node_min;
+				mgb->node_max = node_max;
+				mgb->full_node_min = (bmdata.blockpos_min - 1) * MAP_BLOCKSIZE;
+				mgb->full_node_max = (bmdata.blockpos_max + 2) * MAP_BLOCKSIZE - v3s16(1, 1, 1);
+			}
 
 			bool skip_internal = false;
 			try {

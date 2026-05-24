@@ -17,6 +17,7 @@
 #include "mapgen/mg_ore.h"
 #include "mapgen/mg_decoration.h"
 #include "mapgen/mg_schematic.h"
+#include "mapgen/mapgen_v6.h"
 #include "mapgen/treegen.h"
 #include "filesys.h"
 #include "settings.h"
@@ -1707,7 +1708,8 @@ int ModApiMapgen::l_generate_biomes(lua_State *L)
 	if (!mg)
 		throw LuaError("Must only be called in a mapgen thread!");
 
-	if (mg->getType() == MAPGEN_SINGLENODE)
+	MapgenType type = mg->getType();
+	if (type == MAPGEN_SINGLENODE || type == MAPGEN_V6)
 		return 0;
 
 	((MapgenBasic *)mg)->generateBiomes();
@@ -1725,7 +1727,8 @@ int ModApiMapgen::l_dust_top_nodes(lua_State *L)
 	if (!mg)
 		throw LuaError("Must only be called in a mapgen thread!");
 
-	if (mg->getType() == MAPGEN_SINGLENODE)
+	MapgenType type = mg->getType();
+	if (type == MAPGEN_SINGLENODE || type == MAPGEN_V6)
 		return 0;
 
 	((MapgenBasic *)mg)->dustTopNodes();
@@ -1743,14 +1746,19 @@ int ModApiMapgen::l_generate_caves(lua_State *L)
 	if (!mg)
 		throw LuaError("Must only be called in a mapgen thread!");
 
-	if (mg->getType() == MAPGEN_SINGLENODE)
+	MapgenType type = mg->getType();
+	if (type == MAPGEN_SINGLENODE)
 		return 0;
 
 	s16 max_stone_y = luaL_checkinteger(L, 1);
 
-	MapgenBasic *mgb = (MapgenBasic *)mg;
-	mgb->generateCavesNoiseIntersection(max_stone_y);
-	mgb->generateCavesRandomWalk(max_stone_y, mgb->large_cave_depth);
+	if (type == MAPGEN_V6) {
+		((MapgenV6 *)mg)->generateCaves(max_stone_y);
+	} else {
+		MapgenBasic *mgb = (MapgenBasic *)mg;
+		mgb->generateCavesNoiseIntersection(max_stone_y);
+		mgb->generateCavesRandomWalk(max_stone_y, mgb->large_cave_depth);
+	}
 
 	return 0;
 }
@@ -1765,7 +1773,8 @@ int ModApiMapgen::l_generate_dungeons(lua_State *L)
 	if (!mg)
 		throw LuaError("Must only be called in a mapgen thread!");
 
-	if (mg->getType() == MAPGEN_SINGLENODE)
+	MapgenType type = mg->getType();
+	if (type == MAPGEN_SINGLENODE || type == MAPGEN_V6)
 		return 0;
 
 	s16 max_stone_y = luaL_checkinteger(L, 1);
