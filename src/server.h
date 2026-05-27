@@ -276,6 +276,8 @@ public:
 	// request server to shutdown
 	void requestShutdown(const std::string &msg, bool reconnect, float delay = 0.0f);
 
+	void requestWorldSwitch(const std::string &world_path);
+
 	// Returns -1 if failed, sound handle on success
 	// Envlock
 	s32 playSound(ServerPlayingSound &params, bool ephemeral=false);
@@ -509,8 +511,10 @@ private:
 		friend class TestServerShutdownState;
 		public:
 			bool is_requested = false;
+			bool is_world_switch = false;
 			bool should_reconnect = false;
 			std::string message;
+			std::string next_world_path;
 
 			void reset();
 			void trigger(float delay, const std::string &msg, bool reconnect);
@@ -850,4 +854,4 @@ private:
 
 	Shuts down when kill is set to true.
 */
-void dedicated_server_loop(Server &server, volatile std::sig_atomic_t &kill);
+std::string dedicated_server_loop(Server &server, volatile std::sig_atomic_t &kill);

@@ -8,6 +8,8 @@
 #include "scripting_server.h"
 #include "content/subgames.h"
 #include "porting.h"
+#include <json/json.h>
+#include <fstream>
 
 /**
  * Manage server mods
@@ -20,6 +22,33 @@ ServerModManager::ServerModManager(const std::string &worldpath, SubgameSpec gam
 	// Add all game mods and all world mods
 	configuration.addGameMods(gamespec);
 	configuration.addModsInPath(worldpath + DIR_DELIM + "worldmods", "worldmods");
+
+	// Add linked mods from worldmeta.json
+	std::string worldmeta_path = worldpath + DIR_DELIM + "worldmeta.json";
+	std::ifstream is(worldmeta_path, std::ifstream::binary);
+	if (is.good()) {
+		Json::Value root;
+		Json::CharReaderBuilder builder;
+		builder["collectComments"] = false;
+		std::string errs;
+		if (Json::parseFromStream(builder, is, &root, &errs)) {
+			if (root.isMember("linked_mods") && root["linked_mods"].isArray()) {
+				for (const auto &item : root["linked_mods"]) {
+					std::string mod_path = item.asString();
+					ModSpec spec;
+					spec.path = mod_path;
+					spec.name = fs::GetFilenameFromPath(mod_path.c_str());
+					spec.virtual_path = mod_path;
+					if (parseModContents(spec)) {
+						configuration.addMods({spec});
+					} else {
+						configuration.addModsInPath(mod_path, mod_path);
+					}
+				}
+			}
+		}
+	}
+	is.close();
 
 	// Load normal mods
 	std::string worldmt = worldpath + DIR_DELIM + "world.mt";

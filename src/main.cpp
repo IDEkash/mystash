@@ -1113,8 +1113,11 @@ static bool determine_subgame(GameParams *game_params)
 /*****************************************************************************
  * Dedicated server
  *****************************************************************************/
-static bool run_dedicated_server(const GameParams &game_params, const Settings &cmd_args)
+static bool run_dedicated_server(const GameParams &initial_game_params, const Settings &cmd_args)
 {
+	GameParams game_params = initial_game_params;
+
+run_server:
 	verbosestream << _("Using world path") << " ["
 	              << game_params.world_path << "]" << std::endl;
 	verbosestream << _("Using gameid") << " ["
@@ -1190,7 +1193,13 @@ static bool run_dedicated_server(const GameParams &game_params, const Settings &
 
 			server.start();
 			// Run server
-			dedicated_server_loop(server, kill);
+			std::string next_world = dedicated_server_loop(server, kill);
+			if (!next_world.empty()) {
+				game_params.world_path = next_world;
+				game_params.game_spec = findWorldSubgame(next_world);
+				g_term_console.stopAndWaitforThread();
+				goto run_server;
+			}
 		} catch (const ModError &e) {
 			g_term_console.stopAndWaitforThread();
 			errorstream << "ModError: " << e.what() << std::endl;
@@ -1221,7 +1230,12 @@ static bool run_dedicated_server(const GameParams &game_params, const Settings &
 
 			// Run server
 			volatile auto &kill = *porting::signal_handler_killstatus();
-			dedicated_server_loop(server, kill);
+			std::string next_world = dedicated_server_loop(server, kill);
+			if (!next_world.empty()) {
+				game_params.world_path = next_world;
+				game_params.game_spec = findWorldSubgame(next_world);
+				goto run_server;
+			}
 
 		} catch (const ModError &e) {
 			errorstream << "ModError: " << e.what() << std::endl;

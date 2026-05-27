@@ -212,8 +212,10 @@ void Server::ShutdownState::reset()
 {
 	m_timer = 0.0f;
 	message.clear();
+	next_world_path.clear();
 	should_reconnect = false;
 	is_requested = false;
+	is_world_switch = false;
 }
 
 void Server::ShutdownState::trigger(float delay, const std::string &msg, bool reconnect)
@@ -4287,6 +4289,13 @@ v3f Server::findSpawnPos()
 	return v3f(0.0f, 0.0f, 0.0f);
 }
 
+void Server::requestWorldSwitch(const std::string &world_path)
+{
+	m_shutdown_state.is_requested = true;
+	m_shutdown_state.is_world_switch = true;
+	m_shutdown_state.next_world_path = world_path;
+}
+
 void Server::requestShutdown(const std::string &msg, bool reconnect, float delay)
 {
 	if (delay == 0.0f) {
@@ -4373,7 +4382,7 @@ std::unique_ptr<PlayerSAO> Server::emergePlayer(const char *name, session_t peer
 	return playersao;
 }
 
-void dedicated_server_loop(Server &server, volatile std::sig_atomic_t &kill)
+std::string dedicated_server_loop(Server &server, volatile std::sig_atomic_t &kill)
 {
 	verbosestream<<"dedicated_server_loop()"<<std::endl;
 
@@ -4392,14 +4401,18 @@ void dedicated_server_loop(Server &server, volatile std::sig_atomic_t &kill)
 	 * server externally (bool &kill).
 	 */
 
+	std::string next_world_path;
 	for(;;) {
 		// This is kind of a hack but can be done like this
 		// because server.step() is very light
 		sleep_ms((int)(steplen*1000.0f));
 		server.step();
 
-		if (server.isShutdownRequested() || kill)
+		if (server.isShutdownRequested() || kill) {
+			if (server.isShutdownRequested() && server.m_shutdown_state.is_world_switch)
+				next_world_path = server.m_shutdown_state.next_world_path;
 			break;
+		}
 
 		/*
 			Profiler
@@ -4425,6 +4438,8 @@ void dedicated_server_loop(Server &server, volatile std::sig_atomic_t &kill)
 		g_profiler->print(infostream);
 		g_profiler->clear();
 	}
+
+	return next_world_path;
 }
 
 /*

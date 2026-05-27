@@ -302,6 +302,16 @@ std::vector<WorldSpec> getAvailableWorlds()
 			if (!dln.dir)
 				continue;
 			std::string fullpath = worldspath + DIR_DELIM + dln.name;
+
+			// Check visibility
+			Settings worldmt;
+			std::string worldmt_path = fullpath + DIR_DELIM + "world.mt";
+			if (worldmt.readConfigFile(worldmt_path.c_str())) {
+				std::string visible_s;
+				if (worldmt.getNoEx("visible", visible_s) && !is_yes(visible_s))
+					continue;
+			}
+
 			std::string name = getWorldName(fullpath, dln.name);
 			// Just allow filling in the gameid always for now
 			bool can_be_legacy = true;

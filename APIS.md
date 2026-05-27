@@ -645,6 +645,41 @@ player:set_physics_override({
 
 ---
 
+## Dimension API (`dimension`)
+
+The `dimension` API allows modders to programmatically create, manage, and switch between worlds.
+
+### World Management
+
+`dimension.create_world(name, gameid, settings?) -> success, path_or_error`
+- Creates a new world with the given name and game ID.
+- `settings`: (Optional) Table of settings to write to `world.mt` (e.g., `mapgen_name = "v7"`).
+- Returns `true, path` on success, or `false, error_message` on failure.
+
+`dimension.delete_world(path) -> success, error?`
+- Deletes the world at the specified path.
+- **Security**: Only worlds inside the `worlds/` directory can be deleted. The currently active world cannot be deleted.
+- Returns `true` on success, or `false, error_message` on failure.
+
+`dimension.set_visible(path, visible) -> success, error?`
+- Toggles whether a world is visible in the player's main menu world list.
+- `visible`: boolean.
+- Returns `true` on success.
+
+`dimension.link_mod(world_path, mod_path) -> success, error?`
+- Links an external mod to the specified world. The mod will be loaded when that world is active.
+- `mod_path`: Absolute path to the mod folder.
+- Returns `true` on success.
+
+### World Switching
+
+`dimension.enter_world(path) -> success, error?`
+- Requests a seamless switch to the world at the specified path.
+- The current server/session will be torn down and a new one initialized with the target world.
+- Returns `true` on success (the switch will happen after the current step), or `false, error_message` if the path is invalid.
+
+---
+
 ## Accessibility Sprint Toggle
 
 An accessibility setting that gates the engine's internal joystick-driven speed boost, allowing players who prefer a consistent walking speed to disable the automatic sprint.

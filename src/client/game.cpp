@@ -3990,7 +3990,7 @@ void Game::readSettings()
  ****************************************************************************/
 /****************************************************************************/
 
-void the_game(volatile std::sig_atomic_t *kill,
+std::string the_game(volatile std::sig_atomic_t *kill,
 		InputHandler *input,
 		RenderingEngine *rendering_engine,
 		const GameStartData &start_data,
@@ -3999,6 +3999,7 @@ void the_game(volatile std::sig_atomic_t *kill,
 		bool *reconnect_requested) // Used for local game
 {
 	Game game;
+	std::string next_world_path;
 
 	try {
 
@@ -4028,5 +4029,11 @@ void the_game(volatile std::sig_atomic_t *kill,
 		errorstream << error_message << std::endl;
 	}
 
+	if (game.getServer() && game.getServer()->isShutdownRequested() &&
+			game.getServer()->m_shutdown_state.is_world_switch) {
+		next_world_path = game.getServer()->m_shutdown_state.next_world_path;
+	}
+
 	game.shutdown();
+	return next_world_path;
 }
