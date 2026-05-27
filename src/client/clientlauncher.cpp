@@ -237,6 +237,8 @@ bool ClientLauncher::run(GameStartData &start_data, const Settings &cmd_args)
 				start_data.world_path = next_world;
 				start_data.world_spec = WorldSpec(next_world, getWorldName(next_world, fs::GetFilenameFromPath(next_world.c_str())), getWorldGameId(next_world, true));
 				start_data.game_spec = findWorldSubgame(next_world);
+				skip_main_menu = true;
+				first_loop = false;
 				continue;
 			}
 #ifdef NDEBUG

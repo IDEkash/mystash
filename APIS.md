@@ -645,9 +645,9 @@ player:set_physics_override({
 
 ---
 
-## Dimension API (`dimension`)
+## Dimension API (`dimension` / `dim`)
 
-The `dimension` API allows modders to programmatically create, manage, and switch between worlds.
+The `dimension` API (also aliased as `dim`) allows modders to programmatically create, manage, and switch between worlds.
 
 ### World Management
 

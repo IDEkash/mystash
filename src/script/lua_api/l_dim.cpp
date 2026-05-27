@@ -207,5 +207,12 @@ void ModApiDim::Initialize(lua_State *L, int top)
 	lua_pushvalue(L, tbl);
 	lua_setglobal(L, "dimension");
 
+	lua_pushvalue(L, tbl);
+	lua_setglobal(L, "dim");
+
+	lua_pushvalue(L, tbl);
 	lua_setfield(L, top, "dimension");
+
+	lua_pushvalue(L, tbl);
+	lua_setfield(L, top, "dim");
 }
