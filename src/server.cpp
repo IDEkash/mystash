@@ -4409,8 +4409,8 @@ std::string dedicated_server_loop(Server &server, volatile std::sig_atomic_t &ki
 		server.step();
 
 		if (server.isShutdownRequested() || kill) {
-			if (server.isShutdownRequested() && server.m_shutdown_state.is_world_switch)
-				next_world_path = server.m_shutdown_state.next_world_path;
+			if (server.isShutdownRequested() && server.isWorldSwitchRequested())
+				next_world_path = server.getNextWorldPath();
 			break;
 		}
 

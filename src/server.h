@@ -272,6 +272,8 @@ public:
 
 	// read shutdown state
 	inline bool isShutdownRequested() const { return m_shutdown_state.is_requested; }
+	inline bool isWorldSwitchRequested() const { return m_shutdown_state.is_world_switch; }
+	inline std::string getNextWorldPath() const { return m_shutdown_state.next_world_path; }
 
 	// request server to shutdown
 	void requestShutdown(const std::string &msg, bool reconnect, float delay = 0.0f);
