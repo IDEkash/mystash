@@ -4030,8 +4030,8 @@ std::string the_game(volatile std::sig_atomic_t *kill,
 	}
 
 	if (game.getServer() && game.getServer()->isShutdownRequested() &&
-			game.getServer()->m_shutdown_state.is_world_switch) {
-		next_world_path = game.getServer()->m_shutdown_state.next_world_path;
+			game.getServer()->isWorldSwitchRequested()) {
+		next_world_path = game.getServer()->getNextWorldPath();
 	}
 
 	game.shutdown();
