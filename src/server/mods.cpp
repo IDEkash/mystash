@@ -3,6 +3,7 @@
 // Copyright (C) 2018 nerzhul, Loic Blot <loic.blot@unix-experience.fr>
 
 #include "mods.h"
+#include <json/json.h>
 #include "filesys.h"
 #include "log.h"
 #include "scripting_server.h"
