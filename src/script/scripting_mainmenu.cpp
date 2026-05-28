@@ -6,6 +6,7 @@
 #include "cpp_api/s_internal.h"
 #include "lua_api/l_base.h"
 #include "lua_api/l_http.h"
+#include "lua_api/l_dimension.h"
 #include "lua_api/l_mainmenu.h"
 #include "lua_api/l_mainmenu_sound.h"
 #include "lua_api/l_menu_common.h"
@@ -54,6 +55,7 @@ void MainMenuScripting::initializeModApi(lua_State *L, int top)
 
 	// Initialize mod API modules
 	ModApiMenuCommon::Initialize(L, top);
+	ModApiDimension::Initialize(L, top);
 	ModApiMainMenu::Initialize(L, top);
 	ModApiUtil::Initialize(L, top);
 	ModApiMainMenuSound::Initialize(L, top);

@@ -13,6 +13,7 @@
 #include "content/subgames.h"
 #include "util/string.h"
 #include "convert_json.h"
+#include "map_settings_manager.h"
 
 int ModApiDimension::l_create(lua_State *L)
 {
@@ -28,7 +29,15 @@ int ModApiDimension::l_create(lua_State *L)
 
 	std::string gameid = getstringfield_default(L, 1, "gameid", "");
 	if (gameid.empty()) {
-		gameid = getGameDef(L)->getGameSpec()->id;
+		IGameDef *gdef = getGameDef(L);
+		if (gdef && gdef->getGameSpec())
+			gameid = gdef->getGameSpec()->id;
+	}
+
+	if (gameid.empty()) {
+		lua_pushnil(L);
+		lua_pushstring(L, "Could not determine gameid");
+		return 2;
 	}
 
 	std::string path = porting::path_user + DIR_DELIM "worlds" + DIR_DELIM + sanitizeDirName(world_name, "world_");
@@ -52,13 +61,13 @@ int ModApiDimension::l_create(lua_State *L)
 		if (lua_type(L, -2) == LUA_TSTRING) {
 			std::string key = lua_tostring(L, -2);
 			if (key == "seed") {
-				use_settings["fixed_map_seed"] = lua_tostring(L, -1);
+				use_settings["fixed_map_seed"] = readParam<std::string>(L, -1);
 			} else if (key == "mg_name") {
-				use_settings["mg_name"] = lua_tostring(L, -1);
+				use_settings["mg_name"] = readParam<std::string>(L, -1);
 			} else if (key == "mg_flags") {
-				use_settings["mg_flags"] = lua_tostring(L, -1);
+				use_settings["mg_flags"] = readParam<std::string>(L, -1);
 			} else if (str_starts_with(key, "mg") && key.find("_spflags") != std::string::npos) {
-				use_settings[key] = lua_tostring(L, -1);
+				use_settings[key] = readParam<std::string>(L, -1);
 			}
 		}
 		lua_pop(L, 1);
@@ -77,6 +86,16 @@ int ModApiDimension::l_create(lua_State *L)
 	try {
 		loadGameConfAndInitWorld(path, world_name, gamespec, true);
 
+		// Persist mapgen settings to map_meta.txt
+		std::string map_meta_path = path + DIR_DELIM "map_meta.txt";
+		MapSettingsManager mgr(map_meta_path);
+		for (auto &it : use_settings) {
+			std::string key = it.first;
+			if (key == "fixed_map_seed") key = "seed";
+			mgr.setMapSetting(key, it.second, true);
+		}
+		mgr.saveMapMeta();
+
 		std::string worldmt_path = path + DIR_DELIM "world.mt";
 		Settings worldmt;
 		worldmt.readConfigFile(worldmt_path.c_str());
@@ -92,7 +111,7 @@ int ModApiDimension::l_create(lua_State *L)
 			Json::Value linked_mods(Json::arrayValue);
 			lua_pushnil(L);
 			while (lua_next(L, -2) != 0) {
-				std::string mod = luaL_checkstring(L, -1);
+				std::string mod = readParam<std::string>(L, -1);
 				if (mod.find('/') != std::string::npos || mod.find('\\') != std::string::npos) {
 					// Path
 					linked_mods.append(fs::AbsolutePath(mod));
@@ -118,15 +137,14 @@ int ModApiDimension::l_create(lua_State *L)
 		// Trigger callback
 		lua_getglobal(L, "core");
 		lua_getfield(L, -1, "run_callbacks");
-		lua_getglobal(L, "core");
-		lua_getfield(L, -1, "registered_on_dimension_createds");
-		lua_pushstring(L, path.c_str());
+		lua_getfield(L, -2, "registered_on_dimension_createds");
 		lua_pushinteger(L, 0); // mode 0
+		lua_pushstring(L, path.c_str());
 		if (lua_pcall(L, 3, 0, 0) != 0) {
 			errorstream << "Error running on_dimension_created callbacks: " << lua_tostring(L, -1) << std::endl;
 			lua_pop(L, 1);
 		}
-		lua_pop(L, 1);
+		lua_pop(L, 1); // core
 
 		success = true;
 	} catch (const BaseException &e) {
@@ -159,13 +177,15 @@ int ModApiDimension::l_delete(lua_State *L)
 	std::string worlds_dir = fs::AbsolutePath(porting::path_user + DIR_DELIM "worlds");
 	std::string absolute_path = fs::AbsolutePath(path);
 
-	if (!str_starts_with(absolute_path, worlds_dir)) {
+	if (absolute_path.empty() || absolute_path == worlds_dir ||
+			!fs::PathStartsWith(absolute_path, worlds_dir + DIR_DELIM)) {
 		lua_pushboolean(L, false);
 		lua_pushstring(L, "Cannot delete worlds outside the worlds directory");
 		return 2;
 	}
 
-	if (absolute_path == fs::AbsolutePath(getGameDef(L)->getWorldPath())) {
+	IGameDef *gdef = getGameDef(L);
+	if (gdef && absolute_path == fs::AbsolutePath(gdef->getWorldPath())) {
 		lua_pushboolean(L, false);
 		lua_pushstring(L, "Cannot delete the currently active world");
 		return 2;
@@ -180,15 +200,14 @@ int ModApiDimension::l_delete(lua_State *L)
 	// Trigger callback
 	lua_getglobal(L, "core");
 	lua_getfield(L, -1, "run_callbacks");
-	lua_getglobal(L, "core");
-	lua_getfield(L, -1, "registered_on_dimension_deleteds");
-	lua_pushstring(L, path.c_str());
+	lua_getfield(L, -2, "registered_on_dimension_deleteds");
 	lua_pushinteger(L, 0);
+	lua_pushstring(L, path.c_str());
 	if (lua_pcall(L, 3, 0, 0) != 0) {
 		errorstream << "Error running on_dimension_deleted callbacks: " << lua_tostring(L, -1) << std::endl;
 		lua_pop(L, 1);
 	}
-	lua_pop(L, 1);
+	lua_pop(L, 1); // core
 
 	lua_pushboolean(L, true);
 	return 1;
@@ -255,7 +274,14 @@ int ModApiDimension::l_transfer_player(lua_State *L)
 		return 2;
 	}
 
-	getServer(L)->requestWorldSwitch(path);
+	Server *server = getServer(L);
+	if (!server) {
+		lua_pushboolean(L, false);
+		lua_pushstring(L, "Server not available");
+		return 2;
+	}
+
+	server->requestWorldSwitch(path);
 	lua_pushboolean(L, true);
 	return 1;
 }
@@ -325,15 +351,26 @@ int ModApiDimension::l_link_mod(lua_State *L)
 
 void ModApiDimension::Initialize(lua_State *L, int top)
 {
-	registerFunction(L, "create", l_create, top);
-	registerFunction(L, "delete", l_delete, top);
-	registerFunction(L, "list", l_list, top);
-	registerFunction(L, "exists", l_exists, top);
-	registerFunction(L, "get_info", l_get_info, top);
-	registerFunction(L, "transfer_player", l_transfer_player, top);
-	registerFunction(L, "enter_world", l_transfer_player, top); // alias
-	registerFunction(L, "load", l_transfer_player, top); // alias
-	registerFunction(L, "unload", l_transfer_player, top); // alias
-	registerFunction(L, "set_visible", l_set_visible, top);
-	registerFunction(L, "link_mod", l_link_mod, top);
+	lua_newtable(L);
+	int tbl = lua_gettop(L);
+
+	registerFunction(L, "create", l_create, tbl);
+	registerFunction(L, "delete", l_delete, tbl);
+	registerFunction(L, "list", l_list, tbl);
+	registerFunction(L, "exists", l_exists, tbl);
+	registerFunction(L, "get_info", l_get_info, tbl);
+	registerFunction(L, "transfer_player", l_transfer_player, tbl);
+	registerFunction(L, "enter_world", l_transfer_player, tbl); // alias
+	registerFunction(L, "load", l_transfer_player, tbl); // alias
+	registerFunction(L, "unload", l_transfer_player, tbl); // alias
+	registerFunction(L, "set_visible", l_set_visible, tbl);
+	registerFunction(L, "link_mod", l_link_mod, tbl);
+
+	lua_pushvalue(L, tbl);
+	lua_setfield(L, top, "dimension");
+
+	lua_pushvalue(L, tbl);
+	lua_setfield(L, top, "dim");
+
+	lua_pop(L, 1);
 }
