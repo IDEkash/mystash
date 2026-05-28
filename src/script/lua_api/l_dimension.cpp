@@ -1,6 +1,7 @@
 // Luanti
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
+#include <json/json.h>
 #include "lua_api/l_dimension.h"
 #include "lua_api/l_internal.h"
 #include "common/c_converter.h"
@@ -104,7 +105,7 @@ int ModApiDimension::l_create(lua_State *L)
 
 			if (!linked_mods.empty()) {
 				std::string worldmeta_path = path + DIR_DELIM "worldmeta.json";
-				Json::Value root;
+				Json::Value root(Json::objectValue);
 				root["linked_mods"] = linked_mods;
 				std::ofstream os(worldmeta_path, std::ios::binary);
 				os << root;
@@ -230,7 +231,7 @@ int ModApiDimension::l_get_info(lua_State *L)
 	std::string worldmt_path = path + DIR_DELIM "world.mt";
 	Settings worldmt;
 	if (worldmt.readConfigFile(worldmt_path.c_str())) {
-		lua_pushboolean(L, worldmt.getBool("visible", true));
+		lua_pushboolean(L, worldmt.exists("visible") ? worldmt.getBool("visible") : true);
 		lua_setfield(L, -2, "visible");
 	}
 
@@ -291,7 +292,7 @@ int ModApiDimension::l_link_mod(lua_State *L)
 	std::string mod_path = luaL_checkstring(L, 2);
 
 	std::string worldmeta_path = world_path + DIR_DELIM "worldmeta.json";
-	Json::Value root;
+	Json::Value root(Json::objectValue);
 	if (fs::PathExists(worldmeta_path)) {
 		std::ifstream is(worldmeta_path, std::ios::binary);
 		is >> root;
