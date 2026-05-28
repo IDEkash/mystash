@@ -191,10 +191,6 @@ void ScriptApiPlayer::on_joinplayer(ServerActiveObject *player, s64 last_login)
 		lua_getfield(L, -1, "on_enter_world");
 		if (lua_isfunction(L, -1)) {
 			objectrefGetOrCreate(L, player);
-			lua_getfield(L, -1, "get_player_name");
-			lua_insert(L, -2);
-			lua_pcall(L, 1, 1, 0); // name = player:get_player_name()
-
 			std::string world_path = getGameDef()->getWorldPath();
 			lua_pushstring(L, world_path.c_str());
 			if (lua_pcall(L, 2, 0, 0) != 0) {
@@ -228,10 +224,6 @@ void ScriptApiPlayer::on_leaveplayer(ServerActiveObject *player,
 		lua_getfield(L, -1, "on_leave_world");
 		if (lua_isfunction(L, -1)) {
 			objectrefGetOrCreate(L, player);
-			lua_getfield(L, -1, "get_player_name");
-			lua_insert(L, -2);
-			lua_pcall(L, 1, 1, 0); // name = player:get_player_name()
-
 			std::string world_path = getGameDef()->getWorldPath();
 			lua_pushstring(L, world_path.c_str());
 			if (lua_pcall(L, 2, 0, 0) != 0) {

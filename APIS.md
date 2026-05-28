@@ -841,19 +841,27 @@ The `dim` API (also aliased as `minetest.dimension` and `minetest.dim`) allows m
 
 `dim.register_on_enter_world(function(player, world_path))`
 - Fired when a player has successfully joined a new world (including via a dimension switch).
-- Also aliased as `dim.register_on_join`.
+- Aliased as `dim.register_on_join`.
 
 `dim.register_on_leave_world(function(player, world_path))`
 - Fired when a player is leaving the current world (including due to a dimension switch).
-- Also aliased as `dim.register_on_leave`.
+- Aliased as `dim.register_on_leave`.
 
 `dim.register_on_dimension_created(function(world_path))`
 - Fired when a new dimension/world has been created via `dim.create`.
-- Also aliased as `dim.register_on_created`.
+- Aliased as `dim.register_on_created`.
 
 `dim.register_on_dimension_deleted(function(world_path))`
 - Fired when a dimension/world has been deleted via `dim.delete`.
-- Also aliased as `dim.register_on_deleted`.
+- Aliased as `dim.register_on_deleted`.
+
+`dim.register_on_dimension_load(function(world_path))`
+- Fired when a dimension/world is loaded.
+- Aliased as `dim.register_on_load`.
+
+`dim.register_on_dimension_unload(function(world_path))`
+- Fired when a dimension/world is unloaded.
+- Aliased as `dim.register_on_unload`.
 
 ### Example Usage
 

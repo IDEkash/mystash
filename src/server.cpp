@@ -229,6 +229,7 @@ void Server::ShutdownState::triggerWorldSwitch(const std::string &path)
 {
 	next_world_path = path;
 	switch_world = true;
+	should_reconnect = true;
 	is_requested = true;
 }
 
@@ -272,8 +273,13 @@ void Server::requestWorldSwitch(const std::string &path)
 std::wstring Server::ShutdownState::getShutdownTimerMessage() const
 {
 	std::wstringstream ws;
-	ws << L"*** Server shutting down in "
-		<< duration_to_string(myround(m_timer)).c_str() << ".";
+	if (switch_world) {
+		ws << L"*** Switching world in "
+			<< duration_to_string(myround(m_timer)).c_str() << ".";
+	} else {
+		ws << L"*** Server shutting down in "
+			<< duration_to_string(myround(m_timer)).c_str() << ".";
+	}
 	return ws.str();
 }
 

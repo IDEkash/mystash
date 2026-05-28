@@ -127,7 +127,7 @@ int ModApiDimension::l_create(lua_State *L)
 				Json::Value root(Json::objectValue);
 				root["linked_mods"] = linked_mods;
 				std::ofstream os(worldmeta_path, std::ios::binary);
-				os << root;
+				fastWriteJson(root, os);
 			}
 		}
 		lua_pop(L, 1);
@@ -342,7 +342,7 @@ int ModApiDimension::l_link_mod(lua_State *L)
 	if (!found) {
 		root["linked_mods"].append(abs_mod_path);
 		std::ofstream os(worldmeta_path, std::ios::binary);
-		os << root;
+		fastWriteJson(root, os);
 	}
 
 	lua_pushboolean(L, true);
