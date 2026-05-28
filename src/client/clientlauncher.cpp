@@ -236,7 +236,7 @@ bool ClientLauncher::run(GameStartData &start_data, const Settings &cmd_args)
 			if (!next_world_path.empty()) {
 				start_data.world_path = next_world_path;
 				start_data.world_spec.path = next_world_path;
-				start_data.world_spec.name = fs::GetFilenameFromPath(next_world_path);
+				start_data.world_spec.name = fs::GetFilenameFromPath(next_world_path.c_str());
 				start_data.world_spec.gameid = getWorldGameId(next_world_path, true);
 				start_data.game_spec = findWorldSubgame(next_world_path);
 
