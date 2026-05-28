@@ -195,7 +195,7 @@ void ScriptApiPlayer::on_joinplayer(ServerActiveObject *player, s64 last_login)
 			lua_insert(L, -2);
 			lua_pcall(L, 1, 1, 0); // name = player:get_player_name()
 
-			std::string world_path = getGameDef(L)->getWorldPath();
+			std::string world_path = getGameDef()->getWorldPath();
 			lua_pushstring(L, world_path.c_str());
 			if (lua_pcall(L, 2, 0, 0) != 0) {
 				errorstream << "Error running on_enter_world: " << lua_tostring(L, -1) << std::endl;
@@ -232,7 +232,7 @@ void ScriptApiPlayer::on_leaveplayer(ServerActiveObject *player,
 			lua_insert(L, -2);
 			lua_pcall(L, 1, 1, 0); // name = player:get_player_name()
 
-			std::string world_path = getGameDef(L)->getWorldPath();
+			std::string world_path = getGameDef()->getWorldPath();
 			lua_pushstring(L, world_path.c_str());
 			if (lua_pcall(L, 2, 0, 0) != 0) {
 				errorstream << "Error running on_leave_world: " << lua_tostring(L, -1) << std::endl;
