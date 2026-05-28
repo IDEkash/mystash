@@ -205,16 +205,16 @@ bool ClientLauncher::run(GameStartData &start_data, const Settings &cmd_args)
 			bool should_run_game = launch_game(error_message, reconnect_requested,
 				start_data, cmd_args);
 
-			// Reset the reconnect_requested flag
-			reconnect_requested = false;
-
-			// If skip_main_menu, we only want to startup once
-			if (skip_main_menu && !first_loop)
+			// If skip_main_menu, we only want to startup once, unless a reconnect was requested
+			if (skip_main_menu && !first_loop && !reconnect_requested)
 				break;
 			first_loop = false;
 
+			// Reset the reconnect_requested flag
+			reconnect_requested = false;
+
 			if (!should_run_game) {
-				if (skip_main_menu)
+				if (skip_main_menu && !reconnect_requested)
 					break;
 				continue;
 			}
@@ -236,6 +236,10 @@ bool ClientLauncher::run(GameStartData &start_data, const Settings &cmd_args)
 			if (reconnect_requested && !start_data.world_path.empty() && start_data.address.empty()) {
 				skip_main_menu = true;
 				first_loop = false;
+
+				// Clear scene and textures before next world
+				m_rendering_engine->get_scene_manager()->clear();
+				m_rendering_engine->cleanupMeshCache();
 			}
 #ifdef NDEBUG
 		} catch (std::exception &e) {

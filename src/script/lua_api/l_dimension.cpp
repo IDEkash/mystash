@@ -55,20 +55,20 @@ int ModApiDimension::l_create(lua_State *L)
 	}
 
 	StringMap use_settings;
-	// Extract mapgen settings
+	// Extract all settings from the params table
 	lua_pushnil(L);
 	while (lua_next(L, 1) != 0) {
 		if (lua_type(L, -2) == LUA_TSTRING) {
 			std::string key = lua_tostring(L, -2);
-			if (key == "seed") {
-				use_settings["fixed_map_seed"] = readParam<std::string>(L, -1);
-			} else if (key == "mg_name") {
-				use_settings["mg_name"] = readParam<std::string>(L, -1);
-			} else if (key == "mg_flags") {
-				use_settings["mg_flags"] = readParam<std::string>(L, -1);
-			} else if (str_starts_with(key, "mg") && key.find("_spflags") != std::string::npos) {
-				use_settings[key] = readParam<std::string>(L, -1);
+			// Skip internal/special keys
+			if (key == "world_name" || key == "gameid" || key == "hidden" || key == "mods") {
+				lua_pop(L, 1);
+				continue;
 			}
+			if (key == "seed")
+				key = "fixed_map_seed";
+
+			use_settings[key] = readParam<std::string>(L, -1);
 		}
 		lua_pop(L, 1);
 	}
@@ -94,6 +94,7 @@ int ModApiDimension::l_create(lua_State *L)
 			if (key == "fixed_map_seed") key = "seed";
 			mgr.setMapSetting(key, it.second, true);
 		}
+		mgr.makeMapgenParams();
 		mgr.saveMapMeta();
 
 		std::string worldmt_path = path + DIR_DELIM "world.mt";
@@ -103,6 +104,13 @@ int ModApiDimension::l_create(lua_State *L)
 		bool hidden = getboolfield_default(L, 1, "hidden", false);
 		if (hidden) {
 			worldmt.setBool("visible", false);
+		}
+
+		// Also persist mapgen settings to world.mt as some logic reads it from there
+		for (auto &it : use_settings) {
+			std::string key = it.first;
+			if (key == "fixed_map_seed") key = "seed";
+			worldmt.set(key, it.second);
 		}
 
 		// Handle mods table

@@ -32,7 +32,16 @@ ServerModManager::ServerModManager(const std::string &worldpath, SubgameSpec gam
 		if (root.isObject() && root["linked_mods"].isArray()) {
 			for (const auto &m : root["linked_mods"]) {
 				std::string mod_path = m.asString();
-				if (fs::IsDir(mod_path)) {
+				if (!fs::IsDir(mod_path))
+					continue;
+
+				ModSpec spec;
+				spec.name = fs::GetFilenameFromPath(mod_path.c_str());
+				spec.path = mod_path;
+				if (parseModContents(spec)) {
+					std::vector<ModSpec> specs = {spec};
+					configuration.addMods(specs);
+				} else {
 					configuration.addModsInPath(mod_path, mod_path);
 				}
 			}

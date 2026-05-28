@@ -4010,6 +4010,11 @@ void the_game(volatile std::sig_atomic_t *kill,
 			}
 		}
 
+	} catch (const WorldSwitchException &e) {
+		const_cast<GameStartData&>(start_data).world_path = e.world_path;
+		const_cast<GameStartData&>(start_data).world_spec.path = e.world_path;
+		const_cast<GameStartData&>(start_data).world_spec.gameid = getWorldGameId(e.world_path, true);
+		*reconnect_requested = true;
 	} catch (SerializationError &e) {
 		const std::string ver_err = fmtgettext("The server is probably running a different version of %s.", PROJECT_NAME_C);
 		error_message = strgettext("A serialization error occurred:") +"\n"
