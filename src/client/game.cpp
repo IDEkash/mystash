@@ -4000,6 +4000,14 @@ void the_game(volatile std::sig_atomic_t *kill,
 		if (game.startup(kill, input, rendering_engine, start_data,
 				error_message, reconnect_requested, &chat_backend)) {
 			game.run();
+
+			if (game.getServer() && game.getServer()->isWorldSwitchRequested()) {
+				std::string next_world = game.getServer()->getNextWorldPath();
+				const_cast<GameStartData&>(start_data).world_path = next_world;
+				const_cast<GameStartData&>(start_data).world_spec.path = next_world;
+				const_cast<GameStartData&>(start_data).world_spec.gameid = getWorldGameId(next_world, true);
+				*reconnect_requested = true;
+			}
 		}
 
 	} catch (SerializationError &e) {

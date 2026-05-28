@@ -306,6 +306,15 @@ std::vector<WorldSpec> getAvailableWorlds()
 			// Just allow filling in the gameid always for now
 			bool can_be_legacy = true;
 			std::string gameid = getWorldGameId(fullpath, can_be_legacy);
+
+			// Check if world is hidden
+			std::string conf_path = fullpath + DIR_DELIM + "world.mt";
+			Settings conf;
+			if (conf.readConfigFile(conf_path.c_str())) {
+				if (conf.exists("visible") && !conf.getBool("visible"))
+					continue;
+			}
+
 			WorldSpec spec(fullpath, name, gameid);
 			if (!spec.isValid()) {
 				infostream << "(invalid: " << name << ") ";

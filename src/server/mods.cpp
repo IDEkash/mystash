@@ -8,6 +8,7 @@
 #include "scripting_server.h"
 #include "content/subgames.h"
 #include "porting.h"
+#include "convert_json.h"
 
 /**
  * Manage server mods
@@ -20,6 +21,22 @@ ServerModManager::ServerModManager(const std::string &worldpath, SubgameSpec gam
 	// Add all game mods and all world mods
 	configuration.addGameMods(gamespec);
 	configuration.addModsInPath(worldpath + DIR_DELIM + "worldmods", "worldmods");
+
+	// Add mods from worldmeta.json (linked_mods)
+	std::string worldmeta_path = worldpath + DIR_DELIM + "worldmeta.json";
+	if (fs::PathExists(worldmeta_path)) {
+		std::ifstream is(worldmeta_path, std::ios::binary);
+		Json::Value root;
+		is >> root;
+		if (root.isObject() && root["linked_mods"].isArray()) {
+			for (const auto &m : root["linked_mods"]) {
+				std::string mod_path = m.asString();
+				if (fs::IsDir(mod_path)) {
+					configuration.addModsInPath(mod_path, mod_path);
+				}
+			}
+		}
+	}
 
 	// Load normal mods
 	std::string worldmt = worldpath + DIR_DELIM + "world.mt";

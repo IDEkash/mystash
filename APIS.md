@@ -713,5 +713,85 @@ Extended volumetric and height-based fog controls.
   - `boundary`: table (FogBoundaryParams)
 
 ---
+
+## Dimension API (`dim`)
+
+The `dim` API (also aliased as `minetest.dimension` and `minetest.dim`) allows modders to create, manage, and control separate worlds entirely through mods.
+
+### Methods
+
+`dim.create(params) -> path | nil, error`
+- Creates a new world directory in the `worlds/` folder.
+- `params` fields:
+  - `world_name`: string (required)
+  - `gameid`: string (defaults to current game)
+  - `seed`: string (optional)
+  - `mg_name`: string (optional, e.g. `"v7"`, `"flat"`, `"fractal"`)
+  - `mg_flags`: string (optional, comma-separated flags)
+  - `mg<name>_spflags`: string (optional, mapgen-specific flags, e.g. `mgv7_spflags`)
+  - `hidden`: boolean (default `false`). If `true`, the world will not appear in the player's world list in the main menu.
+  - `mods`: table (optional). Array of strings. Can be mod names (to enable installed mods) or absolute paths (to link external mods).
+
+`dim.delete(path) -> success, error`
+- Deletes a world directory.
+- For safety, only paths within the engine's `worlds/` directory are allowed, and the currently active world cannot be deleted.
+
+`dim.list() -> table`
+- Returns an array of paths for all available worlds.
+
+`dim.exists(path) -> boolean`
+- Returns true if the world at the given path exists.
+
+`dim.get_info(path) -> table | nil`
+- Returns a table with world information (`path`, `name`, `gameid`, `visible`).
+
+`dim.transfer_player(player, world_path) -> success, error`
+- Initiates a world switch. The current server will shut down, and the engine will re-initialize with the target world.
+- Currently, this transfers all players as the entire server instance is rebooted into the new world.
+- Aliased as `dim.enter_world(world_path)`.
+
+`dim.link_mod(world_path, mod_path)`
+- Links an external mod folder to be loaded when the specified world is entered.
+- The `mod_path` should be an absolute path.
+
+`dim.set_visible(world_path, visible)`
+- Changes whether a world is visible in the main menu world list.
+
+### Callbacks
+
+`dim.register_on_enter_world(function(player, world_path))`
+- Fired when a player has successfully joined a new world (including via a dimension switch).
+
+`dim.register_on_leave_world(function(player, world_path))`
+- Fired when a player is leaving the current world (including due to a dimension switch).
+
+`dim.register_on_dimension_created(function(world_path))`
+- Fired when a new dimension/world has been created via `dim.create`.
+
+`dim.register_on_dimension_deleted(function(world_path))`
+- Fired when a dimension/world has been deleted via `dim.delete`.
+
+### Example Usage
+
+```lua
+local path = dim.create({
+    world_name = "event_world",
+    seed = "12345",
+    mg_name = "v7",
+    mg_flags = "caves,dungeons",
+    hidden = true,
+    mods = {
+        "default",
+        "mobs",
+        "/home/user/my_custom_mod"
+    }
+})
+
+if path then
+    dim.transfer_player(player, path)
+end
+```
+
+---
 - **More Soon!**
 - Latest Update: April, 27, 2026

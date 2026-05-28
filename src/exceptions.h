@@ -73,6 +73,12 @@ public:
 	ServerError(const std::string &s): BaseException(s) {}
 };
 
+class WorldSwitchException : public BaseException {
+public:
+	WorldSwitchException(const std::string &path): BaseException("World switch requested"), world_path(path) {}
+	std::string world_path;
+};
+
 class ClientStateError : public BaseException {
 public:
 	ClientStateError(const std::string &s): BaseException(s) {}

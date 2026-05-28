@@ -214,6 +214,8 @@ void Server::ShutdownState::reset()
 	message.clear();
 	should_reconnect = false;
 	is_requested = false;
+	switch_world = false;
+	next_world_path.clear();
 }
 
 void Server::ShutdownState::trigger(float delay, const std::string &msg, bool reconnect)
@@ -221,6 +223,13 @@ void Server::ShutdownState::trigger(float delay, const std::string &msg, bool re
 	m_timer = delay;
 	message = msg;
 	should_reconnect = reconnect;
+}
+
+void Server::ShutdownState::triggerWorldSwitch(const std::string &path)
+{
+	next_world_path = path;
+	switch_world = true;
+	is_requested = true;
 }
 
 void Server::ShutdownState::tick(float dtime, Server *server)
@@ -253,6 +262,11 @@ void Server::ShutdownState::tick(float dtime, Server *server)
 		m_timer = 0.0f;
 		is_requested = true;
 	}
+}
+
+void Server::requestWorldSwitch(const std::string &path)
+{
+	m_shutdown_state.triggerWorldSwitch(path);
 }
 
 std::wstring Server::ShutdownState::getShutdownTimerMessage() const
@@ -4398,8 +4412,12 @@ void dedicated_server_loop(Server &server, volatile std::sig_atomic_t &kill)
 		sleep_ms((int)(steplen*1000.0f));
 		server.step();
 
-		if (server.isShutdownRequested() || kill)
+		if (server.isShutdownRequested() || kill) {
+			if (server.isWorldSwitchRequested()) {
+				throw WorldSwitchException(server.getNextWorldPath());
+			}
 			break;
+		}
 
 		/*
 			Profiler

@@ -262,8 +262,27 @@ int main(int argc, char *argv[])
 
 	sanity_check(!game_params.world_path.empty());
 
-	if (game_params.is_dedicated_server)
-		return run_dedicated_server(game_params, cmd_args) ? 0 : 1;
+	if (game_params.is_dedicated_server) {
+		GameStartData server_start_data;
+		server_start_data.world_path = game_params.world_path;
+		server_start_data.game_spec = game_params.game_spec;
+		server_start_data.socket_port = game_params.socket_port;
+		server_start_data.is_dedicated_server = true;
+
+		bool world_switch_requested;
+		do {
+			world_switch_requested = false;
+			try {
+				if (!run_dedicated_server(server_start_data, cmd_args))
+					return 1;
+			} catch (const WorldSwitchException &e) {
+				server_start_data.world_path = e.world_path;
+				server_start_data.game_spec = findWorldSubgame(e.world_path);
+				world_switch_requested = true;
+			}
+		} while (world_switch_requested);
+		return 0;
+	}
 
 #if CHECK_CLIENT_BUILD()
 	retval = ClientLauncher().run(game_params, cmd_args) ? 0 : 1;

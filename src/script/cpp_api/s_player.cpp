@@ -183,6 +183,29 @@ void ScriptApiPlayer::on_joinplayer(ServerActiveObject *player, s64 last_login)
 	else
 		lua_pushnil(L);
 	runCallbacks(2, RUN_CALLBACKS_MODE_FIRST);
+
+	// Dimension API: on_enter_world
+	lua_getglobal(L, "core");
+	lua_getfield(L, -1, "dimension");
+	if (lua_istable(L, -1)) {
+		lua_getfield(L, -1, "on_enter_world");
+		if (lua_isfunction(L, -1)) {
+			objectrefGetOrCreate(L, player);
+			lua_getfield(L, -1, "get_player_name");
+			lua_insert(L, -2);
+			lua_pcall(L, 1, 1, 0); // name = player:get_player_name()
+
+			std::string world_path = getGameDef(L)->getWorldPath();
+			lua_pushstring(L, world_path.c_str());
+			if (lua_pcall(L, 2, 0, 0) != 0) {
+				errorstream << "Error running on_enter_world: " << lua_tostring(L, -1) << std::endl;
+				lua_pop(L, 1);
+			}
+		} else {
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 2); // core, dimension
 }
 
 void ScriptApiPlayer::on_leaveplayer(ServerActiveObject *player,
@@ -197,6 +220,29 @@ void ScriptApiPlayer::on_leaveplayer(ServerActiveObject *player,
 	objectrefGetOrCreate(L, player);
 	lua_pushboolean(L, timeout);
 	runCallbacks(2, RUN_CALLBACKS_MODE_FIRST);
+
+	// Dimension API: on_leave_world
+	lua_getglobal(L, "core");
+	lua_getfield(L, -1, "dimension");
+	if (lua_istable(L, -1)) {
+		lua_getfield(L, -1, "on_leave_world");
+		if (lua_isfunction(L, -1)) {
+			objectrefGetOrCreate(L, player);
+			lua_getfield(L, -1, "get_player_name");
+			lua_insert(L, -2);
+			lua_pcall(L, 1, 1, 0); // name = player:get_player_name()
+
+			std::string world_path = getGameDef(L)->getWorldPath();
+			lua_pushstring(L, world_path.c_str());
+			if (lua_pcall(L, 2, 0, 0) != 0) {
+				errorstream << "Error running on_leave_world: " << lua_tostring(L, -1) << std::endl;
+				lua_pop(L, 1);
+			}
+		} else {
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 2); // core, dimension
 }
 
 void ScriptApiPlayer::on_cheat(ServerActiveObject *player,

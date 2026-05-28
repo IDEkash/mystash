@@ -232,6 +232,11 @@ bool ClientLauncher::run(GameStartData &start_data, const Settings &cmd_args)
 				chat_backend,
 				&reconnect_requested
 			);
+
+			if (reconnect_requested && !start_data.world_path.empty() && start_data.address.empty()) {
+				skip_main_menu = true;
+				first_loop = false;
+			}
 #ifdef NDEBUG
 		} catch (std::exception &e) {
 			error_message = "Some exception: ";
