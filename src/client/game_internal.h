@@ -107,6 +107,7 @@ public:
 	void shutdown();
 
 	Client *getClient() { return client; }
+	Server *getServer() { return server; }
 
 	float getFogRange() const { return runData.fog_range; }
 

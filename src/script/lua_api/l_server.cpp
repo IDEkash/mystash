@@ -39,6 +39,15 @@ int ModApiServer::l_request_shutdown(lua_State *L)
 	return 0;
 }
 
+// switch_world(path)
+int ModApiServer::l_switch_world(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	const char *path = luaL_checkstring(L, 1);
+	getServer(L)->requestWorldSwitch(path);
+	return 0;
+}
+
 // get_server_status()
 int ModApiServer::l_get_server_status(lua_State *L)
 {
@@ -927,6 +936,7 @@ int ModApiServer::l_serialize_roundtrip(lua_State *L)
 void ModApiServer::Initialize(lua_State *L, int top)
 {
 	API_FCT(request_shutdown);
+	API_FCT(switch_world);
 	API_FCT(get_server_status);
 	API_FCT(get_server_uptime);
 	API_FCT(get_server_max_lag);

@@ -223,7 +223,7 @@ bool ClientLauncher::run(GameStartData &start_data, const Settings &cmd_args)
 			if (!m_rendering_engine->run() || *kill)
 				break;
 
-			the_game(
+			std::string next_world_path = the_game(
 				kill,
 				input,
 				m_rendering_engine,
@@ -232,6 +232,17 @@ bool ClientLauncher::run(GameStartData &start_data, const Settings &cmd_args)
 				chat_backend,
 				&reconnect_requested
 			);
+
+			if (!next_world_path.empty()) {
+				start_data.world_path = next_world_path;
+				start_data.world_spec.path = next_world_path;
+				start_data.world_spec.name = fs::GetFilenameFromPath(next_world_path);
+				start_data.world_spec.gameid = getWorldGameId(next_world_path, true);
+				start_data.game_spec = findWorldSubgame(next_world_path);
+
+				skip_main_menu = true;
+				first_loop = false;
+			}
 #ifdef NDEBUG
 		} catch (std::exception &e) {
 			error_message = "Some exception: ";

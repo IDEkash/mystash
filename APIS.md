@@ -713,5 +713,15 @@ Extended volumetric and height-based fog controls.
   - `boundary`: table (FogBoundaryParams)
 
 ---
+
+## World Switching API (Lua)
+
+This fork allows programmatically switching the current world without returning to the main menu.
+
+`core.switch_world(world_path)`
+- `world_path`: string. The absolute path to the world directory you want to switch to.
+- When called, the server will trigger an immediate shutdown and the client will re-initialize the engine using the provided world path, bypassing the main menu.
+
+---
 - **More Soon!**
-- Latest Update: April, 27, 2026
+- Latest Update: May, 22, 2026

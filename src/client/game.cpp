@@ -3985,7 +3985,7 @@ void Game::readSettings()
  ****************************************************************************/
 /****************************************************************************/
 
-void the_game(volatile std::sig_atomic_t *kill,
+std::string the_game(volatile std::sig_atomic_t *kill,
 		InputHandler *input,
 		RenderingEngine *rendering_engine,
 		const GameStartData &start_data,
@@ -3994,12 +3994,17 @@ void the_game(volatile std::sig_atomic_t *kill,
 		bool *reconnect_requested) // Used for local game
 {
 	Game game;
+	std::string next_world_path;
 
 	try {
 
 		if (game.startup(kill, input, rendering_engine, start_data,
 				error_message, reconnect_requested, &chat_backend)) {
 			game.run();
+
+			if (game.getServer() && game.getServer()->isWorldSwitchRequested()) {
+				next_world_path = game.getServer()->getNextWorldPath();
+			}
 		}
 
 	} catch (SerializationError &e) {
@@ -4024,4 +4029,6 @@ void the_game(volatile std::sig_atomic_t *kill,
 	}
 
 	game.shutdown();
+
+	return next_world_path;
 }

@@ -272,9 +272,13 @@ public:
 
 	// read shutdown state
 	inline bool isShutdownRequested() const { return m_shutdown_state.is_requested; }
+	inline bool isWorldSwitchRequested() const { return m_shutdown_state.is_world_switch; }
+	inline const std::string &getNextWorldPath() const { return m_shutdown_state.next_world_path; }
 
 	// request server to shutdown
 	void requestShutdown(const std::string &msg, bool reconnect, float delay = 0.0f);
+
+	void requestWorldSwitch(const std::string &path);
 
 	// Returns -1 if failed, sound handle on success
 	// Envlock
@@ -511,6 +515,9 @@ private:
 			bool is_requested = false;
 			bool should_reconnect = false;
 			std::string message;
+
+			bool is_world_switch = false;
+			std::string next_world_path;
 
 			void reset();
 			void trigger(float delay, const std::string &msg, bool reconnect);

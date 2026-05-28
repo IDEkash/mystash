@@ -214,6 +214,8 @@ void Server::ShutdownState::reset()
 	message.clear();
 	should_reconnect = false;
 	is_requested = false;
+	is_world_switch = false;
+	next_world_path.clear();
 }
 
 void Server::ShutdownState::trigger(float delay, const std::string &msg, bool reconnect)
@@ -4285,6 +4287,15 @@ v3f Server::findSpawnPos()
 
 	// No suitable spawn point found, return fallback 0,0,0
 	return v3f(0.0f, 0.0f, 0.0f);
+}
+
+void Server::requestWorldSwitch(const std::string &path)
+{
+	m_shutdown_state.is_requested = true;
+	m_shutdown_state.is_world_switch = true;
+	m_shutdown_state.next_world_path = path;
+
+	infostream << "*** World switch requested to: " << path << std::endl;
 }
 
 void Server::requestShutdown(const std::string &msg, bool reconnect, float delay)
