@@ -719,7 +719,13 @@ enum ToClientCommand : u16
 			f32 player yaw
 		*/
 
-		TOCLIENT_NUM_MSG_TYPES = 0x68,
+		TOCLIENT_SWITCH_WORLD = 0x68,
+		/*
+			u16 len
+			u8[len] world name
+		*/
+
+		TOCLIENT_NUM_MSG_TYPES = 0x69,
 	};
 
 enum ToServerCommand : u16

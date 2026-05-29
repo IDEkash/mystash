@@ -440,7 +440,35 @@ bool ClientLauncher::launch_game(std::string &error_message,
 	 * Show the GUI menu
 	 */
 	std::string server_name, server_description;
-	if (!skip_main_menu) {
+
+	bool world_switch_done = false;
+	if (!g_gamecallback->requested_switch_world.empty()) {
+		std::string worldname = g_gamecallback->requested_switch_world;
+		g_gamecallback->requested_switch_world.clear();
+
+		std::vector<WorldSpec> worldspecs = getAvailableWorlds();
+		int world_index = -1;
+		for (size_t i = 0; i < worldspecs.size(); i++) {
+			if (worldspecs[i].name == worldname) {
+				world_index = i;
+				break;
+			}
+		}
+
+		if (world_index != -1) {
+			infostream << "Switching to world: " << worldname << " (index " << world_index << ")" << std::endl;
+			start_data.world_spec = worldspecs[world_index];
+			start_data.world_path = start_data.world_spec.path;
+			start_data.address = ""; // Local game
+			start_data.local_server = false; // Simple singleplayer mode
+			world_switch_done = true;
+		} else {
+			errorstream << "World switch failed: world '" << worldname << "' not found." << std::endl;
+			// Fall through to main menu
+		}
+	}
+
+	if (!skip_main_menu && !world_switch_done) {
 		// Initialize menu data
 		// TODO: Re-use existing structs (GameStartData)
 		MainMenuData menudata;
@@ -487,7 +515,7 @@ bool ClientLauncher::launch_game(std::string &error_message,
 
 		start_data.local_server = !menudata.simple_singleplayer_mode &&
 			start_data.address.empty();
-	} else {
+	} else if (!world_switch_done) {
 		start_data.local_server = !start_data.world_path.empty() &&
 			start_data.address.empty() && !start_data.name.empty();
 	}

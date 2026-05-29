@@ -28,6 +28,7 @@ public:
 	virtual void changeVolume() = 0;
 	virtual void showOpenURLDialog(const std::string &url) = 0;
 	virtual void touchscreenLayout() = 0;
+	virtual void worldSwitch(const std::string &worldname) = 0;
 };
 
 extern gui::IGUIEnvironment *guienv;
@@ -158,6 +159,12 @@ public:
 		touchscreenlayout_requested = true;
 	}
 
+	void worldSwitch(const std::string &worldname) override
+	{
+		requested_switch_world = worldname;
+		disconnect_requested = true;
+	}
+
 	void showOpenURLDialog(const std::string &url) override
 	{
 		show_open_url_dialog = url;
@@ -169,6 +176,7 @@ public:
 	bool changevolume_requested = false;
 	bool touchscreenlayout_requested = false;
 	bool shutdown_requested = false;
+	std::string requested_switch_world = "";
 	std::string show_open_url_dialog = "";
 };
 

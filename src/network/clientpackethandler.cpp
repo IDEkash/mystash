@@ -23,6 +23,7 @@
 #include "client/clientevent.h"
 #include "client/sound.h"
 #include "client/localplayer.h"
+#include "gui/mainmenumanager.h"
 #include "network/clientopcodes.h"
 #include "network/connection.h"
 #include "network/networkpacket.h"
@@ -602,6 +603,15 @@ void Client::handleCommand_MovePlayer(NetworkPacket* pkt)
 	event->player_force_move.pitch = pitch;
 	event->player_force_move.yaw = yaw;
 	m_client_event_queue.push(event);
+}
+
+void Client::handleCommand_SwitchWorld(NetworkPacket *pkt)
+{
+	std::string worldname;
+	*pkt >> worldname;
+
+	infostream << "World switch requested to: " << worldname << std::endl;
+	g_gamecallback->worldSwitch(worldname);
 }
 
 void Client::handleCommand_MovePlayerRel(NetworkPacket *pkt)

@@ -713,5 +713,22 @@ Extended volumetric and height-based fog controls.
   - `boundary`: table (FogBoundaryParams)
 
 ---
+
+## World Switching API (Lua)
+
+Allows automatically leaving the current world and joining another world by name.
+
+`core.world_switch(worldname)` (Client-side)
+- `worldname`: string — The name of the world to switch to.
+- Automatically disconnects the user and joins the target world.
+- Only works for local worlds.
+
+`minetest.world_switch(playername, worldname)` (Server-side)
+- `playername`: string — The name of the player to switch.
+- `worldname`: string — The name of the world to switch to.
+- Sends a request to the client to switch worlds.
+- Only works if the client has the target world locally.
+
+---
 - **More Soon!**
 - Latest Update: April, 27, 2026

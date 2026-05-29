@@ -34,6 +34,9 @@ private:
 	// disconnect()
 	static int l_disconnect(lua_State *L);
 
+	// world_switch(name)
+	static int l_world_switch(lua_State *L);
+
 	// gettext(text)
 	static int l_gettext(lua_State *L);
 
