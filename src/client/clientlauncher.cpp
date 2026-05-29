@@ -245,11 +245,18 @@ bool ClientLauncher::run(GameStartData &start_data, const Settings &cmd_args)
 				skip_main_menu = true;
 				first_loop = true;
 
+				// Clear states that might prevent game from starting
+				error_message.clear();
+				reconnect_requested = false;
+
 				auto *driver = m_rendering_engine->getVideoDriver();
 				if (driver) {
 					driver->removeAllTextures();
 					driver->removeAllHardwareBuffers();
 				}
+
+				// Reset next_world_path so we don't loop forever if next game fails
+				next_world_path.clear();
 			}
 #ifdef NDEBUG
 		} catch (std::exception &e) {

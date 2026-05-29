@@ -718,9 +718,9 @@ Extended volumetric and height-based fog controls.
 
 This fork allows programmatically switching the current world without returning to the main menu.
 
-`core.switch_world(world_path)`
-- `world_path`: string. The absolute path to the world directory you want to switch to.
-- When called, the server will trigger an immediate shutdown and the client will re-initialize the engine using the provided world path, bypassing the main menu.
+`core.switch_world(name_or_path)`
+- `name_or_path`: string. The name of the world to switch to, or an absolute path to its directory.
+- When called, the server will kick all players, trigger an immediate shutdown, and the client will re-initialize the engine using the target world, bypassing the main menu.
 
 ---
 - **More Soon!**

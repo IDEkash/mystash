@@ -25,6 +25,7 @@
 #include "serverenvironment.h"
 #include "server/player_sao.h"
 #include "fogparams.h"
+#include "content/subgames.h"
 
 #include <algorithm>
 
@@ -39,12 +40,28 @@ int ModApiServer::l_request_shutdown(lua_State *L)
 	return 0;
 }
 
-// switch_world(path)
+// switch_world(name_or_path)
 int ModApiServer::l_switch_world(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-	const char *path = luaL_checkstring(L, 1);
-	getServer(L)->requestWorldSwitch(path);
+	std::string input = luaL_checkstring(L, 1);
+	std::string world_path;
+
+	// Try to find world by name first
+	std::vector<WorldSpec> worlds = getAvailableWorlds();
+	for (const auto &world : worlds) {
+		if (world.name == input) {
+			world_path = world.path;
+			break;
+		}
+	}
+
+	// Fallback to absolute path if not found by name
+	if (world_path.empty()) {
+		world_path = input;
+	}
+
+	getServer(L)->requestWorldSwitch(world_path);
 	return 0;
 }
 

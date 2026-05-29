@@ -4296,6 +4296,10 @@ void Server::requestWorldSwitch(const std::string &path)
 	m_shutdown_state.next_world_path = path;
 
 	infostream << "*** World switch requested to: " << path << std::endl;
+
+	// Kick all players to ensure they are disconnected properly before we switch.
+	// This helps the client transition from its current session.
+	kickAllPlayers(SERVER_ACCESSDENIED_SHUTDOWN, "Switching world...", false);
 }
 
 void Server::requestShutdown(const std::string &msg, bool reconnect, float delay)
