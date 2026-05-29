@@ -262,8 +262,18 @@ int main(int argc, char *argv[])
 
 	sanity_check(!game_params.world_path.empty());
 
-	if (game_params.is_dedicated_server)
-		return run_dedicated_server(game_params, cmd_args) ? 0 : 1;
+	if (game_params.is_dedicated_server) {
+		bool ok = true;
+		while (ok && !*porting::signal_handler_killstatus()) {
+			ok = run_dedicated_server(game_params, cmd_args);
+			if (ok && !game_params.world_path.empty()) {
+				infostream << "Restarting dedicated server into: " << game_params.world_path << std::endl;
+			} else {
+				break;
+			}
+		}
+		return ok ? 0 : 1;
+	}
 
 #if CHECK_CLIENT_BUILD()
 	retval = ClientLauncher().run(game_params, cmd_args) ? 0 : 1;
@@ -1190,7 +1200,11 @@ static bool run_dedicated_server(const GameParams &game_params, const Settings &
 
 			server.start();
 			// Run server
-			dedicated_server_loop(server, kill);
+			std::string next_world = dedicated_server_loop(server, kill);
+			const_cast<GameParams&>(game_params).world_path = next_world;
+			if (!next_world.empty()) {
+				const_cast<GameParams&>(game_params).game_spec = findWorldSubgame(next_world);
+			}
 		} catch (const ModError &e) {
 			g_term_console.stopAndWaitforThread();
 			errorstream << "ModError: " << e.what() << std::endl;
@@ -1221,7 +1235,11 @@ static bool run_dedicated_server(const GameParams &game_params, const Settings &
 
 			// Run server
 			volatile auto &kill = *porting::signal_handler_killstatus();
-			dedicated_server_loop(server, kill);
+			std::string next_world = dedicated_server_loop(server, kill);
+			const_cast<GameParams&>(game_params).world_path = next_world;
+			if (!next_world.empty()) {
+				const_cast<GameParams&>(game_params).game_spec = findWorldSubgame(next_world);
+			}
 
 		} catch (const ModError &e) {
 			errorstream << "ModError: " << e.what() << std::endl;

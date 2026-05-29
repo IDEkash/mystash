@@ -4384,7 +4384,7 @@ std::unique_ptr<PlayerSAO> Server::emergePlayer(const char *name, session_t peer
 	return playersao;
 }
 
-void dedicated_server_loop(Server &server, volatile std::sig_atomic_t &kill)
+std::string dedicated_server_loop(Server &server, volatile std::sig_atomic_t &kill)
 {
 	verbosestream<<"dedicated_server_loop()"<<std::endl;
 
@@ -4436,6 +4436,11 @@ void dedicated_server_loop(Server &server, volatile std::sig_atomic_t &kill)
 		g_profiler->print(infostream);
 		g_profiler->clear();
 	}
+
+	if (server.isWorldSwitchRequested())
+		return server.getNextWorldPath();
+
+	return "";
 }
 
 /*

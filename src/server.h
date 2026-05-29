@@ -856,5 +856,6 @@ private:
 	Runs a simple dedicated server loop.
 
 	Shuts down when kill is set to true.
+	Returns the next world path if a world switch was requested.
 */
-void dedicated_server_loop(Server &server, volatile std::sig_atomic_t &kill);
+std::string dedicated_server_loop(Server &server, volatile std::sig_atomic_t &kill);

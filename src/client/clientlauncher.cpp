@@ -170,6 +170,7 @@ bool ClientLauncher::run(GameStartData &start_data, const Settings &cmd_args)
 	bool reconnect_requested = false;
 
 	bool first_loop = true;
+	std::string next_world_path;
 
 	/*
 		Menu-game loop
@@ -209,7 +210,7 @@ bool ClientLauncher::run(GameStartData &start_data, const Settings &cmd_args)
 			reconnect_requested = false;
 
 			// If skip_main_menu, we only want to startup once
-			if (skip_main_menu && !first_loop)
+			if (skip_main_menu && !first_loop && next_world_path.empty())
 				break;
 			first_loop = false;
 
@@ -223,7 +224,7 @@ bool ClientLauncher::run(GameStartData &start_data, const Settings &cmd_args)
 			if (!m_rendering_engine->run() || *kill)
 				break;
 
-			std::string next_world_path = the_game(
+			next_world_path = the_game(
 				kill,
 				input,
 				m_rendering_engine,
@@ -239,9 +240,16 @@ bool ClientLauncher::run(GameStartData &start_data, const Settings &cmd_args)
 				start_data.world_spec.name = fs::GetFilenameFromPath(next_world_path.c_str());
 				start_data.world_spec.gameid = getWorldGameId(next_world_path, true);
 				start_data.game_spec = findWorldSubgame(next_world_path);
+				start_data.address = "";
 
 				skip_main_menu = true;
-				first_loop = false;
+				first_loop = true;
+
+				auto *driver = m_rendering_engine->getVideoDriver();
+				if (driver) {
+					driver->removeAllTextures();
+					driver->removeAllHardwareBuffers();
+				}
 			}
 #ifdef NDEBUG
 		} catch (std::exception &e) {
