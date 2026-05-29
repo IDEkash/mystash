@@ -440,6 +440,34 @@ bool ClientLauncher::launch_game(std::string &error_message,
 	 * Show the GUI menu
 	 */
 	std::string server_name, server_description;
+
+	if (!g_gamecallback->requested_switch_world.empty()) {
+		std::string worldname = g_gamecallback->requested_switch_world;
+		g_gamecallback->requested_switch_world.clear();
+
+		std::vector<WorldSpec> worldspecs = getAvailableWorlds();
+		int world_index = -1;
+		for (size_t i = 0; i < worldspecs.size(); i++) {
+			if (worldspecs[i].name == worldname) {
+				world_index = i;
+				break;
+			}
+		}
+
+		if (world_index != -1) {
+			infostream << "Switching to world: " << worldname << " (index " << world_index << ")" << std::endl;
+			start_data.world_spec = worldspecs[world_index];
+			start_data.world_path = start_data.world_spec.path;
+			start_data.address = ""; // Local game
+			start_data.local_server = true;
+			// Keep current name/password
+			return true;
+		} else {
+			errorstream << "World switch failed: world '" << worldname << "' not found." << std::endl;
+			// Fall through to main menu
+		}
+	}
+
 	if (!skip_main_menu) {
 		// Initialize menu data
 		// TODO: Re-use existing structs (GameStartData)

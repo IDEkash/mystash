@@ -2123,6 +2123,13 @@ void Server::SendLookDirection(session_t peer_id, float pitch, float yaw)
 	Send(&pkt);
 }
 
+void Server::SendWorldSwitch(session_t peer_id, const std::string &worldname)
+{
+	NetworkPacket pkt(TOCLIENT_SWITCH_WORLD, 0, peer_id);
+	pkt << worldname;
+	Send(&pkt);
+}
+
 void Server::SendPlayerFov(session_t peer_id)
 {
 	RemotePlayer *player = m_env->getPlayer(peer_id);
