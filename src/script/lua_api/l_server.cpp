@@ -27,6 +27,8 @@
 #include "fogparams.h"
 #include "content/subgames.h"
 #include "util/string.h"
+#include "porting.h"
+#include "settings.h"
 
 #include <algorithm>
 #include <unordered_map>
