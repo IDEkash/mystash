@@ -42,19 +42,9 @@ private:
 
 	static int l_close(lua_State *L);
 
-	static int l_create_world(lua_State *L);
-
-	static int l_delete_world(lua_State *L);
-
-	static int l_get_worlds(lua_State *L);
-
-	static int l_get_mapgen_names(lua_State *L);
-
 	static int l_get_language(lua_State *L);
 
 	//packages
-
-	static int l_get_games(lua_State *L);
 
 	static int l_get_content_info(lua_State *L);
 

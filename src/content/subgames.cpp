@@ -332,7 +332,7 @@ std::vector<WorldSpec> getAvailableWorlds()
 }
 
 void loadGameConfAndInitWorld(const std::string &path, const std::string &name,
-		const SubgameSpec &gamespec, bool create_world)
+		const SubgameSpec &gamespec, bool create_world, const StringMap &initial_settings)
 {
 	std::string final_path = path;
 
@@ -390,6 +390,13 @@ void loadGameConfAndInitWorld(const std::string &path, const std::string &name,
 		if (MAP_BLOCKSIZE != 16)
 			conf.set("blocksize", std::to_string(MAP_BLOCKSIZE));
 
+		for (const auto &it : initial_settings) {
+			if (it.first == "seed" || it.first == "fixed_map_seed" ||
+					it.first.find("mg") == 0)
+				continue; // Handled in map_meta.txt
+			conf.set(it.first, it.second);
+		}
+
 		if (!conf.updateConfigFile(worldmt_path.c_str())) {
 			throw BaseException("Failed to update world.mt");
 		}
@@ -400,7 +407,26 @@ void loadGameConfAndInitWorld(const std::string &path, const std::string &name,
 	if (!fs::PathExists(map_meta_path)) {
 		MapSettingsManager mgr(map_meta_path);
 
-		mgr.setMapSetting("seed", g_settings->get("fixed_map_seed"));
+		std::string seed;
+		auto it = initial_settings.find("seed");
+		if (it != initial_settings.end())
+			seed = it->second;
+		else {
+			it = initial_settings.find("fixed_map_seed");
+			if (it != initial_settings.end())
+				seed = it->second;
+			else
+				seed = g_settings->get("fixed_map_seed");
+		}
+		mgr.setMapSetting("seed", seed);
+
+		for (const auto &it : initial_settings) {
+			if (it.first.find("mg") == 0 && it.first != "mg_name")
+				mgr.setMapSetting(it.first, it->second);
+		}
+		it = initial_settings.find("mg_name");
+		if (it != initial_settings.end())
+			mgr.setMapSetting("mg_name", it->second);
 
 		mgr.makeMapgenParams();
 		mgr.saveMapMeta();
