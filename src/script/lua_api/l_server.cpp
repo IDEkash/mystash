@@ -516,7 +516,7 @@ int ModApiServer::l_create_world(lua_State *L)
 	}
 
 	// Now write mods and other settings to world.mt
-	std::string worldmt_path = final_path + DIR_DELIM "world.mt";
+	std::string worldmt_path = final_path + DIR_DELIM + "world.mt";
 	Settings conf;
 	conf.readConfigFile(worldmt_path.c_str());
 	for (auto const& [modname, value] : mods) {
@@ -530,13 +530,31 @@ int ModApiServer::l_create_world(lua_State *L)
 			}
 
 			if (fs::PathExists(src_path)) {
-				std::string dest_path = final_path + DIR_DELIM "worldmods" + DIR_DELIM + modname;
-				if (fs::CreateAllDirs(final_path + DIR_DELIM "worldmods")) {
-					fs::CopyDir(src_path, dest_path);
+				std::string worldmods_path = final_path + DIR_DELIM + "worldmods";
+				if (fs::CreateAllDirs(worldmods_path)) {
+					if (fs::PathExists(src_path + DIR_DELIM + "init.lua") ||
+							fs::PathExists(src_path + DIR_DELIM + "mod.conf") ||
+							fs::PathExists(src_path + DIR_DELIM + "modpack.conf")) {
+						// Single mod or modpack, copy to worldmods/modname
+						std::string clean_name = sanitizeDirName(modname, "mod_");
+						std::string dest_path = worldmods_path + DIR_DELIM + clean_name;
+						if (fs::CopyDir(src_path, dest_path)) {
+							conf.set("load_mod_" + clean_name, "true");
+						}
+					} else {
+						// Folder of mods, copy contents to worldmods/
+						std::vector<fs::DirListNode> content = fs::GetDirListing(src_path);
+						for (const auto &dln : content) {
+							if (dln.dir && dln.name != "." && dln.name != "..") {
+								std::string sub_src = src_path + DIR_DELIM + dln.name;
+								std::string sub_dest = worldmods_path + DIR_DELIM + dln.name;
+								if (fs::CopyDir(sub_src, sub_dest)) {
+									conf.set("load_mod_" + dln.name, "true");
+								}
+							}
+						}
+					}
 				}
-				// World mods are loaded automatically if present in worldmods/
-				// but we explicitly enable it for clarity.
-				conf.set("load_mod_" + modname, "true");
 			} else {
 				warningstream << "core.create_world: Mod path does not exist: " << src_path << std::endl;
 			}
