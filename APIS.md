@@ -1,6 +1,6 @@
 # Fork APIs
 
-This fork adds Android `htmlview` (including headless workers + JSON helpers), extra animator helpers, glTF multi-clip animation support, an independent bone transform API with per-part visibility and persistent smoothing, upgraded animation blending with smoothstep easing and event callbacks, a refined physics and movement model, an accessibility sprint toggle, an improved Animation & Scaling API with auto-normalization, and dedicated look-direction synchronisation.
+This fork adds Android `htmlview` (including headless workers + JSON helpers), extra animator helpers, glTF multi-clip animation support, an independent bone transform API with per-part visibility and persistent smoothing, upgraded animation blending with smoothstep easing and event callbacks, a refined physics and movement model, an accessibility sprint toggle, an improved Animation & Scaling API with auto-normalization, dedicated look-direction synchronisation, and a server-side world creation API.
 
 ## Player Synchronisation Improvements
 
@@ -741,4 +741,4 @@ Allows automatically leaving the current world and joining another world by name
 
 ---
 - **More Soon!**
-- Latest Update: April, 27, 2026
+- Latest Update: May, 30, 2026

@@ -420,29 +420,33 @@ int ModApiServer::l_create_world(lua_State *L)
 	if (lua_istable(L, 3)) {
 		lua_pushnil(L);
 		while (lua_next(L, 3)) {
-			// Copy the key so lua_tostring doesn't corrupt the stack
-			lua_pushvalue(L, -2);
+			// Stack: [..., key, value]
+			lua_pushvalue(L, -2); // Copy the key so lua_tostring doesn't corrupt the stack
+			// Stack: [..., key, value, key_copy]
 			if (lua_isstring(L, -1)) {
 				std::string key = lua_tostring(L, -1);
 				if (key == "mods") {
 					if (lua_istable(L, -2)) {
+						int mods_table_idx = lua_gettop(L) - 1;
 						lua_pushnil(L);
-						while (lua_next(L, -3)) {
-							lua_pushvalue(L, -2);
-							if (lua_isnumber(L, -1)) {
-								// list of mods
-								if (lua_isstring(L, -2)) {
-									mods[lua_tostring(L, -2)] = "true";
+						while (lua_next(L, mods_table_idx)) {
+							// Stack: [..., mods_table, mkey, mvalue]
+							if (lua_type(L, -2) == LUA_TNUMBER) {
+								// array-style: mvalue must be mod name
+								if (lua_isstring(L, -1))
+									mods[lua_tostring(L, -1)] = "true";
+							} else {
+								lua_pushvalue(L, -2); // copy mkey
+								if (lua_isstring(L, -1)) {
+									std::string modname = lua_tostring(L, -1);
+									if (lua_isboolean(L, -2))
+										mods[modname] = lua_toboolean(L, -2) ? "true" : "false";
+									else if (lua_isstring(L, -2))
+										mods[modname] = lua_tostring(L, -2);
 								}
-							} else if (lua_isstring(L, -1)) {
-								std::string modname = lua_tostring(L, -1);
-								if (lua_isboolean(L, -2)) {
-									mods[modname] = lua_toboolean(L, -2) ? "true" : "false";
-								} else if (lua_isstring(L, -2)) {
-									mods[modname] = lua_tostring(L, -2);
-								}
+								lua_pop(L, 1); // pop mkey copy
 							}
-							lua_pop(L, 2); // pop key copy and value
+							lua_pop(L, 1); // pop mvalue, keep mkey for next lua_next
 						}
 					}
 				} else if (key == "seed") {
@@ -451,16 +455,15 @@ int ModApiServer::l_create_world(lua_State *L)
 					else if (lua_isnumber(L, -2))
 						settings["fixed_map_seed"] = std::to_string(lua_tonumber(L, -2));
 				} else {
-					if (lua_isstring(L, -2)) {
+					if (lua_isstring(L, -2))
 						settings[key] = lua_tostring(L, -2);
-					} else if (lua_isboolean(L, -2)) {
+					else if (lua_isboolean(L, -2))
 						settings[key] = lua_toboolean(L, -2) ? "true" : "false";
-					} else if (lua_isnumber(L, -2)) {
+					else if (lua_isnumber(L, -2))
 						settings[key] = std::to_string(lua_tonumber(L, -2));
-					}
 				}
 			}
-			lua_pop(L, 2); // pop key copy and value
+			lua_pop(L, 2); // pop key_copy and value
 		}
 	}
 
