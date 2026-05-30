@@ -520,14 +520,27 @@ int ModApiServer::l_create_world(lua_State *L)
 	Settings conf;
 	conf.readConfigFile(worldmt_path.c_str());
 	for (auto const& [modname, value] : mods) {
-		std::string final_val = value;
-		if (value != "true" && value != "false" && !fs::IsPathAbsolute(value)) {
-			// Relative path, resolve it relative to current mod
-			if (!current_mod_path.empty()) {
-				final_val = current_mod_path + DIR_DELIM + value;
+		if (value == "true" || value == "false") {
+			conf.set("load_mod_" + modname, value);
+		} else {
+			// Path provided, copy it to worldmods/
+			std::string src_path = value;
+			if (!fs::IsPathAbsolute(src_path) && !current_mod_path.empty()) {
+				src_path = current_mod_path + DIR_DELIM + src_path;
+			}
+
+			if (fs::PathExists(src_path)) {
+				std::string dest_path = final_path + DIR_DELIM "worldmods" + DIR_DELIM + modname;
+				if (fs::CreateAllDirs(final_path + DIR_DELIM "worldmods")) {
+					fs::CopyDir(src_path, dest_path);
+				}
+				// World mods are loaded automatically if present in worldmods/
+				// but we explicitly enable it for clarity.
+				conf.set("load_mod_" + modname, "true");
+			} else {
+				warningstream << "core.create_world: Mod path does not exist: " << src_path << std::endl;
 			}
 		}
-		conf.set("load_mod_" + modname, final_val);
 	}
 	for (auto const& [key, value] : settings) {
 		if (key == "fixed_map_seed")
