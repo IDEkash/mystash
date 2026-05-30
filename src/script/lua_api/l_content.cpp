@@ -8,6 +8,7 @@
 #include "common/c_content.h"
 #include "common/c_converter.h"
 #include "content/subgames.h"
+#include "content/mods.h"
 #include "mapgen/mapgen.h"
 #include "filesys.h"
 #include "porting.h"
