@@ -422,7 +422,7 @@ void loadGameConfAndInitWorld(const std::string &path, const std::string &name,
 
 		for (const auto &it : initial_settings) {
 			if (it.first.find("mg") == 0 && it.first != "mg_name")
-				mgr.setMapSetting(it.first, it->second);
+				mgr.setMapSetting(it.first, it.second);
 		}
 		it = initial_settings.find("mg_name");
 		if (it != initial_settings.end())

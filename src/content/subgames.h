@@ -8,6 +8,7 @@
 #include <set>
 #include <unordered_map>
 #include <vector>
+#include "util/string.h"
 
 
 struct SubgameSpec
