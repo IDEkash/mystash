@@ -8,6 +8,7 @@
 #include <set>
 #include <unordered_map>
 #include <vector>
+#include "util/string.h"
 
 
 struct SubgameSpec
@@ -87,4 +88,5 @@ std::vector<WorldSpec> getAvailableWorlds();
 // loads the subgame's config and creates world directory
 // and world.mt if they don't exist
 void loadGameConfAndInitWorld(const std::string &path, const std::string &name,
-		const SubgameSpec &gamespec, bool create_world);
+		const SubgameSpec &gamespec, bool create_world,
+		const StringMap &initial_settings = StringMap());

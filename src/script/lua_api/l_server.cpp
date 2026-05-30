@@ -3,6 +3,7 @@
 // Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
 
 #include "lua_api/l_server.h"
+#include "lua_api/l_content.h"
 
 #include "cpp_api/s_internal.h"
 #include "lua_api/l_internal.h"
@@ -947,6 +948,8 @@ int ModApiServer::l_serialize_roundtrip(lua_State *L)
 
 void ModApiServer::Initialize(lua_State *L, int top)
 {
+	ModApiContent::Initialize(L, top);
+
 	API_FCT(request_shutdown);
 	API_FCT(get_server_status);
 	API_FCT(get_server_uptime);
@@ -994,6 +997,8 @@ void ModApiServer::Initialize(lua_State *L, int top)
 
 void ModApiServer::InitializeAsync(lua_State *L, int top)
 {
+	ModApiContent::InitializeAsync(L, top);
+
 	API_FCT(get_worldpath);
 	API_FCT(is_singleplayer);
 

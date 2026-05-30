@@ -3,6 +3,7 @@
 // Copyright (C) 2013 sapier
 
 #include "lua_api/l_mainmenu.h"
+#include "lua_api/l_content.h"
 #include "lua_api/l_internal.h"
 #include "common/c_content.h"
 #include "config.h"
@@ -269,106 +270,6 @@ int ModApiMainMenu::l_get_table_index(lua_State *L)
 	return 1;
 }
 
-/******************************************************************************/
-int ModApiMainMenu::l_get_worlds(lua_State *L)
-{
-	std::vector<WorldSpec> worlds = getAvailableWorlds();
-
-	lua_newtable(L);
-	int top = lua_gettop(L);
-	unsigned int index = 1;
-
-	for (const WorldSpec &world : worlds) {
-		lua_pushnumber(L,index);
-
-		lua_newtable(L);
-		int top_lvl2 = lua_gettop(L);
-
-		lua_pushstring(L,"path");
-		lua_pushstring(L, world.path.c_str());
-		lua_settable(L, top_lvl2);
-
-		lua_pushstring(L,"name");
-		lua_pushstring(L, world.name.c_str());
-		lua_settable(L, top_lvl2);
-
-		lua_pushstring(L,"gameid");
-		lua_pushstring(L, world.gameid.c_str());
-		lua_settable(L, top_lvl2);
-
-		lua_settable(L, top);
-		index++;
-	}
-	return 1;
-}
-
-/******************************************************************************/
-int ModApiMainMenu::l_get_games(lua_State *L)
-{
-	std::vector<SubgameSpec> games = getAvailableGames();
-
-	lua_newtable(L);
-	int top = lua_gettop(L);
-	unsigned int index = 1;
-
-	for (const SubgameSpec &game : games) {
-		lua_pushnumber(L, index);
-		lua_newtable(L);
-		int top_lvl2 = lua_gettop(L);
-
-		lua_pushstring(L,  "id");
-		lua_pushstring(L,  game.id.c_str());
-		lua_settable(L,    top_lvl2);
-
-		lua_pushstring(L,  "path");
-		lua_pushstring(L,  game.path.c_str());
-		lua_settable(L,    top_lvl2);
-
-		lua_pushstring(L,  "type");
-		lua_pushstring(L,  "game");
-		lua_settable(L,    top_lvl2);
-
-		lua_pushstring(L,  "gamemods_path");
-		lua_pushstring(L,  game.gamemods_path.c_str());
-		lua_settable(L,    top_lvl2);
-
-		lua_pushstring(L,  "name");
-		lua_pushstring(L,  game.title.c_str());
-		lua_settable(L,    top_lvl2);
-
-		lua_pushstring(L,  "title");
-		lua_pushstring(L,  game.title.c_str());
-		lua_settable(L,    top_lvl2);
-
-		lua_pushstring(L,  "author");
-		lua_pushstring(L,  game.author.c_str());
-		lua_settable(L,    top_lvl2);
-
-		lua_pushstring(L,  "release");
-		lua_pushinteger(L, game.release);
-		lua_settable(L,    top_lvl2);
-
-		auto menuicon = getImagePath(game.path + DIR_DELIM "menu" DIR_DELIM "icon.png");
-		lua_pushstring(L,  "menuicon_path");
-		lua_pushstring(L,  menuicon.c_str());
-		lua_settable(L,    top_lvl2);
-
-		lua_pushstring(L, "addon_mods_paths");
-		lua_newtable(L);
-		int table2 = lua_gettop(L);
-		int internal_index = 1;
-		for (const auto &addon_mods_path : game.addon_mods_paths) {
-			lua_pushnumber(L, internal_index);
-			lua_pushstring(L, addon_mods_path.second.c_str());
-			lua_settable(L,   table2);
-			internal_index++;
-		}
-		lua_settable(L, top_lvl2);
-		lua_settable(L, top);
-		index++;
-	}
-	return 1;
-}
 
 /******************************************************************************/
 int ModApiMainMenu::l_get_content_info(lua_State *L)
@@ -604,81 +505,6 @@ int ModApiMainMenu::l_show_touchscreen_layout(lua_State *L)
 	return 0;
 }
 
-/******************************************************************************/
-int ModApiMainMenu::l_create_world(lua_State *L)
-{
-	const char *name   = luaL_checkstring(L, 1);
-	const char *gameid = luaL_checkstring(L, 2);
-
-	StringMap use_settings;
-	luaL_checktype(L, 3, LUA_TTABLE);
-	lua_pushnil(L);
-	while (lua_next(L, 3) != 0) {
-		// key at index -2 and value at index -1
-		use_settings[luaL_checkstring(L, -2)] = luaL_checkstring(L, -1);
-		lua_pop(L, 1);
-	}
-	lua_pop(L, 1);
-
-	std::string path = porting::path_user + DIR_DELIM
-			"worlds" + DIR_DELIM
-			+ sanitizeDirName(name, "world_");
-
-	std::vector<SubgameSpec> games = getAvailableGames();
-	auto game_it = std::find_if(games.begin(), games.end(), [gameid] (const SubgameSpec &spec) {
-		return spec.id == gameid;
-	});
-	if (game_it == games.end()) {
-		lua_pushstring(L, "Game ID not found");
-		return 1;
-	}
-
-	// Set the settings for world creation
-	// this is a bad hack but the best we have right now..
-	StringMap backup;
-	for (auto &it : use_settings) {
-		if (g_settings->existsLocal(it.first))
-			backup[it.first] = g_settings->get(it.first);
-		g_settings->set(it.first, it.second);
-	}
-
-	// Create world if it doesn't exist
-	try {
-		loadGameConfAndInitWorld(path, name, *game_it, true);
-		lua_pushnil(L);
-	} catch (const BaseException &e) {
-		auto err = std::string("Failed to initialize world: ") + e.what();
-		lua_pushstring(L, err.c_str());
-	}
-
-	// Restore previous settings
-	for (auto &it : use_settings) {
-		auto it2 = backup.find(it.first);
-		if (it2 == backup.end())
-			g_settings->remove(it.first); // wasn't set before
-		else
-			g_settings->set(it.first, it2->second); // was set before
-	}
-
-	return 1;
-}
-
-/******************************************************************************/
-int ModApiMainMenu::l_delete_world(lua_State *L)
-{
-	int world_id = luaL_checkinteger(L, 1) - 1;
-	std::vector<WorldSpec> worlds = getAvailableWorlds();
-	if (world_id < 0 || world_id >= (int) worlds.size()) {
-		lua_pushstring(L, "Invalid world index");
-		return 1;
-	}
-	const WorldSpec &spec = worlds[world_id];
-	if (!fs::RecursiveDelete(spec.path)) {
-		lua_pushstring(L, "Failed to delete world");
-		return 1;
-	}
-	return 0;
-}
 
 /******************************************************************************/
 int ModApiMainMenu::l_set_topleft_text(lua_State *L)
@@ -694,21 +520,6 @@ int ModApiMainMenu::l_set_topleft_text(lua_State *L)
 	return 0;
 }
 
-/******************************************************************************/
-int ModApiMainMenu::l_get_mapgen_names(lua_State *L)
-{
-	std::vector<const char *> names;
-	bool include_hidden = lua_isboolean(L, 1) && readParam<bool>(L, 1);
-	Mapgen::getMapgenNames(&names, include_hidden);
-
-	lua_newtable(L);
-	for (size_t i = 0; i != names.size(); i++) {
-		lua_pushstring(L, names[i]);
-		lua_rawseti(L, -2, i + 1);
-	}
-
-	return 1;
-}
 
 
 /******************************************************************************/
@@ -1101,6 +912,8 @@ int ModApiMainMenu::l_do_async_callback(lua_State *L)
 /******************************************************************************/
 void ModApiMainMenu::Initialize(lua_State *L, int top)
 {
+	ModApiContent::Initialize(L, top);
+
 	API_FCT(update_formspec);
 	API_FCT(set_formspec_prepend);
 	API_FCT(set_clouds);
@@ -1108,8 +921,6 @@ void ModApiMainMenu::Initialize(lua_State *L, int top)
 	API_FCT(set_clouds_color);
 	API_FCT(get_textlist_index);
 	API_FCT(get_table_index);
-	API_FCT(get_worlds);
-	API_FCT(get_games);
 	API_FCT(get_content_info);
 	API_FCT(get_mod_list);
 	API_FCT(check_mod_configuration);
@@ -1117,11 +928,8 @@ void ModApiMainMenu::Initialize(lua_State *L, int top)
 	API_FCT(start);
 	API_FCT(close);
 	API_FCT(show_touchscreen_layout);
-	API_FCT(create_world);
-	API_FCT(delete_world);
 	API_FCT(set_background);
 	API_FCT(set_topleft_text);
-	API_FCT(get_mapgen_names);
 	API_FCT(get_user_path);
 	API_FCT(get_modpath);
 	API_FCT(get_modpaths);
@@ -1161,9 +969,8 @@ void ModApiMainMenu::Initialize(lua_State *L, int top)
 /******************************************************************************/
 void ModApiMainMenu::InitializeAsync(lua_State *L, int top)
 {
-	API_FCT(get_worlds);
-	API_FCT(get_games);
-	API_FCT(get_mapgen_names);
+	ModApiContent::InitializeAsync(L, top);
+
 	API_FCT(get_user_path);
 	API_FCT(get_modpath);
 	API_FCT(get_modpaths);
