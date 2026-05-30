@@ -735,7 +735,7 @@ Allows automatically leaving the current world and joining another world by name
 - `options`: table — Optional settings for the world:
     - `seed`: string or number — The world seed.
     - `mg_name`: string — The map generator to use (e.g., `"v7"`, `"flat"`).
-    - `mods`: table — A table of mods to enable. Can be an array of mod names or a table keyed by mod name with boolean or path values.
+    - `mods`: table — A table of mods to enable. Can be an array of mod names or a table keyed by mod name with boolean or path values. Relative paths are resolved relative to the calling mod's directory.
     - Any other key-value pair will be written directly to the `world.mt` file.
 - Returns `success, path_or_error`.
 

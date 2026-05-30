@@ -507,12 +507,27 @@ int ModApiServer::l_create_world(lua_State *L)
 			g_settings->remove(key);
 	}
 
+	std::string current_mod_path = "";
+	std::string current_mod_name = ScriptApiBase::getCurrentModNameInsecure(L);
+	if (!current_mod_name.empty()) {
+		const ModSpec *spec = getGameDef(L)->getModSpec(current_mod_name);
+		if (spec)
+			current_mod_path = spec->path;
+	}
+
 	// Now write mods and other settings to world.mt
 	std::string worldmt_path = final_path + DIR_DELIM "world.mt";
 	Settings conf;
 	conf.readConfigFile(worldmt_path.c_str());
 	for (auto const& [modname, value] : mods) {
-		conf.set("load_mod_" + modname, value);
+		std::string final_val = value;
+		if (value != "true" && value != "false" && !fs::IsPathAbsolute(value)) {
+			// Relative path, resolve it relative to current mod
+			if (!current_mod_path.empty()) {
+				final_val = current_mod_path + DIR_DELIM + value;
+			}
+		}
+		conf.set("load_mod_" + modname, final_val);
 	}
 	for (auto const& [key, value] : settings) {
 		if (key == "fixed_map_seed")
