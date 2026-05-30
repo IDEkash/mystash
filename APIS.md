@@ -729,6 +729,16 @@ Allows automatically leaving the current world and joining another world by name
 - Sends a request to the client to switch worlds.
 - Only works if the client has the target world locally.
 
+`core.create_world(name, gameid, options)` (Server-side)
+- `name`: string — The name of the world to create.
+- `gameid`: string — The game ID to use for the world.
+- `options`: table — Optional settings for the world:
+    - `seed`: string or number — The world seed.
+    - `mg_name`: string — The map generator to use (e.g., `"v7"`, `"flat"`).
+    - `mods`: table — A table of mods to enable. Can be an array of mod names or a table keyed by mod name with boolean or path values.
+    - Any other key-value pair will be written directly to the `world.mt` file.
+- Returns `success, path_or_error`.
+
 ---
 - **More Soon!**
 - Latest Update: April, 27, 2026

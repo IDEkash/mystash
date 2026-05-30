@@ -112,6 +112,9 @@ private:
 	// world_switch(name, worldname)
 	static int l_world_switch(lua_State *L);
 
+	// create_world(name, gameid, options)
+	static int l_create_world(lua_State *L);
+
 	// remove_player(name)
 	static int l_remove_player(lua_State *L);
 

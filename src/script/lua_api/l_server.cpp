@@ -25,8 +25,11 @@
 #include "serverenvironment.h"
 #include "server/player_sao.h"
 #include "fogparams.h"
+#include "content/subgames.h"
+#include "util/string.h"
 
 #include <algorithm>
+#include <unordered_map>
 
 // request_shutdown()
 int ModApiServer::l_request_shutdown(lua_State *L)
@@ -400,6 +403,122 @@ int ModApiServer::l_world_switch(lua_State *L)
 
 	lua_pushboolean(L, true);
 	return 1;
+}
+
+// create_world(name, gameid, options)
+int ModApiServer::l_create_world(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	const char *name = luaL_checkstring(L, 1);
+	const char *gameid = luaL_checkstring(L, 2);
+
+	StringMap settings;
+	std::unordered_map<std::string, std::string> mods;
+
+	if (lua_istable(L, 3)) {
+		lua_pushnil(L);
+		while (lua_next(L, 3)) {
+			// Copy the key so lua_tostring doesn't corrupt the stack
+			lua_pushvalue(L, -2);
+			if (lua_isstring(L, -1)) {
+				std::string key = lua_tostring(L, -1);
+				if (key == "mods") {
+					if (lua_istable(L, -2)) {
+						lua_pushnil(L);
+						while (lua_next(L, -3)) {
+							lua_pushvalue(L, -2);
+							if (lua_isnumber(L, -1)) {
+								// list of mods
+								if (lua_isstring(L, -2)) {
+									mods[lua_tostring(L, -2)] = "true";
+								}
+							} else if (lua_isstring(L, -1)) {
+								std::string modname = lua_tostring(L, -1);
+								if (lua_isboolean(L, -2)) {
+									mods[modname] = lua_toboolean(L, -2) ? "true" : "false";
+								} else if (lua_isstring(L, -2)) {
+									mods[modname] = lua_tostring(L, -2);
+								}
+							}
+							lua_pop(L, 2); // pop key copy and value
+						}
+					}
+				} else if (key == "seed") {
+					if (lua_isstring(L, -2))
+						settings["fixed_map_seed"] = lua_tostring(L, -2);
+					else if (lua_isnumber(L, -2))
+						settings["fixed_map_seed"] = std::to_string(lua_tonumber(L, -2));
+				} else {
+					if (lua_isstring(L, -2)) {
+						settings[key] = lua_tostring(L, -2);
+					} else if (lua_isboolean(L, -2)) {
+						settings[key] = lua_toboolean(L, -2) ? "true" : "false";
+					} else if (lua_isnumber(L, -2)) {
+						settings[key] = std::to_string(lua_tonumber(L, -2));
+					}
+				}
+			}
+			lua_pop(L, 2); // pop key copy and value
+		}
+	}
+
+	std::string path = porting::path_user + DIR_DELIM "worlds" + DIR_DELIM +
+			sanitizeDirName(name, "world_");
+
+	SubgameSpec gamespec = findSubgame(gameid);
+	if (!gamespec.isValid()) {
+		lua_pushboolean(L, false);
+		lua_pushstring(L, "Game ID not found");
+		return 2;
+	}
+
+	StringMap backup;
+	for (auto const& [key, value] : settings) {
+		if (g_settings->existsLocal(key))
+			backup[key] = g_settings->get(key);
+		g_settings->set(key, value);
+	}
+
+	std::string final_path;
+	try {
+		final_path = loadGameConfAndInitWorld(path, name, gamespec, true);
+	} catch (const BaseException &e) {
+		for (auto const& [key, value] : settings) {
+			if (backup.count(key))
+				g_settings->set(key, backup[key]);
+			else
+				g_settings->remove(key);
+		}
+
+		lua_pushboolean(L, false);
+		lua_pushstring(L, e.what());
+		return 2;
+	}
+
+	for (auto const& [key, value] : settings) {
+		if (backup.count(key))
+			g_settings->set(key, backup[key]);
+		else
+			g_settings->remove(key);
+	}
+
+	// Now write mods and other settings to world.mt
+	std::string worldmt_path = final_path + DIR_DELIM "world.mt";
+	Settings conf;
+	conf.readConfigFile(worldmt_path.c_str());
+	for (auto const& [modname, value] : mods) {
+		conf.set("load_mod_" + modname, value);
+	}
+	for (auto const& [key, value] : settings) {
+		if (key == "fixed_map_seed")
+			continue;
+		conf.set(key, value);
+	}
+	conf.updateConfigFile(worldmt_path.c_str());
+
+	lua_pushboolean(L, true);
+	lua_pushstring(L, final_path.c_str());
+	return 2;
 }
 
 int ModApiServer::l_remove_player(lua_State *L)
@@ -982,6 +1101,7 @@ void ModApiServer::Initialize(lua_State *L, int top)
 	API_FCT(ban_player);
 	API_FCT(disconnect_player);
 	API_FCT(world_switch);
+	API_FCT(create_world);
 	API_FCT(remove_player);
 	API_FCT(unban_player_or_ip);
 	API_FCT(notify_authentication_modified);
