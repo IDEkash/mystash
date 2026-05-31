@@ -414,6 +414,18 @@ int ModApiServer::l_create_world(lua_State *L)
 	const char *name = luaL_checkstring(L, 1);
 	const char *gameid = luaL_checkstring(L, 2);
 
+	infostream << "core.create_world: Creating world \"" << name << "\" with gameid \"" << gameid << "\"" << std::endl;
+
+	std::string current_mod_path = "";
+	std::string current_mod_name = ScriptApiBase::getCurrentModNameInsecure(L);
+	if (!current_mod_name.empty()) {
+		const ModSpec *spec = getGameDef(L)->getModSpec(current_mod_name);
+		if (spec) {
+			current_mod_path = spec->path;
+			infostream << "core.create_world: Called from mod \"" << current_mod_name << "\" at \"" << current_mod_path << "\"" << std::endl;
+		}
+	}
+
 	StringMap settings;
 	std::unordered_map<std::string, std::string> mods;
 
@@ -507,14 +519,6 @@ int ModApiServer::l_create_world(lua_State *L)
 			g_settings->remove(key);
 	}
 
-	std::string current_mod_path = "";
-	std::string current_mod_name = ScriptApiBase::getCurrentModNameInsecure(L);
-	if (!current_mod_name.empty()) {
-		const ModSpec *spec = getGameDef(L)->getModSpec(current_mod_name);
-		if (spec)
-			current_mod_path = spec->path;
-	}
-
 	// Now write mods and other settings to world.mt
 	std::string worldmt_path = final_path + DIR_DELIM + "world.mt";
 	Settings conf;
@@ -529,6 +533,8 @@ int ModApiServer::l_create_world(lua_State *L)
 				src_path = current_mod_path + DIR_DELIM + src_path;
 			}
 
+			infostream << "core.create_world: Copying mod \"" << modname << "\" from \"" << src_path << "\"" << std::endl;
+
 			if (fs::PathExists(src_path)) {
 				std::string worldmods_path = final_path + DIR_DELIM + "worldmods";
 				if (fs::CreateAllDirs(worldmods_path)) {
@@ -538,11 +544,15 @@ int ModApiServer::l_create_world(lua_State *L)
 						// Single mod or modpack, copy to worldmods/modname
 						std::string clean_name = sanitizeDirName(modname, "mod_");
 						std::string dest_path = worldmods_path + DIR_DELIM + clean_name;
+						infostream << "core.create_world: Copying single mod to \"" << dest_path << "\"" << std::endl;
 						if (fs::CopyDir(src_path, dest_path)) {
 							conf.set("load_mod_" + clean_name, "true");
+						} else {
+							errorstream << "core.create_world: Failed to copy mod to \"" << dest_path << "\"" << std::endl;
 						}
-					} else {
+					} else if (fs::IsDir(src_path)) {
 						// Folder of mods, copy contents to worldmods/
+						infostream << "core.create_world: Copying contents of mods folder to \"" << worldmods_path << "\"" << std::endl;
 						std::vector<fs::DirListNode> content = fs::GetDirListing(src_path);
 						for (const auto &dln : content) {
 							if (dln.dir && dln.name != "." && dln.name != "..") {
@@ -550,10 +560,16 @@ int ModApiServer::l_create_world(lua_State *L)
 								std::string sub_dest = worldmods_path + DIR_DELIM + dln.name;
 								if (fs::CopyDir(sub_src, sub_dest)) {
 									conf.set("load_mod_" + dln.name, "true");
+								} else {
+									errorstream << "core.create_world: Failed to copy sub-mod to \"" << sub_dest << "\"" << std::endl;
 								}
 							}
 						}
+					} else {
+						warningstream << "core.create_world: Mod path is not a directory or mod: " << src_path << std::endl;
 					}
+				} else {
+					errorstream << "core.create_world: Failed to create worldmods directory: " << worldmods_path << std::endl;
 				}
 			} else {
 				warningstream << "core.create_world: Mod path does not exist: " << src_path << std::endl;
