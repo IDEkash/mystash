@@ -735,9 +735,31 @@ Allows automatically leaving the current world and joining another world by name
 - `options`: table — Optional settings for the world:
     - `seed`: string or number — The world seed.
     - `mg_name`: string — The map generator to use (e.g., `"v7"`, `"flat"`).
-    - `mods`: table — A table of mods to enable. Can be an array of mod names (enables global mods) or a table keyed by mod name with boolean or path values. If a path is provided, the mod is copied into the new world's `worldmods` folder. Relative paths are resolved relative to the calling mod's directory.
+    - `mods`: table — A table of mods to enable.
+        - Can be an array of mod names: `{"mod1", "mod2"}` (enables global mods).
+        - Can be a table keyed by mod name with boolean values: `{mod1 = true, mod2 = false}`.
+        - Can be a table keyed by mod name with string paths: `{bundled_mod = "mods/bundled_mod"}`.
+            - If a path is provided, the mod directory is copied into the new world's `worldmods/` folder.
+            - If the path points to a directory containing an `init.lua`, `mod.conf`, or `modpack.conf`, it is copied as a single unit.
+            - Otherwise, if it is a directory, its contents (sub-folders) are expanded and copied individually into `worldmods/`.
+            - Relative paths are resolved relative to the calling mod's directory.
     - Any other key-value pair will be written directly to the `world.mt` file.
 - Returns `success, path_or_error`.
+
+**Example:**
+```lua
+local modpath = minetest.get_modpath("my_mod")
+core.create_world("ProgrammaticWorld", "minetest", {
+    seed = "12345",
+    mg_name = "v7",
+    mods = {
+        default = true, -- Enable global mod
+        -- Bundled sub-mods from inside "my_mod/bundled_mods/"
+        ["my_submod"] = "bundled_mods/my_submod"
+    },
+    creative_mode = "true" -- Arbitrary world.mt setting
+})
+```
 
 ---
 - **More Soon!**

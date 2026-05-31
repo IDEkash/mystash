@@ -523,6 +523,9 @@ int ModApiServer::l_create_world(lua_State *L)
 	std::string worldmt_path = final_path + DIR_DELIM + "world.mt";
 	Settings conf;
 	conf.readConfigFile(worldmt_path.c_str());
+
+	std::string worldmods_path = final_path + DIR_DELIM + "worldmods";
+
 	for (auto const& [modname, value] : mods) {
 		if (value == "true" || value == "false") {
 			conf.set("load_mod_" + modname, value);
@@ -533,46 +536,49 @@ int ModApiServer::l_create_world(lua_State *L)
 				src_path = current_mod_path + DIR_DELIM + src_path;
 			}
 
-			infostream << "core.create_world: Copying mod \"" << modname << "\" from \"" << src_path << "\"" << std::endl;
+			infostream << "core.create_world: Processing mod path \"" << src_path << "\"" << std::endl;
 
 			if (fs::PathExists(src_path)) {
-				std::string worldmods_path = final_path + DIR_DELIM + "worldmods";
 				if (fs::CreateAllDirs(worldmods_path)) {
-					if (fs::PathExists(src_path + DIR_DELIM + "init.lua") ||
+					// Single mod or modpack check
+					bool is_mod = fs::PathExists(src_path + DIR_DELIM + "init.lua") ||
 							fs::PathExists(src_path + DIR_DELIM + "mod.conf") ||
-							fs::PathExists(src_path + DIR_DELIM + "modpack.conf")) {
-						// Single mod or modpack, copy to worldmods/modname
+							fs::PathExists(src_path + DIR_DELIM + "modpack.conf");
+
+					if (is_mod) {
+						// Copy whole folder to worldmods/modname
 						std::string clean_name = sanitizeDirName(modname, "mod_");
 						std::string dest_path = worldmods_path + DIR_DELIM + clean_name;
-						infostream << "core.create_world: Copying single mod to \"" << dest_path << "\"" << std::endl;
+						infostream << "core.create_world: Copying mod \"" << clean_name << "\" to \"" << dest_path << "\"" << std::endl;
 						if (fs::CopyDir(src_path, dest_path)) {
 							conf.set("load_mod_" + clean_name, "true");
 						} else {
-							errorstream << "core.create_world: Failed to copy mod to \"" << dest_path << "\"" << std::endl;
+							errorstream << "core.create_world: Failed to copy mod folder to \"" << dest_path << "\"" << std::endl;
 						}
 					} else if (fs::IsDir(src_path)) {
-						// Folder of mods, copy contents to worldmods/
-						infostream << "core.create_world: Copying contents of mods folder to \"" << worldmods_path << "\"" << std::endl;
+						// Collection of multiple mods, expand its contents into worldmods/
+						infostream << "core.create_world: Expanding mod folder contents from \"" << src_path << "\" into \"" << worldmods_path << "\"" << std::endl;
 						std::vector<fs::DirListNode> content = fs::GetDirListing(src_path);
 						for (const auto &dln : content) {
 							if (dln.dir && dln.name != "." && dln.name != "..") {
 								std::string sub_src = src_path + DIR_DELIM + dln.name;
 								std::string sub_dest = worldmods_path + DIR_DELIM + dln.name;
+								infostream << "core.create_world: Copying sub-mod \"" << dln.name << "\" to \"" << sub_dest << "\"" << std::endl;
 								if (fs::CopyDir(sub_src, sub_dest)) {
 									conf.set("load_mod_" + dln.name, "true");
 								} else {
-									errorstream << "core.create_world: Failed to copy sub-mod to \"" << sub_dest << "\"" << std::endl;
+									errorstream << "core.create_world: Failed to copy sub-mod \"" << dln.name << "\" to \"" << sub_dest << "\"" << std::endl;
 								}
 							}
 						}
 					} else {
-						warningstream << "core.create_world: Mod path is not a directory or mod: " << src_path << std::endl;
+						warningstream << "core.create_world: Path is not a mod or directory: " << src_path << std::endl;
 					}
 				} else {
-					errorstream << "core.create_world: Failed to create worldmods directory: " << worldmods_path << std::endl;
+					errorstream << "core.create_world: Failed to ensure worldmods directory at \"" << worldmods_path << "\"" << std::endl;
 				}
 			} else {
-				warningstream << "core.create_world: Mod path does not exist: " << src_path << std::endl;
+				warningstream << "core.create_world: Source path for mod \"" << modname << "\" does not exist: \"" << src_path << "\"" << std::endl;
 			}
 		}
 	}
