@@ -389,7 +389,10 @@ local function create_world_buttonhandler(this, fields)
 				mgvalleys_spflags = table_to_flags(this.data.flags.valleys),
 				mgflat_spflags = table_to_flags(this.data.flags.flat),
 			}
-			message = core.create_world(worldname, game.id, settings)
+			local success, result = core.create_world(worldname, game.id, settings)
+			if not success then
+				message = result
+			end
 		end
 
 		if message == nil then

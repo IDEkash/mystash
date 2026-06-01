@@ -29,8 +29,9 @@
 #include "log.h"
 #include "util/string.h"
 
+#include <algorithm>
 #include <cassert>
-#include <iostream>
+#include <unordered_map>
 
 /******************************************************************************/
 std::string ModApiMainMenu::getTextData(lua_State *L, const std::string &name)
@@ -610,57 +611,197 @@ int ModApiMainMenu::l_create_world(lua_State *L)
 	const char *name   = luaL_checkstring(L, 1);
 	const char *gameid = luaL_checkstring(L, 2);
 
-	StringMap use_settings;
-	luaL_checktype(L, 3, LUA_TTABLE);
-	lua_pushnil(L);
-	while (lua_next(L, 3) != 0) {
-		// key at index -2 and value at index -1
-		use_settings[luaL_checkstring(L, -2)] = luaL_checkstring(L, -1);
-		lua_pop(L, 1);
+	StringMap settings;
+	std::unordered_map<std::string, std::string> mods;
+
+	if (lua_istable(L, 3)) {
+		lua_pushnil(L);
+		while (lua_next(L, 3)) {
+			// Stack: [..., key, value]
+			lua_pushvalue(L, -2); // Copy the key so lua_tostring doesn't corrupt the stack
+			// Stack: [..., key, value, key_copy]
+			if (lua_isstring(L, -1)) {
+				std::string key = lua_tostring(L, -1);
+				if (key == "mods" || key == "worldmods") {
+					if (lua_istable(L, -2)) {
+						int mods_table_idx = lua_gettop(L) - 1;
+						lua_pushnil(L);
+						while (lua_next(L, mods_table_idx)) {
+							// Stack: [..., mods_table, mkey, mvalue]
+							if (lua_type(L, -2) == LUA_TNUMBER) {
+								// array-style: mvalue must be mod name
+								if (lua_isstring(L, -1))
+									mods[lua_tostring(L, -1)] = "true";
+							} else {
+								lua_pushvalue(L, -2); // copy mkey
+								if (lua_isstring(L, -1)) {
+									std::string modname = lua_tostring(L, -1);
+									if (lua_isboolean(L, -2))
+										mods[modname] = lua_toboolean(L, -2) ? "true" : "false";
+									else if (lua_isstring(L, -2))
+										mods[modname] = lua_tostring(L, -2);
+								}
+								lua_pop(L, 1); // pop mkey copy
+							}
+							lua_pop(L, 1); // pop mvalue, keep mkey for next lua_next
+						}
+					} else if (lua_isstring(L, -2)) {
+						// Treat string value as a path to expand
+						mods["_worldmods_path_" + std::to_string(mods.size())] = lua_tostring(L, -2);
+					}
+				} else if (key == "seed") {
+					if (lua_isstring(L, -2))
+						settings["fixed_map_seed"] = lua_tostring(L, -2);
+					else if (lua_isnumber(L, -2))
+						settings["fixed_map_seed"] = std::to_string(lua_tonumber(L, -2));
+				} else {
+					if (lua_isstring(L, -2))
+						settings[key] = lua_tostring(L, -2);
+					else if (lua_isboolean(L, -2))
+						settings[key] = lua_toboolean(L, -2) ? "true" : "false";
+					else if (lua_isnumber(L, -2))
+						settings[key] = std::to_string(lua_tonumber(L, -2));
+				}
+			}
+			lua_pop(L, 2); // pop key_copy and value
+		}
 	}
-	lua_pop(L, 1);
 
 	std::string path = porting::path_user + DIR_DELIM
 			"worlds" + DIR_DELIM
 			+ sanitizeDirName(name, "world_");
 
-	std::vector<SubgameSpec> games = getAvailableGames();
-	auto game_it = std::find_if(games.begin(), games.end(), [gameid] (const SubgameSpec &spec) {
-		return spec.id == gameid;
-	});
-	if (game_it == games.end()) {
+	SubgameSpec gamespec = findSubgame(gameid);
+	if (!gamespec.isValid()) {
+		lua_pushboolean(L, false);
 		lua_pushstring(L, "Game ID not found");
-		return 1;
+		return 2;
 	}
 
 	// Set the settings for world creation
-	// this is a bad hack but the best we have right now..
 	StringMap backup;
-	for (auto &it : use_settings) {
-		if (g_settings->existsLocal(it.first))
-			backup[it.first] = g_settings->get(it.first);
-		g_settings->set(it.first, it.second);
+	for (auto const& [key, value] : settings) {
+		if (g_settings->existsLocal(key))
+			backup[key] = g_settings->get(key);
+		g_settings->set(key, value);
 	}
 
 	// Create world if it doesn't exist
+	std::string final_path;
 	try {
-		loadGameConfAndInitWorld(path, name, *game_it, true);
-		lua_pushnil(L);
+		final_path = loadGameConfAndInitWorld(path, name, gamespec, true);
 	} catch (const BaseException &e) {
-		auto err = std::string("Failed to initialize world: ") + e.what();
-		lua_pushstring(L, err.c_str());
+		// Restore previous settings
+		for (auto const& [key, value] : settings) {
+			if (backup.count(key))
+				g_settings->set(key, backup[key]);
+			else
+				g_settings->remove(key);
+		}
+
+		lua_pushboolean(L, false);
+		lua_pushstring(L, e.what());
+		return 2;
 	}
 
 	// Restore previous settings
-	for (auto &it : use_settings) {
-		auto it2 = backup.find(it.first);
-		if (it2 == backup.end())
-			g_settings->remove(it.first); // wasn't set before
+	for (auto const& [key, value] : settings) {
+		if (backup.count(key))
+			g_settings->set(key, backup[key]);
 		else
-			g_settings->set(it.first, it2->second); // was set before
+			g_settings->remove(key);
 	}
 
-	return 1;
+	// Now write mods and other settings to world.mt
+	std::string worldmt_path = final_path + DIR_DELIM + "world.mt";
+	Settings conf;
+	conf.readConfigFile(worldmt_path.c_str());
+
+	std::string worldmods_path = final_path + DIR_DELIM + "worldmods";
+
+	infostream << "core.create_world: Writing " << mods.size() << " mods to world.mt" << std::endl;
+
+	for (auto const& [modname, value] : mods) {
+		if (value == "true" || value == "false") {
+			conf.set("load_mod_" + modname, value);
+		} else {
+			// Path provided, copy it to worldmods/
+			std::string src_path = value;
+			if (!fs::IsPathAbsolute(src_path)) {
+				std::string resolved = porting::path_user + DIR_DELIM + src_path;
+				infostream << "core.create_world: Resolving relative path \"" << src_path
+					<< "\" to \"" << resolved << "\"" << std::endl;
+				src_path = resolved;
+			}
+
+			if (!src_path.empty()) {
+				infostream << "core.create_world: Processing mod path \"" << src_path << "\"" << std::endl;
+
+				if (fs::PathExists(src_path)) {
+					if (!fs::PathExists(worldmods_path)) {
+						infostream << "core.create_world: Creating worldmods directory at \"" << worldmods_path << "\"" << std::endl;
+					}
+					if (fs::CreateAllDirs(worldmods_path)) {
+						// Single mod or modpack check
+						bool is_mod = fs::IsFile(src_path + DIR_DELIM + "init.lua") ||
+								fs::IsFile(src_path + DIR_DELIM + "mod.conf") ||
+								fs::IsFile(src_path + DIR_DELIM + "modpack.conf");
+
+						if (is_mod) {
+							// Copy whole folder to worldmods/modname
+							std::string target_name = modname;
+							if (target_name.find("_worldmods_path_") == 0)
+								target_name = fs::GetFilenameFromPath(src_path.c_str());
+
+							std::string clean_name = sanitizeDirName(target_name, "mod_");
+							std::string dest_path = worldmods_path + DIR_DELIM + clean_name;
+							infostream << "core.create_world: Source path is a single mod/modpack. Copying from \""
+								<< src_path << "\" to \"" << dest_path << "\"" << std::endl;
+							if (fs::CopyDir(src_path, dest_path)) {
+								conf.set("load_mod_" + clean_name, "true");
+							} else {
+								errorstream << "core.create_world: Failed to copy mod folder to \"" << dest_path << "\"" << std::endl;
+							}
+						} else if (fs::IsDir(src_path)) {
+							// Collection of multiple mods, expand its contents into worldmods/
+							infostream << "core.create_world: Source path is a directory. Expanding contents from \""
+								<< src_path << "\" into \"" << worldmods_path << "\"" << std::endl;
+							std::vector<fs::DirListNode> content = fs::GetDirListing(src_path);
+							for (const auto &dln : content) {
+								if (dln.dir) {
+									std::string sub_src = src_path + DIR_DELIM + dln.name;
+									std::string clean_sub_name = sanitizeDirName(dln.name, "mod_");
+									std::string sub_dest = worldmods_path + DIR_DELIM + clean_sub_name;
+									infostream << "core.create_world: Copying sub-mod \"" << clean_sub_name << "\" to \"" << sub_dest << "\"" << std::endl;
+									if (fs::CopyDir(sub_src, sub_dest)) {
+										conf.set("load_mod_" + clean_sub_name, "true");
+									} else {
+										errorstream << "core.create_world: Failed to copy sub-mod from \"" << sub_src << "\" to \"" << sub_dest << "\"" << std::endl;
+									}
+								}
+							}
+						} else {
+							warningstream << "core.create_world: Path is not a mod or directory: " << src_path << std::endl;
+						}
+					} else {
+						errorstream << "core.create_world: Failed to ensure worldmods directory at \"" << worldmods_path << "\"" << std::endl;
+					}
+				} else {
+					warningstream << "core.create_world: Source path for mod \"" << modname << "\" does not exist: \"" << src_path << "\"" << std::endl;
+				}
+			}
+		}
+	}
+	for (auto const& [key, value] : settings) {
+		if (key == "fixed_map_seed")
+			continue;
+		conf.set(key, value);
+	}
+	conf.updateConfigFile(worldmt_path.c_str());
+
+	lua_pushboolean(L, true);
+	lua_pushstring(L, final_path.c_str());
+	return 2;
 }
 
 /******************************************************************************/
