@@ -750,14 +750,17 @@ Allows automatically leaving the current world and joining another world by name
 
 **Example:**
 ```lua
-local modpath = minetest.get_modpath("my_mod")
+-- Creating a world with custom mods and settings
 core.create_world("ProgrammaticWorld", "minetest", {
     seed = "12345",
     mg_name = "v7",
+    -- 'worldmods' is an alias for 'mods'. Both can be used and are additive.
+    -- String value: treats path as a directory of mods to expand into the world.
+    worldmods = "bundled_mods", -- Expands all mods in "my_mod/bundled_mods/"
     mods = {
-        default = true, -- Enable global mod
-        -- Bundled sub-mods from inside "my_mod/bundled_mods/"
-        ["my_submod"] = "bundled_mods/my_submod"
+        default = true, -- Enable a global mod
+        -- Specifically copy "my_mod/custom_mod_dir/" as "my_submod"
+        ["my_submod"] = "custom_mod_dir"
     },
     creative_mode = "true" -- Arbitrary world.mt setting
 })
