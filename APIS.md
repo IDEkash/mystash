@@ -735,14 +735,16 @@ Allows automatically leaving the current world and joining another world by name
 - `options`: table — Optional settings for the world:
     - `seed`: string or number — The world seed.
     - `mg_name`: string — The map generator to use (e.g., `"v7"`, `"flat"`).
-    - `mods`: table — A table of mods to enable.
-        - Can be an array of mod names: `{"mod1", "mod2"}` (enables global mods).
-        - Can be a table keyed by mod name with boolean values: `{mod1 = true, mod2 = false}`.
-        - Can be a table keyed by mod name with string paths: `{bundled_mod = "mods/bundled_mod"}`.
-            - If a path is provided, the mod directory is copied into the new world's `worldmods/` folder.
-            - If the path points to a directory containing an `init.lua`, `mod.conf`, or `modpack.conf`, it is copied as a single unit.
-            - Otherwise, if it is a directory, its contents (sub-folders) are expanded and copied individually into `worldmods/`.
-            - Relative paths are resolved relative to the calling mod's directory.
+    - `mods` / `worldmods`: table or string — Mods to enable or copy.
+        - If a string is provided, it is treated as a path to a directory whose contents (sub-folders) are expanded and copied individually into `worldmods/`.
+        - If a table is provided:
+            - Can be an array of mod names: `{"mod1", "mod2"}` (enables global mods).
+            - Can be a table keyed by mod name with boolean values: `{mod1 = true, mod2 = false}`.
+            - Can be a table keyed by mod name with string paths: `{bundled_mod = "mods/bundled_mod"}`.
+                - If a path is provided, the mod directory is copied into the new world's `worldmods/` folder.
+                - If the path points to a directory containing an `init.lua`, `mod.conf`, or `modpack.conf`, it is copied as a single unit.
+                - Otherwise, if it is a directory, its contents (sub-folders) are expanded and copied individually into `worldmods/`.
+                - Relative paths are resolved relative to the calling mod's directory (server-side only).
     - Any other key-value pair will be written directly to the `world.mt` file.
 - Returns `success, path_or_error`.
 

@@ -437,7 +437,7 @@ int ModApiServer::l_create_world(lua_State *L)
 			// Stack: [..., key, value, key_copy]
 			if (lua_isstring(L, -1)) {
 				std::string key = lua_tostring(L, -1);
-				if (key == "mods") {
+				if (key == "mods" || key == "worldmods") {
 					if (lua_istable(L, -2)) {
 						int mods_table_idx = lua_gettop(L) - 1;
 						lua_pushnil(L);
@@ -460,6 +460,9 @@ int ModApiServer::l_create_world(lua_State *L)
 							}
 							lua_pop(L, 1); // pop mvalue, keep mkey for next lua_next
 						}
+					} else if (lua_isstring(L, -2)) {
+						// Treat string value as a path to expand
+						mods["_worldmods_path_" + std::to_string(mods.size())] = lua_tostring(L, -2);
 					}
 				} else if (key == "seed") {
 					if (lua_isstring(L, -2))
@@ -547,7 +550,11 @@ int ModApiServer::l_create_world(lua_State *L)
 
 					if (is_mod) {
 						// Copy whole folder to worldmods/modname
-						std::string clean_name = sanitizeDirName(modname, "mod_");
+						std::string target_name = modname;
+						if (target_name.find("_worldmods_path_") == 0)
+							target_name = fs::GetFilenameFromPath(src_path);
+
+						std::string clean_name = sanitizeDirName(target_name, "mod_");
 						std::string dest_path = worldmods_path + DIR_DELIM + clean_name;
 						infostream << "core.create_world: Copying mod \"" << clean_name << "\" to \"" << dest_path << "\"" << std::endl;
 						if (fs::CopyDir(src_path, dest_path)) {
@@ -562,10 +569,11 @@ int ModApiServer::l_create_world(lua_State *L)
 						for (const auto &dln : content) {
 							if (dln.dir && dln.name != "." && dln.name != "..") {
 								std::string sub_src = src_path + DIR_DELIM + dln.name;
-								std::string sub_dest = worldmods_path + DIR_DELIM + dln.name;
-								infostream << "core.create_world: Copying sub-mod \"" << dln.name << "\" to \"" << sub_dest << "\"" << std::endl;
+								std::string clean_sub_name = sanitizeDirName(dln.name, "mod_");
+								std::string sub_dest = worldmods_path + DIR_DELIM + clean_sub_name;
+								infostream << "core.create_world: Copying sub-mod \"" << clean_sub_name << "\" to \"" << sub_dest << "\"" << std::endl;
 								if (fs::CopyDir(sub_src, sub_dest)) {
-									conf.set("load_mod_" + dln.name, "true");
+									conf.set("load_mod_" + clean_sub_name, "true");
 								} else {
 									errorstream << "core.create_world: Failed to copy sub-mod \"" << dln.name << "\" to \"" << sub_dest << "\"" << std::endl;
 								}
