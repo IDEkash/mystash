@@ -741,7 +741,7 @@ int ModApiMainMenu::l_create_world(lua_State *L)
 						// Copy whole folder to worldmods/modname
 						std::string target_name = modname;
 						if (target_name.find("_worldmods_path_") == 0)
-							target_name = fs::GetFilenameFromPath(src_path);
+							target_name = fs::GetFilenameFromPath(src_path.c_str());
 
 						std::string clean_name = sanitizeDirName(target_name, "mod_");
 						std::string dest_path = worldmods_path + DIR_DELIM + clean_name;
