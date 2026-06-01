@@ -673,8 +673,9 @@ int ModApiMainMenu::l_create_world(lua_State *L)
 
 	SubgameSpec gamespec = findSubgame(gameid);
 	if (!gamespec.isValid()) {
+		lua_pushboolean(L, false);
 		lua_pushstring(L, "Game ID not found");
-		return 1;
+		return 2;
 	}
 
 	// Set the settings for world creation
@@ -698,9 +699,9 @@ int ModApiMainMenu::l_create_world(lua_State *L)
 				g_settings->remove(key);
 		}
 
-		auto err = std::string("Failed to initialize world: ") + e.what();
-		lua_pushstring(L, err.c_str());
-		return 1;
+		lua_pushboolean(L, false);
+		lua_pushstring(L, e.what());
+		return 2;
 	}
 
 	// Restore previous settings
@@ -718,64 +719,76 @@ int ModApiMainMenu::l_create_world(lua_State *L)
 
 	std::string worldmods_path = final_path + DIR_DELIM + "worldmods";
 
+	infostream << "core.create_world: Writing " << mods.size() << " mods to world.mt" << std::endl;
+
 	for (auto const& [modname, value] : mods) {
 		if (value == "true" || value == "false") {
 			conf.set("load_mod_" + modname, value);
 		} else {
 			// Path provided, copy it to worldmods/
 			std::string src_path = value;
-			// Relative paths in mainmenu are relative to user path or current dir?
-			// l_server.cpp uses current mod path. Mainmenu doesn't have "current mod".
-			// We'll assume they are relative to current directory or absolute.
+			if (!fs::IsPathAbsolute(src_path)) {
+				std::string resolved = porting::path_user + DIR_DELIM + src_path;
+				infostream << "core.create_world: Resolving relative path \"" << src_path
+					<< "\" to \"" << resolved << "\"" << std::endl;
+				src_path = resolved;
+			}
 
-			infostream << "core.create_world: Processing mod path \"" << src_path << "\"" << std::endl;
+			if (!src_path.empty()) {
+				infostream << "core.create_world: Processing mod path \"" << src_path << "\"" << std::endl;
 
-			if (fs::PathExists(src_path)) {
-				if (fs::CreateAllDirs(worldmods_path)) {
-					// Single mod or modpack check
-					bool is_mod = fs::PathExists(src_path + DIR_DELIM + "init.lua") ||
-							fs::PathExists(src_path + DIR_DELIM + "mod.conf") ||
-							fs::PathExists(src_path + DIR_DELIM + "modpack.conf");
+				if (fs::PathExists(src_path)) {
+					if (!fs::PathExists(worldmods_path)) {
+						infostream << "core.create_world: Creating worldmods directory at \"" << worldmods_path << "\"" << std::endl;
+					}
+					if (fs::CreateAllDirs(worldmods_path)) {
+						// Single mod or modpack check
+						bool is_mod = fs::IsFile(src_path + DIR_DELIM + "init.lua") ||
+								fs::IsFile(src_path + DIR_DELIM + "mod.conf") ||
+								fs::IsFile(src_path + DIR_DELIM + "modpack.conf");
 
-					if (is_mod) {
-						// Copy whole folder to worldmods/modname
-						std::string target_name = modname;
-						if (target_name.find("_worldmods_path_") == 0)
-							target_name = fs::GetFilenameFromPath(src_path.c_str());
+						if (is_mod) {
+							// Copy whole folder to worldmods/modname
+							std::string target_name = modname;
+							if (target_name.find("_worldmods_path_") == 0)
+								target_name = fs::GetFilenameFromPath(src_path.c_str());
 
-						std::string clean_name = sanitizeDirName(target_name, "mod_");
-						std::string dest_path = worldmods_path + DIR_DELIM + clean_name;
-						infostream << "core.create_world: Copying mod \"" << clean_name << "\" to \"" << dest_path << "\"" << std::endl;
-						if (fs::CopyDir(src_path, dest_path)) {
-							conf.set("load_mod_" + clean_name, "true");
-						} else {
-							errorstream << "core.create_world: Failed to copy mod folder to \"" << dest_path << "\"" << std::endl;
-						}
-					} else if (fs::IsDir(src_path)) {
-						// Collection of multiple mods, expand its contents into worldmods/
-						infostream << "core.create_world: Expanding mod folder contents from \"" << src_path << "\" into \"" << worldmods_path << "\"" << std::endl;
-						std::vector<fs::DirListNode> content = fs::GetDirListing(src_path);
-						for (const auto &dln : content) {
-							if (dln.dir && dln.name != "." && dln.name != "..") {
-								std::string sub_src = src_path + DIR_DELIM + dln.name;
-								std::string clean_sub_name = sanitizeDirName(dln.name, "mod_");
-								std::string sub_dest = worldmods_path + DIR_DELIM + clean_sub_name;
-								infostream << "core.create_world: Copying sub-mod \"" << clean_sub_name << "\" to \"" << sub_dest << "\"" << std::endl;
-								if (fs::CopyDir(sub_src, sub_dest)) {
-									conf.set("load_mod_" + clean_sub_name, "true");
-								} else {
-									errorstream << "core.create_world: Failed to copy sub-mod \"" << dln.name << "\" to \"" << sub_dest << "\"" << std::endl;
+							std::string clean_name = sanitizeDirName(target_name, "mod_");
+							std::string dest_path = worldmods_path + DIR_DELIM + clean_name;
+							infostream << "core.create_world: Source path is a single mod/modpack. Copying from \""
+								<< src_path << "\" to \"" << dest_path << "\"" << std::endl;
+							if (fs::CopyDir(src_path, dest_path)) {
+								conf.set("load_mod_" + clean_name, "true");
+							} else {
+								errorstream << "core.create_world: Failed to copy mod folder to \"" << dest_path << "\"" << std::endl;
+							}
+						} else if (fs::IsDir(src_path)) {
+							// Collection of multiple mods, expand its contents into worldmods/
+							infostream << "core.create_world: Source path is a directory. Expanding contents from \""
+								<< src_path << "\" into \"" << worldmods_path << "\"" << std::endl;
+							std::vector<fs::DirListNode> content = fs::GetDirListing(src_path);
+							for (const auto &dln : content) {
+								if (dln.dir) {
+									std::string sub_src = src_path + DIR_DELIM + dln.name;
+									std::string clean_sub_name = sanitizeDirName(dln.name, "mod_");
+									std::string sub_dest = worldmods_path + DIR_DELIM + clean_sub_name;
+									infostream << "core.create_world: Copying sub-mod \"" << clean_sub_name << "\" to \"" << sub_dest << "\"" << std::endl;
+									if (fs::CopyDir(sub_src, sub_dest)) {
+										conf.set("load_mod_" + clean_sub_name, "true");
+									} else {
+										errorstream << "core.create_world: Failed to copy sub-mod from \"" << sub_src << "\" to \"" << sub_dest << "\"" << std::endl;
+									}
 								}
 							}
+						} else {
+							warningstream << "core.create_world: Path is not a mod or directory: " << src_path << std::endl;
 						}
 					} else {
-						warningstream << "core.create_world: Path is not a mod or directory: " << src_path << std::endl;
+						errorstream << "core.create_world: Failed to ensure worldmods directory at \"" << worldmods_path << "\"" << std::endl;
 					}
 				} else {
-					errorstream << "core.create_world: Failed to ensure worldmods directory at \"" << worldmods_path << "\"" << std::endl;
+					warningstream << "core.create_world: Source path for mod \"" << modname << "\" does not exist: \"" << src_path << "\"" << std::endl;
 				}
-			} else {
-				warningstream << "core.create_world: Source path for mod \"" << modname << "\" does not exist: \"" << src_path << "\"" << std::endl;
 			}
 		}
 	}
@@ -786,8 +799,9 @@ int ModApiMainMenu::l_create_world(lua_State *L)
 	}
 	conf.updateConfigFile(worldmt_path.c_str());
 
-	lua_pushnil(L);
-	return 1;
+	lua_pushboolean(L, true);
+	lua_pushstring(L, final_path.c_str());
+	return 2;
 }
 
 /******************************************************************************/
