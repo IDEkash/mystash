@@ -169,4 +169,11 @@ private:
 	Lighting m_lighting;
 
 	session_t m_peer_id = PEER_ID_INEXISTENT;
+
+public:
+	// For synchronized worlds: store the position and orientation from the shared database
+	v3f shared_pos;
+	f32 shared_pitch = 0.0f;
+	f32 shared_yaw = 0.0f;
+	bool has_shared_pos = false;
 };

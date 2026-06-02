@@ -661,6 +661,11 @@ int ModApiMainMenu::l_create_world(lua_State *L)
 				} else if (key == "synchronizes") {
 					if (lua_isstring(L, -2))
 						settings["synchronizes"] = lua_tostring(L, -2);
+				} else if (key == "visible") {
+					if (lua_isstring(L, -2))
+						settings["visible"] = lua_tostring(L, -2);
+					else if (lua_isboolean(L, -2))
+						settings["visible"] = lua_toboolean(L, -2) ? "visible" : "hidden";
 				} else {
 					if (lua_isstring(L, -2))
 						settings[key] = lua_tostring(L, -2);
