@@ -265,8 +265,14 @@ void ServerEnvironment::init()
 				<< "please read https://docs.luanti.org/for-server-hosts/database-backends." << std::endl;
 	}
 
-	m_player_database = openPlayerDatabase(player_backend_name, world_path, conf);
-	m_auth_database = openAuthDatabase(auth_backend_name, world_path, conf);
+	std::string sync_path = "";
+	if (conf.exists("synchronizes")) {
+		sync_path = conf.get("synchronizes");
+		infostream << "World synchronization enabled with: " << sync_path << std::endl;
+	}
+
+	m_player_database = openPlayerDatabase(player_backend_name, sync_path.empty() ? world_path : sync_path, conf);
+	m_auth_database = openAuthDatabase(auth_backend_name, sync_path.empty() ? world_path : sync_path, conf);
 
 	if (m_map && m_script->has_on_mapblocks_changed()) {
 		m_map->addEventReceiver(&m_on_mapblocks_changed_receiver);

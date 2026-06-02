@@ -5726,6 +5726,7 @@ Utilities
 
 * `core.get_worldpath()`: returns e.g. `"/home/user/.minetest/world"`
     * Useful for storing custom data
+* `core.get_synchronized_worldpath()`: returns the path of the synchronized world if enabled, otherwise `nil`.
 * `core.get_mod_data_path()`: returns e.g. `"/home/user/.minetest/mod_data/mymod"`
     * Useful for storing custom data *independently of worlds*.
     * Must be called during mod load time.

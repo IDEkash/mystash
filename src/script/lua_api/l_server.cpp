@@ -469,6 +469,9 @@ int ModApiServer::l_create_world(lua_State *L)
 						settings["fixed_map_seed"] = lua_tostring(L, -2);
 					else if (lua_isnumber(L, -2))
 						settings["fixed_map_seed"] = std::to_string(lua_tonumber(L, -2));
+				} else if (key == "synchronizes") {
+					if (lua_isstring(L, -2))
+						settings["synchronizes"] = lua_tostring(L, -2);
 				} else {
 					if (lua_isstring(L, -2))
 						settings[key] = lua_tostring(L, -2);
@@ -606,6 +609,21 @@ int ModApiServer::l_create_world(lua_State *L)
 	for (auto const& [key, value] : settings) {
 		if (key == "fixed_map_seed")
 			continue;
+		if (key == "synchronizes") {
+			std::string sync_target = value;
+			if (!fs::IsPathAbsolute(sync_target)) {
+				// Try to find world by name
+				std::vector<WorldSpec> worlds = getAvailableWorlds();
+				for (const auto &world : worlds) {
+					if (world.name == sync_target) {
+						sync_target = world.path;
+						break;
+					}
+				}
+			}
+			conf.set("synchronizes", sync_target);
+			continue;
+		}
 		conf.set(key, value);
 	}
 	conf.updateConfigFile(worldmt_path.c_str());
@@ -962,6 +980,21 @@ int ModApiServer::l_get_worldpath(lua_State *L)
 	return 1;
 }
 
+// get_synchronized_worldpath()
+int ModApiServer::l_get_synchronized_worldpath(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	const Server *srv = getServer(L);
+	std::string worldmt_path = srv->getWorldPath() + DIR_DELIM + "world.mt";
+	Settings world_mt;
+	if (world_mt.readConfigFile(worldmt_path.c_str()) && world_mt.exists("synchronizes")) {
+		lua_pushstring(L, world_mt.get("synchronizes").c_str());
+		return 1;
+	}
+	lua_pushnil(L);
+	return 1;
+}
+
 // get_mod_data_path()
 int ModApiServer::l_get_mod_data_path(lua_State *L)
 {
@@ -1166,6 +1199,7 @@ void ModApiServer::Initialize(lua_State *L, int top)
 	API_FCT(get_server_max_lag);
 	API_FCT(get_mod_data_path);
 	API_FCT(get_worldpath);
+	API_FCT(get_synchronized_worldpath);
 	API_FCT(is_singleplayer);
 
 	API_FCT(get_current_modname);
@@ -1209,6 +1243,7 @@ void ModApiServer::Initialize(lua_State *L, int top)
 void ModApiServer::InitializeAsync(lua_State *L, int top)
 {
 	API_FCT(get_worldpath);
+	API_FCT(get_synchronized_worldpath);
 	API_FCT(is_singleplayer);
 
 	API_FCT(get_current_modname);

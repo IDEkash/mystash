@@ -277,6 +277,26 @@ std::string getWorldGameId(const std::string &world_path, bool can_be_legacy)
 	return conf.get("gameid");
 }
 
+bool getWorldVisible(const std::string &world_path)
+{
+	std::string conf_path = world_path + DIR_DELIM + "world.mt";
+	Settings conf;
+	bool succeeded = conf.readConfigFile(conf_path.c_str());
+	if (!succeeded)
+		return true;
+
+	if (!conf.exists("visible"))
+		return true;
+
+	std::string v = conf.get("visible");
+	if (v == "visible")
+		return true;
+	if (v == "hidden")
+		return false;
+
+	return conf.getBool("visible");
+}
+
 std::string getWorldPathEnv()
 {
 	char *world_path = getenv("MINETEST_WORLD_PATH");
@@ -306,7 +326,8 @@ std::vector<WorldSpec> getAvailableWorlds()
 			// Just allow filling in the gameid always for now
 			bool can_be_legacy = true;
 			std::string gameid = getWorldGameId(fullpath, can_be_legacy);
-			WorldSpec spec(fullpath, name, gameid);
+			bool visible = getWorldVisible(fullpath);
+			WorldSpec spec(fullpath, name, gameid, visible);
 			if (!spec.isValid()) {
 				infostream << "(invalid: " << name << ") ";
 			} else {
@@ -323,7 +344,8 @@ std::vector<WorldSpec> getAvailableWorlds()
 			break;
 		std::string name = "Old World";
 		std::string gameid = getWorldGameId(fullpath, true);
-		WorldSpec spec(fullpath, name, gameid);
+		bool visible = getWorldVisible(fullpath);
+		WorldSpec spec(fullpath, name, gameid, visible);
 		infostream << "Old world found." << std::endl;
 		worlds.push_back(spec);
 	} while (false);

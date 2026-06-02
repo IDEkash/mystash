@@ -30,6 +30,9 @@ private:
 	// get_worldpath()
 	static int l_get_worldpath(lua_State *L);
 
+	// get_synchronized_worldpath()
+	static int l_get_synchronized_worldpath(lua_State *L);
+
 	// get_mod_data_path()
 	static int l_get_mod_data_path(lua_State *L);
 
