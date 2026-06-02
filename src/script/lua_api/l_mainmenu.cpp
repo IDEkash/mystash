@@ -297,6 +297,10 @@ int ModApiMainMenu::l_get_worlds(lua_State *L)
 		lua_pushstring(L, world.gameid.c_str());
 		lua_settable(L, top_lvl2);
 
+		lua_pushstring(L, "visible");
+		lua_pushboolean(L, world.visible);
+		lua_settable(L, top_lvl2);
+
 		lua_settable(L, top);
 		index++;
 	}
@@ -654,6 +658,14 @@ int ModApiMainMenu::l_create_world(lua_State *L)
 						settings["fixed_map_seed"] = lua_tostring(L, -2);
 					else if (lua_isnumber(L, -2))
 						settings["fixed_map_seed"] = std::to_string(lua_tonumber(L, -2));
+				} else if (key == "synchronizes") {
+					if (lua_isstring(L, -2))
+						settings["synchronizes"] = lua_tostring(L, -2);
+				} else if (key == "visible") {
+					if (lua_isstring(L, -2))
+						settings["visible"] = lua_tostring(L, -2);
+					else if (lua_isboolean(L, -2))
+						settings["visible"] = lua_toboolean(L, -2) ? "visible" : "hidden";
 				} else {
 					if (lua_isstring(L, -2))
 						settings[key] = lua_tostring(L, -2);
@@ -795,6 +807,21 @@ int ModApiMainMenu::l_create_world(lua_State *L)
 	for (auto const& [key, value] : settings) {
 		if (key == "fixed_map_seed")
 			continue;
+		if (key == "synchronizes") {
+			std::string sync_target = value;
+			if (!fs::IsPathAbsolute(sync_target)) {
+				// Try to find world by name
+				std::vector<WorldSpec> worlds = getAvailableWorlds();
+				for (const auto &world : worlds) {
+					if (world.name == sync_target) {
+						sync_target = world.path;
+						break;
+					}
+				}
+			}
+			conf.set("synchronizes", sync_target);
+			continue;
+		}
 		conf.set(key, value);
 	}
 	conf.updateConfigFile(worldmt_path.c_str());

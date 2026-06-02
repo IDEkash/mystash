@@ -68,11 +68,12 @@ struct WorldSpec
 	std::string path;
 	std::string name;
 	std::string gameid;
+	bool visible = true;
 
 	WorldSpec(const std::string &path = "", const std::string &name = "",
-			const std::string &gameid = "") :
+			const std::string &gameid = "", bool visible = true) :
 			path(path),
-			name(name), gameid(gameid)
+			name(name), gameid(gameid), visible(visible)
 	{
 	}
 

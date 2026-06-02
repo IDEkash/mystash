@@ -490,7 +490,13 @@ void Server::init()
 	m_banmanager = new BanManager(ban_path);
 
 	// Create mod storage database and begin a save for later
-	m_mod_storage_database = openModStorageDatabase(m_path_world);
+	std::string mod_storage_path = m_path_world;
+	Settings world_mt;
+	std::string world_mt_path = m_path_world + DIR_DELIM + "world.mt";
+	if (world_mt.readConfigFile(world_mt_path.c_str()) && world_mt.exists("synchronizes")) {
+		mod_storage_path = world_mt.get("synchronizes");
+	}
+	m_mod_storage_database = openModStorageDatabase(mod_storage_path);
 	m_mod_storage_database->beginSave();
 
 	m_modmgr = std::make_unique<ServerModManager>(m_path_world, m_gamespec);

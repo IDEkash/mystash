@@ -404,10 +404,14 @@ Worlds
             path   = <full path to world>,
             name   = <name of world>,
             gameid = <gameid of world>,
+            visible = <true/false>,
         },
     }
     ```
 * `core.create_world(worldname, gameid, init_settings)`
+    * `init_settings` is an optional table with the following optional keys:
+        * `visible`: set to `"visible"` or `"hidden"`. If hidden, it will not be visible in the world list.
+        * `synchronizes`: a world name or absolute path of a world to synchronize data with.
 * `core.delete_world(index)`
 
 
