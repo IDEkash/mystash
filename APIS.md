@@ -735,6 +735,8 @@ Allows automatically leaving the current world and joining another world by name
 - `options`: table — Optional settings for the world:
     - `seed`: string or number — The world seed.
     - `mg_name`: string — The map generator to use (e.g., `"v7"`, `"flat"`).
+    - `visible`: string — `"visible"` or `"hidden"`. If hidden, the world will not appear in the player's world list.
+    - `synchronizes`: string — A world name or absolute path to a world whose data (players, inventory, auth, mod storage) should be synchronized.
     - `mods` / `worldmods`: table or string — Mods to enable or copy.
         - If a string is provided, it is treated as a path to a directory whose contents (sub-folders) are expanded and copied individually into `worldmods/`.
         - If a table is provided:
@@ -747,6 +749,9 @@ Allows automatically leaving the current world and joining another world by name
                 - Relative paths are resolved relative to the calling mod's directory (server-side only).
     - Any other key-value pair will be written directly to the `world.mt` file.
 - Returns `success, path_or_error`.
+
+`core.get_synchronized_worldpath()` (Server-side)
+- Returns the absolute path to the world being synchronized with, or `nil` if synchronization is not enabled for the current world.
 
 **Example:**
 ```lua
