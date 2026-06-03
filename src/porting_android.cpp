@@ -14,6 +14,7 @@
 #include "filesys.h"
 #include "log.h"
 #include "settings.h"
+#include "jav_jni.h"
 
 #include <jni.h>
 #define SDL_MAIN_HANDLED 1
@@ -99,6 +100,8 @@ void osSpecificInit()
 	jclass localClass = env->GetObjectClass(activity);
 	activityClass = (jclass)env->NewGlobalRef(localClass);
 	env->DeleteLocalRef(localClass);
+
+	jav_jni::initialize(env);
 
 	// Set default language
 	auto lang = getLanguageAndroid();

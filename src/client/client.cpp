@@ -49,6 +49,10 @@
 #include "script/common/c_types.h" // LuaError
 #include "script/scripting_client.h"
 
+#ifdef __ANDROID__
+#include "jav_jni.h"
+#endif
+
 // SSCSM
 #include "client/mod_vfs.h"
 #include "script/sscsm/sscsm_controller.h"
@@ -850,6 +854,10 @@ void Client::step(float dtime)
 		m_localdb->endSave();
 		m_localdb->beginSave();
 	}
+
+#ifdef __ANDROID__
+	jav_jni::poll(m_script);
+#endif
 }
 
 bool Client::loadMedia(const std::string &data, const std::string &filename,
