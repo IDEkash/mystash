@@ -6,6 +6,8 @@
 #include "common/c_converter.h"
 #include "common/c_content.h"
 #include "log.h"
+#include <map>
+#include <vector>
 
 #ifdef __ANDROID__
 #include "jav_jni.h"
@@ -107,7 +109,6 @@ static void java_to_lua(lua_State *L, jobject obj)
 		return;
 	}
 	JNIEnv *env = porting::getJNIEnv();
-	jclass obj_class = env->GetObjectClass(obj);
 
 	// Check for primitives wrappers
 	jclass string_class = env->FindClass("java/lang/String");
@@ -363,7 +364,7 @@ int ModApiJav::l_classes(lua_State *L)
 
 int ModApiJav::l_help(lua_State *L)
 {
-	const char *class_name = luaL_checkstring(L, 1);
+	luaL_checkstring(L, 1);
 	lua_pushstring(L, "Reflection-based help is available via jav.methods and jav.fields");
 	return 1;
 }
@@ -391,8 +392,8 @@ int ModApiJav::l_fields(lua_State *L)
 	return 1;
 }
 
-static long next_callback_id = 1;
-static std::map<long, int> async_callbacks;
+static jlong next_callback_id = 1;
+static std::map<jlong, int> async_callbacks;
 static std::map<std::string, std::vector<int>> event_handlers;
 
 int ModApiJav::l_async(lua_State *L)

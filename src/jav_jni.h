@@ -14,7 +14,7 @@ class ScriptApiBase;
 namespace jav_jni {
 
 struct AsyncResult {
-	long callback_id;
+	jlong callback_id;
 	jobject result;
 	std::string error;
 };
