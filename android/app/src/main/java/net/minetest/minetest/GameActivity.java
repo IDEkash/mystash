@@ -215,6 +215,23 @@ public class GameActivity extends SDLActivity {
 			mHtmlViewManager.htmlview_capture(id, width, height);
 	}
 
+	public java.nio.ByteBuffer htmlview_get_stream_pixels(String id) {
+		if (mHtmlViewManager != null)
+			return mHtmlViewManager.htmlview_get_stream_pixels(id);
+		return null;
+	}
+
+	public void htmlview_set_stream_target_size(String id, int w, int h) {
+		if (mHtmlViewManager != null)
+			mHtmlViewManager.htmlview_set_stream_target_size(id, w, h);
+	}
+
+	public boolean htmlview_is_stream_dirty(String id) {
+		if (mHtmlViewManager != null)
+			return mHtmlViewManager.htmlview_is_stream_dirty(id);
+		return false;
+	}
+
 	private NotificationManager mNotifyManager;
 	private boolean gameNotificationShown = false;
 

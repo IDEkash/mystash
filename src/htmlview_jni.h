@@ -31,6 +31,9 @@ class ServerScripting;
 	void htmlview_jni_shared_set(const std::string &key, const char *val);
 	std::string htmlview_jni_shared_get(const std::string &key);
 	void htmlview_jni_capture(const std::string &id, int width, int height);
+	bool htmlview_jni_get_stream_pixels(const std::string &id, void *buffer, size_t buffer_size);
+	bool htmlview_jni_is_stream_dirty(const std::string &id);
+	void htmlview_jni_set_stream_target_size(const std::string &id, int w, int h);
 	void htmlview_jni_poll(ServerScripting *script);
 
 #endif

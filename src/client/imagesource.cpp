@@ -4,6 +4,7 @@
 
 #include "imagesource.h"
 
+#include "client/stream_texture_manager.h"
 #include "exceptions.h"
 #include <IFileSystem.h>
 #include "imagefilters.h"
@@ -1781,6 +1782,30 @@ bool ImageSource::generateImagePart(std::string_view part_of_name,
 
 			apply_brightness_contrast(baseimg, v2u32(0, 0),
 				baseimg->getDimension(), brightness, contrast);
+		}
+		/*
+			[stream:id
+			Creates a texture that will be updated from an htmlview stream.
+		*/
+		else if (str_starts_with(part_of_name, "[stream:"))
+		{
+			if (baseimg) {
+				errorstream << "generateImagePart(): [stream must be the first "
+						"modifier." << std::endl;
+				return false;
+			}
+
+			Strfnd sf(part_of_name);
+			sf.next(":");
+			std::string stream_id = sf.next(":");
+
+			core::dimension2d<u32> dim(512, 512);
+			baseimg = driver->createImage(video::ECF_A8R8G8B8, dim);
+			baseimg->fill(video::SColor(0, 0, 0, 0));
+
+			// Note: Texture creation happens later in TextureSource::generateTexture
+			// We can't register with StreamTextureManager here because we don't have
+			// the ITexture pointer yet. We'll handle this in TextureSource.
 		}
 		else
 		{

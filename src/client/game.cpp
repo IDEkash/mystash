@@ -32,6 +32,7 @@
 #include "texturesource.h"
 #include "gui/mainmenumanager.h"
 #include "gui/profilergraph.h"
+#include "client/stream_texture_manager.h"
 #include "localplayer.h"
 #include "minimap.h"
 #include "network/networkexceptions.h"
@@ -548,6 +549,7 @@ Game::Game() :
 
 Game::~Game()
 {
+	StreamTextureManager::get().cleanup();
 	delete client;
 	soundmaker.reset();
 	sound_manager.reset();
@@ -752,6 +754,7 @@ void Game::run()
 		updateSound(dtime);
 		processPlayerInteraction(dtime, m_game_ui->m_flags.show_hud);
 		updateFrame(&graph, &stats, dtime, cam_view);
+		StreamTextureManager::get().update();
 		updateProfilerGraphs(&graph);
 
 		if (m_does_lost_focus_pause_game && !device->isWindowFocused() && !isMenuActive()) {

@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Outline;
+import android.graphics.Picture;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
@@ -58,6 +59,7 @@ public class HTMLViewManager {
 	private final HashMap<String, String> pipes = new HashMap<>();
 	private final HashMap<String, String> sharedMemory = new HashMap<>();
 	private final Handler handler = new Handler(Looper.getMainLooper());
+	private final Handler captureHandler = new Handler(Looper.getMainLooper());
 
 	public HTMLViewManager(GameActivity activity, ViewGroup root) {
 		this.activity = activity;
@@ -189,6 +191,9 @@ public class HTMLViewManager {
 			HtmlViewState st = views.remove(id);
 			if (st == null)
 				return;
+			synchronized (st.streamLock) {
+				st.streamPixels = null;
+			}
 			try {
 				if (st.attachedToRoot)
 					root.removeView(st.container);
@@ -386,6 +391,35 @@ public class HTMLViewManager {
 		});
 	}
 
+	public java.nio.ByteBuffer htmlview_get_stream_pixels(String id) {
+		HtmlViewState st = views.get(id);
+		if (st == null)
+			return null;
+		synchronized (st.streamLock) {
+			if (!st.streamPixelsDirty || st.streamBuffer == null)
+				return null;
+			st.streamPixelsDirty = false;
+			return st.streamBuffer;
+		}
+	}
+
+	public void htmlview_set_stream_target_size(String id, int w, int h) {
+		HtmlViewState st = views.get(id);
+		if (st != null) {
+			st.targetWidth = w;
+			st.targetHeight = h;
+		}
+	}
+
+	public boolean htmlview_is_stream_dirty(String id) {
+		HtmlViewState st = views.get(id);
+		if (st == null)
+			return false;
+		synchronized (st.streamLock) {
+			return st.streamPixelsDirty && st.streamBuffer != null;
+		}
+	}
+
 	private void capturePngToNativeOnUiThread(String id, HtmlViewState st, int width, int height) {
 		WebView wv = st.webView;
 
@@ -452,6 +486,10 @@ public class HTMLViewManager {
 		st.attachedToRoot = attachToRoot;
 
 		wv.setWebViewClient(new LocalContentClient(st));
+		wv.setPictureListener((view, picture) -> {
+			st.contentDirty = true;
+			scheduleCapture(st);
+		});
 		wv.setWebChromeClient(new WebChromeClient() {
 			@Override
 			public void onPermissionRequest(final PermissionRequest request) {
@@ -875,12 +913,85 @@ public class HTMLViewManager {
 		int dragStartLeft;
 		int dragStartTop;
 
+		final Object streamLock = new Object();
+		java.nio.ByteBuffer streamBuffer;
+		boolean streamPixelsDirty = false;
+		boolean contentDirty = false;
+		boolean captureScheduled = false;
+		long lastCaptureTime = 0;
+		int targetWidth = -1;
+		int targetHeight = -1;
+
 		HtmlViewState(String id, String host, String baseUrl, FrameLayout container, WebView webView) {
 			this.id = id;
 			this.host = host;
 			this.baseUrl = baseUrl;
 			this.container = container;
 			this.webView = webView;
+		}
+	}
+
+	private void scheduleCapture(HtmlViewState st) {
+		if (st.captureScheduled)
+			return;
+
+		long now = System.currentTimeMillis();
+		long delay = Math.max(0, (1000 / 24) - (now - st.lastCaptureTime));
+
+		st.captureScheduled = true;
+		captureHandler.postDelayed(() -> performStreamCapture(st), delay);
+	}
+
+	private void performStreamCapture(HtmlViewState st) {
+		st.captureScheduled = false;
+		if (!st.contentDirty)
+			return;
+
+		WebView wv = st.webView;
+		int w = wv.getWidth();
+		int h = wv.getHeight();
+
+		if (w <= 0) w = st.container.getWidth();
+		if (h <= 0) h = st.container.getHeight();
+		if (w <= 0) w = 512;
+		if (h <= 0) h = 512;
+
+		// Limit size for performance
+		if (w > 1024) w = 1024;
+		if (h > 1024) h = 1024;
+
+		int tw = st.targetWidth > 0 ? st.targetWidth : w;
+		int th = st.targetHeight > 0 ? st.targetHeight : h;
+
+		try {
+			Bitmap bmp;
+			if (tw == w && th == h) {
+				bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+				Canvas canvas = new Canvas(bmp);
+				wv.draw(canvas);
+			} else {
+				// Capture at full size then scale
+				Bitmap fullBmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+				Canvas canvas = new Canvas(fullBmp);
+				wv.draw(canvas);
+				bmp = Bitmap.createScaledBitmap(fullBmp, tw, th, true);
+				fullBmp.recycle();
+			}
+
+			int bytes = bmp.getByteCount();
+			synchronized (st.streamLock) {
+				if (st.streamBuffer == null || st.streamBuffer.capacity() < bytes) {
+					st.streamBuffer = java.nio.ByteBuffer.allocateDirect(bytes);
+				}
+				st.streamBuffer.clear();
+				bmp.copyPixelsToBuffer(st.streamBuffer);
+				st.streamBuffer.flip();
+				st.streamPixelsDirty = true;
+				st.contentDirty = false;
+				st.lastCaptureTime = System.currentTimeMillis();
+			}
+			bmp.recycle();
+		} catch (Exception ignored) {
 		}
 	}
 

@@ -5,6 +5,7 @@
 #include "texturesource.h"
 
 #include <cassert>
+#include "client/stream_texture_manager.h"
 #include <IVideoDriver.h>
 #include "guiscalingfilter.h"
 #include "imagefilters.h"
@@ -376,6 +377,15 @@ u32 TextureSource::generateArrayTexture(const std::vector<std::string> &images)
 	TextureInfo ti{video::ETT_2D_ARRAY, name, images, tex, std::move(source_image_names)};
 	m_textureinfo_cache.emplace_back(std::move(ti));
 	m_name_to_id[name] = id;
+
+	if (tex && name.find("[stream:") != std::string::npos) {
+		std::string stream_id;
+		size_t pos = name.find("[stream:");
+		size_t end = name.find('^', pos);
+		if (end == std::string::npos) end = name.size();
+		stream_id = name.substr(pos + 8, end - (pos + 8));
+		StreamTextureManager::get().registerStream(stream_id, tex);
+	}
 
 	return id;
 }

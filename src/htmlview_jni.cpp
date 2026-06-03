@@ -8,6 +8,7 @@
 #include "config.h"
 #include "log.h"
 #include "porting_android.h"
+#include "client/stream_texture_manager.h"
 
 #include <jni.h>
 #include <deque>
@@ -198,6 +199,7 @@ void htmlview_jni_run_external_worker(const std::string &id, const std::string &
 
 void htmlview_jni_stop(const std::string &id)
 {
+	StreamTextureManager::get().unregisterStream(id);
 	callVoidMethod1Str("htmlview_stop", id);
 }
 
@@ -303,6 +305,69 @@ std::string htmlview_jni_shared_get(const std::string &key)
 void htmlview_jni_capture(const std::string &id, int width, int height)
 {
 	callVoidMethod1Str2Int("htmlview_capture", id, width, height);
+}
+
+bool htmlview_jni_get_stream_pixels(const std::string &id, void *buffer, size_t buffer_size)
+{
+	JNIEnv *env = porting::getJNIEnv();
+	jmethodID mid = env->GetMethodID(porting::activityClass, "htmlview_get_stream_pixels",
+		"(Ljava/lang/String;)Ljava/nio/ByteBuffer;");
+	if (!mid) {
+		errorstream << "htmlview_jni: missing method htmlview_get_stream_pixels" << std::endl;
+		return false;
+	}
+
+	jstring jid = env->NewStringUTF(id.c_str());
+	jobject jbuf = env->CallObjectMethod(porting::activity, mid, jid);
+	env->DeleteLocalRef(jid);
+
+	if (!jbuf)
+		return false;
+
+	void *addr = env->GetDirectBufferAddress(jbuf);
+	jlong capacity = env->GetDirectBufferCapacity(jbuf);
+
+	if (addr && capacity > 0) {
+		size_t to_copy = std::min((size_t)capacity, buffer_size);
+		memcpy(buffer, addr, to_copy);
+		env->DeleteLocalRef(jbuf);
+		return true;
+	}
+
+	env->DeleteLocalRef(jbuf);
+	return false;
+}
+
+bool htmlview_jni_is_stream_dirty(const std::string &id)
+{
+	JNIEnv *env = porting::getJNIEnv();
+	jmethodID mid = env->GetMethodID(porting::activityClass, "htmlview_is_stream_dirty",
+		"(Ljava/lang/String;)Z");
+	if (!mid) {
+		errorstream << "htmlview_jni: missing method htmlview_is_stream_dirty" << std::endl;
+		return false;
+	}
+
+	jstring jid = env->NewStringUTF(id.c_str());
+	jboolean dirty = env->CallBooleanMethod(porting::activity, mid, jid);
+	env->DeleteLocalRef(jid);
+
+	return (bool)dirty;
+}
+
+void htmlview_jni_set_stream_target_size(const std::string &id, int w, int h)
+{
+	JNIEnv *env = porting::getJNIEnv();
+	jmethodID mid = env->GetMethodID(porting::activityClass, "htmlview_set_stream_target_size",
+		"(Ljava/lang/String;II)V");
+	if (!mid) {
+		errorstream << "htmlview_jni: missing method htmlview_set_stream_target_size" << std::endl;
+		return;
+	}
+
+	jstring jid = env->NewStringUTF(id.c_str());
+	env->CallVoidMethod(porting::activity, mid, jid, (jint)w, (jint)h);
+	env->DeleteLocalRef(jid);
 }
 
 #if 0
