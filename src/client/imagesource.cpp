@@ -1801,7 +1801,7 @@ bool ImageSource::generateImagePart(std::string_view part_of_name,
 
 			core::dimension2d<u32> dim(512, 512);
 			baseimg = driver->createImage(video::ECF_A8R8G8B8, dim);
-			baseimg->fill(video::SColor(0, 0, 0, 0));
+			baseimg->fill(video::SColor(255, 64, 64, 64)); // Visible dark grey placeholder
 
 			// Note: Texture creation happens later in TextureSource::generateTexture
 			// We can't register with StreamTextureManager here because we don't have

@@ -539,8 +539,7 @@ public class HTMLViewManager {
 		lp.gravity = Gravity.TOP | Gravity.START;
 		lp.leftMargin = 0;
 		lp.topMargin = 0;
-		if (attachToRoot)
-			root.addView(container, lp);
+		root.addView(container, lp);
 
 		views.put(id, st);
 		return st;
@@ -881,6 +880,8 @@ public class HTMLViewManager {
 		@Override
 		public void onPageFinished(WebView view, String url) {
 			st.ready = true;
+			st.contentDirty = true;
+			scheduleCapture(st);
 			updateInputShieldVisibility(st);
 			nativeOnHTMLReady(st.id);
 		}
@@ -964,6 +965,12 @@ public class HTMLViewManager {
 		int th = st.targetHeight > 0 ? st.targetHeight : h;
 
 		try {
+			if (wv.getWidth() <= 0 || wv.getHeight() <= 0) {
+				wv.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
+						View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY));
+				wv.layout(0, 0, w, h);
+			}
+
 			Bitmap bmp;
 			if (tw == w && th == h) {
 				bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);

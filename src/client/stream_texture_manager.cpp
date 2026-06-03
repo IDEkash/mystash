@@ -26,6 +26,7 @@ void StreamTextureManager::update()
 				continue;
 			}
 			info.texture->unlock();
+			info.texture->regenerateMipMapLevels();
 		}
 	}
 #endif
