@@ -5,6 +5,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Outline;
 import android.graphics.Picture;
+import android.util.Log;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
@@ -44,6 +45,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -51,11 +53,20 @@ import java.util.concurrent.TimeUnit;
 @Keep
 @SuppressWarnings({"unused", "WeakerAccess"})
 public class HTMLViewManager {
+	static {
+		if (Build.VERSION.SDK_INT >= 21) {
+			try {
+				WebView.enableSlowWholeDocumentDraw();
+			} catch (Exception ignored) {
+			}
+		}
+	}
+
 	private static final int CENTER_SENTINEL = Integer.MIN_VALUE;
 
 	private final GameActivity activity;
 	private final ViewGroup root;
-	private final HashMap<String, HtmlViewState> views = new HashMap<>();
+	private final ConcurrentHashMap<String, HtmlViewState> views = new ConcurrentHashMap<>();
 	private final HashMap<String, String> pipes = new HashMap<>();
 	private final HashMap<String, String> sharedMemory = new HashMap<>();
 	private final Handler handler = new Handler(Looper.getMainLooper());
@@ -96,8 +107,10 @@ public class HTMLViewManager {
 			st.externalEntry = null;
 			st.lastHtml = html;
 			st.ready = false;
+			st.isStreaming = true;
 			String injected = injectBridge(html);
 			st.webView.loadDataWithBaseURL(st.baseUrl, injected, "text/html", "utf-8", null);
+			scheduleCapture(st);
 		});
 	}
 
@@ -108,8 +121,10 @@ public class HTMLViewManager {
 			st.externalEntry = null;
 			st.lastHtml = html;
 			st.ready = false;
+			st.isStreaming = true;
 			String injected = injectBridge(html);
 			st.webView.loadDataWithBaseURL(st.baseUrl, injected, "text/html", "utf-8", null);
+			scheduleCapture(st);
 		});
 	}
 
@@ -120,7 +135,9 @@ public class HTMLViewManager {
 			st.externalEntry = normalizeEntry(entry);
 			st.lastHtml = null;
 			st.ready = false;
+			st.isStreaming = true;
 			st.webView.loadUrl(st.baseUrl + st.externalEntry);
+			scheduleCapture(st);
 		});
 	}
 
@@ -131,7 +148,9 @@ public class HTMLViewManager {
 			st.externalEntry = normalizeEntry(entry);
 			st.lastHtml = null;
 			st.ready = false;
+			st.isStreaming = true;
 			st.webView.loadUrl(st.baseUrl + st.externalEntry);
+			scheduleCapture(st);
 		});
 	}
 
@@ -193,6 +212,11 @@ public class HTMLViewManager {
 				return;
 			synchronized (st.streamLock) {
 				st.streamBuffer = null;
+				if (st.streamBitmap != null) {
+					st.streamBitmap.recycle();
+					st.streamBitmap = null;
+				}
+				st.isStreaming = false;
 			}
 			try {
 				if (st.attachedToRoot)
@@ -404,11 +428,20 @@ public class HTMLViewManager {
 	}
 
 	public void htmlview_set_stream_target_size(String id, int w, int h) {
-		HtmlViewState st = views.get(id);
-		if (st != null) {
+		Log.e("HTMLViewManager", "htmlview_set_stream_target_size id=" + id + " w=" + w + " h=" + h);
+		activity.runOnUiThread(() -> {
+			HtmlViewState st = getOrCreate(id, false);
 			st.targetWidth = w;
 			st.targetHeight = h;
-		}
+			st.isStreaming = true;
+			st.contentDirty = true;
+			if (st.container.getLayoutParams() != null) {
+				st.container.getLayoutParams().width = w;
+				st.container.getLayoutParams().height = h;
+				st.container.requestLayout();
+			}
+			scheduleCapture(st);
+		});
 	}
 
 	public boolean htmlview_is_stream_dirty(String id) {
@@ -475,12 +508,16 @@ public class HTMLViewManager {
 		String baseUrl = "https://" + host + "/";
 
 		FrameLayout container = new FrameLayout(activity);
-		container.setVisibility(View.GONE);
+		container.setVisibility(View.VISIBLE);
+		container.setAlpha(0.01f); // Almost invisible but still "visible" to the system
 		container.setClipToPadding(false);
 		container.setClipChildren(false);
 
 		WebView wv = new WebView(activity);
-		wv.setBackgroundColor(Color.TRANSPARENT);
+		wv.setBackgroundColor(Color.WHITE);
+		if (Build.VERSION.SDK_INT >= 11) {
+			wv.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+		}
 
 		HtmlViewState st = new HtmlViewState(id, host, baseUrl, container, wv);
 		st.attachedToRoot = attachToRoot;
@@ -539,10 +576,17 @@ public class HTMLViewManager {
 		lp.gravity = Gravity.TOP | Gravity.START;
 		lp.leftMargin = 0;
 		lp.topMargin = 0;
-		root.addView(container, lp);
 
-		views.put(id, st);
-		return st;
+		activity.runOnUiThread(() -> {
+			if (container.getParent() == null) {
+				root.addView(container, lp);
+			}
+			st.contentDirty = true;
+			scheduleCapture(st);
+		});
+
+		views.putIfAbsent(id, st);
+		return views.get(id);
 	}
 
 	private void ensureInputShield(HtmlViewState st) {
@@ -916,9 +960,11 @@ public class HTMLViewManager {
 
 		final Object streamLock = new Object();
 		java.nio.ByteBuffer streamBuffer;
+		Bitmap streamBitmap;
 		boolean streamPixelsDirty = false;
 		boolean contentDirty = false;
 		boolean captureScheduled = false;
+		boolean isStreaming = false;
 		long lastCaptureTime = 0;
 		int targetWidth = -1;
 		int targetHeight = -1;
@@ -945,8 +991,6 @@ public class HTMLViewManager {
 
 	private void performStreamCapture(HtmlViewState st) {
 		st.captureScheduled = false;
-		if (!st.contentDirty)
-			return;
 
 		WebView wv = st.webView;
 		int w = wv.getWidth();
@@ -954,51 +998,56 @@ public class HTMLViewManager {
 
 		if (w <= 0) w = st.container.getWidth();
 		if (h <= 0) h = st.container.getHeight();
-		if (w <= 0) w = 512;
-		if (h <= 0) h = 512;
+		if (w <= 0) w = st.targetWidth > 0 ? st.targetWidth : 512;
+		if (h <= 0) h = st.targetHeight > 0 ? st.targetHeight : 512;
 
 		// Limit size for performance
 		if (w > 1024) w = 1024;
 		if (h > 1024) h = 1024;
 
+		if (wv.getWidth() != w || wv.getHeight() != h) {
+			wv.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
+					View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY));
+			wv.layout(0, 0, w, h);
+		}
+
 		int tw = st.targetWidth > 0 ? st.targetWidth : w;
 		int th = st.targetHeight > 0 ? st.targetHeight : h;
 
 		try {
-			if (wv.getWidth() <= 0 || wv.getHeight() <= 0) {
-				wv.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
-						View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY));
-				wv.layout(0, 0, w, h);
-			}
-
-			Bitmap bmp;
-			if (tw == w && th == h) {
-				bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-				Canvas canvas = new Canvas(bmp);
-				wv.draw(canvas);
-			} else {
-				// Capture at full size then scale
-				Bitmap fullBmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-				Canvas canvas = new Canvas(fullBmp);
-				wv.draw(canvas);
-				bmp = Bitmap.createScaledBitmap(fullBmp, tw, th, true);
-				fullBmp.recycle();
-			}
-
-			int bytes = bmp.getByteCount();
 			synchronized (st.streamLock) {
+				if (st.streamBitmap == null || st.streamBitmap.getWidth() != tw || st.streamBitmap.getHeight() != th) {
+					if (st.streamBitmap != null) st.streamBitmap.recycle();
+					st.streamBitmap = Bitmap.createBitmap(tw, th, Bitmap.Config.ARGB_8888);
+				}
+
+				Canvas canvas = new Canvas(st.streamBitmap);
+				canvas.drawColor(Color.YELLOW); // Yellow background: if WebView draw fails, you see Yellow.
+				if (tw == w && th == h) {
+					wv.draw(canvas);
+				} else {
+					canvas.save();
+					canvas.scale((float) tw / w, (float) th / h);
+					wv.draw(canvas);
+					canvas.restore();
+				}
+
+				int bytes = st.streamBitmap.getByteCount();
 				if (st.streamBuffer == null || st.streamBuffer.capacity() < bytes) {
 					st.streamBuffer = java.nio.ByteBuffer.allocateDirect(bytes);
 				}
 				st.streamBuffer.clear();
-				bmp.copyPixelsToBuffer(st.streamBuffer);
-				st.streamBuffer.flip();
+				st.streamBitmap.copyPixelsToBuffer(st.streamBuffer);
 				st.streamPixelsDirty = true;
 				st.contentDirty = false;
 				st.lastCaptureTime = System.currentTimeMillis();
 			}
-			bmp.recycle();
-		} catch (Exception ignored) {
+		} catch (Exception e) {
+			Log.e("HTMLViewManager", "Capture failed for " + st.id, e);
+		}
+
+		if (st.isStreaming) {
+			scheduleCapture(st);
 		}
 	}
 

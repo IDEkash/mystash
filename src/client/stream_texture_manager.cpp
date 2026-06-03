@@ -21,12 +21,12 @@ void StreamTextureManager::update()
 		u32 expected_size = info.width * info.height * 4;
 		void *data = info.texture->lock(video::ETLM_WRITE_ONLY);
 		if (data) {
-			if (!htmlview_jni_get_stream_pixels(id, data, expected_size)) {
-				info.texture->unlock();
-				continue;
-			}
+			bool ok = htmlview_jni_get_stream_pixels(id, data, expected_size);
 			info.texture->unlock();
-			info.texture->regenerateMipMapLevels();
+			if (ok) {
+				errorstream << "StreamTextureManager: Updated texture for " << id << std::endl;
+				info.texture->regenerateMipMapLevels();
+			}
 		}
 	}
 #endif

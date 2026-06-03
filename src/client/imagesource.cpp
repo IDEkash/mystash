@@ -1798,10 +1798,12 @@ bool ImageSource::generateImagePart(std::string_view part_of_name,
 			Strfnd sf(part_of_name);
 			sf.next(":");
 			std::string stream_id = sf.next(":");
+			if (!stream_id.empty() && stream_id.back() == ']')
+				stream_id.pop_back();
 
 			core::dimension2d<u32> dim(512, 512);
 			baseimg = driver->createImage(video::ECF_A8R8G8B8, dim);
-			baseimg->fill(video::SColor(255, 64, 64, 64)); // Visible dark grey placeholder
+			baseimg->fill(video::SColor(255, 255, 0, 255)); // Magenta placeholder: if you see this, StreamTextureManager is NOT updating the texture.
 
 			// Note: Texture creation happens later in TextureSource::generateTexture
 			// We can't register with StreamTextureManager here because we don't have

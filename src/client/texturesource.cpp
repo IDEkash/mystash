@@ -384,6 +384,10 @@ u32 TextureSource::generateArrayTexture(const std::vector<std::string> &images)
 		size_t end = name.find('^', pos);
 		if (end == std::string::npos) end = name.size();
 		stream_id = name.substr(pos + 8, end - (pos + 8));
+		if (!stream_id.empty() && stream_id.back() == ']')
+			stream_id.pop_back();
+
+		errorstream << "TextureSource: Registering stream texture for " << stream_id << " (" << name << ")" << std::endl;
 		StreamTextureManager::get().registerStream(stream_id, tex);
 	}
 
