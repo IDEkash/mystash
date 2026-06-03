@@ -192,7 +192,7 @@ public class HTMLViewManager {
 			if (st == null)
 				return;
 			synchronized (st.streamLock) {
-				st.streamPixels = null;
+				st.streamBuffer = null;
 			}
 			try {
 				if (st.attachedToRoot)
