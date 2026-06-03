@@ -153,6 +153,38 @@ Within the HTMLView (Javascript):
 `htmlview.on_capture(id, cb_or_nil)`
 - `cb(png_bytes)` where `png_bytes` is a Lua string containing PNG file bytes.
 
+### Stream Texture
+
+Any active HTMLView instance can be used as a live texture source via a special texture modifier.
+
+`[stream:id`
+- `id`: The HTMLView ID.
+
+The texture will automatically update when the WebView content changes. Updates are throttled to a maximum of 24 FPS for performance.
+
+**Technical Details:**
+- **Default Resolution**: 512x512.
+- **Custom Resolution**: Use the `[resize:WxH` modifier. For example: `"[stream:screen1^[resize:1024x1024"`. This tells the Android side to capture and scale the WebView to the requested size.
+- **Format**: RGBA8.
+- **Performance**: Capture only happens if the WebView's `PictureListener` detects a change. Pixel transfer uses a direct memory buffer to avoid C++-side copies.
+
+**Example usage:**
+
+```lua
+-- Create and display an htmlview
+htmlview.run("screen1", "<h1>Hello World</h1>")
+
+-- Use it as a 512x512 live texture on a node
+minetest.register_node("mymod:screen", {
+    tiles = {"[stream:screen1"},
+})
+
+-- Use a higher resolution (1024x1024) on an entity
+entity:set_properties({
+    textures = {"[stream:screen1^[resize:1024x1024"}
+})
+```
+
 ### Input control
 
 `htmlview.input(id, opts)`
@@ -773,4 +805,4 @@ core.create_world("ProgrammaticWorld", "minetest", {
 
 ---
 - **More Soon!**
-- Latest Update: May, 30, 2026
+- Latest Update: June, 03, 2026
