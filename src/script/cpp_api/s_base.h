@@ -131,6 +131,7 @@ protected:
 	friend class NodeMetaRef;
 	friend class ModApiBase;
 	friend class ModApiEnv;
+	friend class ModApiJav;
 	friend class LuaVoxelManip;
 	friend class TestMoveAction; // needs getStack()
 
