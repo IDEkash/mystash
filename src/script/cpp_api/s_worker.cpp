@@ -137,31 +137,6 @@ void LuaWorker::runJob(WorkerJob &&job)
 		int nargs = 0;
 		if (job.args) {
 			script_unpack(L, job.args.get());
-			// if it was a table, it is 1 arg.
-			// The API says core.worker.run(worker, func, callback, ...)
-			// So args should probably be unpacked as multiple arguments.
-			// But PackedValue usually packs one value.
-			// If we want multiple args, we should have packed them into a table and unpack them here.
-			// Let's assume job.args is a table of arguments.
-			if (lua_istable(L, -1)) {
-				nargs = lua_objlen(L, -1);
-				for (int i = 1; i <= nargs; i++) {
-					lua_rawgeti(L, -i, i); // This is wrong logic for unpacking.
-				}
-				// Correct unpacking of table:
-				for (int i = 1; i <= nargs; i++) {
-					lua_rawgeti(L, -i, i);
-				}
-				// Wait, the above is still wrong.
-			} else {
-				nargs = 1;
-			}
-		}
-
-		// Re-do argument pushing correctly
-		lua_pop(L, 1); // pop what script_unpack pushed
-		if (job.args) {
-			script_unpack(L, job.args.get());
 			if (lua_istable(L, -1)) {
 				int table_idx = lua_gettop(L);
 				nargs = lua_objlen(L, table_idx);
@@ -358,7 +333,7 @@ void WorkerEngine::step(lua_State *L)
 	if (results.empty())
 		return;
 
-	ScriptApiBase *script = (ScriptApiBase*)ModApiBase::getScriptApiBase(L);
+	ScriptApiBase *script = ModApiBase::getScriptApiBase(L);
 	int error_handler = PUSH_ERROR_HANDLER(L);
 
 	lua_getglobal(L, "core");

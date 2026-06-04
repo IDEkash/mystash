@@ -10,7 +10,7 @@
 int ModApiWorker::l_create(lua_State *L)
 {
 	std::string name = luaL_checkstring(L, 1);
-	ServerScripting *script = (ServerScripting *)getScriptApiBase(L);
+	ServerScripting *script = getScriptApi<ServerScripting>(L);
 	u32 id = script->createWorker(name);
 	lua_pushinteger(L, id);
 	return 1;
@@ -29,7 +29,7 @@ int ModApiWorker::l_queue(lua_State *L)
 
 	PackedValue *args = script_pack(L, 3);
 
-	ServerScripting *script = (ServerScripting *)getScriptApiBase(L);
+	ServerScripting *script = getScriptApi<ServerScripting>(L);
 	u32 job_id = script->queueWorkerJob(worker_id, std::move(serialized_func), args, mod_origin);
 
 	lua_pushinteger(L, job_id);
