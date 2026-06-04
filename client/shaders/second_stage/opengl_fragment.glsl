@@ -101,18 +101,20 @@ void main(void)
 	vec2 uv = varTexCoord.st;
 
 #ifdef LENS_DISTORTION
-	uv = (uv * 2.0 - 1.0);
-	uv *= 1.0 + dot(uv, uv) * 0.1;
-	uv = (uv * 0.85) * 0.5 + 0.5;
+	vec2 centered = uv * 2.0 - 1.0;
+	float r2 = dot(centered, centered);
+	centered *= 1.0 + r2 * 0.05; // Weaker strength: 0.05
+	centered *= 0.92; // Scale back down to fit screen
+	uv = centered * 0.5 + 0.5;
 #endif
 
-#ifdef ASPECT_RATIO
-	if (abs(uv.x * 2.0 - 1.0) >= 0.75 || uv.y < 0.0 || uv.y > 1.0 || uv.x < 0.0 || uv.x > 1.0) {
+	if (uv.y < 0.0 || uv.y > 1.0 || uv.x < 0.0 || uv.x > 1.0) {
 		gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
 		return;
 	}
-#else
-	if (uv.y < 0.0 || uv.y > 1.0 || uv.x < 0.0 || uv.x > 1.0) {
+
+#ifdef ASPECT_RATIO
+	if (abs((uv.x * 2.0 - 1.0)) >= 0.75) {
 		gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
 		return;
 	}
@@ -128,8 +130,8 @@ void main(void)
 	vec4 color = texture2D(rendered, uv).rgba;
 #endif
 
-	// translate to linear colorspace (approximate)
-	color.rgb = pow(color.rgb, vec3(2.2));
+	// ALREADY LINEAR from world shaders
+	// color.rgb = pow(color.rgb, vec3(2.2));
 
 	{
 		color.rgb *= exposureParams.compensationFactor;
@@ -144,8 +146,8 @@ void main(void)
 
 	color.rgb = clamp(color.rgb, vec3(0.), vec3(1.));
 
-	// return to sRGB colorspace (approximate)
-	color.rgb = pow(color.rgb, vec3(1.0 / 2.2));
+	// Gamma correction is done at the very end
+	// color.rgb = pow(color.rgb, vec3(1.0 / 2.2));
 
 	{
 #if ENABLE_TONE_MAPPING
@@ -211,8 +213,11 @@ void main(void)
 		interlace_mask = 1.0 - interlace_mask;
 	}
 	vec4 prevCol = texture2D(prevFrame, uv);
-	color.rgb = mix(color.rgb, prevCol.rgb, interlace_mask * 0.5);
+	color.rgb = mix(color.rgb, prevCol.rgb, interlace_mask);
 #endif
+
+	// Final gamma correction (sRGB conversion)
+	color.rgb = pow(max(color.rgb, vec3(0.0)), vec3(1.0 / 2.2));
 
 	gl_FragColor = vec4(color.rgb, 1.0);
 }

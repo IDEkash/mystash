@@ -288,6 +288,8 @@ class MainShaderUniformSetter : public IShaderUniformSetter
 	video::SColor m_material_color;
 	CachedPixelShaderSetting<float, 4> m_material_color_setting{"materialColor"};
 
+	CachedPixelShaderSetting<float> m_animation_timer_pixel{"animationTimer"};
+
 public:
 	~MainShaderUniformSetter() = default;
 
@@ -333,6 +335,12 @@ public:
 
 		video::SColorf colorf(m_material_color);
 		m_material_color_setting.set(colorf, services);
+
+		// Note: animationTimer is also set by GameGlobalShaderUniformSetter,
+		// but second_stage might not be using that setter.
+		// Setting it here ensures it is available for all shaders.
+		float animation_timer_f = (float)(porting::getTimeMs() % 100000) / 1000.f;
+		m_animation_timer_pixel.set(&animation_timer_f, services);
 	}
 };
 

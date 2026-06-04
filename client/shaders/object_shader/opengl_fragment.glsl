@@ -408,14 +408,23 @@ void main(void)
 		discard;
 #endif
 
-	vec3 albedo = base.rgb;
+	vec3 albedo = pow(base.rgb, vec3(2.2)); // Linearize
 	vec3 warmLight = vec3(0.9765, 0.7922, 0.5765);  // amber/candlelight
 
-	float skyLight   = pow(lmcoord.y, 3.0);          // sky/sun contribution
-	float blockLight = pow(lmcoord.x, 5.0) * 3.0;    // torch/block light
+	float skyLight   = lmcoord.y;                    // sky/sun contribution
+	float blockLight = lmcoord.x;
 
-	vec3 lit = albedo * skyLight + albedo * blockLight * warmLight;
-	vec4 col = vec4(lit, 1.0);
+	// Fallback for broken lightmap
+	if (skyLight < 0.01 && blockLight < 0.01) skyLight = 0.8;
+
+	// Ambient base so nothing is ever fully black
+	float ambient = 0.05;
+
+	vec3 lit = albedo * max(ambient, skyLight)
+	         + albedo * blockLight * warmLight * 2.0;
+
+	lit = min(lit, albedo * 2.0); // prevent over-brightening
+	vec4 col = vec4(lit, base.a);
 	col.rgb *= vIDiff;
 
 #ifdef ENABLE_DYNAMIC_SHADOWS

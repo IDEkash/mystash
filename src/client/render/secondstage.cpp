@@ -56,8 +56,11 @@ void PostProcessingStep::run(PipelineContext &context)
 
 	auto driver = context.device->getVideoDriver();
 
-	for (u32 i = 0; i < texture_map.size(); i++)
+	for (u32 i = 0; i < texture_map.size(); i++) {
 		material.TextureLayers[i].Texture = source->getTexture(texture_map[i]);
+		if (material.TextureLayers[i].Texture && material.UseMipMaps)
+			material.TextureLayers[i].Texture->regenerateMipMapLevels();
+	}
 
 	static const video::SColor color = video::SColor(0, 0, 0, 255);
 	static const video::S3DVertex vertices[4] = {
@@ -80,6 +83,11 @@ void PostProcessingStep::setBilinearFilter(u8 index, bool value)
 	assert(index < video::MATERIAL_MAX_TEXTURES);
 	material.TextureLayers[index].MinFilter = value ? video::ETMINF_LINEAR_MIPMAP_NEAREST : video::ETMINF_NEAREST_MIPMAP_NEAREST;
 	material.TextureLayers[index].MagFilter = value ? video::ETMAGF_LINEAR : video::ETMAGF_NEAREST;
+}
+
+void PostProcessingStep::setMipMaps(bool value)
+{
+	material.UseMipMaps = value;
 }
 
 RenderStep *addPostProcessing(RenderPipeline *pipeline, RenderStep *previousStep, v2f scale, Client *client)
@@ -286,8 +294,13 @@ RenderStep *addPostProcessing(RenderPipeline *pipeline, RenderStep *previousStep
 		effect->setBilinearFilter(0, true);
 	effect->setBilinearFilter(1, true);
 	effect->setBilinearFilter(2, true);
+	effect->setMipMaps(true); // Needed for Chroma Bleed LOD sampling
 	effect->setRenderSource(buffer);
 	effect->setRenderTarget(pipeline->createOwned<TextureBufferOutput>(buffer, TEXTURE_PREV_FRAME_2));
+
+	// We need a final blit to screen because 'effect' is rendering to TEXTURE_PREV_FRAME_2
+	auto blit = pipeline->addStep<PostProcessingStep>(client->getShaderSource()->getShaderRaw("second_stage"), std::vector<u8> { TEXTURE_PREV_FRAME_2 });
+	blit->setRenderSource(buffer);
 
 	pipeline->addStep<SwapTexturesStep>(buffer, TEXTURE_PREV_FRAME_1, TEXTURE_PREV_FRAME_2);
 
