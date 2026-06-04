@@ -72,6 +72,7 @@ VARYING_ vec3 vNormal;
 VARYING_ vec3 worldPosition;
 CENTROID_ VARYING_ lowp vec4 varColor;
 CENTROID_ VARYING_ mediump vec2 varTexCoord;
+VARYING_ mediump vec2 lmcoord;
 // Conditional because 'flat' is not available on old GLSL
 #ifdef USE_ARRAY_TEXTURE
 flat VARYING_ uint varTexLayer;
@@ -489,7 +490,14 @@ void main(void)
 		base = mix(base, crack, crack.a);
 	}
 
-	vec4 col = vec4(base.rgb * varColor.rgb, 1.0);
+	vec3 albedo = base.rgb;
+	vec3 warmLight = vec3(0.9765, 0.7922, 0.5765);  // amber/candlelight
+
+	float skyLight   = pow(lmcoord.y, 3.0);          // sky/sun contribution
+	float blockLight = pow(lmcoord.x, 5.0) * 3.0;    // torch/block light
+
+	vec3 lit = albedo * skyLight + albedo * blockLight * warmLight;
+	vec4 col = vec4(lit, 1.0);
 
 #ifdef ENABLE_DYNAMIC_SHADOWS
 	// Fragment normal, can differ from vNormal which is derived from vertex normals.

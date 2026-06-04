@@ -7,6 +7,7 @@ VARYING_ vec3 vNormal;
 VARYING_ vec3 worldPosition;
 VARYING_ lowp vec4 varColor;
 CENTROID_ VARYING_ mediump vec2 varTexCoord;
+VARYING_ mediump vec2 lmcoord;
 #ifdef USE_ARRAY_TEXTURE
 flat VARYING_ uint varTexLayer;
 #endif
@@ -121,6 +122,7 @@ void main(void)
 	varTexLayer = inVertexAux;
 #endif
 	varTexCoord = (mTexture * vec4(inTexCoord0.xy, 1.0, 1.0)).st;
+	lmcoord = inTexCoord1;
 
 	gl_Position = mWorldViewProj * skinPos;
 

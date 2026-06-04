@@ -103,6 +103,8 @@ RenderStep *addPostProcessing(RenderPipeline *pipeline, RenderStep *previousStep
 	static const u8 TEXTURE_EXPOSURE_2 = 4;
 	static const u8 TEXTURE_FXAA = 5;
 	static const u8 TEXTURE_VOLUME = 6;
+	static const u8 TEXTURE_PREV_FRAME_1 = 30;
+	static const u8 TEXTURE_PREV_FRAME_2 = 31;
 
 	static const u8 TEXTURE_MSAA_COLOR = 7;
 	static const u8 TEXTURE_MSAA_DEPTH = 8;
@@ -167,6 +169,8 @@ RenderStep *addPostProcessing(RenderPipeline *pipeline, RenderStep *previousStep
 	buffer->setTexture(TEXTURE_EXPOSURE_1, core::dimension2du(1,1), "exposure_1", color_format, /*clear:*/ true);
 	buffer->setTexture(TEXTURE_EXPOSURE_2, core::dimension2du(1,1), "exposure_2", color_format, /*clear:*/ true);
 	buffer->setTexture(TEXTURE_DEPTH, scale, "3d_depthmap", depth_format);
+	buffer->setTexture(TEXTURE_PREV_FRAME_1, scale, "vhs_prev_1", color_format, /*clear:*/ true);
+	buffer->setTexture(TEXTURE_PREV_FRAME_2, scale, "vhs_prev_2", color_format, /*clear:*/ true);
 
 	// attach buffer to the previous step
 	if (enable_msaa) {
@@ -276,12 +280,16 @@ RenderStep *addPostProcessing(RenderPipeline *pipeline, RenderStep *previousStep
 
 	// final merge
 	shader_id = client->getShaderSource()->getShaderRaw("second_stage");
-	PostProcessingStep *effect = pipeline->createOwned<PostProcessingStep>(shader_id, std::vector<u8> { final_stage_source, TEXTURE_SCALE_UP, TEXTURE_EXPOSURE_2 });
+	PostProcessingStep *effect = pipeline->createOwned<PostProcessingStep>(shader_id, std::vector<u8> { final_stage_source, TEXTURE_SCALE_UP, TEXTURE_PREV_FRAME_1, TEXTURE_EXPOSURE_2 });
 	pipeline->addStep(effect);
 	if (enable_ssaa)
 		effect->setBilinearFilter(0, true);
 	effect->setBilinearFilter(1, true);
+	effect->setBilinearFilter(2, true);
 	effect->setRenderSource(buffer);
+	effect->setRenderTarget(pipeline->createOwned<TextureBufferOutput>(buffer, TEXTURE_PREV_FRAME_2));
+
+	pipeline->addStep<SwapTexturesStep>(buffer, TEXTURE_PREV_FRAME_1, TEXTURE_PREV_FRAME_2);
 
 	if (enable_auto_exposure) {
 		pipeline->addStep<SwapTexturesStep>(buffer, TEXTURE_EXPOSURE_1, TEXTURE_EXPOSURE_2);
