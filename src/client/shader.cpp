@@ -19,8 +19,15 @@
 #include "gettext.h"
 #include "log.h"
 #include "client/tile.h"
+#include <algorithm>
 
 #include <mt_opengl.h>
+
+const std::vector<std::string> overridable_shaders = {
+	"nodes_shader", "object_shader", "cloud_shader", "shadow", "second_stage",
+	"bloom_downsample", "bloom_upsample", "blur_h", "blur_v", "fxaa",
+	"stars_shader", "minimap_shader", "extract_bloom", "update_exposure"
+};
 
 /*
 	A cache from shader name to shader path
@@ -157,10 +164,18 @@ class ShaderCallback : public video::IShaderConstantSetCallBack
 {
 	std::vector<std::unique_ptr<IShaderUniformSetter>> m_setters;
 	irr_ptr<IShaderUniformSetterRC> m_extra_setter;
+	std::string m_mod_shader_name;
+	const std::map<std::string, ShaderUniforms> *m_mod_shader_uniforms;
+	std::map<std::string, s32> m_pixel_uniform_ids;
+	std::map<std::string, s32> m_vertex_uniform_ids;
 
 public:
 	template <typename Factories>
-	ShaderCallback(const std::string &name, const Factories &factories)
+	ShaderCallback(const std::string &name, const Factories &factories,
+		const std::string &mod_shader_name,
+		const std::map<std::string, ShaderUniforms> *mod_shader_uniforms) :
+		m_mod_shader_name(mod_shader_name),
+		m_mod_shader_uniforms(mod_shader_uniforms)
 	{
 		for (auto &&factory : factories) {
 			auto *setter = factory->create(name);
@@ -186,6 +201,47 @@ public:
 			setter->onSetUniforms(services);
 		if (m_extra_setter)
 			m_extra_setter->onSetUniforms(services);
+
+		if (m_mod_shader_name.empty() || !m_mod_shader_uniforms)
+			return;
+
+		auto it = m_mod_shader_uniforms->find(m_mod_shader_name);
+		if (it == m_mod_shader_uniforms->end())
+			return;
+
+		for (const auto &uniform : it->second) {
+			const std::string &uname = uniform.first;
+			const UniformValue &uval = uniform.second;
+
+			auto get_id = [&](const std::string &name, bool pixel, std::map<std::string, s32> &cache) {
+				auto it_cache = cache.find(name);
+				if (it_cache != cache.end())
+					return it_cache->second;
+				s32 id = pixel ? services->getPixelShaderConstantID(name.c_str()) :
+								 services->getVertexShaderConstantID(name.c_str());
+				cache[name] = id;
+				return id;
+			};
+
+			s32 p_id = get_id(uname, true, m_pixel_uniform_ids);
+			s32 v_id = get_id(uname, false, m_vertex_uniform_ids);
+
+			if (const float *f = std::get_if<float>(&uval)) {
+				services->setPixelShaderConstant(p_id, f, 1);
+				services->setVertexShaderConstant(v_id, f, 1);
+			} else if (const int *i = std::get_if<int>(&uval)) {
+				services->setPixelShaderConstant(p_id, i, 1);
+				services->setVertexShaderConstant(v_id, i, 1);
+			} else if (const v2f *v = std::get_if<v2f>(&uval)) {
+				float f[2] = {v->X, v->Y};
+				services->setPixelShaderConstant(p_id, f, 2);
+				services->setVertexShaderConstant(v_id, f, 2);
+			} else if (const v3f *v = std::get_if<v3f>(&uval)) {
+				float f[3] = {v->X, v->Y, v->Z};
+				services->setPixelShaderConstant(p_id, f, 3);
+				services->setVertexShaderConstant(v_id, f, 3);
+			}
+		}
 	}
 
 	virtual void OnSetMaterial(const video::SMaterial& material) override
@@ -401,6 +457,26 @@ public:
 		m_uniform_factories.emplace_back(std::move(setter));
 	}
 
+	void registerModShader(const ModShaderOverride &ov) override
+	{
+		m_mod_shader_overrides[ov.target].push_back(ov);
+		std::sort(m_mod_shader_overrides[ov.target].begin(), m_mod_shader_overrides[ov.target].end(),
+			[](const ModShaderOverride &a, const ModShaderOverride &b) {
+				return a.priority > b.priority;
+			});
+	}
+
+	void setModShaderUniform(const std::string &shader_name,
+		const std::string &uniform_name, const UniformValue &value) override
+	{
+		m_mod_shader_uniforms[shader_name][uniform_name] = value;
+	}
+
+	std::vector<std::string> getOverridableShaderNames() const override
+	{
+		return overridable_shaders;
+	}
+
 	bool supportsSampler2DArray() const override
 	{
 		auto *driver = RenderingEngine::get_video_driver();
@@ -442,6 +518,9 @@ private:
 
 	// Global uniform setter factories
 	std::vector<std::unique_ptr<IShaderUniformSetterFactory>> m_uniform_factories;
+
+	std::map<std::string, std::vector<ModShaderOverride>> m_mod_shader_overrides;
+	std::map<std::string, ShaderUniforms> m_mod_shader_uniforms;
 
 	// Generate shader for given input parameters.
 	void generateShader(ShaderInfo &info);
@@ -673,6 +752,15 @@ void ShaderSource::generateShader(ShaderInfo &shaderinfo)
 	auto *gpu = driver->getGPUProgrammingServices();
 	assert(gpu);
 
+	bool enable_mod_shaders = g_settings->getBool("enable_mod_shaders");
+	const ModShaderOverride *mod_override = nullptr;
+	if (enable_mod_shaders) {
+		auto it = m_mod_shader_overrides.find(name);
+		if (it != m_mod_shader_overrides.end() && !it->second.empty()) {
+			mod_override = &it->second[0];
+		}
+	}
+
 	// Create shaders header
 	std::ostringstream shaders_header;
 	shaders_header
@@ -828,37 +916,76 @@ void ShaderSource::generateShader(ShaderInfo &shaderinfo)
 	std::string common_header = shaders_header.str();
 	const char *final_header = "#line 0\n"; // reset the line counter for meaningful diagnostics
 
-	std::string vertex_shader = m_sourcecache.getOrLoad(name, "opengl_vertex.glsl");
-	std::string fragment_shader = m_sourcecache.getOrLoad(name, "opengl_fragment.glsl");
-	std::string geometry_shader = m_sourcecache.getOrLoad(name, "opengl_geometry.glsl");
+	std::string vertex_shader_src, fragment_shader_src, geometry_shader_src;
+	std::string mod_shader_name;
 
-	if (vertex_shader.empty() || fragment_shader.empty()) {
+	auto load_src = [&] (bool use_mod) {
+		if (use_mod && mod_override) {
+			mod_shader_name = mod_override->name;
+			if (!mod_override->vertex_path.empty())
+				fs::ReadFile(mod_override->vertex_path, vertex_shader_src);
+			else
+				vertex_shader_src = m_sourcecache.getOrLoad(name, "opengl_vertex.glsl");
+
+			if (!mod_override->fragment_path.empty())
+				fs::ReadFile(mod_override->fragment_path, fragment_shader_src);
+			else
+				fragment_shader_src = m_sourcecache.getOrLoad(name, "opengl_fragment.glsl");
+		} else {
+			mod_shader_name = "";
+			vertex_shader_src = m_sourcecache.getOrLoad(name, "opengl_vertex.glsl");
+			fragment_shader_src = m_sourcecache.getOrLoad(name, "opengl_fragment.glsl");
+		}
+		geometry_shader_src = m_sourcecache.getOrLoad(name, "opengl_geometry.glsl");
+	};
+
+	load_src(true);
+
+	if (vertex_shader_src.empty() || fragment_shader_src.empty()) {
 		throw ShaderException(fmtgettext("Failed to find \"%s\" shader files.", name.c_str()));
 	}
 
-	vertex_shader = common_header + vertex_header + final_header + vertex_shader;
-	fragment_shader = common_header + fragment_header + final_header + fragment_shader;
-	const char *geometry_shader_ptr = nullptr; // optional
-	if (!geometry_shader.empty()) {
-		geometry_shader = common_header + geometry_header + final_header + geometry_shader;
-		geometry_shader_ptr = geometry_shader.c_str();
+	auto compile = [&](const std::string &v_src, const std::string &f_src, const std::string &g_src, const std::string &m_name) {
+		std::string v_final = common_header + vertex_header + final_header + v_src;
+		std::string f_final = common_header + fragment_header + final_header + f_src;
+		std::string g_final;
+		const char *g_ptr = nullptr;
+		if (!g_src.empty()) {
+			g_final = common_header + geometry_header + final_header + g_src;
+			g_ptr = g_final.c_str();
+		}
+
+		auto cb = make_irr<ShaderCallback>(name, m_uniform_factories, m_name, &m_mod_shader_uniforms);
+		cb->setExtraSetter(shaderinfo.setter_cb.get());
+
+		infostream << "Compiling high level shaders for " << log_name
+			<< (m_name.empty() ? "" : " (overridden by " + m_name + ")") << std::endl;
+		s32 shadermat = gpu->addHighLevelShaderMaterial(
+			v_final.c_str(), f_final.c_str(), g_ptr,
+			log_name.c_str(), scene::EPT_TRIANGLES, scene::EPT_TRIANGLES, 0,
+			cb.get(), shaderinfo.base_material);
+
+		if (shadermat == -1) {
+			errorstream << "generateShader(): failed to generate shaders for "
+				<< log_name << (m_name.empty() ? "" : " (mod override " + m_name + ")")
+				<< ", addHighLevelShaderMaterial failed." << std::endl;
+			dumpShaderProgram(warningstream, "vertex", v_final);
+			dumpShaderProgram(warningstream, "fragment", f_final);
+			if (g_ptr)
+				dumpShaderProgram(warningstream, "geometry", g_final);
+		}
+		return shadermat;
+	};
+
+	s32 shadermat = compile(vertex_shader_src, fragment_shader_src, geometry_shader_src, mod_shader_name);
+
+	if (shadermat == -1 && !mod_shader_name.empty()) {
+		// Retry with default
+		load_src(false);
+		shadermat = compile(vertex_shader_src, fragment_shader_src, geometry_shader_src, "");
 	}
 
-	auto cb = make_irr<ShaderCallback>(name, m_uniform_factories);
-	cb->setExtraSetter(shaderinfo.setter_cb.get());
-
-	infostream << "Compiling high level shaders for " << log_name << std::endl;
-	s32 shadermat = gpu->addHighLevelShaderMaterial(
-		vertex_shader.c_str(), fragment_shader.c_str(), geometry_shader_ptr,
-		log_name.c_str(), scene::EPT_TRIANGLES, scene::EPT_TRIANGLES, 0,
-		cb.get(), shaderinfo.base_material);
 	if (shadermat == -1) {
-		errorstream << "generateShader(): failed to generate shaders for "
-			<< log_name << ", addHighLevelShaderMaterial failed." << std::endl;
-		dumpShaderProgram(warningstream, "vertex", vertex_shader);
-		dumpShaderProgram(warningstream, "fragment", fragment_shader);
-		if (geometry_shader_ptr)
-			dumpShaderProgram(warningstream, "geometry", geometry_shader);
 		throw ShaderException(
 			fmtgettext("Failed to compile the \"%s\" shader.", log_name.c_str()) +
 			strgettext("\nCheck debug.txt for details."));

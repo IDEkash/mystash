@@ -81,6 +81,7 @@ void ServerModManager::getModsMediaPaths(std::vector<std::string> &paths) const
 		const ModSpec &spec = *it;
 		fs::GetRecursiveDirs(paths, spec.path + DIR_DELIM + "textures");
 		fs::GetRecursiveDirs(paths, spec.path + DIR_DELIM + "sounds");
+		fs::GetRecursiveDirs(paths, spec.path + DIR_DELIM + "shaders");
 		fs::GetRecursiveDirs(paths, spec.path + DIR_DELIM + "media");
 		fs::GetRecursiveDirs(paths, spec.path + DIR_DELIM + "models");
 		fs::GetRecursiveDirs(paths, spec.path + DIR_DELIM + "locale");
