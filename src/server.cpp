@@ -588,6 +588,8 @@ void Server::init()
 	// Do this after regular script init is done
 	m_script->initAsync();
 
+	m_script->stepWorker();
+
 	// Register us to receive map edit events
 	servermap.addEventReceiver(this);
 
@@ -809,6 +811,8 @@ void Server::AsyncRunStep(float dtime, bool initial_step)
 		}
 	}
 	m_clients.step(dtime);
+
+	m_script->stepWorker();
 
 	// increase/decrease lag gauge gradually
 	if (m_lag_gauge->get() > dtime) {

@@ -14,6 +14,7 @@
 #include "cpp_api/s_server.h"
 #include "cpp_api/s_security.h"
 #include "cpp_api/s_async.h"
+#include "cpp_api/s_worker.h"
 
 struct PackedValue;
 
@@ -24,6 +25,7 @@ struct PackedValue;
 class ServerScripting:
 		virtual public ScriptApiBase,
 		public ScriptApiAsync,
+		public ScriptApiWorker,
 		public ScriptApiDetached,
 		public ScriptApiEntity,
 		public ScriptApiEnv,
