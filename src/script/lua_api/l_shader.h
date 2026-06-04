@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "l_internal.h"
+#include "lua_api/l_base.h"
 
 class ModApiShader : public ModApiBase {
 public:
