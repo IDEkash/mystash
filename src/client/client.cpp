@@ -938,6 +938,17 @@ bool Client::loadMedia(const std::string &data, const std::string &filename,
 		return true;
 	}
 
+	const char *glsl_ext[] = {".glsl", NULL};
+	name = removeStringEnd(filename, glsl_ext);
+	if (!name.empty()) {
+		TRACESTREAM(<< "Client: Storing shader into memory \""
+			<< filename << "\"" << std::endl);
+		if (m_shsrc) {
+			m_shsrc->insertSourceShader(filename, data);
+		}
+		return true;
+	}
+
 	errorstream << "Client: Don't know how to load file \""
 		<< filename << "\"" << std::endl;
 	return false;

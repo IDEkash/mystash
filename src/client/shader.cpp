@@ -23,12 +23,6 @@
 
 #include <mt_opengl.h>
 
-const std::vector<std::string> overridable_shaders = {
-	"nodes_shader", "object_shader", "cloud_shader", "shadow", "second_stage",
-	"bloom_downsample", "bloom_upsample", "blur_h", "blur_v", "fxaa",
-	"stars_shader", "minimap_shader", "extract_bloom", "update_exposure"
-};
-
 /*
 	A cache from shader name to shader path
 */
@@ -92,29 +86,14 @@ std::string getShaderPath(const std::string &name_of_shader,
 class SourceShaderCache
 {
 public:
-	void insert(const std::string &name_of_shader, const std::string &filename,
-		const std::string &program, bool prefer_local)
+	void insert(const std::string &filename, const std::string &program)
 	{
-		std::string combined = name_of_shader + DIR_DELIM + filename;
-		// Try to use local shader instead if asked to
-		if(prefer_local){
-			std::string path = getShaderPath(name_of_shader, filename);
-			if(!path.empty()){
-				std::string p = readFile(path);
-				if (!p.empty()) {
-					m_programs[combined] = p;
-					return;
-				}
-			}
-		}
-		m_programs[combined] = program;
+		m_programs[filename] = program;
 	}
 
-	std::string get(const std::string &name_of_shader,
-		const std::string &filename)
+	std::string get(const std::string &filename)
 	{
-		std::string combined = name_of_shader + DIR_DELIM + filename;
-		StringMap::iterator n = m_programs.find(combined);
+		StringMap::iterator n = m_programs.find(filename);
 		if (n != m_programs.end())
 			return n->second;
 		return "";
@@ -128,6 +107,11 @@ public:
 		StringMap::iterator n = m_programs.find(combined);
 		if (n != m_programs.end())
 			return n->second;
+
+		n = m_programs.find(filename);
+		if (n != m_programs.end())
+			return n->second;
+
 		std::string path = getShaderPath(name_of_shader, filename);
 		if (path.empty()) {
 			infostream << "SourceShaderCache::getOrLoad(): No path found for \""
@@ -138,7 +122,7 @@ public:
 			<< path << "\"" << std::endl;
 		std::string p = readFile(path);
 		if (!p.empty()) {
-			m_programs[combined] = p;
+			m_programs[filename] = p;
 			return p;
 		}
 		return "";
@@ -164,18 +148,15 @@ class ShaderCallback : public video::IShaderConstantSetCallBack
 {
 	std::vector<std::unique_ptr<IShaderUniformSetter>> m_setters;
 	irr_ptr<IShaderUniformSetterRC> m_extra_setter;
-	std::string m_mod_shader_name;
-	const std::map<std::string, ShaderUniforms> *m_mod_shader_uniforms;
+	const ShaderUniforms *m_mod_uniforms;
 	std::map<std::string, s32> m_pixel_uniform_ids;
 	std::map<std::string, s32> m_vertex_uniform_ids;
 
 public:
 	template <typename Factories>
 	ShaderCallback(const std::string &name, const Factories &factories,
-		const std::string &mod_shader_name,
-		const std::map<std::string, ShaderUniforms> *mod_shader_uniforms) :
-		m_mod_shader_name(mod_shader_name),
-		m_mod_shader_uniforms(mod_shader_uniforms)
+		const ShaderUniforms *mod_uniforms) :
+		m_mod_uniforms(mod_uniforms)
 	{
 		for (auto &&factory : factories) {
 			auto *setter = factory->create(name);
@@ -202,14 +183,10 @@ public:
 		if (m_extra_setter)
 			m_extra_setter->onSetUniforms(services);
 
-		if (m_mod_shader_name.empty() || !m_mod_shader_uniforms)
+		if (!m_mod_uniforms)
 			return;
 
-		auto it = m_mod_shader_uniforms->find(m_mod_shader_name);
-		if (it == m_mod_shader_uniforms->end())
-			return;
-
-		for (const auto &uniform : it->second) {
+		for (const auto &uniform : *m_mod_uniforms) {
 			const std::string &uname = uniform.first;
 			const UniformValue &uval = uniform.second;
 
@@ -440,8 +417,7 @@ public:
 
 	// Insert a shader program into the cache without touching the
 	// filesystem. Shall be called from the main thread.
-	void insertSourceShader(const std::string &name_of_shader,
-		const std::string &filename, const std::string &program) override;
+	void insertSourceShader(const std::string &filename, const std::string &program) override;
 
 	// Rebuild shaders from the current set of source shaders
 	// Shall be called from the main thread.
@@ -695,16 +671,10 @@ void ShaderSource::processQueue()
 
 }
 
-void ShaderSource::insertSourceShader(const std::string &name_of_shader,
-		const std::string &filename, const std::string &program)
+void ShaderSource::insertSourceShader(const std::string &filename, const std::string &program)
 {
-	/*infostream<<"ShaderSource::insertSourceShader(): "
-			"name_of_shader=\""<<name_of_shader<<"\", "
-			"filename=\""<<filename<<"\""<<std::endl;*/
-
 	sanity_check(std::this_thread::get_id() == m_main_thread);
-
-	m_sourcecache.insert(name_of_shader, filename, program, true);
+	m_sourcecache.insert(filename, program);
 }
 
 void ShaderSource::rebuildShaders()
@@ -922,15 +892,17 @@ void ShaderSource::generateShader(ShaderInfo &shaderinfo)
 	auto load_src = [&] (bool use_mod) {
 		if (use_mod && mod_override) {
 			mod_shader_name = mod_override->name;
-			if (!mod_override->vertex_path.empty())
-				fs::ReadFile(mod_override->vertex_path, vertex_shader_src);
-			else
+			if (!mod_override->vertex_path.empty()) {
+				vertex_shader_src = m_sourcecache.get(mod_override->vertex_path);
+			} else {
 				vertex_shader_src = m_sourcecache.getOrLoad(name, "opengl_vertex.glsl");
+			}
 
-			if (!mod_override->fragment_path.empty())
-				fs::ReadFile(mod_override->fragment_path, fragment_shader_src);
-			else
+			if (!mod_override->fragment_path.empty()) {
+				fragment_shader_src = m_sourcecache.get(mod_override->fragment_path);
+			} else {
 				fragment_shader_src = m_sourcecache.getOrLoad(name, "opengl_fragment.glsl");
+			}
 		} else {
 			mod_shader_name = "";
 			vertex_shader_src = m_sourcecache.getOrLoad(name, "opengl_vertex.glsl");
@@ -941,11 +913,9 @@ void ShaderSource::generateShader(ShaderInfo &shaderinfo)
 
 	load_src(true);
 
-	if (vertex_shader_src.empty() || fragment_shader_src.empty()) {
-		throw ShaderException(fmtgettext("Failed to find \"%s\" shader files.", name.c_str()));
-	}
-
 	auto compile = [&](const std::string &v_src, const std::string &f_src, const std::string &g_src, const std::string &m_name) {
+		if (v_src.empty() || f_src.empty())
+			return (s32)-1;
 		std::string v_final = common_header + vertex_header + final_header + v_src;
 		std::string f_final = common_header + fragment_header + final_header + f_src;
 		std::string g_final;
@@ -955,7 +925,14 @@ void ShaderSource::generateShader(ShaderInfo &shaderinfo)
 			g_ptr = g_final.c_str();
 		}
 
-		auto cb = make_irr<ShaderCallback>(name, m_uniform_factories, m_name, &m_mod_shader_uniforms);
+		const ShaderUniforms *mod_uniforms = nullptr;
+		if (!m_name.empty()) {
+			auto it = m_mod_shader_uniforms.find(m_name);
+			if (it != m_mod_shader_uniforms.end())
+				mod_uniforms = &it->second;
+		}
+
+		auto cb = make_irr<ShaderCallback>(name, m_uniform_factories, mod_uniforms);
 		cb->setExtraSetter(shaderinfo.setter_cb.get());
 
 		infostream << "Compiling high level shaders for " << log_name

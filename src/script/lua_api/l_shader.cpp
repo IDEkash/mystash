@@ -3,12 +3,16 @@
 // Copyright (C) 2024 Jules
 
 #include "l_shader.h"
-#include "client/client.h"
-#include "client/shader.h"
 #include "common/c_converter.h"
 #include "common/c_content.h"
 #include "l_internal.h"
-#include "lua_api/l_client.h"
+#include "server.h"
+#include "filesys.h"
+
+#if CHECK_CLIENT_BUILD()
+#include "client/client.h"
+#include "client/shader.h"
+#endif
 
 // core.register_shader(def)
 int ModApiShader::l_register_shader(lua_State *L)
@@ -27,25 +31,30 @@ int ModApiShader::l_register_shader(lua_State *L)
 		return 0;
 	}
 
+	std::string filename = fs::GetFilenameFromPath(path.c_str());
+
 	if (stage == "vertex") {
-		ov.vertex_path = path;
+		ov.vertex_path = filename;
 	} else if (stage == "fragment") {
-		ov.fragment_path = path;
+		ov.fragment_path = filename;
 	} else {
-		// "both" or default
-		// We expect the path to be a base, and we append suffixes?
-		// No, the example shows one path for one stage.
-		// If stage is "both", it probably means the same file for both or it's an error in my understanding of the requirement.
-		// "stage = "fragment"" in example.
-		// If "both", maybe it means we should have two paths?
-		// Actually, let's look at the requirement:
-		// stage: "vertex", "fragment", or "both"
-		// If "both", I'll use it for both for now, but usually they are different.
-		ov.vertex_path = path;
-		ov.fragment_path = path;
+		ov.vertex_path = filename;
+		ov.fragment_path = filename;
 	}
 
-	getClient(L)->getShaderSource()->registerModShader(ov);
+#if CHECK_CLIENT_BUILD()
+	Client *client = getClient(L);
+	if (client) {
+		IWritableShaderSource *shsrc = client->getShaderSource();
+		if (shsrc)
+			shsrc->registerModShader(ov);
+		return 0;
+	}
+#endif
+
+	Server *server = getServer(L);
+	if (server)
+		server->registerModShader(ov);
 
 	return 0;
 }
@@ -58,7 +67,11 @@ int ModApiShader::l_set_shader_uniform(lua_State *L)
 
 	UniformValue val;
 	if (lua_isnumber(L, 3)) {
-		val = (float)lua_tonumber(L, 3);
+		double n = lua_tonumber(L, 3);
+		if (n == (int)n)
+			val = (int)n;
+		else
+			val = (float)n;
 	} else if (lua_isboolean(L, 3)) {
 		val = (int)lua_toboolean(L, 3);
 	} else if (lua_istable(L, 3)) {
@@ -82,7 +95,19 @@ int ModApiShader::l_set_shader_uniform(lua_State *L)
 		return 0;
 	}
 
-	getClient(L)->getShaderSource()->setModShaderUniform(shader_name, uniform_name, val);
+#if CHECK_CLIENT_BUILD()
+	Client *client = getClient(L);
+	if (client) {
+		IWritableShaderSource *shsrc = client->getShaderSource();
+		if (shsrc)
+			shsrc->setModShaderUniform(shader_name, uniform_name, val);
+		return 0;
+	}
+#endif
+
+	Server *server = getServer(L);
+	if (server)
+		server->setModShaderUniform(shader_name, uniform_name, val);
 
 	return 0;
 }
@@ -90,11 +115,26 @@ int ModApiShader::l_set_shader_uniform(lua_State *L)
 // core.get_shader_names()
 int ModApiShader::l_get_shader_names(lua_State *L)
 {
-	std::vector<std::string> names = getClient(L)->getShaderSource()->getOverridableShaderNames();
+#if CHECK_CLIENT_BUILD()
+	Client *client = getClient(L);
+	if (client) {
+		IWritableShaderSource *shsrc = client->getShaderSource();
+		if (shsrc) {
+			std::vector<std::string> names = shsrc->getOverridableShaderNames();
+
+			lua_newtable(L);
+			for (size_t i = 0; i < names.size(); i++) {
+				lua_pushstring(L, names[i].c_str());
+				lua_rawseti(L, -2, i + 1);
+			}
+			return 1;
+		}
+	}
+#endif
 
 	lua_newtable(L);
-	for (size_t i = 0; i < names.size(); i++) {
-		lua_pushstring(L, names[i].c_str());
+	for (size_t i = 0; i < overridable_shaders.size(); i++) {
+		lua_pushstring(L, overridable_shaders[i].c_str());
 		lua_rawseti(L, -2, i + 1);
 	}
 	return 1;
@@ -105,4 +145,14 @@ void ModApiShader::Initialize(lua_State *L, int top)
 	API_FCT(register_shader);
 	API_FCT(set_shader_uniform);
 	API_FCT(get_shader_names);
+
+	// Also register in minetest table for robustness
+	lua_getglobal(L, "minetest");
+	if (lua_istable(L, -1)) {
+		int mt_top = lua_gettop(L);
+		registerFunction(L, "register_shader", l_register_shader, mt_top);
+		registerFunction(L, "set_shader_uniform", l_set_shader_uniform, mt_top);
+		registerFunction(L, "get_shader_names", l_get_shader_names, mt_top);
+	}
+	lua_pop(L, 1);
 }

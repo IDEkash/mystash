@@ -725,7 +725,24 @@ enum ToClientCommand : u16
 			u8[len] world name
 		*/
 
-		TOCLIENT_NUM_MSG_TYPES = 0x69,
+		TOCLIENT_REGISTER_SHADER = 0x69,
+		/*
+			std::string name
+			std::string target
+			std::string stage
+			std::string path
+			s32 priority
+		*/
+
+		TOCLIENT_SET_SHADER_UNIFORM = 0x6a,
+		/*
+			std::string shader_name
+			std::string uniform_name
+			u8 type (0: float, 1: int, 2: v2f, 3: v3f)
+			value
+		*/
+
+		TOCLIENT_NUM_MSG_TYPES = 0x6b,
 	};
 
 enum ToServerCommand : u16

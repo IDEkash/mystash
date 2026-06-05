@@ -4680,3 +4680,34 @@ u16 Server::getProtocolVersionMax()
 {
 	return LATEST_PROTOCOL_VERSION;
 }
+
+void Server::registerModShader(const ModShaderOverride &ov)
+{
+	m_mod_shader_overrides[ov.name] = ov;
+
+	NetworkPacket pkt(TOCLIENT_REGISTER_SHADER, 0);
+	pkt << ov.name << ov.target << ov.vertex_path << ov.fragment_path << ov.priority;
+	// Wait, I forgot 'stage' in the packet description but it's used to fill vertex_path/fragment_path
+	// Actually, the server-side ModShaderOverride should have both paths.
+
+	m_clients.sendToAll(&pkt);
+}
+
+void Server::setModShaderUniform(const std::string &shader_name,
+	const std::string &uniform_name, const UniformValue &value)
+{
+	m_mod_shader_uniforms[shader_name][uniform_name] = value;
+
+	NetworkPacket pkt(TOCLIENT_SET_SHADER_UNIFORM, 0);
+	pkt << shader_name << uniform_name;
+	if (const float *f = std::get_if<float>(&value)) {
+		pkt << (u8)0 << *f;
+	} else if (const int *i = std::get_if<int>(&value)) {
+		pkt << (u8)1 << *i;
+	} else if (const v2f *v = std::get_if<v2f>(&value)) {
+		pkt << (u8)2 << *v;
+	} else if (const v3f *v = std::get_if<v3f>(&value)) {
+		pkt << (u8)3 << *v;
+	}
+	m_clients.sendToAll(&pkt);
+}

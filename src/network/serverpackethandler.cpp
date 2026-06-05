@@ -321,6 +321,36 @@ void Server::handleCommand_Init2(NetworkPacket* pkt)
 	SendTimeOfDay(peer_id, time, time_speed);
 
 	SendCSMRestrictionFlags(peer_id);
+
+	// Send shader overrides
+	for (const auto &it : m_mod_shader_overrides) {
+		const ModShaderOverride &ov = it.second;
+		NetworkPacket pkt_shader(TOCLIENT_REGISTER_SHADER, 0);
+		pkt_shader << ov.name << ov.target << ov.vertex_path << ov.fragment_path << ov.priority;
+		Send(peer_id, &pkt_shader);
+	}
+
+	// Send shader uniforms
+	for (const auto &it_shader : m_mod_shader_uniforms) {
+		const std::string &shader_name = it_shader.first;
+		for (const auto &it_uniform : it_shader.second) {
+			const std::string &uniform_name = it_uniform.first;
+			const UniformValue &value = it_uniform.second;
+
+			NetworkPacket pkt_uniform(TOCLIENT_SET_SHADER_UNIFORM, 0);
+			pkt_uniform << shader_name << uniform_name;
+			if (const float *f = std::get_if<float>(&value)) {
+				pkt_uniform << (u8)0 << *f;
+			} else if (const int *i = std::get_if<int>(&value)) {
+				pkt_uniform << (u8)1 << *i;
+			} else if (const v2f *v = std::get_if<v2f>(&value)) {
+				pkt_uniform << (u8)2 << *v;
+			} else if (const v3f *v = std::get_if<v3f>(&value)) {
+				pkt_uniform << (u8)3 << *v;
+			}
+			Send(peer_id, &pkt_uniform);
+		}
+	}
 }
 
 void Server::handleCommand_RequestMedia(NetworkPacket* pkt)

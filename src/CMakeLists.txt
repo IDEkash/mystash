@@ -488,6 +488,7 @@ set(common_SRCS
 		remoteplayer.cpp
 		fogparams.cpp
 		rollback_interface.cpp
+	shader_shared.cpp
 	server.cpp
 	serverenvironment.cpp
 	servermap.cpp

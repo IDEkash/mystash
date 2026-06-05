@@ -18,6 +18,7 @@
 #include "threading/ordered_mutex.h"
 #include "translation.h"
 #include "sound_spec.h"
+#include "shader_shared.h"
 #include <atomic>
 #include <csignal>
 #include <string>
@@ -844,6 +845,13 @@ private:
 	// Particles to send this server step
 	// [playername] = list of params, empty playername for broadcast
 	std::unordered_map<std::string, std::vector<ParticleParameters>> m_particles_to_send;
+
+	void registerModShader(const ModShaderOverride &ov);
+	void setModShaderUniform(const std::string &shader_name,
+		const std::string &uniform_name, const UniformValue &value);
+
+	std::map<std::string, ModShaderOverride> m_mod_shader_overrides;
+	std::map<std::string, ShaderUniforms> m_mod_shader_uniforms;
 };
 
 /*

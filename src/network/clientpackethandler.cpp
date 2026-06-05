@@ -614,6 +614,46 @@ void Client::handleCommand_SwitchWorld(NetworkPacket *pkt)
 	g_gamecallback->worldSwitch(worldname);
 }
 
+void Client::handleCommand_RegisterShader(NetworkPacket *pkt)
+{
+	ModShaderOverride ov;
+	*pkt >> ov.name >> ov.target >> ov.vertex_path >> ov.fragment_path >> ov.priority;
+
+	m_shsrc->registerModShader(ov);
+}
+
+void Client::handleCommand_SetShaderUniform(NetworkPacket *pkt)
+{
+	std::string shader_name;
+	std::string uniform_name;
+	u8 type;
+
+	*pkt >> shader_name >> uniform_name >> type;
+
+	UniformValue val;
+	if (type == 0) {
+		float f;
+		*pkt >> f;
+		val = f;
+	} else if (type == 1) {
+		int i;
+		*pkt >> i;
+		val = i;
+	} else if (type == 2) {
+		v2f v;
+		*pkt >> v;
+		val = v;
+	} else if (type == 3) {
+		v3f v;
+		*pkt >> v;
+		val = v;
+	} else {
+		return;
+	}
+
+	m_shsrc->setModShaderUniform(shader_name, uniform_name, val);
+}
+
 void Client::handleCommand_MovePlayerRel(NetworkPacket *pkt)
 {
 	v3f added_pos;

@@ -7,6 +7,7 @@
 #include "lua_api/l_sscsm.h"
 #include "lua_api/l_util.h"
 #include "lua_api/l_client.h"
+#include "lua_api/l_shader.h"
 
 SSCSMScripting::SSCSMScripting(SSCSMEnvironment *env) :
 	ScriptApiBase(ScriptingType::SSCSM)
@@ -34,4 +35,5 @@ void SSCSMScripting::initializeModApi(lua_State *L, int top)
 	ModApiUtil::InitializeSSCSM(L, top);
 	ModApiClient::InitializeSSCSM(L, top);
 	ModApiSSCSM::Initialize(L, top);
+	ModApiShader::Initialize(L, top);
 }
