@@ -772,5 +772,37 @@ core.create_world("ProgrammaticWorld", "minetest", {
 ```
 
 ---
+
+## Mod Shader API (Lua)
+
+Allows mods to provide custom GLSL shaders to override existing engine shaders.
+
+### `core.register_shader(def)`
+
+Registers a shader override.
+
+`def` table:
+* `name`: string — Unique name for this mod shader (e.g., `"my_mod.cool_nodes"`).
+* `target`: string — Engine shader target to override (e.g. `"nodes_shader"`).
+* `stage`: string — `"vertex"`, `"fragment"`, or `"both"`.
+* `path`: string — Absolute path to the GLSL file.
+* `priority`: integer — Higher priority overrides lower priority.
+
+### `core.set_shader_uniform(shader_name, uniform_name, value)`
+
+Sets a uniform value for a registered mod shader.
+
+* `shader_name`: string — The name used during registration.
+* `uniform_name`: string — GLSL uniform name.
+* `value`: float, int, boolean, or table (`vec2`: `{x, y}`, `vec3`: `{x, y, z}`).
+
+### `core.get_shader_names()`
+
+Returns a list of all overridable engine shader targets.
+
+**Overridable targets:**
+`nodes_shader`, `object_shader`, `cloud_shader`, `shadow`, `second_stage`, `bloom_downsample`, `bloom_upsample`, `blur_h`, `blur_v`, `fxaa`, `stars_shader`, `minimap_shader`, `extract_bloom`, `update_exposure`
+
+---
 - **More Soon!**
-- Latest Update: May, 30, 2026
+- Latest Update: June, 04, 2026
