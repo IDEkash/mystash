@@ -178,7 +178,7 @@ public:
 
 	void addExtraSetter(IShaderUniformSetterRC *setter)
 	{
-		m_extra_setters.emplace_back(grab(setter));
+		m_extra_setters.emplace_back(::grab(setter));
 	}
 
 	virtual void OnSetConstants(video::IMaterialRendererServices *services, s32 userData) override
