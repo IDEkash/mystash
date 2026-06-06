@@ -346,6 +346,10 @@ public:
 	// Not under envlock
 	const std::vector<ModSpec> &getMods() const override;
 	const ModSpec* getModSpec(const std::string &modname) const override;
+
+	void registerShaderOverride(const ModShaderOverride &ov);
+	void setShaderUniform(const std::string &shader_name,
+		const std::string &uniform_name, const ModUniformValue &value);
 	const SubgameSpec* getGameSpec() const override { return &m_gamespec; }
 	static std::string getBuiltinLuaPath();
 	std::string getWorldPath() const override { return m_path_world; }
@@ -553,6 +557,10 @@ private:
 	virtual void SendChatMessage(session_t peer_id, const ChatMessage &message);
 	void SendTimeOfDay(session_t peer_id, u16 time, f32 time_speed);
 
+	void SendShaderOverride(session_t peer_id, const ModShaderOverride &ov);
+	void SendShaderUniform(session_t peer_id, const std::string &shader_name,
+		const std::string &uniform_name, const ModUniformValue &value);
+
 	void SendLocalPlayerAnimations(session_t peer_id, v2f animation_frames[4],
 		f32 animation_speed);
 	void SendEyeOffset(session_t peer_id, v3f first, v3f third, v3f third_front);
@@ -758,6 +766,9 @@ private:
 			};
 			std::mutex m_biome_atmospheres_mutex;
 			std::unordered_map<u16, BiomeAtmosphereDef> m_biome_atmospheres;
+
+			std::vector<ModShaderOverride> m_registered_shaders;
+			std::unordered_map<std::string, std::unordered_map<std::string, ModUniformValue>> m_shader_uniforms;
 			u32 m_biome_atmospheres_revision = 0;
 			float m_biome_atmospheres_timer = 0.0f;
 			struct PlayerBiomeAtmosphereState {

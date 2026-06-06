@@ -1948,3 +1948,58 @@ void Client::handleCommand_SetFogBoundary(NetworkPacket *pkt)
 	e->set_fog_boundary = new FogBoundaryParams(std::move(params));
 	m_client_event_queue.push(e);
 }
+
+void Client::handleCommand_ModShaderRegister(NetworkPacket *pkt)
+{
+	ModShaderOverride ov;
+	*pkt >> ov.name >> ov.target >> ov.stage >> ov.path >> ov.priority;
+
+	if (m_shsrc)
+		m_shsrc->registerShaderOverride(ov);
+}
+
+void Client::handleCommand_ModShaderSetUniform(NetworkPacket *pkt)
+{
+	std::string shader_name, uniform_name;
+	u8 type;
+	*pkt >> shader_name >> uniform_name >> type;
+
+	ModUniformValue val;
+	switch (type) {
+	case 0: { // float
+		float f;
+		*pkt >> f;
+		val = f;
+		break;
+	}
+	case 1: { // int
+		int i;
+		*pkt >> i;
+		val = i;
+		break;
+	}
+	case 2: { // bool
+		bool b;
+		*pkt >> b;
+		val = b;
+		break;
+	}
+	case 3: { // v2f
+		v2f v;
+		*pkt >> v;
+		val = v;
+		break;
+	}
+	case 4: { // v3f
+		v3f v;
+		*pkt >> v;
+		val = v;
+		break;
+	}
+	default:
+		return;
+	}
+
+	if (m_shsrc)
+		m_shsrc->setShaderUniform(shader_name, uniform_name, val);
+}

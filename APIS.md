@@ -772,5 +772,55 @@ core.create_world("ProgrammaticWorld", "minetest", {
 ```
 
 ---
+
+## Shader API (Lua)
+
+Allows mods to load and apply custom GLSL shaders to the engine by overriding internal shader targets.
+
+### Registration
+
+`core.register_shader(def)`
+- Registers a shader override.
+- `def` fields:
+  - `name`: unique string identifier for this override.
+  - `target`: the internal engine shader to override. Common targets include `"nodes_shader"`, `"object_shader"`, `"selection_shader"`, `"clouds"`, `"sky"`, `"wieldmesh_shader"`, and post-processing stages like `"second_stage"`.
+  - `stage`: string (`"vertex"`, `"fragment"`, or `"both"`, default `"both"`). Specifies which pipeline stage(s) to replace with the custom source.
+  - `path`: absolute path to a `.glsl` file. Mods can use `core.get_modpath(modname) .. "/path/to/file.glsl"`. On client-side, the `modname:relative/path` shorthand is also supported.
+  - `priority`: integer (default `0`). If multiple mods override the same target, the one with the highest priority wins.
+
+If a mod shader fails to compile, the engine logs an error and silently falls back to the default engine shader for that target.
+
+### Dynamic Uniforms
+
+`core.set_shader_uniform(shader_name, uniform_name, value)`
+- Sets a GLSL uniform for a registered mod shader.
+- `shader_name`: the `name` provided during `register_shader`.
+- `uniform_name`: the name of the uniform variable in the GLSL source.
+- `value`: can be a `float`, `int`, `boolean`, or a table representing a vector (`{x, y}` for `v2f`, `{x, y, z}` for `v3f`).
+
+Uniforms are applied to both vertex and fragment stages if they exist in the source.
+
+### Introspection
+
+`core.get_shader_names() -> table`
+- Returns a list of all overridable internal engine shader targets.
+
+**Example usage:**
+
+```lua
+core.register_shader({
+    name = "cool_shaders.nodes",
+    target = "nodes_shader",
+    stage = "fragment",
+    path = core.get_modpath("cool_shaders") .. "/glsl/blocks.glsl",
+    priority = 10,
+})
+
+core.register_globalstep(function(dtime)
+    core.set_shader_uniform("cool_shaders.nodes", "u_time", os.clock())
+end)
+```
+
+---
 - **More Soon!**
-- Latest Update: May, 30, 2026
+- Latest Update: June, 06, 2026

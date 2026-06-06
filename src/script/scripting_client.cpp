@@ -14,6 +14,7 @@
 #include "lua_api/l_minimap.h"
 #include "lua_api/l_modchannels.h"
 #include "lua_api/l_particles_local.h"
+#include "lua_api/l_shader.h"
 #include "lua_api/l_storage.h"
 #include "lua_api/l_util.h"
 #include "lua_api/l_item.h"
@@ -64,6 +65,7 @@ void ClientScripting::InitializeModApi(lua_State *L, int top)
 	ClientSoundHandle::Register(L);
 
 	ModApiUtil::InitializeClient(L, top);
+	ModApiShader::Initialize(L, top);
 	ModApiClientCommon::Initialize(L, top);
 	ModApiClient::Initialize(L, top);
 	ModApiItem::InitializeClient(L, top);

@@ -27,6 +27,7 @@
 #include "lua_api/l_particles.h"
 #include "lua_api/l_rollback.h"
 #include "lua_api/l_server.h"
+#include "lua_api/l_shader.h"
 #include "lua_api/l_util.h"
 #include "lua_api/l_vmanip.h"
 #include "lua_api/l_settings.h"
@@ -152,6 +153,7 @@ void ServerScripting::InitializeModApi(lua_State *L, int top)
 	ModApiMapgen::Initialize(L, top);
 	ModApiParticles::Initialize(L, top);
 	ModApiRollback::Initialize(L, top);
+	ModApiShader::Initialize(L, top);
 	ModApiServer::Initialize(L, top);
 	ModApiUtil::Initialize(L, top);
 	ModApiHttp::Initialize(L, top);

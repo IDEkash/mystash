@@ -3732,6 +3732,56 @@ void Server::setMoon(RemotePlayer *player, const MoonParams &params)
 				}
 			}
 
+void Server::registerShaderOverride(const ModShaderOverride &ov)
+{
+	m_registered_shaders.push_back(ov);
+	SendShaderOverride(PEER_ID_INEXISTENT, ov);
+}
+
+void Server::setShaderUniform(const std::string &shader_name,
+	const std::string &uniform_name, const ModUniformValue &value)
+{
+	m_shader_uniforms[shader_name][uniform_name] = value;
+	SendShaderUniform(PEER_ID_INEXISTENT, shader_name, uniform_name, value);
+}
+
+void Server::SendShaderOverride(session_t peer_id, const ModShaderOverride &ov)
+{
+	NetworkPacket pkt(TOCLIENT_MOD_SHADER_REGISTER, 0, peer_id);
+	pkt << ov.name << ov.target << ov.stage << ov.path << ov.priority;
+
+	if (peer_id == PEER_ID_INEXISTENT)
+		m_clients.sendToAll(&pkt);
+	else
+		Send(&pkt);
+}
+
+void Server::SendShaderUniform(session_t peer_id, const std::string &shader_name,
+	const std::string &uniform_name, const ModUniformValue &value)
+{
+	NetworkPacket pkt(TOCLIENT_MOD_SHADER_SET_UNIFORM, 0, peer_id);
+	pkt << shader_name << uniform_name;
+
+	if (std::holds_alternative<float>(value)) {
+		pkt << (u8)0 << std::get<float>(value);
+	} else if (std::holds_alternative<int>(value)) {
+		pkt << (u8)1 << std::get<int>(value);
+	} else if (std::holds_alternative<bool>(value)) {
+		pkt << (u8)2 << std::get<bool>(value);
+	} else if (std::holds_alternative<v2f>(value)) {
+		pkt << (u8)3 << std::get<v2f>(value);
+	} else if (std::holds_alternative<v3f>(value)) {
+		pkt << (u8)4 << std::get<v3f>(value);
+	} else {
+		return;
+	}
+
+	if (peer_id == PEER_ID_INEXISTENT)
+		m_clients.sendToAll(&pkt);
+	else
+		Send(&pkt);
+}
+
 			void Server::stepBiomeAtmosphere(float dtime)
 			{
 				{

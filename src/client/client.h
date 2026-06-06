@@ -217,6 +217,8 @@ public:
 		void handleCommand_SetFog(NetworkPacket *pkt);
 		void handleCommand_SetFogBoundary(NetworkPacket *pkt);
 		void handleCommand_Camera(NetworkPacket* pkt);
+		void handleCommand_ModShaderRegister(NetworkPacket *pkt);
+		void handleCommand_ModShaderSetUniform(NetworkPacket *pkt);
 		void handleCommand_SwitchWorld(NetworkPacket *pkt);
 
 	void ProcessData(NetworkPacket *pkt);

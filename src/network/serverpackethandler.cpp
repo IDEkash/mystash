@@ -400,6 +400,15 @@ void Server::handleCommand_ClientReady(NetworkPacket* pkt)
 	m_script->getAuth(playersao->getPlayer()->getName(), nullptr, nullptr, &last_login);
 	m_script->on_joinplayer(playersao, last_login);
 
+	for (const auto &ov : m_registered_shaders)
+		SendShaderOverride(peer_id, ov);
+
+	for (const auto &it : m_shader_uniforms) {
+		for (const auto &it2 : it.second) {
+			SendShaderUniform(peer_id, it.first, it2.first, it2.second);
+		}
+	}
+
 	// Ensure the client receives any server-side stored fog/boundary state.
 	{
 		RemotePlayer *player = playersao->getPlayer();

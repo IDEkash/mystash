@@ -10,8 +10,7 @@
 #include "irr_ptr.h"
 #include <string>
 #include <map>
-#include <variant>
-#include <vector>
+#include "shader_types.h"
 #include "nodedef.h"
 #include "tile.h" // MaterialType
 
@@ -38,16 +37,6 @@ std::string getShaderPath(const std::string &name_of_shader,
 
 // Shader constants are either an int or a float in GLSL
 typedef std::map<std::string, std::variant<int, float>> ShaderConstants;
-
-typedef std::variant<float, int, bool, v2f, v3f> ModUniformValue;
-
-struct ModShaderOverride {
-	std::string name;
-	std::string target;
-	std::string stage; // "vertex", "fragment", or "both"
-	std::string path;
-	s32 priority;
-};
 
 class IShaderConstantSetter {
 public:

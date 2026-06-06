@@ -6,11 +6,14 @@
 #include "l_internal.h"
 #include "common/c_converter.h"
 #include "common/c_content.h"
+#if CHECK_CLIENT_BUILD()
 #include "client/client.h"
+#endif
 #include "client/shader.h"
 #include "filesys.h"
 #include "porting.h"
 #include "content/mods.h"
+#include "server.h"
 
 // core.register_shader(def)
 int ModApiShader::l_register_shader(lua_State *L)
@@ -37,14 +40,30 @@ int ModApiShader::l_register_shader(lua_State *L)
 	if (colon_pos != std::string::npos && colon_pos > 1) {
 		std::string modname = raw_path.substr(0, colon_pos);
 		std::string relative_path = raw_path.substr(colon_pos + 1);
-		const ModSpec *spec = getClient(L)->getModSpec(modname);
+		const ModSpec *spec = nullptr;
+#if CHECK_CLIENT_BUILD()
+		if (getScriptApiBase(L)->getType() == ScriptingType::Client)
+			spec = getClient(L)->getModSpec(modname);
+		else
+#endif
+			spec = getServer(L)->getModSpec(modname);
+
 		if (spec) {
 			absolute_path = spec->path + DIR_DELIM + relative_path;
 		}
 	}
 	ov.path = absolute_path;
 
-	getClient(L)->getShaderSource()->registerShaderOverride(ov);
+#if CHECK_CLIENT_BUILD()
+	if (getScriptApiBase(L)->getType() == ScriptingType::Client) {
+		IWritableShaderSource *shdsrc = getClient(L)->getShaderSource();
+		if (shdsrc)
+			shdsrc->registerShaderOverride(ov);
+	} else
+#endif
+	{
+		getServer(L)->registerShaderOverride(ov);
+	}
 
 	return 0;
 }
@@ -84,7 +103,16 @@ int ModApiShader::l_set_shader_uniform(lua_State *L)
 		return 0;
 	}
 
-	getClient(L)->getShaderSource()->setShaderUniform(shader_name, uniform_name, val);
+#if CHECK_CLIENT_BUILD()
+	if (getScriptApiBase(L)->getType() == ScriptingType::Client) {
+		IWritableShaderSource *shdsrc = getClient(L)->getShaderSource();
+		if (shdsrc)
+			shdsrc->setShaderUniform(shader_name, uniform_name, val);
+	} else
+#endif
+	{
+		getServer(L)->setShaderUniform(shader_name, uniform_name, val);
+	}
 
 	return 0;
 }
