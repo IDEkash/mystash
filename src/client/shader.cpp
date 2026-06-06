@@ -20,6 +20,7 @@
 #include "log.h"
 #include "client/tile.h"
 #include <unordered_map>
+#include <memory>
 
 #include <mt_opengl.h>
 
@@ -157,7 +158,7 @@ private:
 class ShaderCallback : public video::IShaderConstantSetCallBack
 {
 	std::vector<std::unique_ptr<IShaderUniformSetter>> m_setters;
-	irr_ptr<IShaderUniformSetterRC> m_extra_setter;
+	std::vector<irr_ptr<IShaderUniformSetterRC>> m_extra_setters;
 
 public:
 	template <typename Factories>
@@ -175,26 +176,25 @@ public:
 
 	~ShaderCallback() = default;
 
-	void setExtraSetter(IShaderUniformSetterRC *setter)
+	void addExtraSetter(IShaderUniformSetterRC *setter)
 	{
-		assert(!m_extra_setter);
-		m_extra_setter.grab(setter);
+		m_extra_setters.emplace_back(grab(setter));
 	}
 
 	virtual void OnSetConstants(video::IMaterialRendererServices *services, s32 userData) override
 	{
 		for (auto &&setter : m_setters)
 			setter->onSetUniforms(services);
-		if (m_extra_setter)
-			m_extra_setter->onSetUniforms(services);
+		for (auto &&setter : m_extra_setters)
+			setter->onSetUniforms(services);
 	}
 
 	virtual void OnSetMaterial(const video::SMaterial& material) override
 	{
 		for (auto &&setter : m_setters)
 			setter->onSetMaterial(material);
-		if (m_extra_setter)
-			m_extra_setter->onSetMaterial(material);
+		for (auto &&setter : m_extra_setters)
+			setter->onSetMaterial(material);
 	}
 };
 
@@ -350,46 +350,65 @@ public:
 	ModShaderUniformSetter
 */
 
-class ModShaderUniformSetter : public IShaderUniformSetter
+class ModShaderUniformSetter : public IShaderUniformSetterRC
 {
+	struct UniformIDs {
+		s32 pid = -1;
+		s32 vid = -1;
+	};
+
 public:
 	ModShaderUniformSetter(const std::string &shader_name,
-		const std::unordered_map<std::string, ModUniformValue> &uniforms) :
-		m_shader_name(shader_name), m_uniforms(uniforms)
+		std::shared_ptr<std::unordered_map<std::string, ModUniformValue>> storage) :
+		m_shader_name(shader_name), m_storage(std::move(storage))
 	{}
 
 	~ModShaderUniformSetter() = default;
 
 	virtual void onSetUniforms(video::IMaterialRendererServices *services) override
 	{
-		for (const auto &it : m_uniforms) {
-			const std::string &name = it.first;
-			const ModUniformValue &val = it.second;
+		if (!m_storage)
+			return;
 
-			if (std::holds_alternative<float>(val)) {
-				float f = std::get<float>(val);
-				services->setPixelShaderConstant(services->getPixelShaderConstantID(name.c_str()), &f, 1);
-			} else if (std::holds_alternative<int>(val)) {
-				float f = (float)std::get<int>(val);
-				services->setPixelShaderConstant(services->getPixelShaderConstantID(name.c_str()), &f, 1);
-			} else if (std::holds_alternative<bool>(val)) {
-				float f = std::get<bool>(val) ? 1.0f : 0.0f;
-				services->setPixelShaderConstant(services->getPixelShaderConstantID(name.c_str()), &f, 1);
-			} else if (std::holds_alternative<v2f>(val)) {
-				v2f v = std::get<v2f>(val);
+		for (auto const &[name, value] : *m_storage) {
+			UniformIDs &ids = m_cached_ids[name];
+			if (ids.pid == -1 && ids.vid == -1) {
+				ids.pid = services->getPixelShaderConstantID(name.c_str());
+				ids.vid = services->getVertexShaderConstantID(name.c_str());
+			}
+
+			auto set = [&](const float *f, s32 count) {
+				if (ids.pid != -1)
+					services->setPixelShaderConstant(ids.pid, f, count);
+				if (ids.vid != -1)
+					services->setVertexShaderConstant(ids.vid, f, count);
+			};
+
+			if (std::holds_alternative<float>(value)) {
+				float f = std::get<float>(value);
+				set(&f, 1);
+			} else if (std::holds_alternative<int>(value)) {
+				float f = (float)std::get<int>(value);
+				set(&f, 1);
+			} else if (std::holds_alternative<bool>(value)) {
+				float f = std::get<bool>(value) ? 1.0f : 0.0f;
+				set(&f, 1);
+			} else if (std::holds_alternative<v2f>(value)) {
+				v2f v = std::get<v2f>(value);
 				float f[2] = {v.X, v.Y};
-				services->setPixelShaderConstant(services->getPixelShaderConstantID(name.c_str()), f, 2);
-			} else if (std::holds_alternative<v3f>(val)) {
-				v3f v = std::get<v3f>(val);
+				set(f, 2);
+			} else if (std::holds_alternative<v3f>(value)) {
+				v3f v = std::get<v3f>(value);
 				float f[3] = {v.X, v.Y, v.Z};
-				services->setPixelShaderConstant(services->getPixelShaderConstantID(name.c_str()), f, 3);
+				set(f, 3);
 			}
 		}
 	}
 
 private:
 	std::string m_shader_name;
-	const std::unordered_map<std::string, ModUniformValue> &m_uniforms;
+	std::shared_ptr<std::unordered_map<std::string, ModUniformValue>> m_storage;
+	std::unordered_map<std::string, UniformIDs> m_cached_ids;
 };
 
 
@@ -457,7 +476,10 @@ public:
 	void setShaderUniform(const std::string &shader_name,
 		const std::string &uniform_name, const ModUniformValue &value) override
 	{
-		m_mod_uniforms[shader_name][uniform_name] = value;
+		auto &storage = m_mod_uniforms[shader_name];
+		if (!storage)
+			storage = std::make_shared<std::unordered_map<std::string, ModUniformValue>>();
+		(*storage)[uniform_name] = value;
 	}
 
 	std::vector<std::string> getModShaderNames() override
@@ -512,7 +534,7 @@ private:
 	std::vector<std::unique_ptr<IShaderUniformSetterFactory>> m_uniform_factories;
 
 	std::unordered_map<std::string, std::vector<ModShaderOverride>> m_mod_overrides;
-	std::unordered_map<std::string, std::unordered_map<std::string, ModUniformValue>> m_mod_uniforms;
+	std::unordered_map<std::string, std::shared_ptr<std::unordered_map<std::string, ModUniformValue>>> m_mod_uniforms;
 
 	// Generate shader for given input parameters.
 	void generateShader(ShaderInfo &info);
@@ -950,9 +972,13 @@ void ShaderSource::generateShader(ShaderInfo &shaderinfo)
 	}
 
 	auto cb = make_irr<ShaderCallback>(name, m_uniform_factories);
-	cb->setExtraSetter(shaderinfo.setter_cb.get());
+	if (shaderinfo.setter_cb)
+		cb->addExtraSetter(shaderinfo.setter_cb.get());
 	if (!active_mod_shader.empty()) {
-		cb->setExtraSetter(new ModShaderUniformSetter(active_mod_shader, m_mod_uniforms[active_mod_shader]));
+		auto &storage = m_mod_uniforms[active_mod_shader];
+		if (!storage)
+			storage = std::make_shared<std::unordered_map<std::string, ModUniformValue>>();
+		cb->addExtraSetter(new ModShaderUniformSetter(active_mod_shader, storage));
 	}
 
 	infostream << "Compiling high level shaders for " << log_name << std::endl;
@@ -971,7 +997,8 @@ void ShaderSource::generateShader(ShaderInfo &shaderinfo)
 		final_fragment_shader = common_header + fragment_header + final_header + fragment_shader;
 
 		cb = make_irr<ShaderCallback>(name, m_uniform_factories);
-		cb->setExtraSetter(shaderinfo.setter_cb.get());
+		if (shaderinfo.setter_cb)
+			cb->addExtraSetter(shaderinfo.setter_cb.get());
 
 		shadermat = gpu->addHighLevelShaderMaterial(
 			final_vertex_shader.c_str(), final_fragment_shader.c_str(), geometry_shader_ptr,

@@ -30,12 +30,16 @@ int ModApiShader::l_register_shader(lua_State *L)
 
 	std::string absolute_path = raw_path;
 	size_t colon_pos = raw_path.find(':');
-	if (colon_pos != std::string::npos) {
+	// Mod path resolution: "modname:path/to/file"
+	// On Windows, absolute paths like "C:\path" also contain a colon.
+	// Mod names only allow [a-z0-0_], so a single char followed by a colon
+	// is likely a drive letter.
+	if (colon_pos != std::string::npos && colon_pos > 1) {
 		std::string modname = raw_path.substr(0, colon_pos);
 		std::string relative_path = raw_path.substr(colon_pos + 1);
 		const ModSpec *spec = getClient(L)->getModSpec(modname);
 		if (spec) {
-			absolute_path = spec->path + relative_path;
+			absolute_path = spec->path + DIR_DELIM + relative_path;
 		}
 	}
 	ov.path = absolute_path;
