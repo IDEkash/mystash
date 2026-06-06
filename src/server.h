@@ -18,6 +18,7 @@
 #include "threading/ordered_mutex.h"
 #include "translation.h"
 #include "sound_spec.h"
+#include "shader_types.h"
 #include <atomic>
 #include <csignal>
 #include <string>
@@ -355,6 +356,7 @@ public:
 	std::string getWorldPath() const override { return m_path_world; }
 	std::string getModDataPath() const override { return m_path_mod_data; }
 	ModIPCStore *getModIPCStore() override { return &m_ipcstore; }
+	class IWritableShaderSource* getShaderSource() override { return nullptr; }
 
 	inline bool isSingleplayer() const
 			{ return m_simple_singleplayer_mode; }
