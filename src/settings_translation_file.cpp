@@ -215,6 +215,14 @@ fake_function() {
 	gettext("Allow clouds to look 3D instead of flat.");
 	gettext("Soft clouds");
 	gettext("Use smooth cloud shading.");
+	gettext("Classic weather");
+	gettext("Enable classic weather (rain/snow)");
+	gettext("Weather type");
+	gettext("Weather type (none, rain, snow)");
+	gettext("Weather intensity");
+	gettext("Weather intensity");
+	gettext("Classic fog");
+	gettext("Enable classic fog (linear and dense)");
 	gettext("Filtering and Antialiasing");
 	gettext("Mipmapping");
 	gettext("Use mipmaps when scaling textures. May slightly increase performance,\nespecially when using a high-resolution texture pack.\nGamma-correct downscaling is not supported.");

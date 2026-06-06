@@ -711,7 +711,13 @@ enum ToClientCommand : u16
 			FogBoundaryParams (see fogparams.h)
 		*/
 
-		TOCLIENT_NUM_MSG_TYPES = 0x67,
+		TOCLIENT_WEATHER_PARAMS = 0x67,
+		/*
+			u8 type
+			f32 intensity
+		*/
+
+		TOCLIENT_NUM_MSG_TYPES = 0x68,
 	};
 
 enum ToServerCommand : u16

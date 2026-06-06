@@ -78,6 +78,12 @@ struct CloudParams
 	v2f speed;
 };
 
+struct WeatherParams
+{
+	u8 type = 0;
+	float intensity = 0.0f;
+};
+
 // Utility class for setting default sky, sun, moon, stars values:
 class SkyboxDefaults
 {

@@ -40,6 +40,7 @@ enum ClientEventType : u8
 	CE_SET_FOG_BOUNDARY,
 	CE_OVERRIDE_DAY_NIGHT_RATIO,
 	CE_CLOUD_PARAMS,
+	CE_WEATHER_PARAMS,
 	CE_UPDATE_CAMERA,
 	CLIENTEVENT_MAX,
 };
@@ -128,6 +129,11 @@ struct ClientEvent
 			f32 speed_x;
 			f32 speed_y;
 		} cloud_params;
+		struct
+		{
+			u8 type;
+			f32 intensity;
+		} weather_params;
 		SunParams *sun_params;
 		MoonParams *moon_params;
 			StarParams *star_params;

@@ -708,6 +708,24 @@
 #    type: bool
 # soft_clouds = false
 
+### Weather
+
+#    Enable classic weather (rain/snow)
+#    type: bool
+# classic_weather = true
+
+#    Weather type
+#    type: enum values: none, rain, snow
+# weather_type = none
+
+#    Weather intensity
+#    type: float
+# weather_intensity = 0.5
+
+#    Enable classic fog (linear and dense)
+#    type: bool
+# classic_fog = false
+
 ### Filtering and Antialiasing
 
 #    Use mipmaps when scaling textures. May slightly increase performance,

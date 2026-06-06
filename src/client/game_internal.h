@@ -21,6 +21,7 @@
 #include "irrlichttypes_bloated.h"
 #include "log_internal.h"
 #include "sky.h"
+#include "weather.h"
 #include "util/pointedthing.h"
 
 /* DO NOT INCLUDE THIS FROM OUTSIDE GAME.CPP */
@@ -209,6 +210,7 @@ protected:
 	void updateFrame(ProfilerGraph *graph, RunStats *stats, f32 dtime,
 			const CameraOrientation &cam);
 	void updateClouds(float dtime);
+	void updateWeather(float dtime);
 	void updateShadows();
 	void drawScene(ProfilerGraph *graph, RunStats *stats);
 
@@ -322,6 +324,7 @@ private:
 	Camera *camera = nullptr;
 	irr_ptr<Clouds> clouds;
 	irr_ptr<Sky> sky;
+	irr_ptr<Weather> weather;
 	Hud *hud = nullptr;
 	Minimap *mapper = nullptr;
 	GameFormSpec m_game_formspec;
@@ -368,6 +371,10 @@ private:
 	f32  m_repeat_place_time;
 	f32  m_repeat_dig_time;
 	f32  m_cache_cam_smoothing;
+	bool m_cache_classic_weather;
+	std::string m_cache_weather_type;
+	f32  m_cache_weather_intensity;
+	bool m_cache_classic_fog;
 
 	bool m_invert_mouse;
 	bool m_enable_hotbar_mouse_wheel;

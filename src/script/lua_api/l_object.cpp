@@ -2049,6 +2049,35 @@ int ObjectRef::l_hud_remove(lua_State *L)
 	return 1;
 }
 
+// set_weather(self, weather_parameters)
+int ObjectRef::l_set_weather(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	RemotePlayer *player = getplayer(ref);
+	if (player == nullptr)
+		return 0;
+
+	WeatherParams weather_params = player->getWeatherParams();
+
+	if (lua_isnoneornil(L, 2)) {
+		weather_params = WeatherParams();
+	} else {
+		luaL_checktype(L, 2, LUA_TTABLE);
+		std::string type_s = getstringfield_default(L, 2, "type", "none");
+		if (type_s == "rain") weather_params.type = 1;
+		else if (type_s == "snow") weather_params.type = 2;
+		else weather_params.type = 0;
+
+		weather_params.intensity = getfloatfield_default(L, 2, "intensity", weather_params.intensity);
+	}
+
+	getServer(L)->setWeather(player, weather_params);
+
+	lua_pushboolean(L, true);
+	return 1;
+}
+
 // hud_change(self, id, stat, data)
 int ObjectRef::l_hud_change(lua_State *L)
 {
@@ -3167,6 +3196,7 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod(ObjectRef, set_stars),
 	luamethod(ObjectRef, get_stars),
 	luamethod(ObjectRef, set_clouds),
+	luamethod(ObjectRef, set_weather),
 	luamethod(ObjectRef, get_clouds),
 	luamethod(ObjectRef, override_day_night_ratio),
 	luamethod(ObjectRef, get_day_night_ratio),

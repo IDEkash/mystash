@@ -1520,6 +1520,20 @@ void Client::handleCommand_CloudParams(NetworkPacket* pkt)
 	m_client_event_queue.push(event);
 }
 
+void Client::handleCommand_WeatherParams(NetworkPacket* pkt)
+{
+	u8 type;
+	f32 intensity;
+
+	*pkt >> type >> intensity;
+
+	ClientEvent *event = new ClientEvent();
+	event->type = CE_WEATHER_PARAMS;
+	event->weather_params.type = type;
+	event->weather_params.intensity = intensity;
+	m_client_event_queue.push(event);
+}
+
 void Client::handleCommand_OverrideDayNightRatio(NetworkPacket* pkt)
 {
 	bool do_override;

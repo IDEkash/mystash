@@ -2011,11 +2011,18 @@ void Server::SendSetMoon(session_t peer_id, const MoonParams &params)
 		Send(&pkt);
 	}
 
-	void Server::SendCloudParams(session_t peer_id, const CloudParams &params)
-	{
+void Server::SendCloudParams(session_t peer_id, const CloudParams &params)
+{
 	NetworkPacket pkt(TOCLIENT_CLOUD_PARAMS, 0, peer_id);
 	pkt << params.density << params.color_bright << params.color_ambient
 		<< params.height << params.thickness << params.speed << params.color_shadow;
+	Send(&pkt);
+}
+
+void Server::SendWeatherParams(session_t peer_id, u8 type, float intensity)
+{
+	NetworkPacket pkt(TOCLIENT_WEATHER_PARAMS, 1 + 4, peer_id);
+	pkt << type << intensity;
 	Send(&pkt);
 }
 
@@ -3800,6 +3807,13 @@ void Server::setMoon(RemotePlayer *player, const MoonParams &params)
 	sanity_check(player);
 	player->setCloudParams(params);
 	SendCloudParams(player->getPeerId(), params);
+}
+
+void Server::setWeather(RemotePlayer *player, const WeatherParams &params)
+{
+	sanity_check(player);
+	player->setWeatherParams(params);
+	SendWeatherParams(player->getPeerId(), params.type, params.intensity);
 }
 
 void Server::overrideDayNightRatio(RemotePlayer *player, bool do_override,

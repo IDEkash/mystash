@@ -373,6 +373,9 @@ private:
 	// set_clouds(self, cloud_parameters)
 	static int l_set_clouds(lua_State *L);
 
+	// set_weather(self, weather_parameters)
+	static int l_set_weather(lua_State *L);
+
 	// get_clouds(self)
 	static int l_get_clouds(lua_State *L);
 

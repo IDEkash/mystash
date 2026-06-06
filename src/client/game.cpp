@@ -536,6 +536,7 @@ Game::Game() :
 		"chat_log_level", "doubletap_jump", "toggle_sneak_key", "toggle_aux1_key",
 		"enable_joysticks", "enable_fog", "mouse_sensitivity", "joystick_frustum_sensitivity",
 		"repeat_place_time", "repeat_dig_time", "noclip", "free_move", "fog_start",
+		"classic_weather", "weather_type", "weather_intensity", "classic_fog",
 		"cinematic", "cinematic_camera_smoothing", "camera_smoothing", "invert_mouse",
 		"enable_hotbar_mouse_wheel", "invert_hotbar_mouse_wheel", "pause_on_lost_focus",
 	};
@@ -777,6 +778,7 @@ void Game::shutdown()
 		g_touchcontrols->hide();
 
 	clouds.reset();
+	weather.reset();
 
 	gui_chat_console.reset();
 
@@ -1045,6 +1047,10 @@ bool Game::createClient(const GameStartData &start_data)
 	 */
 	sky = make_irr<Sky>(-1, m_rendering_engine, texture_src, shader_src);
 	scsf->setSky(sky.get());
+
+	/* Weather
+	 */
+	weather = make_irr<Weather>(smgr, texture_src, shader_src, -1);
 
 	if (!initGui())
 		return false;
@@ -2324,6 +2330,7 @@ const ClientEventHandler Game::clientEventHandler[CLIENTEVENT_MAX] = {
 		{&Game::handleClientEvent_SetFogBoundary},
 		{&Game::handleClientEvent_OverrideDayNightRatio},
 	{&Game::handleClientEvent_CloudParams},
+	{&Game::handleClientEvent_WeatherParams},
 	{&Game::handleClientEvent_UpdateCamera},
 };
 
@@ -2649,6 +2656,14 @@ void Game::handleClientEvent_CloudParams(ClientEvent *event, CameraOrientation *
 	clouds->setHeight(event->cloud_params.height);
 	clouds->setThickness(event->cloud_params.thickness);
 	clouds->setSpeed(v2f(event->cloud_params.speed_x, event->cloud_params.speed_y));
+}
+
+void Game::handleClientEvent_WeatherParams(ClientEvent *event, CameraOrientation *cam)
+{
+	if (!weather)
+		return;
+	weather->setType((WeatherType)event->weather_params.type);
+	weather->setIntensity(event->weather_params.intensity);
 }
 
 void Game::handleClientEvent_UpdateCamera(ClientEvent *event, CameraOrientation *cam)
@@ -3617,6 +3632,11 @@ void Game::updateFrame(ProfilerGraph *graph, RunStats *stats, f32 dtime,
 	updateClouds(dtime);
 
 	/*
+		Update weather
+	*/
+	updateWeather(dtime);
+
+	/*
 		Update particles
 	*/
 	client->getParticleManager()->step(dtime);
@@ -3737,6 +3757,31 @@ void Game::updateClouds(float dtime)
 	}
 }
 
+void Game::updateWeather(float dtime)
+{
+	if (!weather)
+		return;
+
+	// Settings can override weather
+	if (m_cache_weather_type != "none") {
+		WeatherType type = WEATHER_NONE;
+		if (m_cache_weather_type == "rain") type = WEATHER_RAIN;
+		else if (m_cache_weather_type == "snow") type = WEATHER_SNOW;
+
+		weather->setType(type);
+		weather->setIntensity(m_cache_weather_intensity);
+	}
+	weather->setClassic(m_cache_classic_weather);
+
+	v3f camera_node_position = this->camera->getCameraNode()->getPosition();
+	v3s16 camera_offset = this->camera->getOffset();
+	camera_node_position.X += camera_offset.X * BS;
+	camera_node_position.Y += camera_offset.Y * BS;
+	camera_node_position.Z += camera_offset.Z * BS;
+
+	weather->update(camera_node_position, camera->getDirection(), dtime);
+}
+
 /* Log times and stuff for visualization */
 inline void Game::updateProfilerGraphs(ProfilerGraph *graph)
 {
@@ -3801,11 +3846,16 @@ void Game::drawScene(ProfilerGraph *graph, RunStats *stats)
 		Fog
 	*/
 	if (this->fogEnabled()) {
+		float range = this->runData.fog_range;
+		if (m_cache_classic_fog) {
+			range = std::min(range, 200.0f); // Dense classic fog
+			fog_start_ratio = 0.0f; // Linear from camera
+		}
 		this->driver->setFog(
 				fog_color_effective,
 				video::EFT_FOG_LINEAR,
-				this->runData.fog_range * fog_start_ratio,
-				this->runData.fog_range * fog_end_ratio,
+				range * fog_start_ratio,
+				range * fog_end_ratio,
 				0.f, // unused
 				false, // pixel fog
 				true // range fog
@@ -3903,6 +3953,11 @@ void Game::readSettings()
 	m_cache_joystick_frustum_sensitivity = std::max(g_settings->getFloat("joystick_frustum_sensitivity"), 0.001f);
 	m_repeat_place_time                  = g_settings->getFloat("repeat_place_time", 0.16f, 2.0f);
 	m_repeat_dig_time                    = g_settings->getFloat("repeat_dig_time", 0.0f, 2.0f);
+
+	m_cache_classic_weather              = g_settings->getBool("classic_weather");
+	m_cache_weather_type                 = g_settings->get("weather_type");
+	m_cache_weather_intensity            = g_settings->getFloat("weather_intensity");
+	m_cache_classic_fog                  = g_settings->getBool("classic_fog");
 
 	m_cache_enable_noclip                = g_settings->getBool("noclip");
 	m_cache_enable_free_move             = g_settings->getBool("free_move");

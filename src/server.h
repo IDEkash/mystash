@@ -400,6 +400,7 @@ public:
 				const std::optional<FogBoundaryParams> &boundary);
 
 	void setClouds(RemotePlayer *player, const CloudParams &params);
+	void setWeather(RemotePlayer *player, const WeatherParams &params);
 
 	void overrideDayNightRatio(RemotePlayer *player, bool do_override, float brightness);
 
@@ -571,6 +572,7 @@ private:
 	void SendSetFog(session_t peer_id, const FogParams &params);
 	void SendSetFogBoundary(session_t peer_id, const FogBoundaryParams &params);
 	void SendCloudParams(session_t peer_id, const CloudParams &params);
+	void SendWeatherParams(session_t peer_id, u8 type, float intensity);
 	void SendOverrideDayNightRatio(session_t peer_id, bool do_override, float ratio);
 	void SendSetLighting(session_t peer_id, const Lighting &lighting);
 

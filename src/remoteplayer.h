@@ -102,6 +102,13 @@ public:
 
 	const CloudParams &getCloudParams() const { return m_cloud_params; }
 
+	void setWeatherParams(const WeatherParams &weather_params)
+	{
+		m_weather_params = weather_params;
+	}
+
+	const WeatherParams &getWeatherParams() const { return m_weather_params; }
+
 	bool checkModified() const { return m_dirty || inventory.checkModified(); }
 
 	inline void setModified(const bool x) { m_dirty = x; }
@@ -157,6 +164,7 @@ private:
 	std::string hud_hotbar_selected_image = "";
 
 	CloudParams m_cloud_params;
+	WeatherParams m_weather_params;
 
 	SkyboxParams m_skybox_params;
 	SunParams m_sun_params;
