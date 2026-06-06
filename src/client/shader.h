@@ -11,6 +11,7 @@
 #include <string>
 #include <map>
 #include <variant>
+#include <vector>
 #include "nodedef.h"
 #include "tile.h" // MaterialType
 
@@ -37,6 +38,16 @@ std::string getShaderPath(const std::string &name_of_shader,
 
 // Shader constants are either an int or a float in GLSL
 typedef std::map<std::string, std::variant<int, float>> ShaderConstants;
+
+typedef std::variant<float, int, bool, v2f, v3f> ModUniformValue;
+
+struct ModShaderOverride {
+	std::string name;
+	std::string target;
+	std::string stage; // "vertex", "fragment", or "both"
+	std::string path;
+	s32 priority;
+};
 
 class IShaderConstantSetter {
 public:
@@ -305,6 +316,11 @@ public:
 
 	/// @note Takes ownership of @p setter.
 	virtual void addShaderUniformSetterFactory(std::unique_ptr<IShaderUniformSetterFactory> setter) = 0;
+
+	virtual void registerShaderOverride(const ModShaderOverride &ov) = 0;
+	virtual void setShaderUniform(const std::string &shader_name,
+		const std::string &uniform_name, const ModUniformValue &value) = 0;
+	virtual std::vector<std::string> getModShaderNames() = 0;
 };
 
 IWritableShaderSource *createShaderSource();

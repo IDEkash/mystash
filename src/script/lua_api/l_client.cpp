@@ -4,6 +4,7 @@
 // Copyright (C) 2017 nerzhul, Loic Blot <loic.blot@unix-experience.fr>
 
 #include "l_client.h"
+#include "l_shader.h"
 #include "chatmessage.h"
 #include "client/client.h"
 #include "client/sound.h"
@@ -336,6 +337,7 @@ int ModApiClient::l_get_csm_restrictions(lua_State *L)
 
 void ModApiClient::Initialize(lua_State *L, int top)
 {
+	ModApiShader::Initialize(L, top);
 	API_FCT(get_current_modname);
 	API_FCT(get_modpath);
 	API_FCT(print);
