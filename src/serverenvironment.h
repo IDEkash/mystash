@@ -142,6 +142,8 @@ public:
 	void removePlayer(RemotePlayer *player);
 	bool removePlayerFromDatabase(const std::string &name);
 
+	void clearVisualOverrides(const std::string &player_name);
+
 	/*
 		Save and load time of day and game timer
 	*/

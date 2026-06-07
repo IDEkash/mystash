@@ -1402,10 +1402,7 @@ int ModApiServer::l_byvisual_cleanup(lua_State *L)
 	ServerEnvironment *env = (ServerEnvironment *)getEnv(L);
 	if (!env) return 0;
 
-	auto cb = [&player_name](ServerActiveObject *obj) {
-		obj->clearVisualOverride(player_name);
-	};
-	env->m_ao_manager.step(0, cb);
+	env->clearVisualOverrides(player_name);
 
 	return 0;
 }

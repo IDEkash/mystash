@@ -387,6 +387,14 @@ bool ServerEnvironment::removePlayerFromDatabase(const std::string &name)
 	return ret;
 }
 
+void ServerEnvironment::clearVisualOverrides(const std::string &player_name)
+{
+	auto cb = [&player_name](ServerActiveObject *obj) {
+		obj->clearVisualOverride(player_name);
+	};
+	m_ao_manager.step(0, cb);
+}
+
 void ServerEnvironment::saveLoadedPlayers(bool force)
 {
 	for (RemotePlayer *player : m_players) {

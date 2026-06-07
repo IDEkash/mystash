@@ -19,32 +19,32 @@ public:
 			const std::string &state);
 	~LuaEntitySAO();
 
-	ActiveObjectType getType() const { return ACTIVEOBJECT_TYPE_LUAENTITY; }
-	ActiveObjectType getSendType() const { return ACTIVEOBJECT_TYPE_GENERIC; }
-	virtual void addedToEnvironment(u32 dtime_s);
-	void step(float dtime, bool send_recommended);
+	ActiveObjectType getType() const override { return ACTIVEOBJECT_TYPE_LUAENTITY; }
+	ActiveObjectType getSendType() const override { return ACTIVEOBJECT_TYPE_GENERIC; }
+	void addedToEnvironment(u32 dtime_s) override;
+	void step(float dtime, bool send_recommended) override;
 	std::string getClientInitializationData(u16 protocol_version, const std::string &viewer = "") override;
 
-	bool isStaticAllowed() const { return m_prop.static_save; }
-	bool shouldUnload() const { return true; }
-	void getStaticData(std::string *result) const;
+	bool isStaticAllowed() const override { return m_prop.static_save; }
+	bool shouldUnload() const override { return true; }
+	void getStaticData(std::string *result) const override;
 
 	u32 punch(v3f dir, const ToolCapabilities &toolcap,
 			ServerActiveObject *puncher = nullptr,
 			float time_from_last_punch = 1000000.0f,
-			u16 initial_wear = 0);
+			u16 initial_wear = 0) override;
 
-	void rightClick(ServerActiveObject *clicker);
+	void rightClick(ServerActiveObject *clicker) override;
 
-	void setPos(const v3f &pos);
-	void moveTo(v3f pos, bool continuous);
-	float getMinimumSavedMovement();
+	void setPos(const v3f &pos) override;
+	void moveTo(v3f pos, bool continuous) override;
+	float getMinimumSavedMovement() override;
 
-	std::string getDescription();
+	std::string getDescription() override;
 
-	void setHP(s32 hp, const PlayerHPChangeReason &reason);
-	u16 getHP() const;
-	std::string getGUID() const;
+	void setHP(s32 hp, const PlayerHPChangeReason &reason) override;
+	u16 getHP() const override;
+	std::string getGUID() const override;
 
 	/* LuaEntitySAO-specific */
 	void setVelocity(v3f velocity);
@@ -58,17 +58,17 @@ public:
 	void setSprite(v2s16 p, int num_frames, float framelength,
 			bool select_horiz_by_yawpitch);
 	std::string getName();
-	bool getCollisionBox(aabb3f *toset) const;
-	bool getSelectionBox(aabb3f *toset) const;
-	bool collideWithObjects() const;
+	bool getCollisionBox(aabb3f *toset) const override;
+	bool getSelectionBox(aabb3f *toset) const override;
+	bool collideWithObjects() const override;
 
 protected:
 	void dispatchScriptDeactivate(bool removal);
-	virtual void onMarkedForDeactivation() {
+	void onMarkedForDeactivation() override {
 		UnitSAO::onMarkedForDeactivation();
 		dispatchScriptDeactivate(false);
 	}
-	virtual void onMarkedForRemoval() {
+	void onMarkedForRemoval() override {
 		UnitSAO::onMarkedForRemoval();
 		dispatchScriptDeactivate(true);
 	}
