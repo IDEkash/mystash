@@ -2305,7 +2305,7 @@ void Server::SendActiveObjectRemoveAdd(RemoteClient *client, PlayerSAO *playersa
 		u8 type = obj->getSendType();
 
 		pkt << id << type;
-		pkt.putLongString(obj->getClientInitializationData(client->net_proto_version, player->getPlayer()->getName()));
+		pkt.putLongString(obj->getClientInitializationData(client->net_proto_version, playersao->getPlayer()->getName()));
 
 		// Add to known objects
 		client->m_known_objects.insert(id);
