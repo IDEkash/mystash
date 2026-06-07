@@ -28,6 +28,7 @@
 #include "server/player_sao.h"
 #include "mapgen/mg_biome.h"
 #include "server/rollback.h"
+#include "object_properties.h"
 #include "server/serveractiveobject.h"
 #include "server/serverinventorymgr.h"
 #include "server/serverlist.h"
@@ -958,8 +959,26 @@ void Server::AsyncRunStep(float dtime, bool initial_step)
 
 					// Get message list of object
 					std::vector<ActiveObjectMessage>* list = buffered_message.second;
+					const std::string &viewer_name = player->getPlayer()->getName();
+					const auto *ov = sao->getVisualOverride(viewer_name);
+
 					// Go through every message
-					for (const ActiveObjectMessage &aom : *list) {
+					for (ActiveObjectMessage aom : *list) {
+						if (aom.datastring[0] == AO_CMD_SET_PROPERTIES && ov) {
+							// Intercept property updates and apply visual overrides
+							std::istringstream is(aom.datastring.substr(1), std::ios::binary);
+							ObjectProperties prop;
+							prop.deSerialize(is);
+							if (ov->mesh) prop.mesh = *ov->mesh;
+							if (ov->textures) prop.textures = *ov->textures;
+							if (ov->is_visible) prop.is_visible = *ov->is_visible;
+
+							std::ostringstream os(std::ios::binary);
+							writeU8(os, AO_CMD_SET_PROPERTIES);
+							prop.serialize(os);
+							aom.datastring = os.str();
+						}
+
 						// Send position updates to players who do not see the attachment
 						if (aom.datastring[0] == AO_CMD_UPDATE_POSITION) {
 							if (sao->getId() == player->getId())
@@ -2286,7 +2305,7 @@ void Server::SendActiveObjectRemoveAdd(RemoteClient *client, PlayerSAO *playersa
 		u8 type = obj->getSendType();
 
 		pkt << id << type;
-		pkt.putLongString(obj->getClientInitializationData(client->net_proto_version));
+		pkt.putLongString(obj->getClientInitializationData(client->net_proto_version, player->getPlayer()->getName()));
 
 		// Add to known objects
 		client->m_known_objects.insert(id);
@@ -3158,6 +3177,7 @@ void Server::DeleteClient(session_t peer_id, ClientDeletionReason reason)
 			m_clients.sendToAll(&notice);
 			// run scripts
 			m_script->on_leaveplayer(playersao, reason == CDR_TIMEOUT);
+			m_script->on_byvisual_cleanup(player_name);
 
 			playersao->disconnected();
 		}

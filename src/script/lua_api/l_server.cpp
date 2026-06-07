@@ -52,6 +52,134 @@ int ModApiServer::l_get_server_status(lua_State *L)
 	return 1;
 }
 
+int ModApiServer::l_byvisual_set_properties(lua_State *L)
+{
+	RemotePlayer *viewer = read_player_or_name(L, 1);
+	if (!viewer)
+		return 0;
+
+	ObjectRef *target_ref = ObjectRef::checkObject<ObjectRef>(L, 2);
+	ServerActiveObject *target = ObjectRef::getobject(target_ref);
+	if (!target)
+		return 0;
+
+	luaL_checktype(L, 3, LUA_TTABLE);
+
+	ServerActiveObject::VisualOverride ov;
+
+	lua_getfield(L, 3, "model");
+	if (lua_isstring(L, -1))
+		ov.mesh = readParam<std::string>(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, 3, "textures");
+	if (lua_istable(L, -1)) {
+		std::vector<std::string> textures;
+		int table = lua_gettop(L);
+		lua_pushnil(L);
+		while (lua_next(L, table) != 0) {
+			if (lua_isstring(L, -1))
+				textures.emplace_back(readParam<std::string>(L, -1));
+			else
+				textures.emplace_back("");
+			lua_pop(L, 1);
+		}
+		ov.textures = std::move(textures);
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, 3, "visible");
+	if (lua_isboolean(L, -1))
+		ov.is_visible = lua_toboolean(L, -1);
+	lua_pop(L, 1);
+
+	target->setVisualOverride(viewer->getName(), ov);
+	target->notifyObjectPropertiesModified();
+	return 0;
+}
+
+int ModApiServer::l_byvisual_clear(lua_State *L)
+{
+	RemotePlayer *viewer = read_player_or_name(L, 1);
+	if (!viewer)
+		return 0;
+
+	ObjectRef *target_ref = ObjectRef::checkObject<ObjectRef>(L, 2);
+	ServerActiveObject *target = ObjectRef::getobject(target_ref);
+	if (!target)
+		return 0;
+
+	target->clearVisualOverride(viewer->getName());
+	target->notifyObjectPropertiesModified();
+	return 0;
+}
+
+int ModApiServer::l_byvisual_clear_all(lua_State *L)
+{
+	ObjectRef *target_ref = ObjectRef::checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *target = ObjectRef::getobject(target_ref);
+	if (!target)
+		return 0;
+
+	target->clearAllVisualOverrides();
+	target->notifyObjectPropertiesModified();
+	return 0;
+}
+
+int ModApiServer::l_byvisual_has_override(lua_State *L)
+{
+	RemotePlayer *viewer = read_player_or_name(L, 1);
+	if (!viewer) {
+		lua_pushboolean(L, false);
+		return 1;
+	}
+
+	ObjectRef *target_ref = ObjectRef::checkObject<ObjectRef>(L, 2);
+	ServerActiveObject *target = ObjectRef::getobject(target_ref);
+	if (!target) {
+		lua_pushboolean(L, false);
+		return 1;
+	}
+
+	lua_pushboolean(L, target->getVisualOverride(viewer->getName()) != nullptr);
+	return 1;
+}
+
+int ModApiServer::l_byvisual_get_properties(lua_State *L)
+{
+	RemotePlayer *viewer = read_player_or_name(L, 1);
+	if (!viewer)
+		return 0;
+
+	ObjectRef *target_ref = ObjectRef::checkObject<ObjectRef>(L, 2);
+	ServerActiveObject *target = ObjectRef::getobject(target_ref);
+	if (!target)
+		return 0;
+
+	const auto *ov = target->getVisualOverride(viewer->getName());
+	if (!ov)
+		return 0;
+
+	lua_newtable(L);
+	if (ov->mesh) {
+		lua_pushstring(L, ov->mesh->c_str());
+		lua_setfield(L, -2, "model");
+	}
+	if (ov->textures) {
+		lua_newtable(L);
+		for (size_t i = 0; i < ov->textures->size(); ++i) {
+			lua_pushstring(L, (*ov->textures)[i].c_str());
+			lua_rawseti(L, -2, i + 1);
+		}
+		lua_setfield(L, -2, "textures");
+	}
+	if (ov->is_visible) {
+		lua_pushboolean(L, *ov->is_visible);
+		lua_setfield(L, -2, "visible");
+	}
+	return 1;
+}
+
 // get_server_uptime()
 int ModApiServer::l_get_server_uptime(lua_State *L)
 {
@@ -1243,6 +1371,17 @@ void ModApiServer::Initialize(lua_State *L, int top)
 	API_FCT(serialize_roundtrip);
 
 	API_FCT(register_mapgen_script);
+
+	lua_newtable(L);
+	int byvisual_top = lua_gettop(L);
+	registerFunction(L, "set_properties", l_byvisual_set_properties, byvisual_top);
+	registerFunction(L, "clear", l_byvisual_clear, byvisual_top);
+	registerFunction(L, "clear_all", l_byvisual_clear_all, byvisual_top);
+	registerFunction(L, "has_override", l_byvisual_has_override, byvisual_top);
+	registerFunction(L, "get_properties", l_byvisual_get_properties, byvisual_top);
+	lua_setglobal(L, "byvisual");
+
+	registerFunction(L, "byvisual_cleanup", l_byvisual_cleanup, top);
 }
 
 void ModApiServer::InitializeAsync(lua_State *L, int top)
@@ -1255,4 +1394,18 @@ void ModApiServer::InitializeAsync(lua_State *L, int top)
 	API_FCT(get_modpath);
 	API_FCT(get_modnames);
 	API_FCT(get_game_info);
+}
+
+int ModApiServer::l_byvisual_cleanup(lua_State *L)
+{
+	std::string player_name = readParam<std::string>(L, 1);
+	ServerEnvironment *env = (ServerEnvironment *)getEnv(L);
+	if (!env) return 0;
+
+	auto cb = [&player_name](ServerActiveObject *obj) {
+		obj->clearVisualOverride(player_name);
+	};
+	env->m_ao_manager.step(0, cb);
+
+	return 0;
 }

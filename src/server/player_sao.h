@@ -72,7 +72,7 @@ public:
 	void removingFromEnvironment() override;
 	bool isStaticAllowed() const override { return false; }
 	bool shouldUnload() const override { return false; }
-	std::string getClientInitializationData(u16 protocol_version) override;
+	std::string getClientInitializationData(u16 protocol_version, const std::string &viewer = "") override;
 	void getStaticData(std::string *result) const override;
 	void step(float dtime, bool send_recommended) override;
 	void setBasePosition(v3f position);

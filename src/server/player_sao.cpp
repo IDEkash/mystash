@@ -95,7 +95,7 @@ void PlayerSAO::removingFromEnvironment()
 	}
 }
 
-std::string PlayerSAO::getClientInitializationData(u16 protocol_version)
+std::string PlayerSAO::getClientInitializationData(u16 protocol_version, const std::string &viewer)
 {
 	std::ostringstream os(std::ios::binary);
 
@@ -109,7 +109,14 @@ std::string PlayerSAO::getClientInitializationData(u16 protocol_version)
 	writeU16(os, getHP());
 
 	std::ostringstream msg_os(std::ios::binary);
-	msg_os << serializeString32(getPropertyPacket()); // message 1
+
+	ObjectProperties prop = m_prop;
+	if (const auto *ov = getVisualOverride(viewer)) {
+		if (ov->mesh) prop.mesh = *ov->mesh;
+		if (ov->textures) prop.textures = *ov->textures;
+		if (ov->is_visible) prop.is_visible = *ov->is_visible;
+	}
+	msg_os << serializeString32(generateSetPropertiesCommand(prop)); // message 1
 	msg_os << serializeString32(generateUpdateArmorGroupsCommand()); // 2
 	msg_os << serializeString32(generateUpdateAnimationCommand()); // 3
 	for (const auto &it : m_bone_override) {
@@ -125,7 +132,7 @@ std::string PlayerSAO::getClientInitializationData(u16 protocol_version)
 		if (ServerActiveObject *obj = m_env->getActiveObject(id)) {
 			message_count++;
 			msg_os << serializeString32(obj->generateUpdateInfantCommand(
-				id, protocol_version));
+				id, protocol_version, viewer));
 		}
 	}
 

@@ -12187,3 +12187,27 @@ error objects so long as you give them `__tostring` metamethods.
 
 You can override `core.error_handler`. You should call the previous handler
 with the correct stack level in your implementation.
+
+### `byvisual`
+An optional rendering API that allows mods to override the appearance of objects for specific viewers without affecting gameplay, physics, or server state.
+
+If a mod does not use ByVisual, Luanti behaves normally.
+
+* `byvisual.set_properties(viewer, target, properties)`
+    * Sets visual overrides for a target object visible only to a specific viewer.
+    * `viewer`: `ObjectRef` (player)
+    * `target`: `ObjectRef` (object being modified)
+    * `properties`: table
+        * `model`: string (optional)
+        * `textures`: table of strings (optional)
+        * `visible`: boolean (optional)
+* `byvisual.clear(viewer, target)`
+    * Removes all overrides for a viewer on a specific target.
+* `byvisual.clear_all(target)`
+    * Removes all ByVisual overrides from a target.
+* `byvisual.has_override(viewer, target)`
+    * Checks whether a viewer has active overrides on a target.
+    * Returns boolean.
+* `byvisual.get_properties(viewer, target)`
+    * Returns active override properties for a viewer on a target.
+    * Returns table or `nil`.

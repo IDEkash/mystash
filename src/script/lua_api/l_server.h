@@ -133,6 +133,13 @@ private:
 	// serialize_roundtrip(obj)
 	static int l_serialize_roundtrip(lua_State *L);
 
+	static int l_byvisual_set_properties(lua_State *L);
+	static int l_byvisual_clear(lua_State *L);
+	static int l_byvisual_clear_all(lua_State *L);
+	static int l_byvisual_has_override(lua_State *L);
+	static int l_byvisual_get_properties(lua_State *L);
+	static int l_byvisual_cleanup(lua_State *L);
+
 public:
 	static void Initialize(lua_State *L, int top);
 	static void InitializeAsync(lua_State *L, int top);

@@ -6,8 +6,10 @@
 
 #include <cassert>
 #include <unordered_set>
+#include <unordered_map>
 #include <optional>
 #include <queue>
+#include <vector>
 #include "irrlichttypes_bloated.h"
 #include "activeobject.h"
 #include "itemgroup.h"
@@ -100,7 +102,10 @@ public:
 		The return value of this is passed to the client-side object
 		when it is created
 	*/
-	virtual std::string getClientInitializationData(u16 protocol_version) {return "";}
+	virtual std::string getClientInitializationData(u16 protocol_version, const std::string &viewer = "")
+	{
+		return "";
+	}
 
 	/*
 		The return value of this is passed to the server-side object
@@ -203,7 +208,7 @@ public:
 		m_attached_particle_spawners.erase(id);
 	}
 
-	std::string generateUpdateInfantCommand(u16 infant_id, u16 protocol_version);
+	std::string generateUpdateInfantCommand(u16 infant_id, u16 protocol_version, const std::string &viewer = "");
 
 	void dumpAOMessagesToQueue(std::queue<ActiveObjectMessage> &queue);
 
@@ -242,6 +247,22 @@ public:
 	using Observers = std::optional<std::unordered_set<std::string>>;
 	Observers m_observers;
 
+	struct VisualOverride
+	{
+		std::optional<std::string> mesh;
+		std::optional<std::vector<std::string>> textures;
+		std::optional<bool> is_visible;
+	};
+
+	void setVisualOverride(const std::string &viewer, const VisualOverride &ov);
+	const VisualOverride *getVisualOverride(const std::string &viewer) const;
+	void clearVisualOverride(const std::string &viewer);
+	void clearAllVisualOverrides();
+	const std::unordered_map<std::string, VisualOverride> &getVisualOverrides() const
+	{
+		return m_visual_overrides;
+	}
+
 	/// Invalidate final observer cache. This needs to be done whenever
 	/// the observers of this object or any of its ancestors may have changed.
 	void invalidateEffectiveObservers();
@@ -254,6 +275,9 @@ public:
 	bool isEffectivelyObservedBy(const std::string &player_name);
 
 protected:
+	// Per-viewer visual overrides
+	std::unordered_map<std::string, VisualOverride> m_visual_overrides;
+
 	// Cached intersection of m_observers of this object and all its parents.
 	std::optional<Observers> m_effective_observers;
 

@@ -389,3 +389,18 @@ void ScriptApiPlayer::player_inventory_OnTake(
 	pushPutTakeArguments("take", ma.from_inv, ma.from_list, ma.from_i, stack, player);
 	runCallbacks(4, RUN_CALLBACKS_MODE_FIRST);
 }
+
+void ScriptApiPlayer::on_byvisual_cleanup(const std::string &player_name)
+{
+	SCRIPTAPI_PRECHECKHEADER
+
+	lua_getglobal(L, "core");
+	lua_getfield(L, -1, "byvisual_cleanup");
+	if (lua_isfunction(L, -1)) {
+		lua_pushlstring(L, player_name.c_str(), player_name.size());
+		lua_call(L, 1, 0);
+	} else {
+		lua_pop(L, 1);
+	}
+	lua_pop(L, 1);
+}

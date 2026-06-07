@@ -46,7 +46,7 @@ bool ServerActiveObject::setWieldedItem(const ItemStack &item)
 	return false;
 }
 
-std::string ServerActiveObject::generateUpdateInfantCommand(u16 infant_id, u16 protocol_version)
+std::string ServerActiveObject::generateUpdateInfantCommand(u16 infant_id, u16 protocol_version, const std::string &viewer)
 {
 	std::ostringstream os(std::ios::binary);
 	// command
@@ -58,7 +58,7 @@ std::string ServerActiveObject::generateUpdateInfantCommand(u16 infant_id, u16 p
 		// Clients since 4aa9a66 so no longer need this data
 		// Version 38 is the first bump after that commit.
 		// See also: ClientEnvironment::addActiveObject
-		os << serializeString32(getClientInitializationData(protocol_version));
+		os << serializeString32(getClientInitializationData(protocol_version, viewer));
 	}
 	return os.str();
 }
@@ -135,4 +135,27 @@ bool ServerActiveObject::isEffectivelyObservedBy(const std::string &player_name)
 {
 	auto effective_observers = getEffectiveObservers();
 	return !effective_observers || effective_observers->count(player_name) > 0;
+}
+
+void ServerActiveObject::setVisualOverride(const std::string &viewer, const VisualOverride &ov)
+{
+	m_visual_overrides[viewer] = ov;
+}
+
+const ServerActiveObject::VisualOverride *ServerActiveObject::getVisualOverride(const std::string &viewer) const
+{
+	auto it = m_visual_overrides.find(viewer);
+	if (it != m_visual_overrides.end())
+		return &it->second;
+	return nullptr;
+}
+
+void ServerActiveObject::clearVisualOverride(const std::string &viewer)
+{
+	m_visual_overrides.erase(viewer);
+}
+
+void ServerActiveObject::clearAllVisualOverrides()
+{
+	m_visual_overrides.clear();
 }
