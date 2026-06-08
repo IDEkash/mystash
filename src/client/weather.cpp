@@ -31,7 +31,7 @@ Weather::~Weather()
 
 void Weather::OnRegisterSceneNode()
 {
-	if (IsVisible && m_type != WEATHER_NONE && m_intensity > 0)
+	if (IsVisible && m_type != WEATHER_NONE && m_intensity > 0 && m_classic)
 		SceneManager->registerNodeForRendering(this, scene::ESNRP_TRANSPARENT);
 
 	ISceneNode::OnRegisterSceneNode();
@@ -130,6 +130,11 @@ void Weather::updateMesh()
 				v3f p2( 0.5, -height/2, 0);
 				v3f p3( 0.5,  height/2, 0);
 				v3f p4(-0.5,  height/2, 0);
+
+				if (m_type == WEATHER_RAIN) {
+					p1.X += 0.4f;
+					p2.X += 0.4f;
+				}
 
 				if (r == 1) {
 					p1.rotateXZBy(90);

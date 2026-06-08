@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "irrlichttypes.h"
 #include <vector>
 #include <string>
 #include "SColor.h"

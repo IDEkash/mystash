@@ -69,6 +69,7 @@ struct FogParams;
 struct FogBoundaryParams;
 struct SoundSpec;
 struct StarParams;
+struct WeatherParams;
 struct SunParams;
 
 namespace con {
