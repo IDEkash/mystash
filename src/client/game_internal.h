@@ -282,6 +282,7 @@ private:
 	void handleClientEvent_OverrideDayNightRatio(ClientEvent *event,
 		CameraOrientation *cam);
 	void handleClientEvent_CloudParams(ClientEvent *event, CameraOrientation *cam);
+	void handleClientEvent_WeatherParams(ClientEvent *event, CameraOrientation *cam);
 	void handleClientEvent_UpdateCamera(ClientEvent *event, CameraOrientation *cam);
 
 	void updateChat(f32 dtime);
