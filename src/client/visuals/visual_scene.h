@@ -8,6 +8,8 @@
 #include "fogparams.h"
 #include <vector>
 
+enum class PerspectiveLayer;
+
 class IrrlichtDevice;
 namespace scene {
 	class ISceneManager;
@@ -40,6 +42,9 @@ public:
 	void setVisible(bool visible) { m_visible = visible; }
 	bool isVisible() const { return m_visible; }
 
+	void setPerspectiveLayer(PerspectiveLayer layer) { m_perspective_layer = layer; }
+	PerspectiveLayer getPerspectiveLayer() const { return m_perspective_layer; }
+
 	// Lifecycle
 	virtual void activate();
 	virtual void deactivate();
@@ -50,6 +55,8 @@ protected:
 
 	SkyboxParams m_sky_params;
 	FogParams m_fog_params;
+
+	PerspectiveLayer m_perspective_layer;
 
 	bool m_visible = true;
 	bool m_active = false;

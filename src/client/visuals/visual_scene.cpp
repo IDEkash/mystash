@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
 #include "client/visuals/visual_scene.h"
+#include "client/visuals/visuals_service.h"
 #include "skyparams.h"
 #include <ISceneManager.h>
 #include <IrrlichtDevice.h>
 
 VisualScene::VisualScene(IrrlichtDevice *device) :
-	m_device(device)
+	m_device(device),
+	m_perspective_layer(PerspectiveLayer::Both)
 {
 	m_smgr = m_device->getSceneManager()->createNewSceneManager();
 	m_sky_params = SkyboxDefaults::getSkyDefaults();

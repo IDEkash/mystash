@@ -5,6 +5,7 @@
 #include "client/client.h"
 #include "client/visuals/visuals_service.h"
 #include "client/visuals/visual_scene.h"
+#include "client/camera.h"
 #include <ISceneManager.h>
 #include <ICameraSceneNode.h>
 #include <IVideoDriver.h>
@@ -23,8 +24,13 @@ void VisualsRenderStep::run(PipelineContext &context)
 	if (!active_cam)
 		return;
 
+	CameraMode camera_mode = CAMERA_MODE_FIRST;
+	if (context.client->getCamera()) {
+		camera_mode = context.client->getCamera()->getCameraMode();
+	}
+
 	// Evaluate visibility before rendering
-	visuals->evaluateVisibility(active_cam->getPosition());
+	visuals->evaluateVisibility(active_cam->getPosition(), camera_mode);
 
 	// Render all visible scenes
 	for (VisualScene *scene : visuals->getVisibleScenes()) {
