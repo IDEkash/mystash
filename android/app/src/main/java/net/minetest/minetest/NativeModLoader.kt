@@ -2,6 +2,7 @@ package net.minetest.minetest
 
 import android.content.Context
 import android.util.Log
+import java.io.File
 
 object NativeModLoader {
     private const val TAG = "NativeModLoader"
@@ -13,7 +14,8 @@ object NativeModLoader {
 
     private fun loadRecursively(context: Context, dir: File) {
         val prefs = context.getSharedPreferences("NativeModPrefs", Context.MODE_PRIVATE)
-        dir.listFiles()?.forEach { file ->
+        val files = dir.listFiles() ?: return
+        for (file in files) {
             if (file.isDirectory) {
                 loadRecursively(context, file)
             } else if (file.name.endsWith(".so")) {

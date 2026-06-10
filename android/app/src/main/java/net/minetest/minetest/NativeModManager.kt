@@ -34,7 +34,8 @@ object NativeModManager {
 
     private fun findModsRecursively(context: Context, dir: File, mods: MutableList<NativeMod>) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        dir.listFiles()?.forEach { file ->
+        val files = dir.listFiles() ?: return
+        for (file in files) {
             if (file.isDirectory) {
                 findModsRecursively(context, file, mods)
             } else if (file.name.endsWith(".so")) {
@@ -121,7 +122,8 @@ object NativeModManager {
     }
 
     private fun findFileRecursively(dir: File, name: String): File? {
-        dir.listFiles()?.forEach { file ->
+        val files = dir.listFiles() ?: return null
+        for (file in files) {
             if (file.name == name) return file
             if (file.isDirectory) {
                 val found = findFileRecursively(file, name)
