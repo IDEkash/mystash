@@ -32,11 +32,13 @@
 
 	<Button
 		android:id="@+id/btnSettings"
+		style="?android:attr/borderlessButtonStyle"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:layout_alignParentBottom="true"
+		android:layout_alignParentTop="true"
 		android:layout_alignParentEnd="true"
 		android:layout_margin="16dp"
-		android:text="@string/settings" />
+		android:text="@string/settings"
+		android:textColor="#FFFFFF" />
 
 </RelativeLayout>

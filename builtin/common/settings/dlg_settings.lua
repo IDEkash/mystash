@@ -146,6 +146,7 @@ local function load()
 		local native_mods_page = {
 			id = "native_mods",
 			title = fgettext_ne("Native Mods"),
+			section = fgettext_ne("General"),
 			content = {
 				{
 					id = "btn_native_mods",
