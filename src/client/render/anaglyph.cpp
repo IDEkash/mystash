@@ -5,6 +5,7 @@
 
 #include "anaglyph.h"
 #include "client/camera.h"
+#include "client/visuals/visuals_render_step.h"
 #include "stereo.h"
 #include "plain.h"
 #include <IrrlichtDevice.h>
@@ -63,11 +64,13 @@ void populateAnaglyphPipeline(RenderPipeline *pipeline, Client *client)
 	pipeline->addStep<OffsetCameraStep>(false);
 	pipeline->addStep<SetColorMaskStep>(video::ECP_RED);
 	pipeline->addStep(step3D);
+	pipeline->addStep<VisualsRenderStep>();
 
 	// right eye
 	pipeline->addStep<OffsetCameraStep>(true);
 	pipeline->addStep<SetColorMaskStep>(video::ECP_GREEN | video::ECP_BLUE);
 	pipeline->addStep(step3D);
+	pipeline->addStep<VisualsRenderStep>();
 
 	// reset
 	pipeline->addStep<OffsetCameraStep>(0.0f);

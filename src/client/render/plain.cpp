@@ -11,6 +11,7 @@
 #include "client/clientmap.h"
 #include "client/hud.h"
 #include "client/minimap.h"
+#include "client/visuals/visuals_render_step.h"
 #include "client/shadows/dynamicshadowsrender.h"
 #include <IGUIEnvironment.h>
 
@@ -145,6 +146,7 @@ void populatePlainPipeline(RenderPipeline *pipeline, Client *client)
 	auto downscale_factor = getDownscaleFactor();
 	auto step3D = pipeline->own(create3DStage(client, downscale_factor));
 	pipeline->addStep(step3D);
+	pipeline->addStep<VisualsRenderStep>();
 	pipeline->addStep<DrawWield>();
 	pipeline->addStep<MapPostFxStep>();
 

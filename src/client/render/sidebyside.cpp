@@ -7,6 +7,7 @@
 #include "client/client.h"
 #include "client/hud.h"
 #include "client/camera.h"
+#include "client/visuals/visuals_render_step.h"
 #include "plain.h"
 #include <ISceneManager.h>
 
@@ -68,6 +69,7 @@ void populateSideBySidePipeline(RenderPipeline *pipeline, Client *client, bool h
 				buffer, std::vector<u8> {right ? TEXTURE_RIGHT : TEXTURE_LEFT}, TEXTURE_DEPTH);
 		pipeline->addStep<SetRenderTargetStep>(step3D, output);
 		pipeline->addStep(step3D);
+		pipeline->addStep<VisualsRenderStep>()->setRenderTarget(output);
 		pipeline->addStep<DrawWield>();
 		pipeline->addStep<MapPostFxStep>();
 		pipeline->addStep<DrawHUD>();

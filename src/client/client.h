@@ -44,6 +44,7 @@ class NetworkPacket;
 class NodeDefManager;
 class ParticleManager;
 class RenderingEngine;
+class VisualsService;
 class SingleMediaDownloader;
 class ClientScripting;
 class SSCSMController;
@@ -384,6 +385,7 @@ public:
 	ModStorageDatabase *getModStorageDatabase() override { return m_mod_storage_database; }
 
 	ItemVisualsManager *getItemVisualsManager() { return m_item_visuals_manager; }
+	VisualsService *getVisualsService() { return m_visuals_service.get(); }
 
 	// Migrates away old files-based mod storage if necessary
 	void migrateModStorage();
@@ -597,4 +599,6 @@ private:
 
 	// The number of blocks the client will combine for mesh generation.
 	MeshGrid m_mesh_grid;
+
+	std::unique_ptr<VisualsService> m_visuals_service;
 };

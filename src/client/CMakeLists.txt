@@ -78,6 +78,9 @@ set(client_SRCS
 	${CMAKE_CURRENT_SOURCE_DIR}/imagesource.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/wieldmesh.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/mod_vfs.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/visuals/visual_scene.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/visuals/visuals_service.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/visuals/visuals_render_step.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/shadows/dynamicshadows.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/shadows/dynamicshadowsrender.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/shadows/shadowsshadercallbacks.cpp
