@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
 #include "client/visuals/visual_scene.h"
-#include "client/visuals/visuals_service.h"
 #include "skyparams.h"
 #include <ISceneManager.h>
 #include <IrrlichtDevice.h>

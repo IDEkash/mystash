@@ -5,26 +5,17 @@
 
 #include "visual_scene.h"
 #include "visual_region.h"
+#include "visual_perspective.h"
+#include "client/camera.h"
 #include "player.h"
 #include <vector>
 #include <memory>
 #include <unordered_map>
 #include <set>
 
-enum class PerspectiveLayer
-{
-	FirstPerson,
-	ThirdPerson,
-	Both,
-	Hidden
-};
-
-struct PerspectiveRule
-{
-	PerspectiveLayer layer = PerspectiveLayer::Both;
-	std::set<std::string> suppressed_by;
-	std::set<std::string> suppresses;
-};
+namespace scene {
+	class ISceneNode;
+}
 
 class VisualsService
 {

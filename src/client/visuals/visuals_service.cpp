@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
 #include "client/visuals/visuals_service.h"
+#include "client/camera.h"
 #include "log.h"
 #include <ISceneNode.h>
 
@@ -11,6 +12,9 @@ VisualsService::VisualsService()
 
 VisualsService::~VisualsService()
 {
+	for (auto &pair : m_registered_nodes) {
+		pair.first->drop();
+	}
 }
 
 void VisualsService::registerScene(const std::string &id, std::unique_ptr<VisualScene> scene)
@@ -62,12 +66,19 @@ const std::vector<std::unique_ptr<VisualRegion>> &VisualsService::getRegionsForS
 
 void VisualsService::registerNode(scene::ISceneNode *node, const PerspectiveRule &rule, const std::string &tag)
 {
+	if (m_registered_nodes.find(node) == m_registered_nodes.end()) {
+		node->grab();
+	}
 	m_registered_nodes[node] = {rule, tag};
 }
 
 void VisualsService::unregisterNode(scene::ISceneNode *node)
 {
-	m_registered_nodes.erase(node);
+	auto it = m_registered_nodes.find(node);
+	if (it != m_registered_nodes.end()) {
+		node->drop();
+		m_registered_nodes.erase(it);
+	}
 }
 
 void VisualsService::suppressTag(const std::string &tag)

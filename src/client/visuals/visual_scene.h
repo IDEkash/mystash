@@ -6,9 +6,8 @@
 #include "irrlichttypes_bloated.h"
 #include "skyparams.h"
 #include "fogparams.h"
+#include "visual_perspective.h"
 #include <vector>
-
-enum class PerspectiveLayer;
 
 class IrrlichtDevice;
 namespace scene {
