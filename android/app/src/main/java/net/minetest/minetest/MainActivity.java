@@ -89,6 +89,7 @@ public class MainActivity extends AppCompatActivity {
 	@SuppressLint("UnspecifiedRegisterReceiverFlag")
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
+		NativeModLoader.INSTANCE.loadAll(this);
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 
@@ -101,6 +102,10 @@ public class MainActivity extends AppCompatActivity {
 
 		mProgressBar = findViewById(R.id.progressBar);
 		mTextView = findViewById(R.id.textView);
+		findViewById(R.id.btnSettings).setOnClickListener(v -> {
+			Intent intent = new Intent(this, SettingsActivity.class);
+			startActivity(intent);
+		});
 		sharedPreferences = getSharedPreferences(SETTINGS, Context.MODE_PRIVATE);
 
 		checkAppVersion();
