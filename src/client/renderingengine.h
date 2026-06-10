@@ -63,8 +63,13 @@ public:
 class RenderingEngine
 {
 public:
+	typedef void (*RenderCallback)(void *data);
+
 	RenderingEngine(MyEventReceiver *eventReceiver);
 	~RenderingEngine();
+
+	static void registerRenderCallback(RenderCallback callback, void *data);
+	static void unregisterRenderCallback(RenderCallback callback);
 
 	void setResizable(bool resize);
 
@@ -171,4 +176,10 @@ private:
 	video::IVideoDriver *driver;
 	MyEventReceiver *m_receiver = nullptr;
 	static RenderingEngine *s_singleton;
+
+	struct CallbackInfo {
+		RenderCallback callback;
+		void *data;
+	};
+	static std::vector<CallbackInfo> s_render_callbacks;
 };

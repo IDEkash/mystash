@@ -27,6 +27,7 @@
 #include "irr_ptr.h"
 
 RenderingEngine *RenderingEngine::s_singleton = nullptr;
+std::vector<RenderingEngine::CallbackInfo> RenderingEngine::s_render_callbacks;
 
 /* Helper classes */
 
@@ -403,10 +404,29 @@ void RenderingEngine::finalize()
 	core.reset();
 }
 
+void RenderingEngine::registerRenderCallback(RenderCallback callback, void *data)
+{
+	s_render_callbacks.push_back({callback, data});
+}
+
+void RenderingEngine::unregisterRenderCallback(RenderCallback callback)
+{
+	for (auto it = s_render_callbacks.begin(); it != s_render_callbacks.end(); ++it) {
+		if (it->callback == callback) {
+			s_render_callbacks.erase(it);
+			return;
+		}
+	}
+}
+
 void RenderingEngine::draw_scene(video::SColor skycolor, bool show_hud,
 		bool draw_wield_tool, bool draw_crosshair)
 {
 	core->draw(skycolor, show_hud, draw_wield_tool, draw_crosshair);
+
+	for (const auto &info : s_render_callbacks) {
+		info.callback(info.data);
+	}
 }
 
 const VideoDriverInfo &RenderingEngine::getVideoDriverInfo(video::E_DRIVER_TYPE type)

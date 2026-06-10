@@ -27,15 +27,24 @@ object NativeModManager {
 
     fun getInstalledMods(context: Context): List<NativeMod> {
         val dir = getModDir(context)
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val mods = mutableListOf<NativeMod>()
+        findModsRecursively(context, dir, mods)
+        return mods
+    }
 
-        return dir.listFiles { _, name -> name.endsWith(".so") }?.map { file ->
-            NativeMod(
-                name = file.name,
-                path = file.absolutePath,
-                enabled = prefs.getBoolean(file.name, true)
-            )
-        } ?: emptyList()
+    private fun findModsRecursively(context: Context, dir: File, mods: MutableList<NativeMod>) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        dir.listFiles()?.forEach { file ->
+            if (file.isDirectory) {
+                findModsRecursively(context, file, mods)
+            } else if (file.name.endsWith(".so")) {
+                mods.add(NativeMod(
+                    name = file.name,
+                    path = file.absolutePath,
+                    enabled = prefs.getBoolean(file.name, true)
+                ))
+            }
+        }
     }
 
     fun setModEnabled(context: Context, modName: String, enabled: Boolean) {
@@ -47,7 +56,6 @@ object NativeModManager {
         try {
             val contentResolver = context.contentResolver
             val fileName = getFileName(context, uri) ?: return false
-            if (!fileName.endsWith(".so")) return false
 
             // Security: sanitize file name to prevent path traversal
             val sanitizedFileName = File(fileName).name
@@ -55,13 +63,43 @@ object NativeModManager {
                 return false
             }
 
-            val destFile = File(getModDir(context), sanitizedFileName)
-            contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(destFile).use { output ->
-                    input.copyTo(output)
+            if (sanitizedFileName.endsWith(".so")) {
+                val destFile = File(getModDir(context), sanitizedFileName)
+                contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(destFile).use { output ->
+                        input.copyTo(output)
+                    }
                 }
+                return true
+            } else if (sanitizedFileName.endsWith(".zip")) {
+                val modDir = getModDir(context)
+                val outDir = File(modDir, sanitizedFileName.removeSuffix(".zip"))
+                if (!outDir.exists()) outDir.mkdirs()
+
+                contentResolver.openInputStream(uri)?.use { input ->
+                    java.util.zip.ZipInputStream(input).use { zis ->
+                        var entry = zis.nextEntry
+                        while (entry != null) {
+                            val outFile = File(outDir, entry.name)
+                            if (!outFile.canonicalPath.startsWith(outDir.canonicalPath)) {
+                                throw SecurityException("Zip traversal attempt: ${entry.name}")
+                            }
+                            if (entry.isDirectory) {
+                                outFile.mkdirs()
+                            } else {
+                                outFile.parentFile?.mkdirs()
+                                FileOutputStream(outFile).use { output ->
+                                    zis.copyTo(output)
+                                }
+                            }
+                            zis.closeEntry()
+                            entry = zis.nextEntry
+                        }
+                    }
+                }
+                return true
             }
-            return true
+            return false
         } catch (e: Exception) {
             Log.e(TAG, "Failed to import mod", e)
             return false
@@ -69,9 +107,10 @@ object NativeModManager {
     }
 
     fun deleteMod(context: Context, modName: String): Boolean {
-        val file = File(getModDir(context), modName)
-        if (file.exists()) {
-            val deleted = file.delete()
+        val dir = getModDir(context)
+        val file = findFileRecursively(dir, modName)
+        if (file != null && file.exists()) {
+            val deleted = if (file.isDirectory) file.deleteRecursively() else file.delete()
             if (deleted) {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 prefs.edit().remove(modName).apply()
@@ -79,6 +118,17 @@ object NativeModManager {
             return deleted
         }
         return false
+    }
+
+    private fun findFileRecursively(dir: File, name: String): File? {
+        dir.listFiles()?.forEach { file ->
+            if (file.name == name) return file
+            if (file.isDirectory) {
+                val found = findFileRecursively(file, name)
+                if (found != null) return found
+            }
+        }
+        return null
     }
 
     private fun getFileName(context: Context, uri: Uri): String? {

@@ -42,6 +42,10 @@ endif()
 # Set some random things default to not being visible in the GUI
 mark_as_advanced(EXECUTABLE_OUTPUT_PATH LIBRARY_OUTPUT_PATH)
 
+if(ANDROID)
+	set(CMAKE_CXX_VISIBILITY_PRESET default)
+	set(CMAKE_VISIBILITY_INLINES_HIDDEN 0)
+endif()
 
 if(NOT (BUILD_CLIENT OR BUILD_SERVER))
 	message(WARNING "Neither BUILD_CLIENT nor BUILD_SERVER is set! Setting BUILD_SERVER=true")
