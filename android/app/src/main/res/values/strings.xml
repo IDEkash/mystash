@@ -11,7 +11,7 @@
 	<string name="no_web_browser">No web browser found</string>
 	<string name="settings">Settings</string>
 	<string name="native_mods">Native Mods</string>
-	<string name="import_mod">Import .so</string>
+	<string name="import_mod">Import</string>
 	<string name="restart_to_apply">Restart to apply changes</string>
 	<string name="restart">Restart</string>
 	<string name="delete">Delete</string>
