@@ -50,6 +50,8 @@ void shareFileAndroid(const std::string &path);
  */
 void setPlayingNowNotification(bool show);
 
+void showNativeModsSettings();
+
 /*
  * Types of Android input dialog:
  * 1. Text input (single/multi-line text and password field)

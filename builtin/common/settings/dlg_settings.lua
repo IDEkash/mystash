@@ -142,6 +142,28 @@ local function load()
 	-- insert after "touch_controls"
 	table.insert(page_by_id.controls_touchscreen.content, 2, touchscreen_layout)
 
+	if PLATFORM == "Android" then
+		local native_mods_page = {
+			id = "native_mods",
+			title = fgettext_ne("Native Mods"),
+			content = {
+				{
+					id = "btn_native_mods",
+					get_formspec = function(self, avail_w)
+						local btn_w = math.min(avail_w, 6)
+						return ("button[0,0;%f,0.8;btn_native_mods;%s]"):format(btn_w, fgettext("Manage Native Mods")), 0.8
+					end,
+					on_submit = function(self, fields)
+						if fields.btn_native_mods then
+							core.show_native_mods_settings()
+						end
+					end,
+				}
+			},
+		}
+		add_page(native_mods_page)
+	end
+
 	do
 		local content = page_by_id.graphics_and_audio_effects.content
 		local idx = table.indexof(content, "enable_dynamic_shadows")

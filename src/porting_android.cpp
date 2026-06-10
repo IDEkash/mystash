@@ -258,6 +258,18 @@ void setPlayingNowNotification(bool show)
 	env->CallVoidMethod(activity, play_notification, jshow);
 }
 
+void showNativeModsSettings()
+{
+	JNIEnv *env = getJNIEnv();
+	jmethodID show_settings = env->GetMethodID(activityClass,
+			"showNativeModsSettings", "()V");
+
+	FATAL_ERROR_IF(show_settings == nullptr,
+			"porting::showNativeModsSettings unable to find Java showNativeModsSettings method");
+
+	env->CallVoidMethod(activity, show_settings);
+}
+
 AndroidDialogType getLastInputDialogType()
 {
 	JNIEnv *env = getJNIEnv();

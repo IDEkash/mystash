@@ -16,6 +16,15 @@ int ModApiPauseMenu::l_show_touchscreen_layout(lua_State *L)
 }
 
 
+int ModApiPauseMenu::l_show_native_mods_settings(lua_State *L)
+{
+#ifdef __ANDROID__
+	porting::showNativeModsSettings();
+#endif
+	return 0;
+}
+
+
 int ModApiPauseMenu::l_is_internal_server(lua_State *L)
 {
 	lua_pushboolean(L, getClient(L)->m_internal_server);
@@ -26,5 +35,6 @@ int ModApiPauseMenu::l_is_internal_server(lua_State *L)
 void ModApiPauseMenu::Initialize(lua_State *L, int top)
 {
 	API_FCT(show_touchscreen_layout);
+	API_FCT(show_native_mods_settings);
 	API_FCT(is_internal_server);
 }

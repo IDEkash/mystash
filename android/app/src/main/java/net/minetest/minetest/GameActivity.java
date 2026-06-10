@@ -453,4 +453,9 @@ public class GameActivity extends SDLActivity {
 		gameNotificationShown = show;
 		updateGameNotification();
 	}
+
+	public void showNativeModsSettings() {
+		Intent intent = new Intent(this, SettingsActivity.class);
+		startActivity(intent);
+	}
 }

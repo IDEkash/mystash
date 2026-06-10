@@ -47,6 +47,15 @@ std::string ModApiMainMenu::getTextData(lua_State *L, const std::string &name)
 }
 
 /******************************************************************************/
+int ModApiMainMenu::l_show_native_mods_settings(lua_State *L)
+{
+#ifdef __ANDROID__
+	porting::showNativeModsSettings();
+#endif
+	return 0;
+}
+
+/******************************************************************************/
 int ModApiMainMenu::getIntegerData(lua_State *L, const std::string &name, bool& valid)
 {
 	lua_getglobal(L, "gamedata");
@@ -1285,6 +1294,7 @@ void ModApiMainMenu::Initialize(lua_State *L, int top)
 	API_FCT(start);
 	API_FCT(close);
 	API_FCT(show_touchscreen_layout);
+	API_FCT(show_native_mods_settings);
 	API_FCT(create_world);
 	API_FCT(delete_world);
 	API_FCT(set_background);
