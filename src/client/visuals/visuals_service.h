@@ -12,7 +12,7 @@
 class VisualsService
 {
 public:
-	VisualsService(IrrlichtDevice *device);
+	VisualsService();
 	~VisualsService();
 
 	// Scene management
@@ -36,7 +36,6 @@ public:
 	const std::vector<VisualScene*> &getVisibleScenes() const { return m_visible_scenes; }
 
 private:
-	IrrlichtDevice *m_device;
 	std::unordered_map<std::string, std::unique_ptr<VisualScene>> m_scenes;
 	std::unordered_map<std::string, std::vector<std::unique_ptr<VisualRegion>>> m_scene_regions;
 

@@ -160,7 +160,7 @@ Client::Client(
 	m_media_downloader(std::make_unique<ClientMediaDownloader>()),
 	m_state(LC_Created),
 	m_modchannel_mgr(new ModChannelMgr()),
-	m_visuals_service(new VisualsService(m_rendering_engine->get_raw_device()))
+	m_visuals_service(new VisualsService())
 {
 	// Add local player
 	m_env.setLocalPlayer(new LocalPlayer(this, playername));

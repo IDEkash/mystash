@@ -4,8 +4,7 @@
 #include "client/visuals/visuals_service.h"
 #include "log.h"
 
-VisualsService::VisualsService(IrrlichtDevice *device) :
-	m_device(device)
+VisualsService::VisualsService()
 {
 }
 

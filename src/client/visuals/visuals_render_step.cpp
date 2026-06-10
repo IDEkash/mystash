@@ -6,6 +6,7 @@
 #include "client/visuals/visuals_service.h"
 #include "client/visuals/visual_scene.h"
 #include <ISceneManager.h>
+#include <ICameraSceneNode.h>
 #include <IVideoDriver.h>
 
 void VisualsRenderStep::run(PipelineContext &context)
