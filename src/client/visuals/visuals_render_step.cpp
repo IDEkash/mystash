@@ -6,6 +6,7 @@
 #include "client/visuals/visuals_service.h"
 #include "client/visuals/view_scene.h"
 #include "client/camera.h"
+#include "client/localplayer.h"
 #include <ISceneManager.h>
 #include <ICameraSceneNode.h>
 #include <IVideoDriver.h>
@@ -74,8 +75,8 @@ void VisualsRenderStep::run(PipelineContext &context)
 
 		// 1. Disable color and depth writes
 		video::SMaterial stencil_mat;
-		stencil_mat.ZWriteEnable = false;
-		stencil_mat.ColorMask = 0;
+		stencil_mat.ZWriteEnable = video::EZW_OFF;
+		stencil_mat.ColorMask = video::ECP_NONE;
 		stencil_mat.MaterialType = video::EMT_SOLID;
 		driver->setMaterial(stencil_mat);
 
