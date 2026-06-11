@@ -3,8 +3,9 @@
 
 #pragma once
 
-#include "visual_scene.h"
-#include "visual_region.h"
+#include "view_scene.h"
+#include "view_zone.h"
+#include "view_port.h"
 #include "visual_perspective.h"
 #include "client/camera.h"
 #include "player.h"
@@ -24,17 +25,21 @@ public:
 	~VisualsService();
 
 	// Scene management
-	void registerScene(const std::string &id, std::unique_ptr<VisualScene> scene);
+	void registerScene(const std::string &id, std::unique_ptr<ViewScene> scene);
 	void unregisterScene(const std::string &id);
-	VisualScene *getScene(const std::string &id) const;
+	ViewScene *getScene(const std::string &id) const;
 
 	// Visibility evaluation
 	void setActiveScene(const std::string &id);
-	VisualScene *getActiveScene() const { return m_active_scene; }
+	ViewScene *getActiveScene() const { return m_active_scene; }
 
 	// Region management
-	void addRegionToScene(const std::string &scene_id, std::unique_ptr<VisualRegion> region);
-	const std::vector<std::unique_ptr<VisualRegion>> &getRegionsForScene(const std::string &scene_id) const;
+	void addRegionToScene(const std::string &scene_id, std::unique_ptr<ViewZone> region);
+	const std::vector<std::unique_ptr<ViewZone>> &getRegionsForScene(const std::string &scene_id) const;
+
+	// ViewPort management
+	void addViewPort(std::unique_ptr<ViewPort> viewport);
+	const std::vector<std::unique_ptr<ViewPort>> &getViewPorts() const { return m_viewports; }
 
 	// Node perspective management
 	void registerNode(scene::ISceneNode *node, const PerspectiveRule &rule, const std::string &tag = "");
@@ -49,11 +54,18 @@ public:
 	 */
 	void evaluateVisibility(const v3f &camera_pos, CameraMode camera_mode);
 
-	const std::vector<VisualScene*> &getVisibleScenes() const { return m_visible_scenes; }
+	const std::vector<ViewScene*> &getVisibleScenes() const { return m_visible_scenes; }
+
+	struct ActiveViewPort {
+		ViewPort *viewport;
+		ViewScene *scene;
+	};
+	const std::vector<ActiveViewPort> &getActiveViewPorts() const { return m_active_viewports; }
 
 private:
-	std::unordered_map<std::string, std::unique_ptr<VisualScene>> m_scenes;
-	std::unordered_map<std::string, std::vector<std::unique_ptr<VisualRegion>>> m_scene_regions;
+	std::unordered_map<std::string, std::unique_ptr<ViewScene>> m_scenes;
+	std::unordered_map<std::string, std::vector<std::unique_ptr<ViewZone>>> m_scene_regions;
+	std::vector<std::unique_ptr<ViewPort>> m_viewports;
 
 	struct RegisteredNode {
 		PerspectiveRule rule;
@@ -62,6 +74,7 @@ private:
 	std::unordered_map<scene::ISceneNode*, RegisteredNode> m_registered_nodes;
 	std::set<std::string> m_active_suppressions;
 
-	VisualScene *m_active_scene = nullptr;
-	std::vector<VisualScene*> m_visible_scenes;
+	ViewScene *m_active_scene = nullptr;
+	std::vector<ViewScene*> m_visible_scenes;
+	std::vector<ActiveViewPort> m_active_viewports;
 };

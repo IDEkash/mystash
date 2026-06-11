@@ -10,10 +10,10 @@
  * A region defines where a visual scene may appear.
  * Outside an authorized region, scene content must not render.
  */
-class VisualRegion
+class ViewZone
 {
 public:
-	VisualRegion(const aabb3f &bounds) : m_bounds(bounds) {}
+	ViewZone(const aabb3f &bounds) : m_bounds(bounds) {}
 
 	const aabb3f &getBounds() const { return m_bounds; }
 	void setBounds(const aabb3f &bounds) { m_bounds = bounds; }

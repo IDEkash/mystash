@@ -1,12 +1,12 @@
 // Luanti
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include "client/visuals/visual_scene.h"
+#include "client/visuals/view_scene.h"
 #include "skyparams.h"
 #include <ISceneManager.h>
 #include <IrrlichtDevice.h>
 
-VisualScene::VisualScene(IrrlichtDevice *device) :
+ViewScene::ViewScene(IrrlichtDevice *device) :
 	m_device(device),
 	m_perspective_layer(PerspectiveLayer::Both)
 {
@@ -14,7 +14,7 @@ VisualScene::VisualScene(IrrlichtDevice *device) :
 	m_sky_params = SkyboxDefaults::getSkyDefaults();
 }
 
-VisualScene::~VisualScene()
+ViewScene::~ViewScene()
 {
 	if (m_smgr) {
 		m_smgr->clear();
@@ -22,12 +22,12 @@ VisualScene::~VisualScene()
 	}
 }
 
-void VisualScene::activate()
+void ViewScene::activate()
 {
 	m_active = true;
 }
 
-void VisualScene::deactivate()
+void ViewScene::deactivate()
 {
 	m_active = false;
 }

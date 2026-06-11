@@ -14,15 +14,15 @@ namespace scene {
 	class ISceneManager;
 }
 
-class VisualScene
+class ViewScene
 {
 public:
-	VisualScene(IrrlichtDevice *device);
-	virtual ~VisualScene();
+	ViewScene(IrrlichtDevice *device);
+	virtual ~ViewScene();
 
 	// Deleted copy constructor and assignment operator to ensure explicit ownership
-	VisualScene(const VisualScene &) = delete;
-	VisualScene &operator=(const VisualScene &) = delete;
+	ViewScene(const ViewScene &) = delete;
+	ViewScene &operator=(const ViewScene &) = delete;
 
 	scene::ISceneManager *getSceneManager() const { return m_smgr; }
 
