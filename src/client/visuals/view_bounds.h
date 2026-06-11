@@ -15,10 +15,17 @@ class ViewBounds
 {
 public:
 	ViewBounds() = default;
-	ViewBounds(const std::vector<v3f> &points) : m_points(points) {}
+	ViewBounds(const std::vector<v3f> &points) : m_points(points)
+	{
+		updateBasis();
+	}
 
 	const std::vector<v3f> &getPoints() const { return m_points; }
-	void setPoints(const std::vector<v3f> &points) { m_points = points; }
+	void setPoints(const std::vector<v3f> &points)
+	{
+		m_points = points;
+		updateBasis();
+	}
 
 	core::plane3df getPlane() const
 	{
@@ -40,14 +47,30 @@ public:
 		// Project point to plane
 		v3f projected = point - plane.Normal * distToPlane;
 
-		// Check if the projected point is inside the polygon (Winding number or similar)
-		// For simplicity and better accuracy than before, check if it's within threshold
-		// of ANY point or edge.
+		// Check if the projected point is inside the polygon using ray casting algorithm.
+		auto get2D = [&](const v3f &p) {
+			return v2f(p.dotProduct(m_v1), p.dotProduct(m_v2));
+		};
+
+		v2f p2d = get2D(projected);
+		bool inside = false;
+		for (size_t i = 0, j = m_points.size() - 1; i < m_points.size(); j = i++) {
+			v2f pi = get2D(m_points[i]);
+			v2f pj = get2D(m_points[j]);
+			if (((pi.Y > p2d.Y) != (pj.Y > p2d.Y)) &&
+				(p2d.X < (pj.X - pi.X) * (p2d.Y - pi.Y) / (pj.Y - pi.Y) + pi.X)) {
+				inside = !inside;
+			}
+		}
+
+		if (inside)
+			return true;
+
+		// Also check if it's within threshold of ANY edge (for fuzzy boundaries)
 		for (size_t i = 0; i < m_points.size(); ++i) {
 			const v3f &p1 = m_points[i];
 			const v3f &p2 = m_points[(i + 1) % m_points.size()];
 
-			// Distance to segment p1-p2
 			v3f v = p2 - p1;
 			v3f w = projected - p1;
 			float c1 = w.dotProduct(v);
@@ -69,5 +92,22 @@ public:
 	}
 
 private:
+	void updateBasis()
+	{
+		if (m_points.size() < 3) {
+			m_v1 = v3f(1, 0, 0);
+			m_v2 = v3f(0, 0, 1);
+			return;
+		}
+		core::plane3df plane = getPlane();
+		if (std::abs(plane.Normal.X) > 0.1f || std::abs(plane.Normal.Z) > 0.1f)
+			m_v1 = v3f(0, 1, 0).crossProduct(plane.Normal).normalize();
+		else
+			m_v1 = v3f(1, 0, 0).crossProduct(plane.Normal).normalize();
+		m_v2 = plane.Normal.crossProduct(m_v1).normalize();
+	}
+
 	std::vector<v3f> m_points;
+	v3f m_v1;
+	v3f m_v2;
 };

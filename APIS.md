@@ -772,5 +772,131 @@ core.create_world("ProgrammaticWorld", "minetest", {
 ```
 
 ---
+
+## Visual Regions API (Client-side)
+
+This API allows creating isolated visual scenes that can be rendered either as the main world or within localized viewports (windows). This system is designed for creating complex interior/exterior transitions, mirrors, portals, or security camera feeds.
+
+### Concepts
+
+- **Scene**: An isolated `ISceneManager` with its own nodes, sky, and fog.
+- **Zone**: A physical area in the game world. When the player is inside a Zone, its associated Scene can be activated.
+- **ViewPort**: A 3D window that renders a Scene. It can be a simple decorative window or a trigger that activates a scene when approached.
+- **Bounds**: A 3D polygon defining the shape of a ViewPort.
+
+### VisualsService
+
+The root namespace for managing all visual regions.
+
+`core.visuals.create_scene(id, params)`
+- `id`: string (unique identifier)
+- `params`: table
+    - `perspective`: string (`"firstperson"`, `"thirdperson"`, `"both"`, `"hidden"`) — default `"both"`
+- Returns `ViewScene` object.
+
+`core.visuals.get_scene(id)`
+- Returns `ViewScene` or `nil`.
+
+`core.visuals.delete_scene(id)`
+- Removes the scene and all its resources.
+
+`core.visuals.set_active_scene(id)`
+- Forces a scene to be active regardless of player position. Pass `nil` to return to automatic zone-based activation.
+
+### ViewScene
+
+Represents an isolated visual world.
+
+`scene:add_node(definition)`
+- Adds a node to the scene. (Details depend on the internal node implementation).
+
+`scene:set_sky(params)`
+- Configures the sky for this scene using the standard `set_sky` parameter format.
+
+`scene:set_fog(params)`
+- Configures the fog for this scene using the standard `set_fog` parameter format.
+
+`scene:set_visible(bool)`
+- Toggles whether the scene is rendered at all.
+
+`scene:delete()`
+- Destroys the scene.
+
+### Zone API
+
+`core.visuals.add_zone(scene_id, params)`
+- `scene_id`: string
+- `params`: table
+    - `pos1`, `pos2`: vectors (AABB defining the zone)
+- Returns `ViewZone`.
+
+`zone:set_bounds(pos1, pos2)`
+- Updates the zone's AABB.
+
+`zone:delete()`
+- Removes the zone from its scene.
+
+### ViewPort API
+
+`core.visuals.add_viewport(scene_id, params)`
+- `scene_id`: string
+- `params`: table
+    - `mode`: string (`"zone_only"`, `"window_trigger"`, `"window_and_zone"`, `"window_only"`)
+    - `bounds`: `ViewBounds` object
+- Returns `ViewPort`.
+
+`viewport:set_mode(mode)`
+- Changes the rendering mode:
+    - `"zone_only"`: Scene is only active when player is in a registered zone.
+    - `"window_trigger"`: Scene activates when player is near the viewport window.
+    - `"window_and_zone"`: Viewport is always rendered, scene also activates via zones.
+    - `"window_only"`: Viewport is always rendered, but scene never becomes the "main" world.
+
+`viewport:delete()`
+- Removes the viewport.
+
+### Bounds API
+
+`core.visuals.create_bounds(points)`
+- `points`: table of vectors (at least 3) defining a 3D polygon.
+- Returns `ViewBounds`.
+
+### Perspective API
+
+`core.visuals.register_node(node, params)`
+- `node`: `SceneNode`
+- `params`: table
+    - `layer`: string (`"firstperson"`, `"thirdperson"`, `"both"`, `"hidden"`)
+    - `tag`: string (optional, for bulk suppression)
+    - `suppresses`: table of tags (optional)
+    - `suppressed_by`: table of tags (optional)
+
+`core.visuals.unregister_node(node)`
+
+`core.visuals.suppress_tag(tag)`
+
+`core.visuals.unsuppress_tag(tag)`
+
+### Events
+
+`zone.on_scene_activated`
+- Fires when a scene becomes the main active scene for the player.
+
+`zone.on_scene_deactivated`
+- Fires when a scene is no longer the main active scene.
+
+`zone.on_player_entered`
+- Fires when the local player enters the zone.
+
+`zone.on_player_left`
+- Fires when the local player leaves the zone.
+
+`viewport.on_player_entered`
+- Fires when the player enters the proximity of a `window_trigger` viewport.
+
+`viewport.on_player_left`
+- Fires when the player leaves the proximity of a `window_trigger` viewport.
+
+---
 - **More Soon!**
-- Latest Update: May, 30, 2026
+- Latest Update: June, 10, 2026
