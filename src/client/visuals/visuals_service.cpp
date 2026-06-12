@@ -3,10 +3,12 @@
 
 #include "client/visuals/visuals_service.h"
 #include "client/camera.h"
+#include "client/client.h"
+#include "network/networkpacket.h"
 #include "log.h"
 #include <ISceneNode.h>
 
-VisualsService::VisualsService()
+VisualsService::VisualsService(Client *client) : m_client(client)
 {
 }
 
@@ -17,7 +19,7 @@ VisualsService::~VisualsService()
 	}
 }
 
-void VisualsService::registerScene(const std::string &id, std::unique_ptr<ViewScene> scene)
+void VisualsService::registerScene(u32 id, std::unique_ptr<ViewScene> scene)
 {
 	if (m_scenes.find(id) != m_scenes.end()) {
 		warningstream << "VisualsService: Scene already registered: " << id << std::endl;
@@ -26,18 +28,28 @@ void VisualsService::registerScene(const std::string &id, std::unique_ptr<ViewSc
 	m_scenes[id] = std::move(scene);
 }
 
-void VisualsService::unregisterScene(const std::string &id)
+void VisualsService::unregisterScene(u32 id)
 {
 	auto it = m_scenes.find(id);
 	if (it != m_scenes.end()) {
 		if (m_active_scene == it->second.get())
 			m_active_scene = nullptr;
+
+		// Find and remove all zones associated with this scene
+		std::vector<u32> zones_to_remove;
+		for (auto &pair : m_zone_to_scene) {
+			if (pair.second == id)
+				zones_to_remove.push_back(pair.first);
+		}
+		for (u32 zid : zones_to_remove)
+			removeRegion(zid);
+
 		m_scenes.erase(it);
 		m_scene_regions.erase(id);
 	}
 }
 
-ViewScene *VisualsService::getScene(const std::string &id) const
+ViewScene *VisualsService::getScene(u32 id) const
 {
 	auto it = m_scenes.find(id);
 	if (it != m_scenes.end())
@@ -45,28 +57,60 @@ ViewScene *VisualsService::getScene(const std::string &id) const
 	return nullptr;
 }
 
-void VisualsService::setActiveScene(const std::string &id)
+void VisualsService::setActiveScene(u32 id)
 {
-	m_active_scene = getScene(id);
+	if (id == 0)
+		m_active_scene = nullptr;
+	else
+		m_active_scene = getScene(id);
 }
 
-void VisualsService::addRegionToScene(const std::string &scene_id, std::unique_ptr<ViewZone> region)
+void VisualsService::addRegionToScene(u32 id, u32 scene_id, std::unique_ptr<ViewZone> region)
 {
-	m_scene_regions[scene_id].push_back(std::move(region));
+	ViewZone *ptr = region.get();
+	m_zones[id] = std::move(region);
+	m_zone_to_scene[id] = scene_id;
+	m_scene_regions[scene_id].push_back(ptr);
 }
 
-const std::vector<std::unique_ptr<ViewZone>> &VisualsService::getRegionsForScene(const std::string &scene_id) const
+void VisualsService::removeRegion(u32 id)
 {
-	static const std::vector<std::unique_ptr<ViewZone>> empty;
+	auto it = m_zones.find(id);
+	if (it != m_zones.end()) {
+		u32 scene_id = m_zone_to_scene[id];
+		auto &vec = m_scene_regions[scene_id];
+		vec.erase(std::remove(vec.begin(), vec.end(), it->second.get()), vec.end());
+		m_zones.erase(it);
+		m_zone_to_scene.erase(id);
+	}
+}
+
+const std::vector<ViewZone*> &VisualsService::getRegionsForScene(u32 scene_id) const
+{
+	static const std::vector<ViewZone*> empty;
 	auto it = m_scene_regions.find(scene_id);
 	if (it != m_scene_regions.end())
 		return it->second;
 	return empty;
 }
 
-void VisualsService::addViewPort(std::unique_ptr<ViewPort> viewport)
+void VisualsService::addViewPort(u32 id, std::unique_ptr<ViewPort> viewport)
 {
-	m_viewports.push_back(std::move(viewport));
+	m_viewports[id] = std::move(viewport);
+}
+
+void VisualsService::removeViewPort(u32 id)
+{
+	m_viewports.erase(id);
+}
+
+const std::vector<ViewPort*> &VisualsService::getViewPorts() const
+{
+	static std::vector<ViewPort*> list;
+	list.clear();
+	for (auto &pair : m_viewports)
+		list.push_back(pair.second.get());
+	return list;
 }
 
 void VisualsService::registerNode(scene::ISceneNode *node, const PerspectiveRule &rule, const std::string &tag)
@@ -117,9 +161,55 @@ void VisualsService::evaluateVisibility(const v3f &camera_pos, CameraMode camera
 	m_active_viewports.clear();
 
 	std::set<ViewScene*> scenes_to_render;
+	std::set<u32> new_inside_zones;
+	std::set<u32> new_near_viewports;
 
-	// 1. Evaluate ViewPorts
-	for (const auto &vp : m_viewports) {
+	// Evaluate all zones
+	for (auto &pair : m_zones) {
+		if (pair.second->contains(camera_pos)) {
+			new_inside_zones.insert(pair.first);
+		}
+	}
+
+	// Evaluate all viewports
+	for (auto &pair : m_viewports) {
+		if (pair.second->getBounds().isPointNear(camera_pos, 2.0f)) {
+			new_near_viewports.insert(pair.first);
+		}
+	}
+
+	auto sendEvent = [&](VisualEventType type, u32 id) {
+		NetworkPacket pkt(TOSERVER_VISUAL_EVENT, 5);
+		pkt << (u8)type << id;
+		m_client->Send(&pkt);
+	};
+
+	// Detect zone entries/exits
+	for (u32 id : new_inside_zones) {
+		if (m_inside_zones.find(id) == m_inside_zones.end())
+			sendEvent(VisualEventType::PlayerEnteredZone, id);
+	}
+	for (u32 id : m_inside_zones) {
+		if (new_inside_zones.find(id) == new_inside_zones.end())
+			sendEvent(VisualEventType::PlayerLeftZone, id);
+	}
+	m_inside_zones = std::move(new_inside_zones);
+
+	// Detect viewport proximity changes
+	for (u32 id : new_near_viewports) {
+		if (m_near_viewports.find(id) == m_near_viewports.end())
+			sendEvent(VisualEventType::PlayerEnteredViewPort, id);
+	}
+	for (u32 id : m_near_viewports) {
+		if (new_near_viewports.find(id) == new_near_viewports.end())
+			sendEvent(VisualEventType::PlayerLeftViewPort, id);
+	}
+	m_near_viewports = std::move(new_near_viewports);
+
+	// 1. Evaluate ViewPorts for rendering
+	for (auto &pair : m_viewports) {
+		u32 vp_id = pair.first;
+		ViewPort *vp = pair.second.get();
 		ViewScene *scene = getScene(vp->getSceneId());
 		if (!scene)
 			continue;
@@ -128,6 +218,7 @@ void VisualsService::evaluateVisibility(const v3f &camera_pos, CameraMode camera
 		auto it = m_scene_regions.find(vp->getSceneId());
 		if (it != m_scene_regions.end()) {
 			for (const auto &zone : it->second) {
+				// We don't have zone IDs in m_scene_regions vector, so we check camera_pos directly
 				if (zone->contains(camera_pos)) {
 					in_zone = true;
 					break;
@@ -135,27 +226,20 @@ void VisualsService::evaluateVisibility(const v3f &camera_pos, CameraMode camera
 			}
 		}
 
-		// TODO: Implement proper viewport visibility check (frustum culling, etc.)
-		// For now we assume they might be visible if the scene is visible.
 		bool vp_visible = scene->isVisible();
-
 		bool activate_scene = false;
 		bool render_viewport = false;
 
 		switch (vp->getMode()) {
 		case ViewMode::ZoneOnly:
-			if (in_zone)
-				activate_scene = true;
+			if (in_zone) activate_scene = true;
 			break;
 		case ViewMode::WindowTrigger:
-			// "Entering the viewport activates the scene"
-			if (vp->getBounds().isPointNear(camera_pos, 2.0f))
-				activate_scene = true;
+			if (m_near_viewports.count(vp_id)) activate_scene = true;
 			break;
 		case ViewMode::WindowAndZone:
 			render_viewport = vp_visible;
-			if (in_zone)
-				activate_scene = true;
+			if (in_zone) activate_scene = true;
 			break;
 		case ViewMode::WindowOnly:
 			render_viewport = vp_visible;
@@ -167,24 +251,25 @@ void VisualsService::evaluateVisibility(const v3f &camera_pos, CameraMode camera
 		}
 
 		if (render_viewport || vp->getMode() == ViewMode::WindowTrigger) {
-			m_active_viewports.push_back({vp.get(), scene});
+			m_active_viewports.push_back({vp, scene});
 		}
 	}
 
 	// 2. Evaluate Scenes (Global/Active scene)
+	u32 best_scene_id = 0;
 	for (auto &pair : m_scenes) {
 		ViewScene *scene = pair.second.get();
-		if (scenes_to_render.count(scene))
+		u32 scene_id = pair.first;
+		if (scenes_to_render.count(scene)) {
+			if (best_scene_id == 0) best_scene_id = scene_id;
 			continue;
+		}
 
 		bool is_visible = false;
-		auto it = m_scene_regions.find(pair.first);
+		auto it = m_scene_regions.find(scene_id);
 		if (it == m_scene_regions.end()) {
-			// Scenes without regions are visible by default if they are active
 			is_visible = (m_active_scene == scene) || (m_active_scene == nullptr && scene->isVisible());
 		} else {
-			// If it has regions but no viewport was defined for it,
-			// we can still activate it if we are in a region.
 			for (const auto &zone : it->second) {
 				if (zone->contains(camera_pos)) {
 					is_visible = true;
@@ -195,7 +280,17 @@ void VisualsService::evaluateVisibility(const v3f &camera_pos, CameraMode camera
 
 		if (is_visible && scene->isVisible()) {
 			scenes_to_render.insert(scene);
+			if (best_scene_id == 0) best_scene_id = scene_id;
 		}
+	}
+
+	// Scene activation events
+	if (best_scene_id != m_active_scene_id) {
+		if (m_active_scene_id != 0)
+			sendEvent(VisualEventType::SceneDeactivated, m_active_scene_id);
+		if (best_scene_id != 0)
+			sendEvent(VisualEventType::SceneActivated, best_scene_id);
+		m_active_scene_id = best_scene_id;
 	}
 
 	for (ViewScene *scene : scenes_to_render) {

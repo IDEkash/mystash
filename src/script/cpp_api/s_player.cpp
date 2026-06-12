@@ -9,6 +9,7 @@
 #include "inventorymanager.h"
 #include "lua_api/l_inventory.h"
 #include "lua_api/l_item.h"
+#include "client/visuals/view_port.h"
 #include "util/string.h"
 
 void ScriptApiPlayer::on_newplayer(ServerActiveObject *player)
@@ -197,6 +198,20 @@ void ScriptApiPlayer::on_leaveplayer(ServerActiveObject *player,
 	objectrefGetOrCreate(L, player);
 	lua_pushboolean(L, timeout);
 	runCallbacks(2, RUN_CALLBACKS_MODE_FIRST);
+}
+
+void ScriptApiPlayer::on_visual_event(ServerActiveObject *player, u8 event_type, u32 id)
+{
+	SCRIPTAPI_PRECHECKHEADER
+
+	lua_getglobal(L, "core");
+	lua_getfield(L, -1, "registered_on_visual_events");
+
+	objectrefGetOrCreate(L, player);
+	lua_pushinteger(L, event_type);
+	lua_pushinteger(L, id);
+
+	runCallbacks(3, RUN_CALLBACKS_MODE_FIRST);
 }
 
 void ScriptApiPlayer::on_cheat(ServerActiveObject *player,

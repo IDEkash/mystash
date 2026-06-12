@@ -1948,3 +1948,92 @@ void Client::handleCommand_SetFogBoundary(NetworkPacket *pkt)
 	e->set_fog_boundary = new FogBoundaryParams(std::move(params));
 	m_client_event_queue.push(e);
 }
+
+void Client::handleCommand_VisualAddScene(NetworkPacket *pkt)
+{
+	u32 id;
+	std::string name;
+	u8 perspective;
+	*pkt >> id >> name >> perspective;
+
+	SkyboxParams sky = SkyboxDefaults::getSkyDefaults();
+	*pkt >> sky.bgcolor >> sky.type >> sky.clouds >> sky.fog_sun_tint
+		>> sky.fog_moon_tint >> sky.fog_tint_type;
+
+	if (sky.type == "skybox") {
+		u16 count;
+		*pkt >> count;
+		for (u16 i = 0; i < count; i++) {
+			std::string tex;
+			*pkt >> tex;
+			sky.textures.push_back(tex);
+		}
+	} else if (sky.type == "regular") {
+		*pkt >> sky.sky_color.day_sky >> sky.sky_color.day_horizon
+			>> sky.sky_color.dawn_sky >> sky.sky_color.dawn_horizon
+			>> sky.sky_color.night_sky >> sky.sky_color.night_horizon
+			>> sky.sky_color.indoors;
+	}
+	*pkt >> sky.body_orbit_tilt >> sky.fog_distance >> sky.fog_start >> sky.fog_color;
+
+	FogParams fog;
+	fog_deserialize(*pkt, fog);
+
+	auto scene = std::make_unique<ViewScene>(m_rendering_engine->get_device());
+	scene->setSkyParams(sky);
+	scene->setFogParams(fog);
+	scene->setPerspectiveLayer(static_cast<PerspectiveLayer>(perspective));
+
+	m_visuals_service->registerScene(id, std::move(scene));
+}
+
+void Client::handleCommand_VisualRemoveScene(NetworkPacket *pkt)
+{
+	u32 id;
+	*pkt >> id;
+	m_visuals_service->unregisterScene(id);
+}
+
+void Client::handleCommand_VisualAddZone(NetworkPacket *pkt)
+{
+	u32 id, scene_id;
+	v3f min, max;
+	*pkt >> id >> scene_id >> min >> max;
+	m_visuals_service->addRegionToScene(id, scene_id, std::make_unique<ViewZone>(aabb3f(min, max)));
+}
+
+void Client::handleCommand_VisualRemoveZone(NetworkPacket *pkt)
+{
+	u32 id;
+	*pkt >> id;
+	m_visuals_service->removeRegion(id);
+}
+
+void Client::handleCommand_VisualAddViewPort(NetworkPacket *pkt)
+{
+	u32 id, scene_id;
+	u8 mode;
+	u16 count;
+	*pkt >> id >> scene_id >> mode >> count;
+	std::vector<v3f> points;
+	for (u16 i = 0; i < count; i++) {
+		v3f p;
+		*pkt >> p;
+		points.push_back(p);
+	}
+	m_visuals_service->addViewPort(id, std::make_unique<ViewPort>(scene_id, static_cast<ViewMode>(mode), ViewBounds(points)));
+}
+
+void Client::handleCommand_VisualRemoveViewPort(NetworkPacket *pkt)
+{
+	u32 id;
+	*pkt >> id;
+	m_visuals_service->removeViewPort(id);
+}
+
+void Client::handleCommand_VisualSetActiveScene(NetworkPacket *pkt)
+{
+	u32 id;
+	*pkt >> id;
+	m_visuals_service->setActiveScene(id);
+}

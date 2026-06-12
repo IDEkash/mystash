@@ -322,6 +322,7 @@ const std::array<const char *, 38> object_property_keys = {
 	"model_unit_scale",
 	"auto_normalize",
 	"target_height",
+	"perspective",
 };
 
 /******************************************************************************/
@@ -534,6 +535,14 @@ void read_object_properties(lua_State *L, int index,
 
 	getstringfield(L, -1, "damage_texture_modifier", prop->damage_texture_modifier);
 
+	std::string perspective;
+	if (getstringfield(L, -1, "perspective", perspective)) {
+		if (perspective == "firstperson") prop->perspective = PerspectiveLayer::FirstPerson;
+		else if (perspective == "thirdperson") prop->perspective = PerspectiveLayer::ThirdPerson;
+		else if (perspective == "hidden") prop->perspective = PerspectiveLayer::Hidden;
+		else prop->perspective = PerspectiveLayer::Both;
+	}
+
 	// Remember to update object_property_keys above
 	// when adding a new property
 }
@@ -648,6 +657,14 @@ void push_object_properties(lua_State *L, const ObjectProperties *prop)
 	lua_setfield(L, -2, "damage_texture_modifier");
 	lua_pushboolean(L, prop->show_on_minimap);
 	lua_setfield(L, -2, "show_on_minimap");
+
+	switch (prop->perspective) {
+	case PerspectiveLayer::FirstPerson: lua_pushstring(L, "firstperson"); break;
+	case PerspectiveLayer::ThirdPerson: lua_pushstring(L, "thirdperson"); break;
+	case PerspectiveLayer::Hidden:      lua_pushstring(L, "hidden"); break;
+	case PerspectiveLayer::Both:        lua_pushstring(L, "both"); break;
+	}
+	lua_setfield(L, -2, "perspective");
 
 	// Remember to update object_property_keys above
 	// when adding a new property

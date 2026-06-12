@@ -910,6 +910,225 @@ int ModApiServer::l_register_biome_atmosphere(lua_State *L)
 	return 0;
 }
 
+static void read_sky_params(lua_State *L, int idx, SkyboxParams &sky_params)
+{
+	if (lua_isnoneornil(L, idx))
+		return;
+
+	lua_getfield(L, idx, "base_color");
+	if (!lua_isnil(L, -1))
+		read_color(L, -1, &sky_params.bgcolor);
+	lua_pop(L, 1);
+
+	lua_getfield(L, idx, "body_orbit_tilt");
+	if (!lua_isnil(L, -1)) {
+		sky_params.body_orbit_tilt = rangelim(readParam<float>(L, -1), -60.0f, 60.0f);
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, idx, "type");
+	if (!lua_isnil(L, -1))
+		sky_params.type = luaL_checkstring(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, idx, "textures");
+	if (lua_istable(L, -1) && sky_params.type == "skybox") {
+		sky_params.textures.clear();
+		lua_pushnil(L);
+		while (lua_next(L, -2) != 0) {
+			sky_params.textures.emplace_back(readParam<std::string>(L, -1));
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+
+	sky_params.clouds = getboolfield_default(L, idx, "clouds", sky_params.clouds);
+
+	lua_getfield(L, idx, "sky_color");
+	if (lua_istable(L, -1)) {
+		lua_getfield(L, -1, "day_sky");
+		read_color(L, -1, &sky_params.sky_color.day_sky);
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "day_horizon");
+		read_color(L, -1, &sky_params.sky_color.day_horizon);
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "dawn_sky");
+		read_color(L, -1, &sky_params.sky_color.dawn_sky);
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "dawn_horizon");
+		read_color(L, -1, &sky_params.sky_color.dawn_horizon);
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "night_sky");
+		read_color(L, -1, &sky_params.sky_color.night_sky);
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "night_horizon");
+		read_color(L, -1, &sky_params.sky_color.night_horizon);
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "indoors");
+		read_color(L, -1, &sky_params.sky_color.indoors);
+		lua_pop(L, 1);
+
+		sky_params.fog_sun_tint = video::SColor(255, 255, 255, 255);
+		lua_getfield(L, -1, "fog_sun_tint");
+		read_color(L, -1, &sky_params.fog_sun_tint);
+		lua_pop(L, 1);
+
+		sky_params.fog_moon_tint = video::SColor(255, 255, 255, 255);
+		lua_getfield(L, -1, "fog_moon_tint");
+		read_color(L, -1, &sky_params.fog_moon_tint);
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "fog_tint_type");
+		if (!lua_isnil(L, -1))
+			sky_params.fog_tint_type = luaL_checkstring(L, -1);
+		lua_pop(L, 1);
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, idx, "fog");
+	if (lua_istable(L, -1)) {
+		sky_params.fog_distance = getintfield_default(L, -1, "fog_distance", sky_params.fog_distance);
+		sky_params.fog_start = getfloatfield_default(L, -1, "fog_start", sky_params.fog_start);
+
+		lua_getfield(L, -1, "fog_color");
+		read_color(L, -1, &sky_params.fog_color);
+		lua_pop(L, 1);
+	}
+	lua_pop(L, 1);
+}
+
+int ModApiServer::l_visual_add_scene(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	RemotePlayer *player = read_player_or_name(L, 1);
+	if (!player) return 0;
+
+	u32 id = (u32)luaL_checkinteger(L, 2);
+	luaL_checktype(L, 3, LUA_TTABLE);
+
+	VisualSceneData data;
+	data.name = getstringfield_default(L, 3, "name", "");
+	std::string p_str = getstringfield_default(L, 3, "perspective", "both");
+	if (p_str == "firstperson") data.perspective = PerspectiveLayer::FirstPerson;
+	else if (p_str == "thirdperson") data.perspective = PerspectiveLayer::ThirdPerson;
+	else if (p_str == "hidden") data.perspective = PerspectiveLayer::Hidden;
+	else data.perspective = PerspectiveLayer::Both;
+
+	data.sky = SkyboxDefaults::getSkyDefaults();
+	lua_getfield(L, 3, "sky");
+	read_sky_params(L, lua_gettop(L), data.sky);
+	lua_pop(L, 1);
+
+	data.fog.active = false;
+	lua_getfield(L, 3, "fog");
+	if (lua_istable(L, -1))
+		read_fog_params(L, lua_gettop(L), data.fog);
+	lua_pop(L, 1);
+
+	getServer(L)->visualAddScene(player, id, data);
+	return 0;
+}
+
+int ModApiServer::l_visual_remove_scene(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	RemotePlayer *player = read_player_or_name(L, 1);
+	if (!player) return 0;
+	u32 id = (u32)luaL_checkinteger(L, 2);
+	getServer(L)->visualRemoveScene(player, id);
+	return 0;
+}
+
+int ModApiServer::l_visual_add_zone(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	RemotePlayer *player = read_player_or_name(L, 1);
+	if (!player) return 0;
+
+	u32 id = (u32)luaL_checkinteger(L, 2);
+	luaL_checktype(L, 3, LUA_TTABLE);
+
+	VisualZoneData data;
+	data.scene_id = (u32)getintfield_default(L, 3, "scene_id", 0);
+	lua_getfield(L, 3, "pos1");
+	data.min = read_v3f(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, 3, "pos2");
+	data.max = read_v3f(L, -1);
+	lua_pop(L, 1);
+
+	getServer(L)->visualAddZone(player, id, data);
+	return 0;
+}
+
+int ModApiServer::l_visual_remove_zone(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	RemotePlayer *player = read_player_or_name(L, 1);
+	if (!player) return 0;
+	u32 id = (u32)luaL_checkinteger(L, 2);
+	getServer(L)->visualRemoveZone(player, id);
+	return 0;
+}
+
+int ModApiServer::l_visual_add_viewport(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	RemotePlayer *player = read_player_or_name(L, 1);
+	if (!player) return 0;
+
+	u32 id = (u32)luaL_checkinteger(L, 2);
+	luaL_checktype(L, 3, LUA_TTABLE);
+
+	VisualViewPortData data;
+	data.scene_id = (u32)getintfield_default(L, 3, "scene_id", 0);
+	std::string mode_str = getstringfield_default(L, 3, "mode", "zone_only");
+	if (mode_str == "window_trigger") data.mode = (u8)ViewMode::WindowTrigger;
+	else if (mode_str == "window_and_zone") data.mode = (u8)ViewMode::WindowAndZone;
+	else if (mode_str == "window_only") data.mode = (u8)ViewMode::WindowOnly;
+	else data.mode = (u8)ViewMode::ZoneOnly;
+
+	lua_getfield(L, 3, "points");
+	if (lua_istable(L, -1)) {
+		int n = lua_objlen(L, -1);
+		for (int i = 1; i <= n; i++) {
+			lua_rawgeti(L, -1, i);
+			data.points.push_back(read_v3f(L, -1));
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+
+	getServer(L)->visualAddViewPort(player, id, data);
+	return 0;
+}
+
+int ModApiServer::l_visual_remove_viewport(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	RemotePlayer *player = read_player_or_name(L, 1);
+	if (!player) return 0;
+	u32 id = (u32)luaL_checkinteger(L, 2);
+	getServer(L)->visualRemoveViewPort(player, id);
+	return 0;
+}
+
+int ModApiServer::l_visual_set_active_scene(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	RemotePlayer *player = read_player_or_name(L, 1);
+	if (!player) return 0;
+	u32 id = (u32)luaL_checkinteger(L, 2);
+	getServer(L)->visualSetActiveScene(player, id);
+	return 0;
+}
+
 // get_current_modname()
 int ModApiServer::l_get_current_modname(lua_State *L)
 {
@@ -1224,6 +1443,14 @@ void ModApiServer::Initialize(lua_State *L, int top)
 	API_FCT(sound_stop);
 	API_FCT(sound_fade);
 	API_FCT(dynamic_add_media);
+
+	API_FCT(visual_add_scene);
+	API_FCT(visual_remove_scene);
+	API_FCT(visual_add_zone);
+	API_FCT(visual_remove_zone);
+	API_FCT(visual_add_viewport);
+	API_FCT(visual_remove_viewport);
+	API_FCT(visual_set_active_scene);
 
 	API_FCT(get_player_information);
 	API_FCT(get_player_window_information);

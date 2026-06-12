@@ -116,6 +116,13 @@ const ToClientCommandHandler toClientCommandTable[TOCLIENT_NUM_MSG_TYPES] =
 		{ "TOCLIENT_SET_FOG_BOUNDARY",        TOCLIENT_STATE_CONNECTED, &Client::handleCommand_SetFogBoundary }, // 0x66,
 		{ "TOCLIENT_SET_LOOK_DIRECTION",      TOCLIENT_STATE_CONNECTED, &Client::handleCommand_SetLookDirection }, // 0x67,
 		{ "TOCLIENT_SWITCH_WORLD",            TOCLIENT_STATE_CONNECTED, &Client::handleCommand_SwitchWorld }, // 0x68,
+		{ "TOCLIENT_VISUAL_ADD_SCENE",        TOCLIENT_STATE_CONNECTED, &Client::handleCommand_VisualAddScene }, // 0x69,
+		{ "TOCLIENT_VISUAL_REMOVE_SCENE",     TOCLIENT_STATE_CONNECTED, &Client::handleCommand_VisualRemoveScene }, // 0x6a,
+		{ "TOCLIENT_VISUAL_ADD_ZONE",         TOCLIENT_STATE_CONNECTED, &Client::handleCommand_VisualAddZone }, // 0x6b,
+		{ "TOCLIENT_VISUAL_REMOVE_ZONE",      TOCLIENT_STATE_CONNECTED, &Client::handleCommand_VisualRemoveZone }, // 0x6c,
+		{ "TOCLIENT_VISUAL_ADD_VIEWPORT",     TOCLIENT_STATE_CONNECTED, &Client::handleCommand_VisualAddViewPort }, // 0x6d,
+		{ "TOCLIENT_VISUAL_REMOVE_VIEWPORT",  TOCLIENT_STATE_CONNECTED, &Client::handleCommand_VisualRemoveViewPort }, // 0x6e,
+		{ "TOCLIENT_VISUAL_SET_ACTIVE_SCENE", TOCLIENT_STATE_CONNECTED, &Client::handleCommand_VisualSetActiveScene }, // 0x6f,
 	};
 
 const static ServerCommandFactory null_command_factory = { nullptr, 0, false };

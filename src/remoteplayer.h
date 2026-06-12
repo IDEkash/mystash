@@ -10,6 +10,7 @@
 #include "skyparams.h"
 #include "fogparams.h"
 #include "lighting.h"
+#include "client/visuals/visual_perspective.h"
 #include "network/networkprotocol.h" // session_t
 
 class PlayerSAO;
@@ -19,6 +20,25 @@ enum RemotePlayerChatResult
 	RPLAYER_CHATRESULT_OK,
 	RPLAYER_CHATRESULT_FLOODING,
 	RPLAYER_CHATRESULT_KICK,
+};
+
+struct VisualSceneData {
+	std::string name;
+	PerspectiveLayer perspective;
+	SkyboxParams sky;
+	FogParams fog;
+};
+
+struct VisualZoneData {
+	u32 scene_id;
+	v3f min;
+	v3f max;
+};
+
+struct VisualViewPortData {
+	u32 scene_id;
+	u8 mode;
+	std::vector<v3f> points;
 };
 
 /*
@@ -169,6 +189,12 @@ private:
 	Lighting m_lighting;
 
 	session_t m_peer_id = PEER_ID_INEXISTENT;
+
+public:
+	std::unordered_map<u32, VisualSceneData> visual_scenes;
+	std::unordered_map<u32, VisualZoneData> visual_zones;
+	std::unordered_map<u32, VisualViewPortData> visual_viewports;
+	u32 visual_active_scene = 0;
 
 public:
 	// For synchronized worlds: store the position and orientation from the shared database

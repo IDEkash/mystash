@@ -784,8 +784,21 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 					}
 
 					if (auto *bone = (scene::ISceneNode *)m_animated_meshnode->getJointNode(it->first.c_str())) {
-						bone->setVisible(!props.hidden);
-						if (!props.hidden) {
+						bool visible = !props.hidden;
+						if (visible && props.perspective != PerspectiveLayer::Both) {
+							Camera *cam = m_client->getCamera();
+							if (cam) {
+								CameraMode mode = cam->getCameraMode();
+								if (props.perspective == PerspectiveLayer::FirstPerson)
+									visible = (mode == CAMERA_MODE_FIRST);
+								else if (props.perspective == PerspectiveLayer::ThirdPerson)
+									visible = (mode == CAMERA_MODE_THIRD || mode == CAMERA_MODE_THIRD_FRONT);
+								else if (props.perspective == PerspectiveLayer::Hidden)
+									visible = false;
+							}
+						}
+						bone->setVisible(visible);
+						if (visible) {
 							bone->setPosition(props.getPosition(bone->getPosition()));
 							bone->setRotation(props.getRotationEulerDeg(bone->getRotation()));
 							bone->setScale(props.getScale(bone->getScale()));
@@ -1161,8 +1174,22 @@ void GenericCAO::step(float dtime, ClientEnvironment *env)
 
 	// Make sure m_is_visible is always applied
 	scene::ISceneNode *node = getSceneNode();
-	if (node)
-		node->setVisible(m_is_visible);
+	if (node) {
+		bool visible = m_is_visible;
+		if (visible && m_prop.perspective != PerspectiveLayer::Both) {
+			Camera *cam = m_client->getCamera();
+			if (cam) {
+				CameraMode mode = cam->getCameraMode();
+				if (m_prop.perspective == PerspectiveLayer::FirstPerson)
+					visible = (mode == CAMERA_MODE_FIRST);
+				else if (m_prop.perspective == PerspectiveLayer::ThirdPerson)
+					visible = (mode == CAMERA_MODE_THIRD || mode == CAMERA_MODE_THIRD_FRONT);
+				else if (m_prop.perspective == PerspectiveLayer::Hidden)
+					visible = false;
+			}
+		}
+		node->setVisible(visible);
+	}
 
 	if(getParent() != NULL) // Attachments should be glued to their parent by Irrlicht
 	{
@@ -1839,6 +1866,9 @@ void GenericCAO::processMessage(const std::string &data)
 				if (canRead(is)) {
 					props.color = readARGB8(is);
 					props.glow = readF32(is);
+					if (canRead(is)) {
+						props.perspective = (PerspectiveLayer)readU8(is);
+					}
 				}
 			}
 		}

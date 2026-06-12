@@ -368,6 +368,7 @@ std::string UnitSAO::generateUpdateBoneOverrideCommand(
 	writeF32(os, props.pos_smooth);
 	writeF32(os, props.rot_smooth);
 	writeF32(os, props.scale_smooth);
+	writeU8(os, (u8)props.perspective);
 	return os.str();
 }
 

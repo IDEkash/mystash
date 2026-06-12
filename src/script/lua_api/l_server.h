@@ -73,6 +73,14 @@ private:
 		// register_biome_atmosphere(biome_id, def)
 		static int l_register_biome_atmosphere(lua_State *L);
 
+	static int l_visual_add_scene(lua_State *L);
+	static int l_visual_remove_scene(lua_State *L);
+	static int l_visual_add_zone(lua_State *L);
+	static int l_visual_remove_zone(lua_State *L);
+	static int l_visual_add_viewport(lua_State *L);
+	static int l_visual_remove_viewport(lua_State *L);
+	static int l_visual_set_active_scene(lua_State *L);
+
 	// sound_play(spec, parameters)
 	static int l_sound_play(lua_State *L);
 

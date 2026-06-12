@@ -410,6 +410,16 @@ void Server::handleCommand_ClientReady(NetworkPacket* pkt)
 		FogBoundaryParams boundary = player->getFogBoundaryParams();
 		fog_sanitize(boundary);
 		SendSetFogBoundary(peer_id, boundary);
+
+		// Visual Regions synchronization
+		for (auto const& [id, data] : player->visual_scenes)
+			SendVisualAddScene(peer_id, id, data);
+		for (auto const& [id, data] : player->visual_zones)
+			SendVisualAddZone(peer_id, id, data);
+		for (auto const& [id, data] : player->visual_viewports)
+			SendVisualAddViewPort(peer_id, id, data);
+		if (player->visual_active_scene != 0)
+			SendVisualSetActiveScene(peer_id, player->visual_active_scene);
 	}
 
 	// Send shutdown timer if shutdown has been scheduled
@@ -1854,4 +1864,18 @@ void Server::handleCommand_UpdateClientInfo(NetworkPacket *pkt)
 	session_t peer_id = pkt->getPeerId();
 	RemoteClient *client = getClient(peer_id, CS_Invalid);
 	client->setDynamicInfo(info);
+}
+
+void Server::handleCommand_VisualEvent(NetworkPacket *pkt)
+{
+	u8 event_type;
+	u32 id;
+	*pkt >> event_type >> id;
+
+	session_t peer_id = pkt->getPeerId();
+	PlayerSAO *sao = getPlayerSAO(peer_id);
+	if (!sao)
+		return;
+
+	m_script->on_visual_event(sao, event_type, id);
 }

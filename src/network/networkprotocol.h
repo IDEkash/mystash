@@ -725,7 +725,54 @@ enum ToClientCommand : u16
 			u8[len] world name
 		*/
 
-		TOCLIENT_NUM_MSG_TYPES = 0x69,
+		TOCLIENT_VISUAL_ADD_SCENE = 0x69,
+		/*
+			u32 scene_id
+			std::string name
+			u8 perspective (PerspectiveLayer)
+			SkyboxParams
+			FogParams
+		*/
+
+		TOCLIENT_VISUAL_REMOVE_SCENE = 0x6a,
+		/*
+			u32 scene_id
+		*/
+
+		TOCLIENT_VISUAL_ADD_ZONE = 0x6b,
+		/*
+			u32 zone_id
+			u32 scene_id
+			v3f min
+			v3f max
+		*/
+
+		TOCLIENT_VISUAL_REMOVE_ZONE = 0x6c,
+		/*
+			u32 zone_id
+		*/
+
+		TOCLIENT_VISUAL_ADD_VIEWPORT = 0x6d,
+		/*
+			u32 viewport_id
+			u32 scene_id
+			u8 mode (ViewMode)
+			u16 point_count
+			foreach point_count:
+				v3f point
+		*/
+
+		TOCLIENT_VISUAL_REMOVE_VIEWPORT = 0x6e,
+		/*
+			u32 viewport_id
+		*/
+
+		TOCLIENT_VISUAL_SET_ACTIVE_SCENE = 0x6f,
+		/*
+			u32 scene_id (0 for none/automatic)
+		*/
+
+		TOCLIENT_NUM_MSG_TYPES = 0x70,
 	};
 
 enum ToServerCommand : u16
@@ -933,7 +980,13 @@ enum ToServerCommand : u16
 		v2f32 max_fs_info
 	*/
 
-	TOSERVER_NUM_MSG_TYPES = 0x54,
+	TOSERVER_VISUAL_EVENT = 0x54,
+	/*
+		u8 event_type
+		u32 id (zone or viewport)
+	*/
+
+	TOSERVER_NUM_MSG_TYPES = 0x55,
 };
 
 enum AuthMechanism

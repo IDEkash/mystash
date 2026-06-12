@@ -773,103 +773,94 @@ core.create_world("ProgrammaticWorld", "minetest", {
 
 ---
 
-## Visual Regions API (Client-side)
+## Visual Regions API (Server-side)
 
-This API allows creating isolated visual scenes that can be rendered either as the main world or within localized viewports (windows). This system is designed for creating complex interior/exterior transitions, mirrors, portals, or security camera feeds.
+This API allows creating isolated visual scenes that can be rendered either as the main world or within localized viewports (windows) for a specific player. This system is designed for creating complex interior/exterior transitions, mirrors, portals, or security camera feeds.
+
+The state is managed on the server and automatically synchronized to the client.
 
 ### Concepts
 
-- **Scene**: An isolated `ISceneManager` with its own nodes, sky, and fog.
+- **Scene**: An isolated visual manager with its own sky and fog.
 - **Zone**: A physical area in the game world. When the player is inside a Zone, its associated Scene can be activated.
 - **ViewPort**: A 3D window that renders a Scene. It can be a simple decorative window or a trigger that activates a scene when approached.
-- **Bounds**: A 3D polygon defining the shape of a ViewPort.
+- **Perspective**: Rules for showing or hiding nodes based on the current camera mode (1st vs 3rd person) and tags.
 
-### VisualsService
+### Visuals Management (`minetest.visuals`)
 
-The root namespace for managing all visual regions.
+All IDs are numeric (`u32`).
 
-`core.visuals.create_scene(id, params)`
-- `id`: string (unique identifier)
+`minetest.visuals.add_scene(player, id, params)`
+- `player`: Player name or `ObjectRef`.
+- `id`: number (unique scene identifier for this player).
 - `params`: table
-    - `perspective`: string (`"firstperson"`, `"thirdperson"`, `"both"`, `"hidden"`) — default `"both"`
-- Returns `ViewScene` object.
+    - `name`: string (optional debug name).
+    - `perspective`: string (`"firstperson"`, `"thirdperson"`, `"both"`, `"hidden"`) — default `"both"`.
+    - `sky`: table (optional, same format as `player:set_sky`).
+    - `fog`: table (optional, same format as `minetest.set_fog`).
 
-`core.visuals.get_scene(id)`
-- Returns `ViewScene` or `nil`.
+`minetest.visuals.remove_scene(player, id)`
 
-`core.visuals.delete_scene(id)`
-- Removes the scene and all its resources.
-
-`core.visuals.set_active_scene(id)`
-- Forces a scene to be active regardless of player position. Pass `nil` to return to automatic zone-based activation.
-
-### ViewScene
-
-Represents an isolated visual world.
-
-`scene:add_node(definition)`
-- Adds a node to the scene. (Details depend on the internal node implementation).
-
-`scene:set_sky(params)`
-- Configures the sky for this scene using the standard `set_sky` parameter format.
-
-`scene:set_fog(params)`
-- Configures the fog for this scene using the standard `set_fog` parameter format.
-
-`scene:set_visible(bool)`
-- Toggles whether the scene is rendered at all.
-
-`scene:delete()`
-- Destroys the scene.
-
-### Zone API
-
-`core.visuals.add_zone(scene_id, params)`
-- `scene_id`: string
+`minetest.visuals.add_zone(player, id, params)`
+- `player`: Player name or `ObjectRef`.
+- `id`: number (unique zone identifier).
 - `params`: table
-    - `pos1`, `pos2`: vectors (AABB defining the zone)
-- Returns `ViewZone`.
+    - `scene_id`: number (ID of the scene this zone belongs to).
+    - `pos1`, `pos2`: vectors (AABB defining the zone).
 
-`zone:set_bounds(pos1, pos2)`
-- Updates the zone's AABB.
+`minetest.visuals.remove_zone(player, id)`
 
-`zone:delete()`
-- Removes the zone from its scene.
-
-### ViewPort API
-
-`core.visuals.add_viewport(scene_id, params)`
-- `scene_id`: string
+`minetest.visuals.add_viewport(player, id, params)`
+- `player`: Player name or `ObjectRef`.
+- `id`: number (unique viewport identifier).
 - `params`: table
-    - `mode`: string (`"zone_only"`, `"window_trigger"`, `"window_and_zone"`, `"window_only"`)
-    - `bounds`: `ViewBounds` object
-- Returns `ViewPort`.
+    - `scene_id`: number (ID of the scene rendered in this viewport).
+    - `mode`: string (`"zone_only"`, `"window_trigger"`, `"window_and_zone"`, `"window_only"`) — default `"zone_only"`.
+    - `points`: table of vectors (at least 3) defining the 3D polygon of the window.
 
-`viewport:set_mode(mode)`
-- Changes the rendering mode:
-    - `"zone_only"`: Scene is only active when player is in a registered zone.
-    - `"window_trigger"`: Scene activates when player is near the viewport window.
-    - `"window_and_zone"`: Viewport is always rendered, scene also activates via zones.
-    - `"window_only"`: Viewport is always rendered, but scene never becomes the "main" world.
+`minetest.visuals.remove_viewport(player, id)`
 
-`viewport:delete()`
-- Removes the viewport.
+`minetest.visuals.set_active_scene(player, id)`
+- Forces a scene to be active regardless of player position. Pass `0` to return to automatic zone-based activation.
 
-### Bounds API
+### Perspective API (Server-side)
 
-`core.visuals.create_bounds(points)`
-- `points`: table of vectors (at least 3) defining a 3D polygon.
-- Returns `ViewBounds`.
+You can control the visibility of objects and bones based on the player's camera mode.
 
-### Perspective API
+#### Object Perspective
+Set the `perspective` property in `ObjectProperties` via `object:set_properties()`:
+- `perspective`: string (`"firstperson"`, `"thirdperson"`, `"both"`, `"hidden"`) — default `"both"`.
+
+#### Bone Perspective
+Set the `perspective` field in `object:set_bone_override()`:
+- `perspective`: string (`"firstperson"`, `"thirdperson"`, `"both"`, `"hidden"`) — default `"both"`.
+
+### Events (Server-side)
+
+`minetest.register_on_visual_event(function(player, event_type, id))`
+- `player`: `ObjectRef` of the player who triggered the event.
+- `event_type`: integer (use `minetest.visual_event` constants).
+- `id`: number (ID of the zone or viewport).
+
+#### Event Constants (`minetest.visual_event`)
+- `minetest.visual_event.PLAYER_ENTERED_ZONE`
+- `minetest.visual_event.PLAYER_LEFT_ZONE`
+- `minetest.visual_event.PLAYER_ENTERED_VIEWPORT`
+- `minetest.visual_event.PLAYER_LEFT_VIEWPORT`
+- `minetest.visual_event.SCENE_ACTIVATED`
+- `minetest.visual_event.SCENE_DEACTIVATED`
+
+### Client-side node Perspective Control (`core.visuals`)
+
+Client-side node suppression for advanced effects.
 
 `core.visuals.register_node(node, params)`
-- `node`: `SceneNode`
+- `node`: `SceneNode`.
 - `params`: table
-    - `layer`: string (`"firstperson"`, `"thirdperson"`, `"both"`, `"hidden"`)
-    - `tag`: string (optional, for bulk suppression)
-    - `suppresses`: table of tags (optional)
-    - `suppressed_by`: table of tags (optional)
+    - `layer`: string (`"firstperson"`, `"thirdperson"`, `"both"`, `"hidden"`).
+    - `tag`: string (optional, for bulk suppression).
+    - `suppresses`: table of tags (optional).
+    - `suppressed_by`: table of tags (optional).
 
 `core.visuals.unregister_node(node)`
 
@@ -877,7 +868,7 @@ Represents an isolated visual world.
 
 `core.visuals.unsuppress_tag(tag)`
 
-### Events
+---
 
 `zone.on_scene_activated`
 - Fires when a scene becomes the main active scene for the player.

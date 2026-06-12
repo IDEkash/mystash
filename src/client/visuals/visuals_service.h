@@ -18,28 +18,32 @@ namespace scene {
 	class ISceneNode;
 }
 
+class Client;
+
 class VisualsService
 {
 public:
-	VisualsService();
+	VisualsService(Client *client);
 	~VisualsService();
 
 	// Scene management
-	void registerScene(const std::string &id, std::unique_ptr<ViewScene> scene);
-	void unregisterScene(const std::string &id);
-	ViewScene *getScene(const std::string &id) const;
+	void registerScene(u32 id, std::unique_ptr<ViewScene> scene);
+	void unregisterScene(u32 id);
+	ViewScene *getScene(u32 id) const;
 
 	// Visibility evaluation
-	void setActiveScene(const std::string &id);
+	void setActiveScene(u32 id);
 	ViewScene *getActiveScene() const { return m_active_scene; }
 
 	// Region management
-	void addRegionToScene(const std::string &scene_id, std::unique_ptr<ViewZone> region);
-	const std::vector<std::unique_ptr<ViewZone>> &getRegionsForScene(const std::string &scene_id) const;
+	void addRegionToScene(u32 id, u32 scene_id, std::unique_ptr<ViewZone> region);
+	void removeRegion(u32 id);
+	const std::vector<ViewZone*> &getRegionsForScene(u32 scene_id) const;
 
 	// ViewPort management
-	void addViewPort(std::unique_ptr<ViewPort> viewport);
-	const std::vector<std::unique_ptr<ViewPort>> &getViewPorts() const { return m_viewports; }
+	void addViewPort(u32 id, std::unique_ptr<ViewPort> viewport);
+	void removeViewPort(u32 id);
+	const std::vector<ViewPort*> &getViewPorts() const;
 
 	// Node perspective management
 	void registerNode(scene::ISceneNode *node, const PerspectiveRule &rule, const std::string &tag = "");
@@ -63,9 +67,12 @@ public:
 	const std::vector<ActiveViewPort> &getActiveViewPorts() const { return m_active_viewports; }
 
 private:
-	std::unordered_map<std::string, std::unique_ptr<ViewScene>> m_scenes;
-	std::unordered_map<std::string, std::vector<std::unique_ptr<ViewZone>>> m_scene_regions;
-	std::vector<std::unique_ptr<ViewPort>> m_viewports;
+	Client *m_client;
+	std::unordered_map<u32, std::unique_ptr<ViewScene>> m_scenes;
+	std::unordered_map<u32, std::unique_ptr<ViewZone>> m_zones;
+	std::unordered_map<u32, u32> m_zone_to_scene;
+	std::unordered_map<u32, std::vector<ViewZone*>> m_scene_regions;
+	std::unordered_map<u32, std::unique_ptr<ViewPort>> m_viewports;
 
 	struct RegisteredNode {
 		PerspectiveRule rule;
@@ -75,6 +82,10 @@ private:
 	std::set<std::string> m_active_suppressions;
 
 	ViewScene *m_active_scene = nullptr;
+	u32 m_active_scene_id = 0;
 	std::vector<ViewScene*> m_visible_scenes;
 	std::vector<ActiveViewPort> m_active_viewports;
+
+	std::set<u32> m_inside_zones;
+	std::set<u32> m_near_viewports;
 };

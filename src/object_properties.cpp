@@ -224,6 +224,7 @@ void ObjectProperties::serialize(std::ostream &os) const
 	writeV3F32(os, model_unit_scale);
 	writeU8(os, auto_normalize);
 	writeF32(os, target_height);
+	writeU8(os, (u8)perspective);
 
 	// Add stuff only at the bottom.
 	// Never remove anything, because we don't want new versions of this!
@@ -334,6 +335,10 @@ void ObjectProperties::deSerialize(std::istream &is)
 	model_unit_scale = readV3F32(is);
 	auto_normalize = readU8(is);
 	target_height = readF32(is);
+
+	if (!canRead(is))
+		return;
+	perspective = (PerspectiveLayer)readU8(is);
 
 	//if (!canRead(is))
 	//	return;

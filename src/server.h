@@ -245,6 +245,7 @@ public:
 	void handleCommand_SrpBytesM(NetworkPacket* pkt);
 	void handleCommand_HaveMedia(NetworkPacket *pkt);
 	void handleCommand_UpdateClientInfo(NetworkPacket *pkt);
+	void handleCommand_VisualEvent(NetworkPacket *pkt);
 
 	void ProcessData(NetworkPacket *pkt);
 
@@ -395,6 +396,14 @@ public:
 	void setStars(RemotePlayer *player, const StarParams &params);
 		void setFog(RemotePlayer *player, const FogParams &params);
 		void setFogBoundary(RemotePlayer *player, const FogBoundaryParams &params);
+
+		void visualAddScene(RemotePlayer *player, u32 id, const VisualSceneData &data);
+		void visualRemoveScene(RemotePlayer *player, u32 id);
+		void visualAddZone(RemotePlayer *player, u32 id, const VisualZoneData &data);
+		void visualRemoveZone(RemotePlayer *player, u32 id);
+		void visualAddViewPort(RemotePlayer *player, u32 id, const VisualViewPortData &data);
+		void visualRemoveViewPort(RemotePlayer *player, u32 id);
+		void visualSetActiveScene(RemotePlayer *player, u32 id);
 
 		void registerBiomeAtmosphere(u16 biome_id, const FogParams &fog,
 				const std::optional<FogBoundaryParams> &boundary);
@@ -572,6 +581,14 @@ private:
 	void SendSetStars(session_t peer_id, const StarParams &params);
 	void SendSetFog(session_t peer_id, const FogParams &params);
 	void SendSetFogBoundary(session_t peer_id, const FogBoundaryParams &params);
+
+	void SendVisualAddScene(session_t peer_id, u32 id, const VisualSceneData &data);
+	void SendVisualRemoveScene(session_t peer_id, u32 id);
+	void SendVisualAddZone(session_t peer_id, u32 id, const VisualZoneData &data);
+	void SendVisualRemoveZone(session_t peer_id, u32 id);
+	void SendVisualAddViewPort(session_t peer_id, u32 id, const VisualViewPortData &data);
+	void SendVisualRemoveViewPort(session_t peer_id, u32 id);
+	void SendVisualSetActiveScene(session_t peer_id, u32 id);
 	void SendCloudParams(session_t peer_id, const CloudParams &params);
 	void SendOverrideDayNightRatio(session_t peer_id, bool do_override, float ratio);
 	void SendSetLighting(session_t peer_id, const Lighting &lighting);

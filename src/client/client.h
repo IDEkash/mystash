@@ -219,6 +219,13 @@ public:
 		void handleCommand_SetFogBoundary(NetworkPacket *pkt);
 		void handleCommand_Camera(NetworkPacket* pkt);
 		void handleCommand_SwitchWorld(NetworkPacket *pkt);
+		void handleCommand_VisualAddScene(NetworkPacket *pkt);
+		void handleCommand_VisualRemoveScene(NetworkPacket *pkt);
+		void handleCommand_VisualAddZone(NetworkPacket *pkt);
+		void handleCommand_VisualRemoveZone(NetworkPacket *pkt);
+		void handleCommand_VisualAddViewPort(NetworkPacket *pkt);
+		void handleCommand_VisualRemoveViewPort(NetworkPacket *pkt);
+		void handleCommand_VisualSetActiveScene(NetworkPacket *pkt);
 
 	void ProcessData(NetworkPacket *pkt);
 

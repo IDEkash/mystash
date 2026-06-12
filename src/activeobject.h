@@ -124,6 +124,7 @@ struct BoneOverride
 
 	f32 dtime_passed = 0.0f;
 	bool hidden = false;
+	PerspectiveLayer perspective = PerspectiveLayer::Both;
 	f32 pos_smooth = 0.0f;
 	f32 rot_smooth = 0.0f;
 	f32 scale_smooth = 0.0f;

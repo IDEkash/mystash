@@ -73,6 +73,7 @@ struct ObjectProperties
 	bool automatic_face_movement_dir = false;
 	bool backface_culling = true;
 	bool static_save = true;
+	PerspectiveLayer perspective = PerspectiveLayer::Both;
 	bool use_texture_alpha = false;
 	bool shaded = true;
 	bool show_on_minimap = false;

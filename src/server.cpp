@@ -2017,6 +2017,76 @@ void Server::SendSetMoon(session_t peer_id, const MoonParams &params)
 		Send(&pkt);
 	}
 
+	void Server::SendVisualAddScene(session_t peer_id, u32 id, const VisualSceneData &data)
+	{
+		NetworkPacket pkt(TOCLIENT_VISUAL_ADD_SCENE, 0, peer_id);
+		pkt << id << data.name << (u8)data.perspective;
+
+		const SkyboxParams &params = data.sky;
+		pkt << params.bgcolor << params.type
+			<< params.clouds << params.fog_sun_tint
+			<< params.fog_moon_tint << params.fog_tint_type;
+
+		if (params.type == "skybox") {
+			pkt << (u16) params.textures.size();
+			for (const std::string &texture : params.textures)
+				pkt << texture;
+		} else if (params.type == "regular") {
+			auto &c = params.sky_color;
+			pkt << c.day_sky << c.day_horizon << c.dawn_sky << c.dawn_horizon
+				<< c.night_sky << c.night_horizon << c.indoors;
+		}
+		pkt << params.body_orbit_tilt << params.fog_distance << params.fog_start
+			<< params.fog_color;
+
+		fog_serialize(pkt, data.fog);
+		Send(&pkt);
+	}
+
+	void Server::SendVisualRemoveScene(session_t peer_id, u32 id)
+	{
+		NetworkPacket pkt(TOCLIENT_VISUAL_REMOVE_SCENE, 4, peer_id);
+		pkt << id;
+		Send(&pkt);
+	}
+
+	void Server::SendVisualAddZone(session_t peer_id, u32 id, const VisualZoneData &data)
+	{
+		NetworkPacket pkt(TOCLIENT_VISUAL_ADD_ZONE, 0, peer_id);
+		pkt << id << data.scene_id << data.min << data.max;
+		Send(&pkt);
+	}
+
+	void Server::SendVisualRemoveZone(session_t peer_id, u32 id)
+	{
+		NetworkPacket pkt(TOCLIENT_VISUAL_REMOVE_ZONE, 4, peer_id);
+		pkt << id;
+		Send(&pkt);
+	}
+
+	void Server::SendVisualAddViewPort(session_t peer_id, u32 id, const VisualViewPortData &data)
+	{
+		NetworkPacket pkt(TOCLIENT_VISUAL_ADD_VIEWPORT, 0, peer_id);
+		pkt << id << data.scene_id << data.mode << (u16)data.points.size();
+		for (const v3f &p : data.points)
+			pkt << p;
+		Send(&pkt);
+	}
+
+	void Server::SendVisualRemoveViewPort(session_t peer_id, u32 id)
+	{
+		NetworkPacket pkt(TOCLIENT_VISUAL_REMOVE_VIEWPORT, 4, peer_id);
+		pkt << id;
+		Send(&pkt);
+	}
+
+	void Server::SendVisualSetActiveScene(session_t peer_id, u32 id)
+	{
+		NetworkPacket pkt(TOCLIENT_VISUAL_SET_ACTIVE_SCENE, 4, peer_id);
+		pkt << id;
+		Send(&pkt);
+	}
+
 	void Server::SendCloudParams(session_t peer_id, const CloudParams &params)
 	{
 	NetworkPacket pkt(TOCLIENT_CLOUD_PARAMS, 0, peer_id);
@@ -3704,12 +3774,61 @@ void Server::setMoon(RemotePlayer *player, const MoonParams &params)
 		SendSetFog(player->getPeerId(), params);
 	}
 
-		void Server::setFogBoundary(RemotePlayer *player, const FogBoundaryParams &params)
-		{
-			sanity_check(player);
-			player->setFogBoundaryParams(params);
-			SendSetFogBoundary(player->getPeerId(), params);
-		}
+	void Server::setFogBoundary(RemotePlayer *player, const FogBoundaryParams &params)
+	{
+		sanity_check(player);
+		player->setFogBoundaryParams(params);
+		SendSetFogBoundary(player->getPeerId(), params);
+	}
+
+	void Server::visualAddScene(RemotePlayer *player, u32 id, const VisualSceneData &data)
+	{
+		sanity_check(player);
+		player->visual_scenes[id] = data;
+		SendVisualAddScene(player->getPeerId(), id, data);
+	}
+
+	void Server::visualRemoveScene(RemotePlayer *player, u32 id)
+	{
+		sanity_check(player);
+		player->visual_scenes.erase(id);
+		SendVisualRemoveScene(player->getPeerId(), id);
+	}
+
+	void Server::visualAddZone(RemotePlayer *player, u32 id, const VisualZoneData &data)
+	{
+		sanity_check(player);
+		player->visual_zones[id] = data;
+		SendVisualAddZone(player->getPeerId(), id, data);
+	}
+
+	void Server::visualRemoveZone(RemotePlayer *player, u32 id)
+	{
+		sanity_check(player);
+		player->visual_zones.erase(id);
+		SendVisualRemoveZone(player->getPeerId(), id);
+	}
+
+	void Server::visualAddViewPort(RemotePlayer *player, u32 id, const VisualViewPortData &data)
+	{
+		sanity_check(player);
+		player->visual_viewports[id] = data;
+		SendVisualAddViewPort(player->getPeerId(), id, data);
+	}
+
+	void Server::visualRemoveViewPort(RemotePlayer *player, u32 id)
+	{
+		sanity_check(player);
+		player->visual_viewports.erase(id);
+		SendVisualRemoveViewPort(player->getPeerId(), id);
+	}
+
+	void Server::visualSetActiveScene(RemotePlayer *player, u32 id)
+	{
+		sanity_check(player);
+		player->visual_active_scene = id;
+		SendVisualSetActiveScene(player->getPeerId(), id);
+	}
 
 			void Server::registerBiomeAtmosphere(u16 biome_id, const FogParams &fog,
 					const std::optional<FogBoundaryParams> &boundary)
