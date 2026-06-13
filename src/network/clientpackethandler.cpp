@@ -38,6 +38,7 @@
 #include "particles.h"
 #include "client/visuals/visuals_service.h"
 #include "client/renderingengine.h"
+#include "visual_perspective.h"
 #include <memory>
 #include <sstream>
 

@@ -7,10 +7,13 @@
 #include <optional>
 #include <string>
 #include "irrlichttypes_bloated.h"
+#include "visual_perspective.h"
+
 #include <iostream>
 #include <vector>
 #include "util/pointabilities.h"
 #include "mapnode.h"
+
 
 struct EnumString;
 

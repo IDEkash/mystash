@@ -10,7 +10,7 @@
 #include <SColor.h>
 #include <string>
 #include <unordered_map>
-#include "client/visuals/visual_perspective.h"
+#include "visual_perspective.h"
 
 
 enum ActiveObjectType {

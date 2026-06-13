@@ -10,7 +10,7 @@
 #include "skyparams.h"
 #include "fogparams.h"
 #include "lighting.h"
-#include "client/visuals/visual_perspective.h"
+#include "visual_perspective.h"
 #include "network/networkprotocol.h" // session_t
 
 class PlayerSAO;

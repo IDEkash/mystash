@@ -3,15 +3,16 @@
 
 #pragma once
 
+#include "irrlichttypes.h"
 #include <set>
 #include <string>
 
-enum class PerspectiveLayer
+enum class PerspectiveLayer : u8
 {
-	FirstPerson,
-	ThirdPerson,
-	Both,
-	Hidden
+	FirstPerson = 0,
+	ThirdPerson = 1,
+	Both = 2,
+	Hidden = 3
 };
 
 struct PerspectiveRule

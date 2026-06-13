@@ -20,6 +20,7 @@
 #include "lua_api/l_object.h"
 #include "network/connection.h"
 #include "remoteplayer.h"
+#include "visual_perspective.h"
 #include "scripting_server.h"
 #include "server.h"
 #include "serverenvironment.h"

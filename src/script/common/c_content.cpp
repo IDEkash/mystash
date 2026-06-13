@@ -6,6 +6,7 @@
 #include "common/c_types.h"
 #include "nodedef.h"
 #include "object_properties.h"
+#include "visual_perspective.h"
 #include "collision.h"
 #include "cpp_api/s_node.h"
 #include "lua_api/l_object.h"

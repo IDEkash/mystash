@@ -338,7 +338,7 @@ void ObjectProperties::deSerialize(std::istream &is)
 
 	if (!canRead(is))
 		return;
-	perspective = (PerspectiveLayer)readU8(is);
+	perspective = static_cast<PerspectiveLayer>(readU8(is));
 
 	//if (!canRead(is))
 	//	return;

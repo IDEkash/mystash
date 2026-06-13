@@ -3,6 +3,7 @@
 // Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
 
 #include "content_cao.h"
+#include "visual_perspective.h"
 #include "script/scripting_client.h"
 #include <IBillboardSceneNode.h>
 #include <ICameraSceneNode.h>
@@ -1867,7 +1868,7 @@ void GenericCAO::processMessage(const std::string &data)
 					props.color = readARGB8(is);
 					props.glow = readF32(is);
 					if (canRead(is)) {
-						props.perspective = (PerspectiveLayer)readU8(is);
+						props.perspective = static_cast<PerspectiveLayer>(readU8(is));
 					}
 				}
 			}
