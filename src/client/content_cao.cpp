@@ -749,7 +749,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 									positions[i] = chain[i]->getAbsolutePosition();
 								}
 								for (size_t i = 0; i < chain.size() - 1; ++i) {
-									lengths[i] = positions[i].getDistance(positions[i + 1]);
+									lengths[i] = positions[i].getDistanceFrom(positions[i + 1]);
 								}
 
 								v3f origin = positions.back();
@@ -776,11 +776,8 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 									core::matrix4 parent_inv = chain[i]->getParent()->getAbsoluteTransformation();
 									parent_inv.makeInverse();
 
-									v3f local_target_dir = target_dir;
-									parent_inv.rotateVect(local_target_dir);
-
-									v3f local_current_dir = current_dir;
-									parent_inv.rotateVect(local_current_dir);
+									v3f local_target_dir = parent_inv.rotateAndScaleVect(target_dir);
+									v3f local_current_dir = parent_inv.rotateAndScaleVect(current_dir);
 
 									core::quaternion local_q;
 									local_q.rotationFromTo(local_current_dir, local_target_dir);
