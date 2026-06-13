@@ -36,6 +36,9 @@ enum ESCENE_NODE_TYPE
 	//! Animated Mesh Scene Node
 	ESNT_ANIMATED_MESH = MAKE_IRR_ID('a', 'm', 's', 'h'),
 
+	//! Bone Scene Node
+	ESNT_BONE = MAKE_IRR_ID('b', 'o', 'n', 'e'),
+
 	//! Unknown scene node
 	ESNT_UNKNOWN = MAKE_IRR_ID('u', 'n', 'k', 'n'),
 

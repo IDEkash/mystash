@@ -931,6 +931,7 @@ struct Node {
 	std::optional<std::string> name;
 	std::optional<std::size_t> skin;
 	std::optional<std::vector<double>> weights;
+	Json::Value extras;
 	Node(const Json::Value &o)
 		: transform(TRS{})
 	{
@@ -977,6 +978,9 @@ struct Node {
 		if (o.isMember("weights")) {
 			weights = asVec<double>(o["weights"]);
 			check(weights->size() >= 1);
+		}
+		if (o.isMember("extras")) {
+			extras = o["extras"];
 		}
 	}
 };

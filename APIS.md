@@ -129,6 +129,17 @@ glTF/GLB meshes can contain multiple animations. This fork loads each glTF `anim
 - Returns `{ range, speed, blend, loop, clip, duration, progress=nil, bones=nil }`.
 - `progress`/`bones` are placeholders (not currently available from the engine).
 
+`ObjectRef:set_bone_ik(bone, params_or_nil)`
+- Configures client-side Inverse Kinematics for a bone.
+- `params`:
+  - `target`: v3f (target position)
+  - `chain_length`: number (how many parent bones are affected, default `0`)
+  - `iterations`: number (solver iterations, default `10`)
+  - `absolute`: boolean (if true, `target` is in world space, otherwise it is relative to the object)
+
+`ObjectRef:set_bone_override(bone, { ..., ik = { ... } })`
+- IK can also be set via `set_bone_override`.
+
 ### Crossfade blending
 
 For skinned meshes (including glTF), `frame_blend` controls crossfade duration (seconds) when switching animations.
@@ -141,7 +152,8 @@ For skinned meshes (including glTF), `frame_blend` controls crossfade duration (
 `core.gltf_inspect(path) -> table`
 - Returns:
   - `meshes`: `{ {index,name,primitives}, ... }`
-  - `bones`: `{ {node,name}, ... }` (joint nodes across skins)
+  - `bones`: `{ {node,name,ik?}, ... }` (joint nodes across skins)
+    - `ik`: `{ target, chain_length, iterations }` (if `ik_constraint` is present in glTF extras)
   - `animations`: `{ {index,name,start,end,duration}, ... }`
 
 ## Lua Animator (`core.animator`)

@@ -229,6 +229,7 @@ function Animator:new(object, def)
 		layers = {},
 		layer_order = {},
 		_last_bone_rot = {},
+		_last_bone_ik = {},
 		_last_anim_sig = nil,
 	}
 	return setmetatable(o, self)
@@ -423,6 +424,7 @@ end
 function Animator:_apply_additive_layers()
 	local obj = self.object
 	local combined = {}
+	local ik_by_bone = {}
 	local interp_by_bone = {}
 
 	for _, lname in ipairs(self.layer_order) do
@@ -455,26 +457,54 @@ function Animator:_apply_additive_layers()
 							interp_by_bone[bone] = bi
 						end
 					end
+					local ik = spec.ik
+					if ik and w > 0.5 then
+						ik_by_bone[bone] = ik
+					end
 				end
 			end
 		end
 	end
 
+	local active_bones = {}
 	for bone, q in pairs(combined) do
+		active_bones[bone] = true
 		local e = quat_to_euler_rad(q)
 		local last = self._last_bone_rot[bone]
-		if not last or not v3eq(last, e, 1e-5) then
+		local ik = ik_by_bone[bone]
+		if not last or not v3eq(last, e, 1e-5) or ik ~= self._last_bone_ik[bone] then
 			obj:set_bone_override(bone, {
 				rotation = {vec = e, absolute = false, interpolation = interp_by_bone[bone] or 0},
+				ik = ik,
 			})
 			self._last_bone_rot[bone] = e
+			self._last_bone_ik[bone] = ik
+		end
+	end
+
+	for bone, ik in pairs(ik_by_bone) do
+		if not combined[bone] then
+			active_bones[bone] = true
+			if ik ~= self._last_bone_ik[bone] then
+				obj:set_bone_override(bone, {ik = ik})
+				self._last_bone_ik[bone] = ik
+			end
 		end
 	end
 
 	for bone, _ in pairs(self._last_bone_rot) do
-		if not combined[bone] then
+		if not active_bones[bone] then
 			obj:set_bone_override(bone, {})
 			self._last_bone_rot[bone] = nil
+			self._last_bone_ik[bone] = nil
+		end
+	end
+
+	for bone, _ in pairs(self._last_bone_ik) do
+		if not active_bones[bone] then
+			obj:set_bone_override(bone, {})
+			self._last_bone_rot[bone] = nil
+			self._last_bone_ik[bone] = nil
 		end
 	end
 end

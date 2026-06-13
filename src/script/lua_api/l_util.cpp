@@ -381,17 +381,48 @@ int ModApiUtil::l_gltf_inspect(lua_State *L)
 	int outb = 1;
 	for (size_t node : joint_nodes) {
 		std::string name;
+		const tiniergltf::Node *n_ptr = nullptr;
 		if (m.nodes.has_value() && node < m.nodes->size()) {
-			const auto &n = m.nodes->at(node);
-			name = n.name.has_value() ? *n.name : ("bone_" + std::to_string(node));
+			n_ptr = &m.nodes->at(node);
+			name = n_ptr->name.has_value() ? *n_ptr->name : ("bone_" + std::to_string(node));
 		} else {
 			name = "bone_" + std::to_string(node);
 		}
-		lua_createtable(L, 0, 2);
+		lua_createtable(L, 0, 3);
 		lua_pushinteger(L, (lua_Integer)node);
 		lua_setfield(L, -2, "node");
 		lua_pushlstring(L, name.c_str(), name.size());
 		lua_setfield(L, -2, "name");
+
+		if (n_ptr && !n_ptr->extras.isNull()) {
+			const auto &ik = n_ptr->extras["ik_constraint"];
+			if (ik.isObject()) {
+				lua_newtable(L);
+				if (ik.isMember("target")) {
+					const auto &target = ik["target"];
+					if (target.isArray() && target.size() == 3) {
+						lua_newtable(L);
+						lua_pushnumber(L, target[0].asDouble());
+						lua_setfield(L, -2, "x");
+						lua_pushnumber(L, target[1].asDouble());
+						lua_setfield(L, -2, "y");
+						lua_pushnumber(L, target[2].asDouble());
+						lua_setfield(L, -2, "z");
+						lua_setfield(L, -2, "target");
+					}
+				}
+				if (ik.isMember("chain_length")) {
+					lua_pushinteger(L, ik["chain_length"].asInt());
+					lua_setfield(L, -2, "chain_length");
+				}
+				if (ik.isMember("iterations")) {
+					lua_pushinteger(L, ik["iterations"].asInt());
+					lua_setfield(L, -2, "iterations");
+				}
+				lua_setfield(L, -2, "ik");
+			}
+		}
+
 		lua_rawseti(L, -2, outb++);
 	}
 	lua_setfield(L, -2, "bones");

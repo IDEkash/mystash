@@ -113,6 +113,15 @@ struct BoneOverride
 		f32 interp_duration = 0.0f;
 	} scale;
 
+	struct IKProperty
+	{
+		v3f target;
+		u16 chain_length = 0;
+		u16 iterations = 10;
+		bool absolute = false;
+		bool active = false;
+	} ik;
+
 	v3f getScale(v3f anim_scale) const {
 		f32 progress = dtime_passed / scale.interp_duration;
 		if (progress > 1.0f || scale.interp_duration == 0.0f)
@@ -135,7 +144,8 @@ struct BoneOverride
 		return finishedInterpolation()
 				&& !position.absolute && position.vector == v3f()
 				&& !rotation.absolute && rotation.next == core::quaternion()
-				&& !scale.absolute && scale.vector == v3f(1.0f);
+				&& !scale.absolute && scale.vector == v3f(1.0f)
+				&& !ik.active;
 	}
 };
 

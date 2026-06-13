@@ -363,7 +363,14 @@ std::string UnitSAO::generateUpdateBoneOverrideCommand(
 	writeF32(os, props.scale.interp_duration);
 	writeU8(os, (props.position.absolute & 1) << 0
 	          | (props.rotation.absolute & 1) << 1
-	          | (props.scale.absolute & 1) << 2);
+	          | (props.scale.absolute & 1) << 2
+	          | (props.ik.active & 1) << 3
+	          | (props.ik.absolute & 1) << 4);
+	if (props.ik.active) {
+		writeV3F32(os, props.ik.target);
+		writeU16(os, props.ik.chain_length);
+		writeU16(os, props.ik.iterations);
+	}
 	return os.str();
 }
 

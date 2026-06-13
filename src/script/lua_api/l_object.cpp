@@ -784,6 +784,52 @@ int ObjectRef::l_set_bone_position(lua_State *L)
 	return 0;
 }
 
+int ObjectRef::l_set_bone_ik(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	std::string bone = readParam<std::string>(L, 2);
+
+	if (lua_isnoneornil(L, 3)) {
+		BoneOverride props = sao->getBoneOverride(bone);
+		props.ik.active = false;
+		sao->setBoneOverride(bone, props);
+		return 0;
+	}
+
+	luaL_checktype(L, 3, LUA_TTABLE);
+
+	BoneOverride props = sao->getBoneOverride(bone);
+	lua_getfield(L, 3, "target");
+	if (!lua_isnil(L, -1)) {
+		props.ik.target = check_v3f(L, -1);
+		props.ik.active = true;
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, 3, "chain_length");
+	if (lua_isnumber(L, -1))
+		props.ik.chain_length = lua_tointeger(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, 3, "iterations");
+	if (lua_isnumber(L, -1))
+		props.ik.iterations = lua_tointeger(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, 3, "absolute");
+	if (!lua_isnil(L, -1))
+		props.ik.absolute = lua_toboolean(L, -1);
+	lua_pop(L, 1);
+
+	sao->setBoneOverride(bone, props);
+	return 0;
+}
+
 int ObjectRef::l_set_bone_rotation(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
@@ -908,6 +954,32 @@ int ObjectRef::l_set_bone_override(lua_State *L)
 	}
 	lua_pop(L, 1);
 
+	lua_getfield(L, 3, "ik");
+	if (!lua_isnil(L, -1)) {
+		lua_getfield(L, -1, "target");
+		if (!lua_isnil(L, -1)) {
+			props.ik.target = check_v3f(L, -1);
+			props.ik.active = true;
+		}
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "chain_length");
+		if (lua_isnumber(L, -1))
+			props.ik.chain_length = lua_tointeger(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "iterations");
+		if (lua_isnumber(L, -1))
+			props.ik.iterations = lua_tointeger(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "absolute");
+		if (!lua_isnil(L, -1))
+			props.ik.absolute = lua_toboolean(L, -1);
+		lua_pop(L, 1);
+	}
+	lua_pop(L, 1);
+
 	sao->setBoneOverride(bone, props);
 	return 0;
 }
@@ -934,6 +1006,19 @@ static void push_bone_override(lua_State *L, const BoneOverride &props)
 	push_prop("rotation", props.rotation, props.rotation.next_radians);
 
 	push_prop("scale", props.scale, props.scale.vector);
+
+	if (props.ik.active) {
+		lua_newtable(L);
+		push_v3f(L, props.ik.target);
+		lua_setfield(L, -2, "target");
+		lua_pushinteger(L, props.ik.chain_length);
+		lua_setfield(L, -2, "chain_length");
+		lua_pushinteger(L, props.ik.iterations);
+		lua_setfield(L, -2, "iterations");
+		lua_pushboolean(L, props.ik.absolute);
+		lua_setfield(L, -2, "absolute");
+		lua_setfield(L, -2, "ik");
+	}
 
 	// leave only override table on top of the stack
 }
@@ -3083,6 +3168,7 @@ luaL_Reg ObjectRef::methods[] = {
 		luamethod(ObjectRef, set_animation_frame_speed),
 	luamethod(ObjectRef, set_bone_position),
 	luamethod(ObjectRef, set_bone_rotation),
+	luamethod(ObjectRef, set_bone_ik),
 	luamethod(ObjectRef, get_bone_position),
 	luamethod(ObjectRef, set_bone_override),
 	luamethod(ObjectRef, get_bone_override),

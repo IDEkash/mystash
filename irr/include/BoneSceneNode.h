@@ -65,6 +65,9 @@ public:
 	/** Does nothing as bones are not visible. */
 	void render() override {}
 
+	//! Returns type of the scene node
+	ESCENE_NODE_TYPE getType() const override { return ESNT_BONE; }
+
 	void setRotation(const core::vector3df &rotation) override
 	{
 		Rotation = core::quaternion(rotation * core::DEGTORAD).makeInverse();

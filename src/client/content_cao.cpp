@@ -721,6 +721,77 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 						bone->setPosition(props.getPosition(bone->getPosition()));
 						bone->setRotation(props.getRotationEulerDeg(bone->getRotation()));
 						bone->setScale(props.getScale(bone->getScale()));
+
+						if (props.ik.active) {
+							// FABRIK (Forward And Backward Reaching Inverse Kinematics)
+							std::vector<scene::BoneSceneNode*> chain;
+							scene::ISceneNode* current = bone;
+							for (u16 i = 0; i <= props.ik.chain_length; ++i) {
+								if (!current || (current->getType() != scene::ESNT_ANIMATED_MESH && current->getParent() == m_animated_meshnode)) {
+									// Root of the chain
+									break;
+								}
+								if (current->getType() == scene::ESNT_BONE) {
+									chain.push_back(static_cast<scene::BoneSceneNode*>(current));
+								}
+								current = current->getParent();
+							}
+
+							if (chain.size() >= 2) {
+								v3f target_pos = props.ik.target;
+								if (!props.ik.absolute) {
+									m_animated_meshnode->getAbsoluteTransformation().transformVect(target_pos);
+								}
+
+								std::vector<v3f> positions(chain.size());
+								std::vector<f32> lengths(chain.size() - 1);
+								for (size_t i = 0; i < chain.size(); ++i) {
+									positions[i] = chain[i]->getAbsolutePosition();
+								}
+								for (size_t i = 0; i < chain.size() - 1; ++i) {
+									lengths[i] = positions[i].getDistance(positions[i + 1]);
+								}
+
+								v3f origin = positions.back();
+								for (u16 iter = 0; iter < props.ik.iterations; ++iter) {
+									// Backward
+									positions[0] = target_pos;
+									for (size_t i = 0; i < chain.size() - 1; ++i) {
+										v3f dir = (positions[i + 1] - positions[i]).normalize();
+										positions[i + 1] = positions[i] + dir * lengths[i];
+									}
+									// Forward
+									positions.back() = origin;
+									for (int i = (int)chain.size() - 2; i >= 0; --i) {
+										v3f dir = (positions[i] - positions[i + 1]).normalize();
+										positions[i] = positions[i + 1] + dir * lengths[i];
+									}
+								}
+
+								// Apply rotations
+								for (int i = (int)chain.size() - 1; i > 0; --i) {
+									v3f current_dir = (chain[i - 1]->getAbsolutePosition() - chain[i]->getAbsolutePosition()).normalize();
+									v3f target_dir = (positions[i - 1] - positions[i]).normalize();
+
+									core::matrix4 parent_inv = chain[i]->getParent()->getAbsoluteTransformation();
+									parent_inv.makeInverse();
+
+									v3f local_target_dir = target_dir;
+									parent_inv.rotateVect(local_target_dir);
+
+									v3f local_current_dir = current_dir;
+									parent_inv.rotateVect(local_current_dir);
+
+									core::quaternion local_q;
+									local_q.rotationFromTo(local_current_dir, local_target_dir);
+
+									core::quaternion current_q(chain[i]->getRotation() * core::DEGTORAD);
+									v3f new_rot;
+									(local_q * current_q).toEuler(new_rot);
+									chain[i]->setRotation(new_rot * core::RADTODEG);
+								}
+							}
+						}
 					}
 					++it;
 				}
@@ -1699,6 +1770,13 @@ void GenericCAO::processMessage(const std::string &data)
 			props.position.absolute = (absoluteFlag & 1) > 0;
 			props.rotation.absolute = (absoluteFlag & 2) > 0;
 			props.scale.absolute = (absoluteFlag & 4) > 0;
+			props.ik.active = (absoluteFlag & 8) > 0;
+			props.ik.absolute = (absoluteFlag & 16) > 0;
+			if (props.ik.active) {
+				props.ik.target = readV3F32(is);
+				props.ik.chain_length = readU16(is);
+				props.ik.iterations = readU16(is);
+			}
 		}
 		m_bone_override[bone] = props;
 	} else if (cmd == AO_CMD_ATTACH_TO) {
