@@ -21,9 +21,10 @@ VisualsService::~VisualsService()
 
 void VisualsService::registerScene(u32 id, std::unique_ptr<ViewScene> scene)
 {
-	if (m_scenes.find(id) != m_scenes.end()) {
-		warningstream << "VisualsService: Scene already registered: " << id << std::endl;
-		return;
+	auto it = m_scenes.find(id);
+	if (it != m_scenes.end()) {
+		verbosestream << "VisualsService: Scene already registered: " << id << ". Replacing." << std::endl;
+		unregisterScene(id);
 	}
 	m_scenes[id] = std::move(scene);
 }
@@ -67,10 +68,14 @@ void VisualsService::setActiveScene(u32 id)
 
 void VisualsService::addRegionToScene(u32 id, u32 scene_id, std::unique_ptr<ViewZone> region)
 {
-	ViewZone *ptr = region.get();
+	auto it = m_zones.find(id);
+	if (it != m_zones.end()) {
+		removeRegion(id);
+	}
+
+	m_scene_regions[scene_id].push_back(region.get());
 	m_zones[id] = std::move(region);
 	m_zone_to_scene[id] = scene_id;
-	m_scene_regions[scene_id].push_back(ptr);
 }
 
 void VisualsService::removeRegion(u32 id)
@@ -82,6 +87,7 @@ void VisualsService::removeRegion(u32 id)
 		vec.erase(std::remove(vec.begin(), vec.end(), it->second.get()), vec.end());
 		m_zones.erase(it);
 		m_zone_to_scene.erase(id);
+		m_inside_zones.erase(id);
 	}
 }
 
@@ -96,12 +102,17 @@ const std::vector<ViewZone*> &VisualsService::getRegionsForScene(u32 scene_id) c
 
 void VisualsService::addViewPort(u32 id, std::unique_ptr<ViewPort> viewport)
 {
+	auto it = m_viewports.find(id);
+	if (it != m_viewports.end()) {
+		removeViewPort(id);
+	}
 	m_viewports[id] = std::move(viewport);
 }
 
 void VisualsService::removeViewPort(u32 id)
 {
 	m_viewports.erase(id);
+	m_near_viewports.erase(id);
 }
 
 const std::vector<ViewPort*> &VisualsService::getViewPorts() const

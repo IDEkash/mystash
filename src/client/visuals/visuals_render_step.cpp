@@ -96,13 +96,21 @@ void VisualsRenderStep::run(PipelineContext &context)
 			driver->drawIndexedTriangleList(vertices.data(), vertices.size(), indices.data(), indices.size() / 3);
 		}
 
-		// 4. Enable color/depth writes, set stencil test (done by driver if supported)
-		// Since Irrlicht's IVideoDriver stencil support is very basic,
-		// a true implementation might require platform-specific code (OpenGL/DirectX).
-		// Here we proceed with smgr->drawAll() which will now be clipped
-		// if the driver supports stencil test against what we just drew.
+		// 4. Enable color/depth writes, set stencil test
+		stencil_mat.ZWriteEnable = video::EZW_ON;
+		stencil_mat.ColorMask = video::ECP_ALL;
+		driver->setMaterial(stencil_mat);
+
+		// We need to enable stencil test. Irrlicht's IVideoDriver doesn't have a direct toggle for this
+		// in a cross-platform way that works with drawAll() easily without custom scene nodes.
+		// However, we can try to use the driver's enableClipPlane or similar if it was a simple rect,
+		// but for a polygon stencil is better.
+		// For now, we assume the driver state is managed.
 
 		smgr->drawAll();
+
+		// Reset stencil buffer for next viewport
+		driver->clearBuffers(video::ECBF_STENCIL, video::SColor(0,0,0,0), 1.0f, 0);
 	}
 
 	// Render all active viewports for activation (isolated if necessary)

@@ -36,6 +36,8 @@
 #include "skyparams.h"
 #include "fogparams.h"
 #include "particles.h"
+#include "client/visuals/visuals_service.h"
+#include "client/renderingengine.h"
 #include <memory>
 #include <sstream>
 
@@ -1979,7 +1981,7 @@ void Client::handleCommand_VisualAddScene(NetworkPacket *pkt)
 	FogParams fog;
 	fog_deserialize(*pkt, fog);
 
-	auto scene = std::make_unique<ViewScene>(m_rendering_engine->get_device());
+	auto scene = std::make_unique<ViewScene>(RenderingEngine::get_raw_device());
 	scene->setSkyParams(sky);
 	scene->setFogParams(fog);
 	scene->setPerspectiveLayer(static_cast<PerspectiveLayer>(perspective));
