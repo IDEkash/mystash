@@ -726,11 +726,7 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 							// FABRIK (Forward And Backward Reaching Inverse Kinematics)
 							std::vector<scene::BoneSceneNode*> chain;
 							scene::ISceneNode* current = bone;
-							for (u16 i = 0; i <= props.ik.chain_length; ++i) {
-								if (!current || (current->getType() != scene::ESNT_ANIMATED_MESH && current->getParent() == m_animated_meshnode)) {
-									// Root of the chain
-									break;
-								}
+							while (current && current != m_animated_meshnode && chain.size() <= props.ik.chain_length) {
 								if (current->getType() == scene::ESNT_BONE) {
 									chain.push_back(static_cast<scene::BoneSceneNode*>(current));
 								}
@@ -770,22 +766,21 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 
 								// Apply rotations
 								for (int i = (int)chain.size() - 1; i > 0; --i) {
-									v3f current_dir = (chain[i - 1]->getAbsolutePosition() - chain[i]->getAbsolutePosition()).normalize();
-									v3f target_dir = (positions[i - 1] - positions[i]).normalize();
+									v3f target_dir = (positions[i - 1] - positions[i]);
 
 									core::matrix4 parent_inv = chain[i]->getParent()->getAbsoluteTransformation();
 									parent_inv.makeInverse();
 
 									v3f local_target_dir = parent_inv.rotateAndScaleVect(target_dir);
-									v3f local_current_dir = parent_inv.rotateAndScaleVect(current_dir);
+									v3f local_dir_to_child = chain[i - 1]->getPosition();
 
-									core::quaternion local_q;
-									local_q.rotationFromTo(local_current_dir, local_target_dir);
+									core::quaternion q;
+									q.rotationFromTo(local_dir_to_child, local_target_dir);
 
-									core::quaternion current_q(chain[i]->getRotation() * core::DEGTORAD);
 									v3f new_rot;
-									(local_q * current_q).toEuler(new_rot);
+									q.toEuler(new_rot);
 									chain[i]->setRotation(new_rot * core::RADTODEG);
+									chain[i]->updateAbsolutePosition();
 								}
 							}
 						}
