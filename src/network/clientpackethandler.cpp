@@ -494,6 +494,12 @@ void Client::handleCommand_Movement(NetworkPacket* pkt)
 	*pkt >> mad >> maa >> maf >> msw >> mscr >> msf >> mscl >> msj
 		>> lf >> lfs >> ls >> g;
 
+	if (pkt->getRemainingBytes() >= sizeof(float)) {
+		float sprint_factor;
+		*pkt >> sprint_factor;
+		player->movement_speed_sprint_factor = sprint_factor;
+	}
+
 	player->movement_acceleration_default   = mad * BS;
 	player->movement_acceleration_air       = maa * BS;
 	player->movement_acceleration_fast      = maf * BS;

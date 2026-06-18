@@ -516,6 +516,7 @@ void set_default_settings()
 	settings->setDefault("movement_acceleration_air", "1.25");
 	settings->setDefault("movement_acceleration_fast", "10");
 	settings->setDefault("movement_speed_walk", "4.3");
+	settings->setDefault("movement_speed_sprint_factor", "1.3");
 	settings->setDefault("movement_speed_crouch", "1.3");
 	settings->setDefault("movement_speed_fast", "20");
 	settings->setDefault("movement_speed_climb", "3.0");

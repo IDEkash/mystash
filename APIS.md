@@ -54,6 +54,12 @@ Android-only. On non-Android platforms, calling these functions errors.
 
 Lifecycle note: HTMLViews are owned by the Android activity layout. This fork destroys all active HTMLViews when leaving a world / stopping the server.
 
+### Support Query
+
+`htmlview.is_supported() -> boolean`
+- Returns `true` if the current platform supports HTMLViews (currently Android-only).
+- On unsupported platforms, `htmlview` functions are still available as dummy functions that log a single warning to the console, preventing mod crashes.
+
 ### Creating instances
 
 `htmlview.run(id, html)`
@@ -374,7 +380,7 @@ player:set_bone_rotation("Head", {x=0, y=-45, z=0}, {interpolation = 0.1})
 ```lua
 player:set_bone_override("RightArm", {
     position = { vec = {x=0, y=0, z=0}, absolute = false, interpolation = 0.0 },
-    rotation = { vec = {x=0, y=0, z=0}, absolute = false, interpolation = 0.0 },
+    rotation = { vec = {x=0, y=0, z=0}, absolute = false, interpolation = 0.0, degrees = true },
     scale    = { vec = {x=1, y=1, z=1}, absolute = false, interpolation = 0.0 },
     visible     = true,
     pos_smooth  = 0.0,  -- persistent smooth for position
@@ -385,7 +391,7 @@ player:set_bone_override("RightArm", {
 })
 ```
 
-- **`rotation.vec` uses radians**, unlike `set_bone_rotation` which takes degrees. This inconsistency is intentional: `set_bone_override` operates at a lower level and stores values directly without conversion.
+- **`rotation.vec` defaults to radians**, but if `degrees = true` is passed in the rotation sub-table, it will be interpreted as degrees.
 
 ### Querying transforms
 
@@ -405,6 +411,10 @@ player:set_bone_override("RightArm", {
 
 `ObjectRef:get_bone_overrides() -> table`
 - Returns a table keyed by bone name, each value being a full override table in the same format as `get_bone_override`.
+
+`ObjectRef:get_bone_list() -> table`
+- Returns a list (array) of all bone names found in the object's current mesh.
+- Currently only supported for glTF/GLB models.
 
 `ObjectRef:get_bone_world_pos(bone) -> vector`
 - Returns the world-space vector of the rendered bone. Ideal for spawning particles or effects attached to specific body parts. Available on both server-side `ObjectRef` and client-side `core.localplayer`.
@@ -439,6 +449,20 @@ This implementation enables robust Minecraft-style head movement, procedural ani
 
 `core.animator.unregister(animator)`
 - Stops auto-updating.
+
+### State control and introspection
+
+`animator:get_current_state() -> string`
+- Returns the name of the active state.
+
+`animator:queue_state(name, opts?)`
+- Adds a state to the playback queue.
+- Queued states only play after the current non-looping state finishes.
+- If the current state is looping, the queue will not be processed unless a transition occurs.
+- Transitioning to a new state via `set_state` or a priority rule clears the queue by default.
+
+`animator:get_queue() -> table`
+- Returns the list of queued states.
 
 ### Global animator event bus
 
@@ -594,6 +618,7 @@ The engine now differentiates between "Water-like" and "Lava-like" liquids:
 | `movement_gravity` | `32.0` | Global gravity (nodes/s²) |
 | `movement_speed_jump` | `9.5` | Initial upward velocity for jump |
 | `movement_speed_walk` | `4.3` | Baseline walking speed |
+| `movement_speed_sprint_factor` | `1.3` | Multiplier for joystick/magnitude sprint |
 | `movement_speed_crouch` | `1.3` | Speed while sneaking |
 | `movement_acceleration_default` | `3.0` | Ground friction/responsiveness |
 | `movement_acceleration_air` | `1.25` | Mid-air maneuverability |
@@ -631,6 +656,7 @@ player:set_physics_override({
 ### Node groups
 
 - `group:lava`: Adding this to a node definition automatically enables the high-viscosity "Lava Physics."
+- `group:viscous`: Value (1-7) sets custom exponential drag decay. Overrides standard liquid/lava physics if set.
 - `group:disable_jump`: Prevents jumping while standing on or in the node.
 
 ### Player Callbacks

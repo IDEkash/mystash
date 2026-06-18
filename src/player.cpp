@@ -53,6 +53,7 @@ Player::Player(const std::string &name, IItemDefManager *idef):
 	movement_acceleration_air       = 2    * BS;
 	movement_acceleration_fast      = 10   * BS;
 	movement_speed_walk             = 4    * BS;
+	movement_speed_sprint_factor    = 1.3;
 	movement_speed_crouch           = 1.35 * BS;
 	movement_speed_fast             = 20   * BS;
 	movement_speed_climb            = 2    * BS;

@@ -9,6 +9,7 @@
 #include "lua_api/l_inventory.h"
 #include "lua_api/l_item.h"
 #include "lua_api/l_playermeta.h"
+#include "tiniergltf.hpp"
 #include "common/c_converter.h"
 #include "common/c_content.h"
 #include "cpp_api/s_base.h"
@@ -1182,10 +1183,18 @@ int ObjectRef::l_set_bone_override(lua_State *L)
 
 	lua_getfield(L, 3, "rotation");
 	if (!lua_isnil(L, -1)) {
-		lua_getfield(L, -1, "vec");
+		int rot_idx = lua_gettop(L);
+		lua_getfield(L, rot_idx, "vec");
 		if (!lua_isnil(L, -1)) {
 			v3f v = check_v3f(L, -1);
 			if (std::isfinite(v.X) && std::isfinite(v.Y) && std::isfinite(v.Z)) {
+				lua_getfield(L, rot_idx, "degrees");
+				bool degrees = lua_toboolean(L, -1);
+				lua_pop(L, 1);
+
+				if (degrees)
+					v *= core::DEGTORAD;
+
 				props.rotation.next_radians = v;
 				props.rotation.next = core::quaternion(props.rotation.next_radians);
 			}
@@ -1314,6 +1323,65 @@ int ObjectRef::l_get_bone_overrides(lua_State *L)
 		push_bone_override(L, bone_pos.second);
 		lua_setfield(L, -2, bone_pos.first.c_str());
 	}
+	return 1;
+}
+
+int ObjectRef::l_get_bone_list(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	ObjectProperties *prop = sao->accessObjectProperties();
+	if (!prop || prop->mesh.empty()) {
+		lua_newtable(L);
+		return 1;
+	}
+
+	std::string mesh_path = prop->mesh;
+	std::string full_path = getServer(L)->getMediaPath(mesh_path);
+	if (full_path.empty()) {
+		lua_newtable(L);
+		return 1;
+	}
+
+	if (str_ends_with(full_path, ".gltf") || str_ends_with(full_path, ".glb")) {
+		// Use tiniergltf to get bones
+		std::string data;
+		if (fs::ReadFile(full_path, data, true)) {
+			try {
+				tiniergltf::GlTF model;
+				if (str_ends_with(full_path, ".glb"))
+					model = tiniergltf::readGlb(data.data(), data.size());
+				else
+					model = tiniergltf::readGlTF(data.data(), data.size());
+
+				lua_newtable(L);
+				int table_idx = 1;
+				std::unordered_set<size_t> joint_nodes;
+				if (model.skins.has_value()) {
+					for (const auto &skin : *model.skins) {
+						for (size_t node : skin.joints) {
+							joint_nodes.insert(node);
+						}
+					}
+				}
+				for (size_t node_idx : joint_nodes) {
+					if (model.nodes.has_value() && node_idx < model.nodes->size()) {
+						const auto &n = model.nodes->at(node_idx);
+						std::string name = n.name.has_value() ? *n.name : ("bone_" + std::to_string(node_idx));
+						lua_pushstring(L, name.c_str());
+						lua_rawseti(L, -2, table_idx++);
+					}
+				}
+				return 1;
+			} catch (...) {}
+		}
+	}
+
+	lua_newtable(L);
 	return 1;
 }
 

@@ -139,15 +139,17 @@ void ClientEnvironment::step(float dtime)
 				lplayer->gravity = lplayer->movement_liquid_sink * lplayer->physics_override.liquid_sink;
 
 			// Movement resistance
-			if (lplayer->move_resistance > 0) {
+			if (lplayer->move_resistance > 0 || lplayer->viscous_factor > 0) {
 				v3f speed = lplayer->getSpeed();
 
-				if (lplayer->in_lava) {
-					float factor = std::exp(-5.0f * dtime_part); // Exponential decay for 50% velocity kill
+				if (lplayer->viscous_factor > 0 || lplayer->in_lava) {
+					float decay = lplayer->in_lava ? 5.0f : (float)lplayer->viscous_factor;
+					float factor = std::exp(-decay * dtime_part);
 					speed.X *= factor;
 					speed.Y *= factor;
 					speed.Z *= factor;
-					speed.Y -= 0.5f * BS * dtime_part; // Scale sink by dtime
+					float sink = lplayer->in_lava ? 0.5f : (lplayer->in_liquid ? 0.2f : 0.0f);
+					speed.Y -= sink * BS * dtime_part;
 				} else if (lplayer->in_liquid) {
 					// Improved water physics: similar to lava but less restrictive
 					float factor = std::exp(-2.5f * dtime_part); // Slightly less drag than lava

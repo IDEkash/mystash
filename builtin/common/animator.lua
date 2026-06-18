@@ -250,6 +250,7 @@ function Animator:new(object, def)
 		layer_order = {},
 		_last_bone_rot = {},
 		_last_anim_sig = nil,
+		queue = {},
 	}
 	return setmetatable(o, self)
 end
@@ -282,10 +283,22 @@ function Animator:_apply_animation(state, blend)
 	end
 end
 
+function Animator:get_current_state()
+	return self.current
+end
+
+function Animator:get_queue()
+	return self.queue
+end
+
 function Animator:set_state(name, opts)
 	local state = self.states[name]
 	assert(state, "unknown state: " .. tostring(name))
 	opts = opts or {}
+
+	if not opts.queued then
+		self.queue = {}
+	end
 
 	local old_state = self.current
 	local blend = opts.blend
@@ -519,6 +532,11 @@ function Animator:_apply_additive_layers()
 	end
 end
 
+function Animator:queue_state(name, opts)
+	assert(self.states[name], "unknown state: " .. tostring(name))
+	table.insert(self.queue, {name = name, opts = opts or {}})
+end
+
 function Animator:update(dtime)
 	if not self:is_valid() then
 		return false
@@ -527,6 +545,19 @@ function Animator:update(dtime)
 	local ctx = self:_get_context(dtime)
 	self.time_in_state = self.time_in_state + dtime
 
+	local state_def = self.states[self.current]
+	local finished = false
+	if state_def and state_def.loop == false then
+		local range = to_v2(state_def.range)
+		local speed = math.abs(state_def.speed or 15)
+		if speed > 0 then
+			local duration = math.abs(range.y - range.x) / speed
+			if self.time_in_state >= duration then
+				finished = true
+			end
+		end
+	end
+
 	local tr = self:_eval_transitions(ctx)
 	if tr then
 		local to = tr.to
@@ -534,6 +565,12 @@ function Animator:update(dtime)
 		if self.current ~= to then
 			self:set_state(to, {blend = blend, ctx = ctx})
 		end
+	elseif finished and #self.queue > 0 then
+		local next_s = table.remove(self.queue, 1)
+		local opts = next_s.opts
+		opts.queued = true
+		opts.ctx = ctx
+		self:set_state(next_s.name, opts)
 	end
 
 	self:_step_events(dtime, ctx)
