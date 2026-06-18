@@ -4543,6 +4543,16 @@ std::unordered_map<std::string, std::string> Server::getMediaList()
 	return ret;
 }
 
+std::string Server::getMediaPath(const std::string &name)
+{
+	EnvAutoLock envlock(this);
+
+	auto it = m_media.find(name);
+	if (it == m_media.end())
+		return "";
+	return it->second.path;
+}
+
 ModStorageDatabase *Server::openModStorageDatabase(const std::string &world_path)
 {
 	std::string world_mt_path = world_path + DIR_DELIM + "world.mt";

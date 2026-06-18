@@ -3,6 +3,7 @@
 // Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
 
 #include "lua_api/l_object.h"
+#include <unordered_set>
 #include <cmath>
 #include <lua.h>
 #include "lua_api/l_internal.h"
@@ -13,6 +14,7 @@
 #include "common/c_converter.h"
 #include "common/c_content.h"
 #include "cpp_api/s_base.h"
+#include "filesys.h"
 #include "log.h"
 #include "player.h"
 #include "server/serveractiveobject.h"
@@ -1352,25 +1354,25 @@ int ObjectRef::l_get_bone_list(lua_State *L)
 		std::string data;
 		if (fs::ReadFile(full_path, data, true)) {
 			try {
-				tiniergltf::GlTF model;
+				std::optional<tiniergltf::GlTF> model;
 				if (str_ends_with(full_path, ".glb"))
-					model = tiniergltf::readGlb(data.data(), data.size());
+					model.emplace(tiniergltf::readGlb(data.data(), data.size()));
 				else
-					model = tiniergltf::readGlTF(data.data(), data.size());
+					model.emplace(tiniergltf::readGlTF(data.data(), data.size()));
 
 				lua_newtable(L);
 				int table_idx = 1;
 				std::unordered_set<size_t> joint_nodes;
-				if (model.skins.has_value()) {
-					for (const auto &skin : *model.skins) {
+				if (model->skins.has_value()) {
+					for (const auto &skin : *model->skins) {
 						for (size_t node : skin.joints) {
 							joint_nodes.insert(node);
 						}
 					}
 				}
 				for (size_t node_idx : joint_nodes) {
-					if (model.nodes.has_value() && node_idx < model.nodes->size()) {
-						const auto &n = model.nodes->at(node_idx);
+					if (model->nodes.has_value() && node_idx < model->nodes->size()) {
+						const auto &n = model->nodes->at(node_idx);
 						std::string name = n.name.has_value() ? *n.name : ("bone_" + std::to_string(node_idx));
 						lua_pushstring(L, name.c_str());
 						lua_rawseti(L, -2, table_idx++);
