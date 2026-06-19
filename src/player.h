@@ -185,6 +185,7 @@ public:
 	f32 movement_acceleration_air;
 	f32 movement_acceleration_fast;
 	f32 movement_speed_walk;
+	f32 movement_speed_sprint_factor;
 	f32 movement_speed_crouch;
 	f32 movement_speed_fast;
 	f32 movement_speed_climb;

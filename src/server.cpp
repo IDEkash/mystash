@@ -1479,7 +1479,7 @@ void Server::Send(session_t peer_id, NetworkPacket *pkt)
 
 void Server::SendMovement(session_t peer_id)
 {
-	NetworkPacket pkt(TOCLIENT_MOVEMENT, 12 * sizeof(float), peer_id);
+	NetworkPacket pkt(TOCLIENT_MOVEMENT, 13 * sizeof(float), peer_id);
 
 	pkt << g_settings->getFloat("movement_acceleration_default");
 	pkt << g_settings->getFloat("movement_acceleration_air");
@@ -1493,6 +1493,7 @@ void Server::SendMovement(session_t peer_id)
 	pkt << g_settings->getFloat("movement_liquid_fluidity_smooth");
 	pkt << g_settings->getFloat("movement_liquid_sink");
 	pkt << g_settings->getFloat("movement_gravity");
+	pkt << g_settings->getFloat("movement_speed_sprint_factor");
 
 	Send(&pkt);
 }
@@ -4540,6 +4541,16 @@ std::unordered_map<std::string, std::string> Server::getMediaList()
 		ret.emplace(it.second.sha1_digest, it.second.path);
 	}
 	return ret;
+}
+
+std::string Server::getMediaPath(const std::string &name)
+{
+	EnvAutoLock envlock(this);
+
+	auto it = m_media.find(name);
+	if (it == m_media.end())
+		return "";
+	return it->second.path;
 }
 
 ModStorageDatabase *Server::openModStorageDatabase(const std::string &world_path)

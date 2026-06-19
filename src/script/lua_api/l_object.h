@@ -169,6 +169,9 @@ private:
 	// get_bone_override(self)
 	static int l_get_bone_overrides(lua_State *L);
 
+	// get_bone_list(self)
+	static int l_get_bone_list(lua_State *L);
+
 	// set_attach(self, parent, bone, position, rotation)
 	static int l_set_attach(lua_State *L);
 

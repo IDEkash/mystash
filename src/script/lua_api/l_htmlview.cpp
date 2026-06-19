@@ -454,11 +454,65 @@ int ModApiHTMLView::l_on_ready(lua_State *L)
 	return 0;
 }
 
+int ModApiHTMLView::l_is_supported(lua_State *L)
+{
+#ifdef __ANDROID__
+	lua_pushboolean(L, true);
+#else
+	lua_pushboolean(L, false);
+#endif
+	return 1;
+}
+
+static void log_htmlview_unavailable(lua_State *L)
+{
+	static bool warned = false;
+	if (!warned) {
+		warningstream << "htmlview API called on unsupported platform." << std::endl;
+		warned = true;
+	}
+}
+
 void ModApiHTMLView::Initialize(lua_State *L, int top)
 {
 		lua_newtable(L);
 		int tbl = lua_gettop(L);
 
+#ifndef __ANDROID__
+		auto dummy = [](lua_State *L) -> int {
+			log_htmlview_unavailable(L);
+			return 0;
+		};
+		auto dummy_nil = [](lua_State *L) -> int {
+			log_htmlview_unavailable(L);
+			lua_pushnil(L);
+			return 1;
+		};
+
+		registerFunction(L, "run", dummy, tbl);
+		registerFunction(L, "run_worker", dummy, tbl);
+		registerFunction(L, "run_external", dummy, tbl);
+		registerFunction(L, "run_external_worker", dummy, tbl);
+		registerFunction(L, "stop", dummy, tbl);
+		registerFunction(L, "display", dummy, tbl);
+		registerFunction(L, "send", dummy, tbl);
+		registerFunction(L, "send_json", dummy, tbl);
+		registerFunction(L, "navigate", dummy, tbl);
+		registerFunction(L, "inject", dummy, tbl);
+		registerFunction(L, "pipe", dummy, tbl);
+		registerFunction(L, "capture", dummy, tbl);
+		registerFunction(L, "input", dummy, tbl);
+		registerFunction(L, "state", dummy_nil, tbl);
+		registerFunction(L, "reload", dummy, tbl);
+		registerFunction(L, "focus", dummy, tbl);
+		registerFunction(L, "shared_set", dummy, tbl);
+		registerFunction(L, "shared_get", dummy_nil, tbl);
+		registerFunction(L, "on_message", l_on_message, tbl);
+		registerFunction(L, "on_message_json", l_on_message_json, tbl);
+		registerFunction(L, "on_capture", l_on_capture, tbl);
+		registerFunction(L, "on_ready", l_on_ready, tbl);
+		registerFunction(L, "is_supported", l_is_supported, tbl);
+#else
 		registerFunction(L, "run", l_run, tbl);
 		registerFunction(L, "run_worker", l_run_worker, tbl);
 		registerFunction(L, "run_external", l_run_external, tbl);
@@ -481,6 +535,8 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "on_message_json", l_on_message_json, tbl);
 		registerFunction(L, "on_capture", l_on_capture, tbl);
 		registerFunction(L, "on_ready", l_on_ready, tbl);
+		registerFunction(L, "is_supported", l_is_supported, tbl);
+#endif
 
 	lua_pushvalue(L, tbl);
 	lua_setglobal(L, "htmlview");

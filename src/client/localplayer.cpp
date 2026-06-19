@@ -667,10 +667,12 @@ void LocalPlayer::move(f32 dtime, Environment *env,
 			const ContentFeatures &cf = nodemgr->get(node.getContent());
 			in_liquid = cf.liquid_move_physics;
 			in_lava = itemgroup_get(cf.groups, "lava") != 0;
+			viscous_factor = (u8)itemgroup_get(cf.groups, "viscous");
 			move_resistance = cf.move_resistance;
 		} else {
 			in_liquid = false;
 			in_lava = false;
+			viscous_factor = 0;
 		}
 	} else {
 		// If not in liquid, the threshold of going in is at lower y
@@ -681,10 +683,12 @@ void LocalPlayer::move(f32 dtime, Environment *env,
 			const ContentFeatures &cf = nodemgr->get(node.getContent());
 			in_liquid = cf.liquid_move_physics;
 			in_lava = itemgroup_get(cf.groups, "lava") != 0;
+			viscous_factor = (u8)itemgroup_get(cf.groups, "viscous");
 			move_resistance = cf.move_resistance;
 		} else {
 			in_liquid = false;
 			in_lava = false;
+			viscous_factor = 0;
 		}
 	}
 
@@ -978,7 +982,7 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 	const f32 speed_fast = movement_speed_fast * physics_override.speed_fast;
 
 	if (player_settings.accessibility_sprint_enabled && control.movement_speed >= 0.95f)
-		speed_walk *= 1.3f * physics_override.speed_sprint;
+		speed_walk *= movement_speed_sprint_factor * physics_override.speed_sprint;
 
 	if (always_fly_fast && free_move && fast_move)
 		superspeed = true;

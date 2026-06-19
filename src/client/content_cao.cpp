@@ -1471,8 +1471,13 @@ void GenericCAO::updateAnimation()
 		if (!clip && m_animation_clip_type != 0)
 			clip = skinned->getAnimationClip(0);
 		if (clip) {
-			range.X = clip->start + range.X;
-			range.Y = std::min(clip->start + range.Y, clip->end);
+			if (range.X == 0 && range.Y == 0) {
+				range.X = clip->start;
+				range.Y = clip->end;
+			} else {
+				range.X = clip->start + range.X;
+				range.Y = std::min(clip->start + range.Y, clip->end);
+			}
 		}
 	}
 

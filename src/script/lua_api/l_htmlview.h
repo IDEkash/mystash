@@ -30,6 +30,7 @@ private:
 	static int l_on_message_json(lua_State *L);
 	static int l_on_capture(lua_State *L);
 	static int l_on_ready(lua_State *L);
+	static int l_is_supported(lua_State *L);
 
 public:
 	static void Initialize(lua_State *L, int top);

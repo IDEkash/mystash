@@ -3,15 +3,18 @@
 // Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
 
 #include "lua_api/l_object.h"
+#include <unordered_set>
 #include <cmath>
 #include <lua.h>
 #include "lua_api/l_internal.h"
 #include "lua_api/l_inventory.h"
 #include "lua_api/l_item.h"
 #include "lua_api/l_playermeta.h"
+#include "tiniergltf.hpp"
 #include "common/c_converter.h"
 #include "common/c_content.h"
 #include "cpp_api/s_base.h"
+#include "filesys.h"
 #include "log.h"
 #include "player.h"
 #include "server/serveractiveobject.h"
@@ -413,7 +416,8 @@ int ObjectRef::l_set_animation(lua_State *L)
 
 	if (lua_istable(L, 2)) {
 		int opts = 2;
-		v2f frame_range(1, 1);
+		v2f frame_range(0, 0);
+		bool range_set = false;
 		float frame_speed = 15.0f;
 		float frame_blend = 0.1f;
 		bool frame_loop = true;
@@ -430,6 +434,7 @@ int ObjectRef::l_set_animation(lua_State *L)
 		if (lua_isnumber(L, -1)) {
 			float f = (float)lua_tonumber(L, -1);
 			frame_range = v2f(f, f);
+			range_set = true;
 		}
 		lua_pop(L, 1);
 
@@ -440,8 +445,10 @@ int ObjectRef::l_set_animation(lua_State *L)
 		}
 		if (!lua_isnil(L, -1)) {
 			v2f r = read_v2f(L, -1);
-			if (std::isfinite(r.X) && std::isfinite(r.Y))
+			if (std::isfinite(r.X) && std::isfinite(r.Y)) {
 				frame_range = r;
+				range_set = true;
+			}
 		}
 		lua_pop(L, 1);
 
@@ -505,6 +512,8 @@ int ObjectRef::l_set_animation(lua_State *L)
 		}
 		lua_pop(L, 1);
 
+		if (!range_set)
+			frame_range = v2f(1, 1);
 		sao->setAnimation(frame_range, frame_speed, frame_blend, frame_loop);
 		return 0;
 	}
@@ -541,7 +550,7 @@ int ObjectRef::l_set_animation_clip(lua_State *L)
 		clip_name = readParam<std::string>(L, 2);
 	}
 
-	v2f frame_range = readParam<v2f>(L, 3, v2f(1, 1));
+	v2f frame_range = readParam<v2f>(L, 3, v2f(0, 0));
 	float frame_speed = readParam<float>(L, 4, 15.0f);
 	float frame_blend = readParam<float>(L, 5, 0.1f);
 	bool frame_loop = readParam<bool>(L, 6, true);
@@ -1182,10 +1191,18 @@ int ObjectRef::l_set_bone_override(lua_State *L)
 
 	lua_getfield(L, 3, "rotation");
 	if (!lua_isnil(L, -1)) {
-		lua_getfield(L, -1, "vec");
+		int rot_idx = lua_gettop(L);
+		lua_getfield(L, rot_idx, "vec");
 		if (!lua_isnil(L, -1)) {
 			v3f v = check_v3f(L, -1);
 			if (std::isfinite(v.X) && std::isfinite(v.Y) && std::isfinite(v.Z)) {
+				lua_getfield(L, rot_idx, "degrees");
+				bool degrees = lua_toboolean(L, -1);
+				lua_pop(L, 1);
+
+				if (degrees)
+					v *= core::DEGTORAD;
+
 				props.rotation.next_radians = v;
 				props.rotation.next = core::quaternion(props.rotation.next_radians);
 			}
@@ -1314,6 +1331,65 @@ int ObjectRef::l_get_bone_overrides(lua_State *L)
 		push_bone_override(L, bone_pos.second);
 		lua_setfield(L, -2, bone_pos.first.c_str());
 	}
+	return 1;
+}
+
+int ObjectRef::l_get_bone_list(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	ObjectProperties *prop = sao->accessObjectProperties();
+	if (!prop || prop->mesh.empty()) {
+		lua_newtable(L);
+		return 1;
+	}
+
+	std::string mesh_path = prop->mesh;
+	std::string full_path = getServer(L)->getMediaPath(mesh_path);
+	if (full_path.empty()) {
+		lua_newtable(L);
+		return 1;
+	}
+
+	if (str_ends_with(full_path, ".gltf") || str_ends_with(full_path, ".glb")) {
+		// Use tiniergltf to get bones
+		std::string data;
+		if (fs::ReadFile(full_path, data, true)) {
+			try {
+				std::optional<tiniergltf::GlTF> model;
+				if (str_ends_with(full_path, ".glb"))
+					model.emplace(tiniergltf::readGlb(data.data(), data.size()));
+				else
+					model.emplace(tiniergltf::readGlTF(data.data(), data.size()));
+
+				lua_newtable(L);
+				int table_idx = 1;
+				std::unordered_set<size_t> joint_nodes;
+				if (model->skins.has_value()) {
+					for (const auto &skin : *model->skins) {
+						for (size_t node : skin.joints) {
+							joint_nodes.insert(node);
+						}
+					}
+				}
+				for (size_t node_idx : joint_nodes) {
+					if (model->nodes.has_value() && node_idx < model->nodes->size()) {
+						const auto &n = model->nodes->at(node_idx);
+						std::string name = n.name.has_value() ? *n.name : ("bone_" + std::to_string(node_idx));
+						lua_pushstring(L, name.c_str());
+						lua_rawseti(L, -2, table_idx++);
+					}
+				}
+				return 1;
+			} catch (...) {}
+		}
+	}
+
+	lua_newtable(L);
 	return 1;
 }
 
