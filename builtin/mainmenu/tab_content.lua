@@ -59,10 +59,10 @@ local function get_formspec(tabview, name, tabdata)
 	local update_count = #packages_with_updates
 	local contentdb_label
 	if update_count == 0 then
-		contentdb_label = fgettext("Browse online content")
+		contentdb_label = fgettext("Browse Packages")
 	else
 		-- TRANSLATORS: $1 = number of available updates
-		contentdb_label = fgettext("Browse online content [$1]", update_count)
+		contentdb_label = fgettext("Browse Packages [$1]", update_count)
 	end
 
 	local retval = {
@@ -76,7 +76,8 @@ local function get_formspec(tabview, name, tabdata)
 		pkgmgr.render_packagelist(packages, use_technical_names, update_icons),
 		";", tabdata.selected_pkg, "]",
 
-		"button[0.4,5.8;6.3,0.9;btn_contentdb;", contentdb_label, "]"
+		"button[0.4,5.8;3.1,0.9;btn_contentdb;", contentdb_label, "]",
+		"button[3.6,5.8;3.1,0.9;btn_import_pkg;", fgettext("Import Packages"), "]"
 	}
 
 	local selected_pkg
@@ -208,7 +209,41 @@ local function handle_doubleclick(pkg)
 	end
 end
 
+local function import_package(zip_path)
+	local basename = get_last_folder(zip_path):gsub("%.zip$", "")
+	local tempfolder = core.get_temp_path()
+
+	if tempfolder ~= "" and core.extract_zip(zip_path, tempfolder) then
+		local basefolder = pkgmgr.get_base_folder(tempfolder)
+		if basefolder and basefolder.type ~= "invalid" then
+			local type = basefolder.type
+			if type == "modpack" then
+				type = "mod"
+			end
+
+			local _, err = pkgmgr.install_dir(type, tempfolder, basename)
+			if err then
+				messagebox("import_pkg_error", fgettext("Failed to import: $1", err))
+			else
+				messagebox("import_pkg_success", fgettext("Successfully imported $1", basename))
+				pkgmgr.reload_by_type(type)
+				update_packages()
+			end
+		else
+			messagebox("import_pkg_error", fgettext("Failed to import: Could not find a valid mod, modpack, game, or texture pack in the archive."))
+		end
+		core.delete_dir(tempfolder)
+	else
+		messagebox("import_pkg_error", fgettext("Failed to import: Could not extract zip file."))
+	end
+end
+
 local function handle_buttons(tabview, fields, tabname, tabdata)
+
+	if fields.dlg_import_pkg_accepted then
+		import_package(fields.dlg_import_pkg_accepted)
+		return true
+	end
 
 	if fields.pkglist then
 		local event = core.explode_table_event(fields.pkglist)
@@ -225,6 +260,12 @@ local function handle_buttons(tabview, fields, tabname, tabdata)
 		tabview:hide()
 		dlg:show()
 		packages = nil
+		return true
+	end
+
+	if fields.btn_import_pkg then
+		core.show_path_select_dialog("dlg_import_pkg",
+			fgettext("Select package file to import"), true)
 		return true
 	end
 

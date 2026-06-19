@@ -165,25 +165,25 @@ function pkgmgr.get_folder_type(path)
 		return { type = "mod", path = path }
 	end
 
-	testfile = io.open(path .. DIR_DELIM .. "modpack.conf","r")
+	local testfile = io.open(path .. DIR_DELIM .. "modpack.conf","r")
 	if testfile ~= nil then
 		testfile:close()
 		return { type = "modpack", path = path }
 	end
 
-	testfile = io.open(path .. DIR_DELIM .. "modpack.txt","r")
+	local testfile = io.open(path .. DIR_DELIM .. "modpack.txt","r")
 	if testfile ~= nil then
 		testfile:close()
 		return { type = "modpack", path = path }
 	end
 
-	testfile = io.open(path .. DIR_DELIM .. "game.conf","r")
+	local testfile = io.open(path .. DIR_DELIM .. "game.conf","r")
 	if testfile ~= nil then
 		testfile:close()
 		return { type = "game", path = path }
 	end
 
-	testfile = io.open(path .. DIR_DELIM .. "texture_pack.conf","r")
+	local testfile = io.open(path .. DIR_DELIM .. "texture_pack.conf","r")
 	if testfile ~= nil then
 		testfile:close()
 		return { type = "txp", path = path }
@@ -562,7 +562,7 @@ function pkgmgr.install_dir(expected_type, path, basename, targetpath)
 		elseif basefolder.type == "game" then
 			content_path = core.get_gamepath()
 		else
-			error("Unknown content type")
+			error("Unknown content type: " .. basefolder.type)
 		end
 
 		if basename and (basefolder.type ~= "mod" or pkgmgr.is_valid_modname(basename)) then
