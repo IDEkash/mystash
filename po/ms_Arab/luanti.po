@@ -1300,12 +1300,12 @@ msgid "Share debug log"
 msgstr "تونجوقکن معلومت ڽهڤڤيجت"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "لايري کاندوڠن دالم تالين"
 
 #: builtin/mainmenu/tab_content.lua
 #, fuzzy
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "لايري کندوڠن دالم تالين"
 
 #: builtin/mainmenu/tab_content.lua

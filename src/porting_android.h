@@ -44,6 +44,11 @@ void showComboBoxDialog(const std::string *optionList, s32 listSize, s32 selecte
 void shareFileAndroid(const std::string &path);
 
 /**
+ * Opens a file picker intent
+ */
+void showFilePickerAndroid();
+
+/**
  * Shows/hides notification that the game is running
  *
  * @param show whether to show/hide the notification

@@ -1307,11 +1307,11 @@ msgid "Share debug log"
 msgstr "Hata ayıklama günlüğünü paylaş"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "Çevrim içi içeriğe göz at"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "Çevrim içi içeriğe göz at [$1]"
 
 #: builtin/mainmenu/tab_content.lua

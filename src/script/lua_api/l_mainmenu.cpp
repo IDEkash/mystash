@@ -1069,6 +1069,14 @@ int ModApiMainMenu::l_show_path_select_dialog(lua_State *L)
 	const char *title	= luaL_checkstring(L, 2);
 	bool is_file_select = readParam<bool>(L, 3);
 
+#ifdef __ANDROID__
+	if (is_file_select) {
+		engine->m_jni_field_name = formname;
+		porting::showFilePickerAndroid();
+		return 0;
+	}
+#endif
+
 	GUIFileSelectMenu* fileOpenMenu =
 		new GUIFileSelectMenu(engine->m_rendering_engine->get_gui_env(),
 				engine->m_parent,

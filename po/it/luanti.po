@@ -1307,11 +1307,11 @@ msgid "Share debug log"
 msgstr "Condividi le informazioni di debug"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "Esplora i contenuti online"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "Esplora i contenuti online [$1]"
 
 #: builtin/mainmenu/tab_content.lua

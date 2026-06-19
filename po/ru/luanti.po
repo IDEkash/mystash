@@ -1303,11 +1303,11 @@ msgid "Share debug log"
 msgstr "Поделиться журналом отладки"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "Поиск онлайн контента"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "Поиск онлайн контента [$1]"
 
 #: builtin/mainmenu/tab_content.lua

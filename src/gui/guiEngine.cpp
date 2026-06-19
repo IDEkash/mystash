@@ -41,6 +41,28 @@ void TextDestGuiEngine::gotText(const StringMap &fields)
 	m_engine->getScriptIface()->handleMainMenuButtons(fields);
 }
 
+#ifdef __ANDROID__
+void GUIEngine::getAndroidUIInput()
+{
+	if (m_jni_field_name.empty())
+		return;
+
+	porting::AndroidDialogState dialogState = porting::getInputDialogState();
+	if (dialogState == porting::DIALOG_SHOWN)
+		return;
+
+	std::string fieldname = m_jni_field_name;
+	m_jni_field_name.clear();
+
+	if (dialogState == porting::DIALOG_CANCELED)
+		return;
+
+	StringMap fields;
+	fields[fieldname + "_accepted"] = porting::getInputDialogMessage();
+	m_buttonhandler->gotText(fields);
+}
+#endif
+
 void TextDestGuiEngine::requestScreenshot()
 {
 	if (m_engine) {
@@ -120,6 +142,9 @@ GUIEngine::GUIEngine(JoystickController *joystick,
 	m_smgr(rendering_engine->get_scene_manager()),
 	m_data(data),
 	m_kill(kill)
+#ifdef __ANDROID__
+	, m_jni_field_name("")
+#endif
 {
 	// Go back to our mainmenu fonts
 	// Delayed until mainmenu initialization because of #15883
@@ -390,7 +415,9 @@ void GUIEngine::run()
 		m_sound_manager->step(dtime);
 
 #ifdef __ANDROID__
-		m_menu->getAndroidUIInput();
+		getAndroidUIInput();
+		if (m_menu)
+			m_menu->getAndroidUIInput();
 #endif
 	}
 	framemarker.end();

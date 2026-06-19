@@ -1279,11 +1279,11 @@ msgid "Share debug log"
 msgstr "디버그 로그 공유"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "온라인 컨텐츠 검색"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "온라인 컨텐츠 검색 [$1]"
 
 #: builtin/mainmenu/tab_content.lua

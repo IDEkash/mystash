@@ -231,6 +231,20 @@ void openURIAndroid(const char *url)
 	if (jurl) env->DeleteLocalRef(jurl);
 }
 
+void showFilePickerAndroid()
+{
+	JNIEnv *env = getJNIEnv();
+
+	static jmethodID picker = nullptr;
+	if (!picker) {
+		picker = env->GetMethodID(activityClass, "showFilePicker", "()V");
+		sanity_check(picker != nullptr &&
+			"porting::showFilePickerAndroid unable to find Java showFilePicker method");
+	}
+
+	env->CallVoidMethod(activity, picker);
+}
+
 void shareFileAndroid(const std::string &path)
 {
 	JNIEnv *env = getJNIEnv();

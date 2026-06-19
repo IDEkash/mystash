@@ -1298,11 +1298,11 @@ msgid "Share debug log"
 msgstr "Споделяне на дневник за отстраняване на дефекти"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "Преглед на съдържание онлайн"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "Преглед на съдържание онлайн [$1]"
 
 #: builtin/mainmenu/tab_content.lua

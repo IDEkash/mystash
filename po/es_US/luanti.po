@@ -1299,11 +1299,11 @@ msgid "Share debug log"
 msgstr "Compartir registro de depuración"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "Explorar contenido en línea"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "Explorar contenido en linea [$1]"
 
 #: builtin/mainmenu/tab_content.lua

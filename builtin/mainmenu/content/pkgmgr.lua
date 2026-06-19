@@ -561,6 +561,8 @@ function pkgmgr.install_dir(expected_type, path, basename, targetpath)
 			content_path = core.get_modpath()
 		elseif basefolder.type == "game" then
 			content_path = core.get_gamepath()
+		elseif basefolder.type == "csm" then
+			content_path = core.get_clientmodpath()
 		else
 			error("Unknown content type: " .. basefolder.type)
 		end
@@ -770,6 +772,8 @@ function pkgmgr.reload_by_type(type)
 		pkgmgr.reload_texture_packs()
 	elseif type == "mod" or type == "modpack" then
 		pkgmgr.reload_global_mods()
+	elseif type == "csm" then
+		-- No special reload for CSM needed currently as it's not shown in the list
 	else
 		error("Unknown package type: " .. type)
 	end

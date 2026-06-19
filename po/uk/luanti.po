@@ -1297,11 +1297,11 @@ msgid "Share debug log"
 msgstr "Ділитися зневадженням"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "Пошук контенту в мережі"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "Пошук контенту в мережі [$1]"
 
 #: builtin/mainmenu/tab_content.lua

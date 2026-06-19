@@ -1310,12 +1310,12 @@ msgid "Share debug log"
 msgstr "Dele feilsøkingslogg"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "Utforsk nettbasert innhold"
 
 #: builtin/mainmenu/tab_content.lua
 #, fuzzy
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "Utforsk nettbasert innhold"
 
 #: builtin/mainmenu/tab_content.lua

@@ -1309,11 +1309,11 @@ msgid "Share debug log"
 msgstr "Sdílet debug log"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "Procházet online obsah"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "Procházet online obsah [$1]"
 
 #: builtin/mainmenu/tab_content.lua

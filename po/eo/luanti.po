@@ -1289,11 +1289,11 @@ msgid "Share debug log"
 msgstr "Montri erarserĉajn protokolon"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "Foliumi enretan enhavon"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "Foliumi ĉeretajn pakaĵojn [$1]"
 
 #: builtin/mainmenu/tab_content.lua

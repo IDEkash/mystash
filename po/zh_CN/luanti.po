@@ -1270,11 +1270,11 @@ msgid "Share debug log"
 msgstr "分享调试日志"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "浏览在线内容"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "浏览在线内容 [$1]"
 
 #: builtin/mainmenu/tab_content.lua

@@ -1299,11 +1299,11 @@ msgid "Share debug log"
 msgstr "Del fejlretningslog"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "Gennemse online indhold"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "Gennemse online indhold [$1]"
 
 #: builtin/mainmenu/tab_content.lua

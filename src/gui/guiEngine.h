@@ -182,6 +182,11 @@ private:
 	/** run main menu loop */
 	void run();
 
+#ifdef __ANDROID__
+	void getAndroidUIInput();
+	std::string m_jni_field_name;
+#endif
+
 	/** update size of topleftext element */
 	void updateTopLeftTextSize();
 

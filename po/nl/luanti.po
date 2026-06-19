@@ -1311,12 +1311,12 @@ msgid "Share debug log"
 msgstr "Toon debug informatie"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "Content op internet bekijken"
 
 #: builtin/mainmenu/tab_content.lua
 #, fuzzy
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "Content op internet bekijken"
 
 #: builtin/mainmenu/tab_content.lua

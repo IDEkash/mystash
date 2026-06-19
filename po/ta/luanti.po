@@ -1294,11 +1294,11 @@ msgid "Share debug log"
 msgstr "பிழைத்திருத்த பதிவைப் பகிரவும்"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "நிகழ்நிலை உள்ளடக்கத்தை உலாவுக"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "நிகழ்நிலை உள்ளடக்கத்தை உலாவுக [$ 1]"
 
 #: builtin/mainmenu/tab_content.lua

@@ -1296,11 +1296,11 @@ msgid "Share debug log"
 msgstr "Μοιράσμος καταγραφών αποσφαλμάτωσης"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "Περιήγηση διαδικτυακού περιεχομένου"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "Περιήγηση διαδικτυακού περιεχομένου [$1]"
 
 #: builtin/mainmenu/tab_content.lua

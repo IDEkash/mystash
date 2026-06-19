@@ -1298,12 +1298,12 @@ msgid "Share debug log"
 msgstr "Partatjar lo jornau de debug"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "Navigar per lo contengut en linha"
 
 #: builtin/mainmenu/tab_content.lua
 #, fuzzy
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "Navigar per lo contengut en linha"
 
 #: builtin/mainmenu/tab_content.lua

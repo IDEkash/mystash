@@ -1,10 +1,14 @@
 package net.minetest.minetest;
 
 import android.content.Context;
+import android.net.Uri;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.util.Objects;
 
 public class Utils {
@@ -41,5 +45,23 @@ public class Utils {
 			new File(userDataDirectory, "builtin").isDirectory() &&
 			new File(userDataDirectory, "client").isDirectory() &&
 			new File(userDataDirectory, "textures").isDirectory();
+	}
+
+	public static File copyUriToTempFile(Context context, Uri uri) {
+		try (InputStream inputStream = context.getContentResolver().openInputStream(uri)) {
+			if (inputStream == null) return null;
+			File tempFile = File.createTempFile("import_", ".zip", context.getCacheDir());
+			try (FileOutputStream outputStream = new FileOutputStream(tempFile)) {
+				byte[] buffer = new byte[8192];
+				int length;
+				while ((length = inputStream.read(buffer)) > 0) {
+					outputStream.write(buffer, 0, length);
+				}
+				return tempFile;
+			}
+		} catch (Exception e) {
+			Log.e("Utils", "Failed to copy URI to temp file", e);
+			return null;
+		}
 	}
 }

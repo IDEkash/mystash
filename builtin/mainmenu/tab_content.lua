@@ -209,6 +209,18 @@ local function handle_doubleclick(pkg)
 	end
 end
 
+local function do_import(type, tempfolder, basename)
+	local _, err = pkgmgr.install_dir(type, tempfolder, basename)
+	if err then
+		messagebox("import_pkg_error", fgettext("Failed to import: $1", err))
+	else
+		messagebox("import_pkg_success", fgettext("Successfully imported $1", basename))
+		pkgmgr.reload_by_type(type)
+		update_packages()
+	end
+	core.delete_dir(tempfolder)
+end
+
 local function import_package(zip_path)
 	local basename = get_last_folder(zip_path):gsub("%.zip$", "")
 	local tempfolder = core.get_temp_path()
@@ -221,18 +233,33 @@ local function import_package(zip_path)
 				type = "mod"
 			end
 
-			local _, err = pkgmgr.install_dir(type, tempfolder, basename)
-			if err then
-				messagebox("import_pkg_error", fgettext("Failed to import: $1", err))
+			if type == "mod" then
+				local dlg = dialog_create("dlg_import_choose_type",
+					function(data)
+						return "size[6,3]label[0.5,0.5;" .. fgettext("Is this a Client-Side Mod (CSM)?") .. "]" ..
+							"button[0.5,1.5;2.4,0.8;btn_import_ssm;" .. fgettext("No (SSM)") .. "]" ..
+							"button[3.1,1.5;2.4,0.8;btn_import_csm;" .. fgettext("Yes (CSM)") .. "]"
+					end,
+					function(this, fields)
+						if fields.btn_import_ssm then
+							do_import("mod", tempfolder, basename)
+							this:delete()
+							return true
+						end
+						if fields.btn_import_csm then
+							do_import("csm", tempfolder, basename)
+							this:delete()
+							return true
+						end
+					end)
+				dlg:show()
 			else
-				messagebox("import_pkg_success", fgettext("Successfully imported $1", basename))
-				pkgmgr.reload_by_type(type)
-				update_packages()
+				do_import(type, tempfolder, basename)
 			end
 		else
 			messagebox("import_pkg_error", fgettext("Failed to import: Could not find a valid mod, modpack, game, or texture pack in the archive."))
+			core.delete_dir(tempfolder)
 		end
-		core.delete_dir(tempfolder)
 	else
 		messagebox("import_pkg_error", fgettext("Failed to import: Could not extract zip file."))
 	end

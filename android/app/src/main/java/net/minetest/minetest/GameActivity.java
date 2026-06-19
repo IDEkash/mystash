@@ -363,6 +363,39 @@ public class GameActivity extends SDLActivity {
 		startActivity(shareIntent);
 	}
 
+	public static final int REQUEST_CODE_PICK_FILE = 1002;
+
+	public void showFilePicker() {
+		Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+		intent.setType("application/zip");
+		intent.addCategory(Intent.CATEGORY_OPENABLE);
+		try {
+			startActivityForResult(Intent.createChooser(intent, "Select Package"), REQUEST_CODE_PICK_FILE);
+		} catch (ActivityNotFoundException e) {
+			runOnUiThread(() -> Toast.makeText(this, "No file manager found", Toast.LENGTH_SHORT).show());
+		}
+	}
+
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		super.onActivityResult(requestCode, resultCode, data);
+		if (requestCode == REQUEST_CODE_PICK_FILE) {
+			if (resultCode == RESULT_OK && data != null) {
+				Uri uri = data.getData();
+				if (uri != null) {
+					File file = Utils.copyUriToTempFile(this, uri);
+					if (file != null) {
+						lastDialogType = DialogType.TEXT_INPUT;
+						inputDialogState = DialogState.DIALOG_INPUTTED;
+						messageReturnValue = file.getAbsolutePath();
+					}
+				}
+			} else {
+				inputDialogState = DialogState.DIALOG_CANCELED;
+			}
+		}
+	}
+
 	public String getLanguage() {
 		String langCode = Locale.getDefault().getLanguage();
 

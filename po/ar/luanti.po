@@ -1307,12 +1307,12 @@ msgid "Share debug log"
 msgstr "مشاركة سجل التصحيح"
 
 #: builtin/mainmenu/tab_content.lua
-msgid "Browse online content"
+msgid "Browse Packages"
 msgstr "تصفح المحتوى عبر الانترنت"
 
 #: builtin/mainmenu/tab_content.lua
 #, fuzzy
-msgid "Browse online content [$1]"
+msgid "Browse Packages [$1]"
 msgstr "تصفح المحتوى عبر الانترنت"
 
 #: builtin/mainmenu/tab_content.lua
