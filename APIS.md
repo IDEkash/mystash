@@ -189,7 +189,7 @@ glTF/GLB meshes can contain multiple animations. This fork loads each glTF `anim
 `ObjectRef:set_animation(opts)`
 - New table form (pass only what you need):
   - `clip`: number (0-based index) or string (clip name)
-  - `range` / `frame_range`: `{x=..., y=...}`
+  - `range` / `frame_range`: `{x=..., y=...}` (defaults to the entire clip duration if `clip` is specified, otherwise `{1, 1}`)
   - `frame`: number (sets `{frame, frame}`)
   - `speed` / `frame_speed`: number
   - `speed_scale`: number (multiplies the chosen speed)

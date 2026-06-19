@@ -416,7 +416,8 @@ int ObjectRef::l_set_animation(lua_State *L)
 
 	if (lua_istable(L, 2)) {
 		int opts = 2;
-		v2f frame_range(1, 1);
+		v2f frame_range(0, 0);
+		bool range_set = false;
 		float frame_speed = 15.0f;
 		float frame_blend = 0.1f;
 		bool frame_loop = true;
@@ -433,6 +434,7 @@ int ObjectRef::l_set_animation(lua_State *L)
 		if (lua_isnumber(L, -1)) {
 			float f = (float)lua_tonumber(L, -1);
 			frame_range = v2f(f, f);
+			range_set = true;
 		}
 		lua_pop(L, 1);
 
@@ -443,8 +445,10 @@ int ObjectRef::l_set_animation(lua_State *L)
 		}
 		if (!lua_isnil(L, -1)) {
 			v2f r = read_v2f(L, -1);
-			if (std::isfinite(r.X) && std::isfinite(r.Y))
+			if (std::isfinite(r.X) && std::isfinite(r.Y)) {
 				frame_range = r;
+				range_set = true;
+			}
 		}
 		lua_pop(L, 1);
 
@@ -508,6 +512,8 @@ int ObjectRef::l_set_animation(lua_State *L)
 		}
 		lua_pop(L, 1);
 
+		if (!range_set)
+			frame_range = v2f(1, 1);
 		sao->setAnimation(frame_range, frame_speed, frame_blend, frame_loop);
 		return 0;
 	}
@@ -544,7 +550,7 @@ int ObjectRef::l_set_animation_clip(lua_State *L)
 		clip_name = readParam<std::string>(L, 2);
 	}
 
-	v2f frame_range = readParam<v2f>(L, 3, v2f(1, 1));
+	v2f frame_range = readParam<v2f>(L, 3, v2f(0, 0));
 	float frame_speed = readParam<float>(L, 4, 15.0f);
 	float frame_blend = readParam<float>(L, 5, 0.1f);
 	bool frame_loop = readParam<bool>(L, 6, true);
