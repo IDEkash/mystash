@@ -222,18 +222,37 @@ local function do_import(type, tempfolder, basename)
 end
 
 local function import_package(zip_path)
-	local basename = get_last_folder(zip_path):gsub("%.zip$", "")
+	local filename = zip_path:match("^.+[/\\]([^/\\]+)$") or zip_path
 	local tempfolder = core.get_temp_path()
 
 	if tempfolder ~= "" and core.extract_zip(zip_path, tempfolder) then
 		local basefolder = pkgmgr.get_base_folder(tempfolder)
-		if basefolder and basefolder.type ~= "invalid" then
-			local type = basefolder.type
-			if type == "modpack" then
-				type = "mod"
-			end
+		local type
+		local basename
 
-			if type == "mod" then
+		local has_prefix = true
+		if filename:sub(1, 4) == "mod_" then
+			type = "mod"
+			basename = filename:sub(5):gsub("%.zip$", "")
+		elseif filename:sub(1, 4) == "res_" then
+			type = "txp"
+			basename = filename:sub(5):gsub("%.zip$", "")
+		elseif filename:sub(1, 4) == "csm_" then
+			type = "csm"
+			basename = filename:sub(5):gsub("%.zip$", "")
+		else
+			has_prefix = false
+			if basefolder and basefolder.type ~= "invalid" then
+				type = basefolder.type
+				basename = filename:gsub("%.zip$", "")
+				if type == "modpack" then
+					type = "mod"
+				end
+			end
+		end
+
+		if type then
+			if type == "mod" and not has_prefix then
 				local dlg = dialog_create("dlg_import_choose_type",
 					function(data)
 						return "size[6,3]label[0.5,0.5;" .. fgettext("Is this a Client-Side Mod (CSM)?") .. "]" ..

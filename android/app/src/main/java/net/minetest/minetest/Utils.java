@@ -1,7 +1,9 @@
 package net.minetest.minetest;
 
 import android.content.Context;
+import android.database.Cursor;
 import android.net.Uri;
+import android.provider.OpenableColumns;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -47,10 +49,34 @@ public class Utils {
 			new File(userDataDirectory, "textures").isDirectory();
 	}
 
+	public static String getFileName(Context context, Uri uri) {
+		String result = null;
+		if (Objects.equals(uri.getScheme(), "content")) {
+			try (Cursor cursor = context.getContentResolver().query(uri, null, null, null, null)) {
+				if (cursor != null && cursor.moveToFirst()) {
+					int idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+					if (idx != -1) result = cursor.getString(idx);
+				}
+			}
+		}
+		if (result == null) {
+			result = uri.getPath();
+			if (result != null) {
+				int cut = result.lastIndexOf('/');
+				if (cut != -1) {
+					result = result.substring(cut + 1);
+				}
+			}
+		}
+		return result;
+	}
+
 	public static File copyUriToTempFile(Context context, Uri uri) {
+		String fileName = getFileName(context, uri);
+		if (fileName == null) fileName = "import.zip";
 		try (InputStream inputStream = context.getContentResolver().openInputStream(uri)) {
 			if (inputStream == null) return null;
-			File tempFile = File.createTempFile("import_", ".zip", context.getCacheDir());
+			File tempFile = new File(context.getCacheDir(), fileName);
 			try (FileOutputStream outputStream = new FileOutputStream(tempFile)) {
 				byte[] buffer = new byte[8192];
 				int length;
