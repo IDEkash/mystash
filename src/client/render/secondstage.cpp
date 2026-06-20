@@ -310,7 +310,7 @@ void CustomPostProcessingStep::configureMaterial()
 	m_material.ZWriteEnable = video::EZW_OFF;
 	for (u32 k = 0; k < video::MATERIAL_MAX_TEXTURES; ++k) {
 		m_material.TextureLayers[k].AnisotropicFilter = 0;
-		m_material.TextureLayers[k].MinFilter = video::ETMINF_LINEAR;
+		m_material.TextureLayers[k].MinFilter = video::ETMINF_LINEAR_MIPMAP_NEAREST;
 		m_material.TextureLayers[k].MagFilter = video::ETMAGF_LINEAR;
 		m_material.TextureLayers[k].TextureWrapU = video::ETC_CLAMP_TO_EDGE;
 		m_material.TextureLayers[k].TextureWrapV = video::ETC_CLAMP_TO_EDGE;
