@@ -150,7 +150,33 @@ void populatePlainPipeline(RenderPipeline *pipeline, Client *client)
 
 	step3D = addUpscaling(pipeline, step3D, downscale_factor, client);
 
-	step3D->setRenderTarget(pipeline->createOwned<ScreenTarget>());
+	// Custom post-processing passes from Lua
+	if (g_settings->getBool("enable_post_processing")) {
+		// To support custom post-processing, we need a stable texture to read from.
+		// addPostProcessing already creates a pipeline with its own textures.
+		// In create3DStage, if post processing is enabled, it returns a RenderPipeline
+		// that contains Draw3D and the effects.
+
+		// If we want to add custom effects, we should ideally append them to THAT pipeline.
+		// But populatePlainPipeline is higher level.
+
+		// Let's simplify: CustomPostProcessingStep will read from a dedicated texture
+		// if we redirect step3D to it.
+
+		auto driver = client->getSceneManager()->getVideoDriver();
+		video::ECOLOR_FORMAT color_format = selectColorFormat(driver);
+
+		TextureBuffer *buffer = pipeline->createOwned<TextureBuffer>();
+		buffer->setTexture(0, v2f(1.0f), "post_3d_output", color_format);
+
+		step3D->setRenderTarget(pipeline->createOwned<TextureBufferOutput>(buffer, 0));
+
+		auto custom_pp = pipeline->addStep<CustomPostProcessingStep>(client, pipeline);
+		custom_pp->setRenderSource(buffer);
+		custom_pp->setRenderTarget(pipeline->createOwned<ScreenTarget>());
+	} else {
+		step3D->setRenderTarget(pipeline->createOwned<ScreenTarget>());
+	}
 
 	pipeline->addStep<DrawHUD>();
 }

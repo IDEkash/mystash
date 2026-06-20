@@ -4,6 +4,7 @@
 // Copyright (C) 2017 nerzhul, Loic Blot <loic.blot@unix-experience.fr>
 
 #include "l_client.h"
+#include "l_visuals.h"
 #include "chatmessage.h"
 #include "client/client.h"
 #include "client/sound.h"
@@ -355,6 +356,8 @@ void ModApiClient::Initialize(lua_State *L, int top)
 	API_FCT(get_builtin_path);
 	API_FCT(get_language);
 	API_FCT(get_csm_restrictions);
+
+	ModApiVisuals::Initialize(L, top);
 }
 
 void ModApiClient::InitializeSSCSM(lua_State *L, int top)

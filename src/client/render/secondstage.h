@@ -57,4 +57,28 @@ private:
 };
 
 
+class CustomPostProcessingStep : public RenderStep
+{
+public:
+	CustomPostProcessingStep(Client *client, RenderPipeline *pipeline);
+
+	void setRenderSource(RenderSource *source) override;
+	void setRenderTarget(RenderTarget *target) override;
+	void reset(PipelineContext &context) override;
+	void run(PipelineContext &context) override;
+
+private:
+	Client *m_client;
+	RenderPipeline *m_pipeline;
+	RenderSource *m_source { nullptr };
+	RenderTarget *m_target { nullptr };
+	video::SMaterial m_material;
+
+	TextureBuffer *m_pingpong_buffer { nullptr };
+	TextureBufferOutput *m_pingpong_outputs[2] { nullptr, nullptr };
+
+	void configureMaterial();
+	void ensurePingPongBuffer(PipelineContext &context);
+};
+
 RenderStep *addPostProcessing(RenderPipeline *pipeline, RenderStep *previousStep, v2f scale, Client *client);

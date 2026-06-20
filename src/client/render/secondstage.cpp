@@ -7,6 +7,7 @@
 #include "secondstage.h"
 #include "client/client.h"
 #include "client/shader.h"
+#include "client/visuals_manager.h"
 #include "settings.h"
 #include "plain.h"
 #include <ISceneManager.h>
@@ -294,4 +295,136 @@ void ResolveMSAAStep::run(PipelineContext &context)
 {
 	context.device->getVideoDriver()->blitRenderTarget(msaa_fbo->getIrrRenderTarget(context),
 			target_fbo->getIrrRenderTarget(context));
+}
+
+CustomPostProcessingStep::CustomPostProcessingStep(Client *client, RenderPipeline *pipeline) :
+	m_client(client), m_pipeline(pipeline)
+{
+	configureMaterial();
+}
+
+void CustomPostProcessingStep::configureMaterial()
+{
+	m_material.UseMipMaps = false;
+	m_material.ZBuffer = video::ECFN_DISABLED;
+	m_material.ZWriteEnable = video::EZW_OFF;
+	for (u32 k = 0; k < video::MATERIAL_MAX_TEXTURES; ++k) {
+		m_material.TextureLayers[k].AnisotropicFilter = 0;
+		m_material.TextureLayers[k].MinFilter = video::ETMINF_LINEAR;
+		m_material.TextureLayers[k].MagFilter = video::ETMAGF_LINEAR;
+		m_material.TextureLayers[k].TextureWrapU = video::ETC_CLAMP_TO_EDGE;
+		m_material.TextureLayers[k].TextureWrapV = video::ETC_CLAMP_TO_EDGE;
+	}
+}
+
+void CustomPostProcessingStep::setRenderSource(RenderSource *source)
+{
+	m_source = source;
+}
+
+void CustomPostProcessingStep::setRenderTarget(RenderTarget *target)
+{
+	m_target = target;
+}
+
+void CustomPostProcessingStep::reset(PipelineContext &context)
+{
+	if (m_pingpong_buffer)
+		m_pingpong_buffer->reset(context);
+}
+
+void CustomPostProcessingStep::ensurePingPongBuffer(PipelineContext &context)
+{
+	if (!m_pingpong_buffer) {
+		m_pingpong_buffer = m_pipeline->createOwned<TextureBuffer>();
+		auto driver = context.device->getVideoDriver();
+		video::ECOLOR_FORMAT color_format = selectColorFormat(driver);
+		m_pingpong_buffer->setTexture(0, v2f(1.0f), "custom_pp_ping", color_format);
+		m_pingpong_buffer->setTexture(1, v2f(1.0f), "custom_pp_pong", color_format);
+		m_pingpong_buffer->reset(context);
+		m_pingpong_outputs[0] = m_pipeline->createOwned<TextureBufferOutput>(m_pingpong_buffer, (u8)0);
+		m_pingpong_outputs[1] = m_pipeline->createOwned<TextureBufferOutput>(m_pingpong_buffer, (u8)1);
+	}
+}
+
+void CustomPostProcessingStep::run(PipelineContext &context)
+{
+	VisualsManager *vm = m_client->getVisualsManager();
+	if (!vm)
+		return;
+
+	const auto &passes = vm->getPasses();
+	if (passes.empty()) {
+		// Just copy source to target
+		if (m_target)
+			m_target->activate(context);
+
+		auto driver = context.device->getVideoDriver();
+		driver->draw2DImage(m_source->getTexture(0),
+				core::rect<s32>(0, 0, context.target_size.X, context.target_size.Y),
+				core::rect<s32>(0, 0, context.target_size.X, context.target_size.Y));
+		return;
+	}
+
+	auto driver = context.device->getVideoDriver();
+	static const video::SColor color = video::SColor(255, 255, 255, 255);
+	static const video::S3DVertex vertices[4] = {
+			video::S3DVertex(1.0, -1.0, 0.0, 0.0, 0.0, -1.0,
+					color, 1.0, 1.0),
+			video::S3DVertex(-1.0, -1.0, 0.0, 0.0, 0.0, -1.0,
+					color, 0.0, 1.0),
+			video::S3DVertex(-1.0, 1.0, 0.0, 0.0, 0.0, -1.0,
+					color, 0.0, 0.0),
+			video::S3DVertex(1.0, 1.0, 0.0, 0.0, 0.0, -1.0,
+					color, 1.0, 0.0),
+	};
+	static const u16 indices[6] = {0, 1, 2, 2, 3, 0};
+
+	ensurePingPongBuffer(context);
+
+	// RemappingSource to make pingpong buffer behave like it has texture 0 being the last output
+	RemappingSource pingSource0(m_pingpong_buffer);
+	RemappingSource pingSource1(m_pingpong_buffer);
+	pingSource0.setMapping(0, 0);
+	pingSource1.setMapping(0, 1);
+
+	RenderSource *current_source = m_source;
+	u8 last_pingpong_idx = 255;
+
+	for (size_t i = 0; i < passes.size(); ++i) {
+		const auto &pass = passes[i];
+
+		RenderTarget *current_target;
+		u8 next_pingpong_idx = (last_pingpong_idx == 0) ? 1 : 0;
+
+		if (i == passes.size() - 1) {
+			current_target = m_target;
+		} else {
+			current_target = m_pingpong_outputs[next_pingpong_idx];
+		}
+
+		if (current_target)
+			current_target->activate(context);
+
+		m_material.MaterialType = m_client->getShaderSource()->getShaderInfo(pass.shader_id).material;
+
+		for (u32 j = 0; j < pass.texture_map.size() && j < video::MATERIAL_MAX_TEXTURES; j++) {
+			u8 tex_idx = pass.texture_map[j];
+			if (tex_idx == 0) {
+				m_material.TextureLayers[j].Texture = current_source->getTexture(0);
+			} else {
+				m_material.TextureLayers[j].Texture = m_source->getTexture(tex_idx);
+			}
+		}
+
+		pass.setter->clearCache();
+
+		driver->setMaterial(m_material);
+		driver->drawVertexPrimitiveList(&vertices, 4, &indices, 2);
+
+		if (i < passes.size() - 1) {
+			last_pingpong_idx = next_pingpong_idx;
+			current_source = (last_pingpong_idx == 0) ? (RenderSource*)&pingSource0 : (RenderSource*)&pingSource1;
+		}
+	}
 }

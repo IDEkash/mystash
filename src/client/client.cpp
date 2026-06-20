@@ -24,6 +24,7 @@
 #include "gettime.h"
 #include "guiscalingfilter.h"
 #include "item_visuals_manager.h"
+#include "visuals_manager.h"
 #include "itemdef.h"
 #include "mapblock.h"
 #include "mapblock_mesh.h"
@@ -145,6 +146,7 @@ Client::Client(
 	m_event(event),
 	m_rendering_engine(rendering_engine),
 	m_item_visuals_manager(item_visuals_manager),
+	m_visuals_manager(new VisualsManager()),
 	m_mesh_update_manager(std::make_unique<MeshUpdateManager>(this)),
 	m_env(
 		make_irr<ClientMap>(this, rendering_engine, control, 666),

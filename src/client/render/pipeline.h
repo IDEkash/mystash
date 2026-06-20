@@ -210,7 +210,7 @@ public:
 	{
 		if (index >= m_mappings.size()) {
 			u8 start = m_mappings.size();
-			m_mappings.resize(index);
+			m_mappings.resize(index + 1);
 			for (u8 i = start; i < m_mappings.size(); ++i)
 				m_mappings[i] = i;
 		}

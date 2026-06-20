@@ -73,6 +73,7 @@ class UpscaleStep : public RenderStep
 public:
 
 	virtual void setRenderSource(RenderSource *source) override { m_source = source; }
+	RenderSource* getRenderSource() const { return m_source; }
 	virtual void setRenderTarget(RenderTarget *target) override { m_target = target; }
 	virtual void reset(PipelineContext &context) override {};
 	virtual void run(PipelineContext &context) override;

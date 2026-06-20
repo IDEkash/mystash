@@ -44,6 +44,7 @@ class NetworkPacket;
 class NodeDefManager;
 class ParticleManager;
 class RenderingEngine;
+class VisualsManager;
 class SingleMediaDownloader;
 class ClientScripting;
 class SSCSMController;
@@ -363,6 +364,8 @@ public:
 	Minimap* getMinimap() { return m_minimap.get(); }
 	void setCamera(Camera* camera) { m_camera = camera; }
 
+	VisualsManager *getVisualsManager() { return m_visuals_manager.get(); }
+
 	Camera* getCamera () { return m_camera; }
 	scene::ISceneManager *getSceneManager();
 
@@ -484,6 +487,7 @@ private:
 	MtEventManager *m_event;
 	RenderingEngine *m_rendering_engine;
 	ItemVisualsManager *m_item_visuals_manager;
+	std::unique_ptr<VisualsManager> m_visuals_manager;
 
 
 	std::unique_ptr<MeshUpdateManager> m_mesh_update_manager;
