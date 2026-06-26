@@ -50,7 +50,7 @@ function make.heading(text, info_text)
 		full_width = true,
 		info_text = info_text,
 		get_formspec = function(self, avail_w)
-			return ("label[0,0.6;%s]box[0,0.9;%f,0.05;#ccc6]"):format(core.formspec_escape(text), avail_w), 1.2
+			return ("label[0,0.6;%s]box[0,0.9;%f,0.05;#ffffff44;1]"):format(core.formspec_escape(text), avail_w), 1.2
 		end,
 	}
 end
@@ -101,9 +101,10 @@ local function make_field(converter, validator, stringifier)
 				self.resettable = core.settings:has(setting.name)
 
 				local fs = ("field[0,0.3;%f,0.8;%s;%s;%s]"):format(
-					avail_w - 1.5, setting.name, get_label(setting), core.formspec_escape(value))
+					avail_w - 1.6, setting.name, get_label(setting), core.formspec_escape(value))
 				fs = fs .. ("field_enter_after_edit[%s;true]"):format(setting.name)
 				fs = fs .. ("field_close_on_enter[%s;false]"):format(setting.name) -- for pause menu env
+				fs = fs .. ("style[set_%s;bgcolor=#467832;textcolor=#ffffff]"):format(setting.name)
 				fs = fs .. ("button[%f,0.3;1.5,0.8;%s;%s]"):format(avail_w - 1.5, "set_" .. setting.name, fgettext("Set"))
 
 				return fs, 1.1

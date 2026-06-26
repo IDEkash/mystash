@@ -8,7 +8,7 @@ local function exit_dialog_formspec()
 	local formspec = {
 		"formspec_version[10]" ..
 		"size[10,3.6]" ..
-		"style_type[label;font=bold]" ..
+		"style_type[label;font_style=bold]" ..
 		"style[btn_quit_confirm_yes;bgcolor=red]" ..
 		"label[0.5,0.5;" .. fgettext("Are you sure you want to quit?") .. "]" ..
 		"checkbox[0.5,1.4;cb_show_dialog;" .. fgettext("Always show this dialog.") .. ";" .. tostring(show_dialog) .. "]" ..

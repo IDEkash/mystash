@@ -59,7 +59,11 @@ end
 
 function ui.update()
 	ui.overridden = false
-	local formspec = {}
+	local formspec = {
+		"style_type[button,image_button,field,pwdfield,textarea,checkbox,dropdown,listbox,textlist,tabheader;border_radius=8]",
+		"style_type[button:hover,image_button:hover;bgcolor=#ffffff22]",
+		"style_type[button:pressed,image_button:pressed;bgcolor=#ffffff44]",
+	}
 
 	-- handle errors
 	if gamedata ~= nil and gamedata.reconnect_requested then

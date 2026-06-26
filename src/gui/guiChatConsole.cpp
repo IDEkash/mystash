@@ -298,6 +298,14 @@ void GUIChatConsole::drawBackground()
 			m_background_color,
 			core::rect<s32>(0, 0, m_screensize.X, m_height),
 			&AbsoluteClippingRect);
+
+		// Add a subtle bottom border
+		video::SColor border_color = m_background_color;
+		border_color.setAlpha(clamp_u8(m_background_color.getAlpha() + 40));
+		driver->draw2DRectangle(
+			border_color,
+			core::rect<s32>(0, m_height - 2, m_screensize.X, m_height),
+			&AbsoluteClippingRect);
 	}
 }
 
@@ -376,6 +384,13 @@ void GUIChatConsole::drawPrompt()
 
 	core::rect<s32> destrect(
 		font_width, y, font_width + text_width, y + font_height);
+
+	// Draw prompt background
+	video::IVideoDriver* driver = Environment->getVideoDriver();
+	video::SColor prompt_bg_color(clamp_u8(m_background_color.getAlpha() / 2), 0, 0, 0);
+	core::rect<s32> prompt_bg_rect(0, y, m_screensize.X, y + font_height);
+	driver->draw2DRectangle(prompt_bg_color, prompt_bg_rect, &AbsoluteClippingRect);
+
 	m_font->draw(
 		prompt_text.c_str(),
 		destrect,

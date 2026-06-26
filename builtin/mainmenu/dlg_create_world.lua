@@ -316,6 +316,7 @@ local function create_world_formspec(dialogdata)
 
 		-- Menu buttons
 		"container[0,6.9]"..
+		"style[world_create_confirm;bgcolor=#467832;textcolor=#ffffff;font_style=bold]" ..
 		"button[3.25,0;3,0.5;world_create_confirm;" .. fgettext("Create") .. "]" ..
 		"button[6.25,0;3,0.5;world_create_cancel;" .. fgettext("Cancel") .. "]" ..
 		"container_end[]"

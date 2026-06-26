@@ -123,9 +123,9 @@ local function get_formspec(data)
 		"button[0,", bottom_buttons_y, ";2,0.8;back;", fgettext("Back"), "]",
 		"button[", W - 3, ",", bottom_buttons_y, ";3,0.8;open_contentdb;", fgettext("ContentDB page"), "]",
 
-		"style_type[label;font_size=+24;font=bold]",
+		"style_type[label;font_size=+24;font_style=bold]",
 		"label[0,0.4;", core.formspec_escape(package.title), "]",
-		"style_type[label;font_size=;font=]",
+		"style_type[label;font_size=;font_style=]",
 
 		"label[0,1.2;", core.formspec_escape(info_line), "]",
 	}

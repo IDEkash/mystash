@@ -171,12 +171,13 @@ local function get_formspec(tabview, name, tabdata)
 		table.insert_all(retval, {
 			"image[7.1,0.2;3,2;", core.formspec_escape(modscreenshot), "]",
 			"label[10.5,1;", core.formspec_escape(title_and_name), "]",
-			"box[7.1,2.4;8,", tostring(desc_height), ";#000]",
+		"box[7.1,2.4;8,", tostring(desc_height), ";#0000008C;8]",
 			"textarea[7.1,2.4;8,", tostring(desc_height), ";;;", desc, "]",
 		})
 
 		if core.may_modify_path(selected_pkg.path) then
 			table.insert_all(retval, {
+			"style[btn_mod_mgr_delete_mod;bgcolor=#cc0000;textcolor=#ffffff]",
 				"button[7.1,5.8;4,0.9;btn_mod_mgr_delete_mod;",
 				fgettext("Uninstall"), "]"
 			})
@@ -184,6 +185,7 @@ local function get_formspec(tabview, name, tabdata)
 
 		if update_icons[selected_pkg.virtual_path or selected_pkg.path] then
 			table.insert_all(retval, {
+			"style[btn_mod_mgr_update;bgcolor=#467832;textcolor=#ffffff]",
 				"button[11.1,5.8;4,0.9;btn_mod_mgr_update;",
 				fgettext("Update"), "]"
 			})
