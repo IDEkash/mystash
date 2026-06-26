@@ -155,22 +155,29 @@ end
 
 --------------------------------------------------------------------------------
 local function tab_header(self, size)
-	local toadd = ""
+	local toadd = "container[" .. self.header_x .. "," .. self.header_y .. "]"
+	local x = 0
+	local tab_w = size.width / #self.tablist
 
 	for i = 1, #self.tablist do
-		if toadd ~= "" then
-			toadd = toadd .. ","
-		end
-
 		local caption = self.tablist[i].caption
 		if type(caption) == "function" then
 			caption = caption(self)
 		end
 
-		toadd = toadd .. caption
+		local btn_name = self.name .. "_tab_" .. i
+		if i == self.last_tab_index then
+			toadd = toadd .. ("style[%s;bgcolor=#ffffff40;font=bold]"):format(btn_name)
+		else
+			toadd = toadd .. ("style[%s;bgcolor=#ffffff10]"):format(btn_name)
+		end
+
+		toadd = toadd .. ("button[%f,0;%f,%f;%s;%s]"):format(
+			x, tab_w, size.height, btn_name, core.formspec_escape(caption))
+		x = x + tab_w
 	end
-	return string.format("tabheader[%f,%f;%f,%f;%s;%s;%i;true;false]",
-			self.header_x, self.header_y, size.width, size.height, self.name, toadd, self.last_tab_index)
+	toadd = toadd .. "container_end[]"
+	return toadd
 end
 
 --------------------------------------------------------------------------------
@@ -204,6 +211,13 @@ local function handle_tab_buttons(self,fields)
 		local index = tonumber(fields[self.name])
 		switch_to_tab(self, index)
 		return true
+	end
+
+	for i = 1, #self.tablist do
+		if fields[self.name .. "_tab_" .. i] then
+			switch_to_tab(self, i)
+			return true
+		end
 	end
 
 	return false

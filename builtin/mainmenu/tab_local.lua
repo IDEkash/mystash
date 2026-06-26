@@ -165,7 +165,7 @@ local function get_formspec(tabview, name, tabdata)
 
 	local retval = ""
 
-	local index = core.get_textlist_index("sp_worlds") or filterlist.get_current_index(menudata.worldlist,
+	local index = core.get_table_index("sp_worlds") or filterlist.get_current_index(menudata.worldlist,
 				tonumber(core.settings:get("mainmenu_last_selected_world"))) or 0
 
 	local list = menudata.worldlist:get_list()
@@ -206,6 +206,9 @@ local function get_formspec(tabview, name, tabdata)
 	end
 
 	retval = retval ..
+		"style_type[checkbox;gui_color_accent=#44ff44]"
+
+	retval = retval ..
 			"container[5.25,4.875]" ..
 			"button[6.65,0;3.225,0.8;world_create;".. fgettext("New") .. "]"
 	if world then
@@ -223,7 +226,8 @@ local function get_formspec(tabview, name, tabdata)
 			"container_end[]" ..
 			"container[5.25,0.375]" ..
 			"label[0,0.2;".. fgettext("Select World:") .. "]"..
-			"textlist[0,0.5;9.875,3.9;sp_worlds;" ..
+			"tablecolumns[text;text]" ..
+			"table[0,0.5;9.875,3.9;sp_worlds;" ..
 			menu_render_worldlist() ..
 			";" .. index .. "]" ..
 			"container_end[]"
@@ -301,8 +305,8 @@ local function main_button_handler(this, fields, name, tabdata)
 	end
 
 	if fields["sp_worlds"] ~= nil then
-		local event = core.explode_textlist_event(fields["sp_worlds"])
-		local selected = core.get_textlist_index("sp_worlds")
+		local event = core.explode_table_event(fields["sp_worlds"])
+		local selected = event.row or core.get_table_index("sp_worlds")
 
 		menu_worldmt_legacy(selected)
 
@@ -323,7 +327,7 @@ local function main_button_handler(this, fields, name, tabdata)
 
 	if fields["cb_creative_mode"] then
 		core.settings:set("creative_mode", fields["cb_creative_mode"])
-		local selected = core.get_textlist_index("sp_worlds")
+		local selected = core.get_table_index("sp_worlds")
 		menu_worldmt(selected, "creative_mode", fields["cb_creative_mode"])
 
 		return true
@@ -331,7 +335,7 @@ local function main_button_handler(this, fields, name, tabdata)
 
 	if fields["cb_enable_damage"] then
 		core.settings:set("enable_damage", fields["cb_enable_damage"])
-		local selected = core.get_textlist_index("sp_worlds")
+		local selected = core.get_table_index("sp_worlds")
 		menu_worldmt(selected, "enable_damage", fields["cb_enable_damage"])
 
 		return true
@@ -345,7 +349,7 @@ local function main_button_handler(this, fields, name, tabdata)
 
 	if fields["cb_server_announce"] then
 		core.settings:set("server_announce", fields["cb_server_announce"])
-		local selected = core.get_textlist_index("srv_worlds")
+		local selected = core.get_table_index("srv_worlds")
 		menu_worldmt(selected, "server_announce", fields["cb_server_announce"])
 
 		return true
@@ -358,7 +362,7 @@ local function main_button_handler(this, fields, name, tabdata)
 			return true
 		end
 
-		local selected = core.get_textlist_index("sp_worlds")
+		local selected = core.get_table_index("sp_worlds")
 		gamedata.selected_world = menudata.worldlist:get_raw_index(selected)
 
 		if selected == nil or gamedata.selected_world == 0 then
@@ -412,7 +416,7 @@ local function main_button_handler(this, fields, name, tabdata)
 	end
 
 	if fields["world_delete"] ~= nil then
-		local selected = core.get_textlist_index("sp_worlds")
+		local selected = core.get_table_index("sp_worlds")
 		if selected ~= nil and
 			selected <= menudata.worldlist:size() then
 			local world = menudata.worldlist:get_list()[selected]
@@ -431,7 +435,7 @@ local function main_button_handler(this, fields, name, tabdata)
 	end
 
 	if fields["world_configure"] ~= nil then
-		local selected = core.get_textlist_index("sp_worlds")
+		local selected = core.get_table_index("sp_worlds")
 		if selected ~= nil then
 			local configdialog =
 				create_configure_world_dlg(

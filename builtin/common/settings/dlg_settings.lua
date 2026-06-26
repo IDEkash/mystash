@@ -563,6 +563,7 @@ local function get_formspec(dialogdata)
 			left_pane_width, tabsize.height - 1.5),
 		"style_type[button;border=false;bgcolor=#ffffff10]",
 		"style_type[button:hover;border=false;bgcolor=#ffffff20]",
+		"style_type[field;bgcolor=#ffffff15;border=false]",
 	}
 
 	local y = 0
@@ -575,7 +576,7 @@ local function get_formspec(dialogdata)
 			y = y + 0.82
 		end
 		if other_page.id == page_id then
-			fs[#fs + 1] = ("style[page_%s;bgcolor=#ffffff30]"):format(other_page.id)
+			fs[#fs + 1] = ("style[page_%s;bgcolor=#ffffff30;font=bold]"):format(other_page.id)
 		end
 		fs[#fs + 1] = ("button[0,%f;%f,0.8;page_%s;%s]")
 			:format(y, left_pane_width-left_pane_padding, other_page.id, fgettext(other_page.title))

@@ -163,6 +163,7 @@ function menu_render_worldlist()
 
 	for i, v in ipairs(current_worldlist) do
 		retval[#retval+1] = core.formspec_escape(v.name)
+		retval[#retval+1] = core.formspec_escape(v.gameid)
 	end
 
 	return table.concat(retval, ",")

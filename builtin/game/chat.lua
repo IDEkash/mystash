@@ -23,7 +23,7 @@ function core.format_chat_message(name, message)
 
 	local name_color = "#8dbafa" -- Modern light blue
 
-	name = core.colorize(name_color, name)
+	name = core.colorize(name_color, " " .. name .. " ")
 
 	-- Name
 	str, replaced = safe_gsub(str, "@name", name)

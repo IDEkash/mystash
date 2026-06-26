@@ -119,6 +119,7 @@ local function get_formspec(tabview, name, tabdata)
 
 		"container[9.75,0]" ..
 		"box[0,0;5.75,7.1;#ffffff10]" ..
+		"style_type[field,pwdfield;bgcolor=#ffffff15;border=false]" ..
 
 		-- TRANSLATORS: Network address
 		"label[0.25,0.35;" .. fgettext("Address") .. "]" ..
@@ -143,12 +144,14 @@ local function get_formspec(tabview, name, tabdata)
 
 		-- Connect
 		-- TRANSLATORS: Login to server
-		"style[btn_mp_login;bgcolor=#44ff4433;bgcolor_hover=#44ff4466;font=bold]" ..
+		"style[btn_mp_login;bgcolor=#44ff4440;bgcolor_hover=#44ff4480;font=bold;content_offset=0]" ..
 		"button[3,6;2.5,0.75;btn_mp_login;" .. fgettext("Login") .. "]"
 
 	if core.settings:get_bool("enable_split_login_register") then
 		-- TRANSLATORS: Register an account on a server
-		retval = retval .. "button[0.25,6;2.5,0.75;btn_mp_register;" .. fgettext("Register") .. "]"
+		retval = retval ..
+			"style[btn_mp_register;bgcolor=#ffffff20;bgcolor_hover=#ffffff40;content_offset=0]" ..
+			"button[0.25,6;2.5,0.75;btn_mp_register;" .. fgettext("Register") .. "]"
 	end
 
 	local selected_server = find_selected_server()

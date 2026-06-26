@@ -133,7 +133,7 @@ local function init_globals()
 		end,
 	})
 
-	tv_main.header_y = -0.2
+	tv_main.header_y = -0.75
 
 	ui.set_default("maintab")
 	tv_main:show()
