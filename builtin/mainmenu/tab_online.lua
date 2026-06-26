@@ -108,6 +108,7 @@ local function get_formspec(tabview, name, tabdata)
 		}, "\n") .. "]" ..
 		"field_enter_after_edit[te_search;true]" ..
 		"container[7.25,0.25]" ..
+		"style_type[image_button;bgcolor=#ffffff10;bgcolor_hover=#ffffff30;content_offset=0]" ..
 		"image_button[0,0;0.75,0.75;" .. core.formspec_escape(defaulttexturedir .. "search.png") .. ";btn_mp_search;]" ..
 		"image_button[0.75,0;0.75,0.75;" .. core.formspec_escape(defaulttexturedir .. "clear.png") .. ";btn_mp_clear;]" ..
 		"image_button[1.5,0;0.75,0.75;" .. core.formspec_escape(defaulttexturedir .. "refresh.png") .. ";btn_mp_refresh;]" ..
@@ -118,8 +119,8 @@ local function get_formspec(tabview, name, tabdata)
 		"container_end[]" ..
 
 		"container[9.75,0]" ..
-		"box[0,0;5.75,7.1;#ffffff10]" ..
-		"style_type[field,pwdfield;bgcolor=#ffffff15;border=false]" ..
+		"box[0,0;5.75,7.1;#00000040]" ..
+		"style_type[field,pwdfield;bgcolor=#ffffff05;border=false]" ..
 
 		-- TRANSLATORS: Network address
 		"label[0.25,0.35;" .. fgettext("Address") .. "]" ..
@@ -261,6 +262,7 @@ local function get_formspec(tabview, name, tabdata)
 		"align=inline,padding=0.25,width=1.5;" ..
 		"color,align=inline,span=1;" ..
 		"text,align=inline,padding=1]" ..
+		"style[servers;bgcolor=#00000040;border=false]" ..
 		"table[0.25,1;9.25,5.8;servers;"
 
 	local servers = get_sorted_servers()

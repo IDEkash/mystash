@@ -209,25 +209,28 @@ local function get_formspec(tabview, name, tabdata)
 		"style_type[checkbox;gui_color_accent=#44ff44]"
 
 	retval = retval ..
-			"container[5.25,4.875]" ..
+			"container[5,4.875]" ..
+			"style[world_create;bgcolor=#4444ff33;bgcolor_hover=#4444ff66]" ..
 			"button[6.65,0;3.225,0.8;world_create;".. fgettext("New") .. "]"
 	if world then
 		retval = retval ..
 				"style[world_delete;bgcolor=#ff444433;bgcolor_hover=#ff444466]" ..
 				"button[0,0;3.225,0.8;world_delete;".. fgettext("Delete") .. "]" ..
+				"style[world_configure;bgcolor=#ffffff15;bgcolor_hover=#ffffff30]" ..
 				"button[3.325,0;3.225,0.8;world_configure;".. fgettext("Select Mods") .. "]"
 	end
 	retval = retval ..
 			"container_end[]" ..
-			"container[0.375,0.375]" ..
+			"container[0,0.375]" ..
 			creative ..
 			damage ..
 			host ..
 			"container_end[]" ..
-			"container[5.25,0.375]" ..
-			"label[0,0.2;".. fgettext("Select World:") .. "]"..
+			"container[5,0.375]" ..
+			"label[0,0.2;".. fgettext("Select World") .. "]"..
 			"tablecolumns[text;text]" ..
-			"table[0,0.5;9.875,3.9;sp_worlds;" ..
+			"style[sp_worlds;bgcolor=#00000040;border=false]" ..
+			"table[0,0.5;10.25,3.9;sp_worlds;" ..
 			menu_render_worldlist() ..
 			";" .. index .. "]" ..
 			"container_end[]"
