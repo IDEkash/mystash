@@ -108,6 +108,14 @@ local function init_globals()
 	tv_main:set_global_event_handler(main_event_handler)
 	tv_main:set_fixed_size(false)
 
+	-- Apply modern default styling
+	core.update_formspec(table.concat({
+		"style_type[button;border_radius=8]",
+		"style_type[button:hovered;bgcolor=#555]",
+		"style_type[button:pressed;bgcolor=#222]",
+		"style_type[checkbox;border_radius=4]",
+	}, ""))
+
 	local last_tab = core.settings:get("maintab_LAST")
 	if last_tab and tv_main.current_tab ~= last_tab then
 		tv_main:set_tab(last_tab)

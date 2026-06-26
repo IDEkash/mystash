@@ -44,6 +44,7 @@ public:
 		SOUND,
 		SPACING,
 		SIZE,
+		BORDER_RADIUS,
 		NUM_PROPERTIES,
 		NONE
 	};
@@ -117,6 +118,8 @@ public:
 			return SPACING;
 		} else if (name == "size") {
 			return SIZE;
+		} else if (name == "border_radius") {
+			return BORDER_RADIUS;
 		} else {
 			return NONE;
 		}
@@ -369,6 +372,17 @@ public:
 		}
 
 		return is_yes(val);
+	}
+
+	float getFloat(Property prop, float def) const
+	{
+		const auto &val = properties[prop];
+		if (val.empty()) {
+			return def;
+		}
+
+		// mystof/atof is safe as it doesn't throw, but handles non-numeric by returning 0
+		return mystof(val);
 	}
 
 	inline bool isNotDefault(Property prop) const

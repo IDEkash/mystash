@@ -20,8 +20,11 @@ public:
 
 	virtual void draw() override;
 
+	void setBorderRadius(float radius) { m_border_radius = radius; }
+
 private:
 	std::array<video::SColor, 4> m_colors;
 	std::array<video::SColor, 4> m_bordercolors;
 	std::array<s32, 4> m_borderwidths;
+	float m_border_radius = 0.0f;
 };

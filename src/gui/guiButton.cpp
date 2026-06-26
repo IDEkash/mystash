@@ -14,6 +14,7 @@
 #include "porting.h"
 #include "StyleSpec.h"
 #include "util/numeric.h"
+#include "guiUtil.h"
 
 
 using namespace gui;
@@ -259,19 +260,24 @@ void GUIButton::draw()
 
 	if (DrawBorder)
 	{
-		if (!Pressed)
-		{
-			// PATCH
-			skin->drawColored3DButtonPaneStandard(this, AbsoluteRect,
-					&AbsoluteClippingRect, Colors);
-			// END PATCH
-		}
-		else
-		{
-			// PATCH
-			skin->drawColored3DButtonPanePressed(this, AbsoluteRect,
-					&AbsoluteClippingRect, Colors);
-			// END PATCH
+		if (BorderRadius > 0.0f) {
+			video::SColor colors[4] = {Colors[0], Colors[1], Colors[3], Colors[2]};
+			drawRoundedRectangle(driver, AbsoluteRect, colors, BorderRadius, &AbsoluteClippingRect);
+		} else {
+			if (!Pressed)
+			{
+				// PATCH
+				skin->drawColored3DButtonPaneStandard(this, AbsoluteRect,
+						&AbsoluteClippingRect, Colors);
+				// END PATCH
+			}
+			else
+			{
+				// PATCH
+				skin->drawColored3DButtonPanePressed(this, AbsoluteRect,
+						&AbsoluteClippingRect, Colors);
+				// END PATCH
+			}
 		}
 	}
 
@@ -717,6 +723,7 @@ void GUIButton::setFromStyle(const StyleSpec& style)
 	setDrawBorder(style.getBool(StyleSpec::BORDER, true));
 	setUseAlphaChannel(style.getBool(StyleSpec::ALPHA, true));
 	setOverrideFont(style.getFont());
+	BorderRadius = style.getFloat(StyleSpec::BORDER_RADIUS, 0.0f);
 
 	BgMiddle = style.getRect(StyleSpec::BGIMG_MIDDLE, BgMiddle);
 

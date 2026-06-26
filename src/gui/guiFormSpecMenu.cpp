@@ -614,19 +614,20 @@ void GUIFormSpecMenu::parseCheckbox(parserData* data, const std::string &element
 
 	spec.ftype = f_CheckBox;
 
-	gui::IGUICheckBox *e = Environment->addCheckBox(fselected, rect,
+	GUICheckBox *e = GUICheckBox::addCheckBox(Environment, fselected, rect,
 			data->current_parent, spec.fid, spec.flabel.c_str());
 
-	auto style = getDefaultStyleForElement("checkbox", name);
+	auto style = getStyleForElement("checkbox", name);
 
-	spec.sound = style.get(StyleSpec::Property::SOUND, "");
+	spec.sound = style[StyleSpec::STATE_DEFAULT].get(StyleSpec::Property::SOUND, "");
 
-	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, false));
+	e->setNotClipped(style[StyleSpec::STATE_DEFAULT].getBool(StyleSpec::NOCLIP, false));
 
 	if (spec.fname == m_focused_element) {
 		Environment->setFocus(e);
 	}
 
+	e->setStyles(style);
 	e->grab();
 	m_checkboxes.emplace_back(spec, e);
 	m_fields.push_back(spec);
@@ -2287,6 +2288,7 @@ void GUIFormSpecMenu::parseBox(parserData* data, const std::string &element)
 	GUIBox *e = new GUIBox(Environment, data->current_parent, spec.fid, rect,
 		colors, bordercolors, borderwidths);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, m_formspec_version < 3));
+	e->setBorderRadius(style.getFloat(StyleSpec::BORDER_RADIUS, 0.0f));
 	e->drop();
 
 	m_fields.push_back(spec);

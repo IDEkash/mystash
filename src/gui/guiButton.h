@@ -270,5 +270,6 @@ private:
 	core::rect<s32> Padding;
 	core::vector2d<s32> ContentOffset;
 	video::SColor BgColor = video::SColor(0xFF,0xFF,0xFF,0xFF);
+	float BorderRadius = 0.0f;
 	// END PATCH
 };
