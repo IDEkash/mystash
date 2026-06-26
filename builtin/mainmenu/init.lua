@@ -64,6 +64,23 @@ local function main_event_handler(tabview, event)
 end
 
 local function init_globals()
+	core.set_formspec_prepend(
+		"style_type[button;border_radius=8]" ..
+		"style_type[image_button;border_radius=8]" ..
+		"style_type[field;border_radius=8]" ..
+		"style_type[pwdfield;border_radius=8]" ..
+		"style_type[textarea;border_radius=8]" ..
+		"style_type[checkbox;border_radius=8]" ..
+		"style_type[dropdown;border_radius=8]" ..
+		"style_type[listbox;border_radius=8]" ..
+		"style_type[textlist;border_radius=8]" ..
+		"style_type[tabheader;border_radius=8]" ..
+		"style_type[button:hover;bgcolor=#ffffff22]" ..
+		"style_type[image_button:hover;bgcolor=#ffffff22]" ..
+		"style_type[button:pressed;bgcolor=#ffffff44]" ..
+		"style_type[image_button:pressed;bgcolor=#ffffff44]"
+	)
+
 	-- Permanent warning if on an unoptimized debug build
 	if core.is_debug_build() then
 		local set_topleft_text = core.set_topleft_text

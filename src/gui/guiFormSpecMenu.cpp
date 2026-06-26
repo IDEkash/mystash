@@ -50,6 +50,7 @@
 #include "guiScrollContainer.h"
 #include "guiHyperText.h"
 #include "guiScene.h"
+#include "guiUtil.h"
 
 #define MY_CHECKPOS(a,b)													\
 	if (v_pos.size() != 2) {												\

@@ -356,12 +356,29 @@ void RenderingEngine::draw_load_screen(const std::wstring &text,
 			gui::drawRoundedRectangle(get_video_driver(), bar_rect,
 					video::SColor(128, 0, 0, 0), nullptr, 8.0f);
 
+			// Add a subtle border to the progress bar background
+			video::SColor border_color(180, 255, 255, 255);
+			gui::drawRoundedRectangle(get_video_driver(), bar_rect,
+					border_color, nullptr, 8.0f);
+			bar_rect.UpperLeftCorner.X += 2;
+			bar_rect.UpperLeftCorner.Y += 2;
+			bar_rect.LowerRightCorner.X -= 2;
+			bar_rect.LowerRightCorner.Y -= 2;
+			gui::drawRoundedRectangle(get_video_driver(), bar_rect,
+					video::SColor(160, 0, 0, 0), nullptr, 6.0f);
+
 			core::rect<s32> progress_rect(img_pos.X + (percent_min * imgW) / 100, img_pos.Y,
 					img_pos.X + (percent_max * imgW) / 100,
 					img_pos.Y + imgH);
 
-			gui::drawRoundedRectangle(get_video_driver(), progress_rect,
-					video::SColor(255, 70, 120, 50), nullptr, 8.0f);
+			if (progress_rect.getWidth() > 4) {
+				progress_rect.UpperLeftCorner.X += 2;
+				progress_rect.UpperLeftCorner.Y += 2;
+				progress_rect.LowerRightCorner.X -= 2;
+				progress_rect.LowerRightCorner.Y -= 2;
+				gui::drawRoundedRectangle(get_video_driver(), progress_rect,
+						video::SColor(255, 70, 150, 50), nullptr, 6.0f);
+			}
 		}
 	}
 

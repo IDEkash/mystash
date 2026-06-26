@@ -17,11 +17,11 @@ void drawRoundedRectangle(video::IVideoDriver *driver, const core::rect<s32> &re
 	}
 
 	f32 r = radius;
-	f32 w = rect.getWidth();
-	f32 h = rect.getHeight();
+	f32 w = (f32)rect.getWidth();
+	f32 h = (f32)rect.getHeight();
 
-	if (r * 2 > w) r = w / 2;
-	if (r * 2 > h) r = h / 2;
+	if (r * 2.0f > w) r = w / 2.0f;
+	if (r * 2.0f > h) r = h / 2.0f;
 
 	// Use stack-allocated vertex/index arrays for speed.
 	// 8 points per corner is usually enough for smooth look.
@@ -31,7 +31,7 @@ void drawRoundedRectangle(video::IVideoDriver *driver, const core::rect<s32> &re
 	u16 indices[segments * 4 * 3];
 
 	// Center point
-	vertices[0] = video::S3DVertex(rect.getCenter().X, rect.getCenter().Y, 0, 0, 0, -1, color, 0, 0);
+	vertices[0] = video::S3DVertex((f32)rect.getCenter().X, (f32)rect.getCenter().Y, 0, 0, 0, -1, color, 0, 0);
 
 	struct Corner {
 		f32 x, y;
@@ -54,15 +54,15 @@ void drawRoundedRectangle(video::IVideoDriver *driver, const core::rect<s32> &re
 
 			if (v_idx > 1) {
 				indices[i_idx++] = 0;
-				indices[i_idx++] = v_idx - 1;
-				indices[i_idx++] = v_idx;
+				indices[i_idx++] = (u16)(v_idx - 1);
+				indices[i_idx++] = (u16)v_idx;
 			}
 			v_idx++;
 		}
 	}
 	// Close the loop
 	indices[i_idx++] = 0;
-	indices[i_idx++] = v_idx - 1;
+	indices[i_idx++] = (u16)(v_idx - 1);
 	indices[i_idx++] = 1;
 
 	if (clip) {

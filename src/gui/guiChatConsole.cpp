@@ -296,7 +296,7 @@ void GUIChatConsole::drawBackground()
 	else
 	{
 		// Draw with rounded bottom corners by extending the rect upwards off-screen
-		core::rect<s32> rect(0, -12, m_screensize.X, m_height);
+		core::rect<s32> rect(0, -12, (s32)m_screensize.X, m_height);
 		gui::drawRoundedRectangle(driver, rect, m_background_color, &AbsoluteClippingRect, 12.0f);
 
 		// Add a subtle bottom border
@@ -386,7 +386,7 @@ void GUIChatConsole::drawPrompt()
 	// Draw prompt background
 	video::IVideoDriver* driver = Environment->getVideoDriver();
 	video::SColor prompt_bg_color(clamp_u8(m_background_color.getAlpha() / 2), 0, 0, 0);
-	core::rect<s32> prompt_bg_rect(4, y, m_screensize.X - 4, y + font_height);
+	core::rect<s32> prompt_bg_rect(4, y, (s32)m_screensize.X - 4, y + font_height);
 	gui::drawRoundedRectangle(driver, prompt_bg_rect, prompt_bg_color, &AbsoluteClippingRect, 8.0f);
 
 	m_font->draw(
