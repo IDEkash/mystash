@@ -95,27 +95,15 @@ void drawRoundedRectangle(video::IVideoDriver *driver, const core::rect<s32> &re
 	indices[i_idx++] = 1;
 
 	video::SMaterial material;
-	material.Lighting = false;
-	material.ZWriteEnable = false;
+	material.ZWriteEnable = video::EZW_OFF;
 	material.ZBuffer = video::ECFN_NEVER;
 	material.BackfaceCulling = false;
 	material.MaterialType = video::EMT_TRANSPARENT_ALPHA_CHANNEL;
 
 	driver->setMaterial(material);
 
-	if (clip) {
-		driver->setClipPlane(0, core::plane3df((float)clip->UpperLeftCorner.X, 0, 0, -1, 0, 0), true);
-		driver->setClipPlane(1, core::plane3df((float)clip->LowerRightCorner.X, 0, 0, 1, 0, 0), true);
-		driver->setClipPlane(2, core::plane3df(0, (float)clip->UpperLeftCorner.Y, 0, 0, -1, 0), true);
-		driver->setClipPlane(3, core::plane3df(0, (float)clip->LowerRightCorner.Y, 0, 0, 1, 0), true);
-	}
-
-	driver->drawVertexPrimitiveList(vertices, v_idx, indices, i_idx / 3);
-
-	if (clip) {
-		for (int i = 0; i < 4; ++i)
-			driver->enableClipPlane(i, false);
-	}
+	driver->draw2DVertexPrimitiveList(vertices, v_idx, indices, i_idx / 3,
+			video::EVT_STANDARD, scene::EPT_TRIANGLES, video::EIT_16BIT);
 }
 
 } // namespace gui
