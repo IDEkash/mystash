@@ -7,7 +7,7 @@
 #include "IVideoDriver.h"
 #include "IGUIFont.h"
 #include "guiUtil.h"
-#include "os.h"
+#include "porting.h"
 
 GUICheckBox::GUICheckBox(bool checked, gui::IGUIEnvironment *environment, gui::IGUIElement *parent, s32 id, core::rect<s32> rectangle) :
 		gui::IGUICheckBox(environment, parent, id, rectangle), Checked(checked)
@@ -93,7 +93,7 @@ bool GUICheckBox::OnEvent(const SEvent &event)
 		case EET_MOUSE_INPUT_EVENT:
 			if (event.MouseInput.Event == EMIE_LMOUSE_PRESSED_DOWN) {
 				Pressed = true;
-				CheckTime = os::Timer::getTime();
+				CheckTime = (u32)porting::getTimeMs();
 				setFromState();
 				return true;
 			} else if (event.MouseInput.Event == EMIE_LMOUSE_LEFT_UP) {
@@ -173,7 +173,7 @@ void GUICheckBox::draw()
 		// the checked icon
 		if (Checked) {
 			skin->drawIcon(this, gui::EGDI_CHECK_BOX_CHECKED, checkRect.getCenter(),
-					CheckTime, os::Timer::getTime(), false, &AbsoluteClippingRect);
+					CheckTime, (u32)porting::getTimeMs(), false, &AbsoluteClippingRect);
 		}
 
 		// associated text

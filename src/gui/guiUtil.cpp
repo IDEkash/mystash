@@ -26,9 +26,9 @@ void drawRoundedRectangle(video::IVideoDriver *driver, const core::rect<s32> &re
 	float h = (float)rect.getHeight();
 	radius = std::min(radius, std::min(w, h) * 0.5f);
 
-	const int segments = 8;
-	const int num_vertices = 1 + (segments + 1) * 4;
-	const int num_indices = segments * 4 * 3 + 3; // +3 to close the fan
+	constexpr int segments = 8;
+	constexpr int num_vertices = 1 + (segments + 1) * 4;
+	constexpr int num_indices = segments * 4 * 3 + 3; // +3 to close the fan
 
 	video::S3DVertex vertices[num_vertices];
 	u16 indices[num_indices * 3]; // overkill but safe

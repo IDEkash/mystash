@@ -262,7 +262,7 @@ void GUIButton::draw()
 	{
 		if (BorderRadius > 0.0f) {
 			video::SColor colors[4] = {Colors[0], Colors[1], Colors[3], Colors[2]};
-			drawRoundedRectangle(driver, AbsoluteRect, colors, BorderRadius, &AbsoluteClippingRect);
+			gui::drawRoundedRectangle(driver, AbsoluteRect, colors, BorderRadius, &AbsoluteClippingRect);
 		} else {
 			if (!Pressed)
 			{

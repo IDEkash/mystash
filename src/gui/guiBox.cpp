@@ -96,7 +96,7 @@ void GUIBox::draw()
 
 	if (m_border_radius > 0.0f) {
 		video::SColor colors[4] = {m_colors[0], m_colors[1], m_colors[3], m_colors[2]};
-		drawRoundedRectangle(driver, main_rect, colors, m_border_radius, &AbsoluteClippingRect);
+		gui::drawRoundedRectangle(driver, main_rect, colors, m_border_radius, &AbsoluteClippingRect);
 	} else {
 		driver->draw2DRectangle(main_rect, m_colors[0], m_colors[1], m_colors[3],
 			m_colors[2], &AbsoluteClippingRect);
