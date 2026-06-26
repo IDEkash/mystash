@@ -12,6 +12,7 @@ the arrow buttons where there is insufficient space.
 
 #include "guiScrollBar.h"
 #include "guiButton.h"
+#include "guiUtil.h"
 #include "porting.h"
 #include "settings.h"
 #include <IGUISkin.h>
@@ -157,8 +158,9 @@ void GUIScrollBar::draw()
 		refreshControls();
 
 	slider_rect = AbsoluteRect;
-	skin->draw2DRectangle(this, skin->getColor(EGDC_SCROLLBAR), slider_rect,
-			&AbsoluteClippingRect);
+	video::IVideoDriver *driver = Environment->getVideoDriver();
+	gui::drawRoundedRectangle(driver, slider_rect, skin->getColor(EGDC_SCROLLBAR),
+			&AbsoluteClippingRect, 4.0f);
 
 	if (core::isnotzero(range())) {
 		if (is_horizontal) {
@@ -166,13 +168,18 @@ void GUIScrollBar::draw()
 							draw_center - thumb_size / 2;
 			slider_rect.LowerRightCorner.X =
 					slider_rect.UpperLeftCorner.X + thumb_size;
+			slider_rect.UpperLeftCorner.Y += 2;
+			slider_rect.LowerRightCorner.Y -= 2;
 		} else {
 			slider_rect.UpperLeftCorner.Y = AbsoluteRect.UpperLeftCorner.Y +
 							draw_center - thumb_size / 2;
 			slider_rect.LowerRightCorner.Y =
 					slider_rect.UpperLeftCorner.Y + thumb_size;
+			slider_rect.UpperLeftCorner.X += 2;
+			slider_rect.LowerRightCorner.X -= 2;
 		}
-		skin->draw3DButtonPaneStandard(this, slider_rect, &AbsoluteClippingRect);
+		gui::drawRoundedRectangle(driver, slider_rect, skin->getColor(EGDC_WINDOW_SYMBOL),
+				&AbsoluteClippingRect, 4.0f);
 	}
 	IGUIElement::draw();
 }

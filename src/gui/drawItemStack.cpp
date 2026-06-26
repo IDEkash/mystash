@@ -15,6 +15,7 @@
 #include "client/texturesource.h"
 #include "client/guiscalingfilter.h"
 #include "client/item_visuals_manager.h"
+#include "guiUtil.h"
 #include <IMesh.h>
 #include <IMeshBuffer.h>
 
@@ -227,12 +228,12 @@ void drawItemStack(
 
 		core::rect<s32> progressrect2 = progressrect;
 		progressrect2.LowerRightCorner.X = progressmid;
-		driver->draw2DRectangle(color, progressrect2, clip);
+		gui::drawRoundedRectangle(driver, progressrect2, color, clip, 2.0f);
 
-		color = video::SColor(255, 0, 0, 0);
+		color = video::SColor(128, 0, 0, 0);
 		progressrect2 = progressrect;
 		progressrect2.UpperLeftCorner.X = progressmid;
-		driver->draw2DRectangle(color, progressrect2, clip);
+		gui::drawRoundedRectangle(driver, progressrect2, color, clip, 2.0f);
 	}
 
 	const std::string &count_text = item.metadata.getString("count_meta");

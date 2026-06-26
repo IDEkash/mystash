@@ -20,6 +20,7 @@
 #include "porting.h"
 #include "clientmap.h"
 #include "renderingengine.h"
+#include "gui/guiUtil.h"
 #include "render/core.h"
 #include "render/factory.h"
 #include "filesys.h"
@@ -348,22 +349,19 @@ void RenderingEngine::draw_load_screen(const std::wstring &text,
 			v2s32 img_pos((screensize.X - imgW) / 2,
 					(screensize.Y - imgH) / 2);
 
-			draw2DImageFilterScaled(get_video_driver(), progress_img_bg,
-					core::rect<s32>(img_pos.X, img_pos.Y,
-							img_pos.X + imgW,
-							img_pos.Y + imgH),
-					core::rect<s32>(0, 0, img_size.Width,
-							img_size.Height),
-					0, 0, true);
+			core::rect<s32> bar_rect(img_pos.X, img_pos.Y,
+					img_pos.X + imgW,
+					img_pos.Y + imgH);
 
-			draw2DImageFilterScaled(get_video_driver(), progress_img,
-					core::rect<s32>(img_pos.X + (percent_min * imgW) / 100, img_pos.Y,
-							img_pos.X + (percent_max * imgW) / 100,
-							img_pos.Y + imgH),
-					core::rect<s32>(percent_min * img_size.Width / 100, 0,
-							percent_max * img_size.Width / 100,
-							img_size.Height),
-					0, 0, true);
+			gui::drawRoundedRectangle(get_video_driver(), bar_rect,
+					video::SColor(128, 0, 0, 0), nullptr, 8.0f);
+
+			core::rect<s32> progress_rect(img_pos.X + (percent_min * imgW) / 100, img_pos.Y,
+					img_pos.X + (percent_max * imgW) / 100,
+					img_pos.Y + imgH);
+
+			gui::drawRoundedRectangle(get_video_driver(), progress_rect,
+					video::SColor(255, 70, 120, 50), nullptr, 8.0f);
 		}
 	}
 

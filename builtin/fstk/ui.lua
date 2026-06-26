@@ -59,11 +59,7 @@ end
 
 function ui.update()
 	ui.overridden = false
-	local formspec = {
-		"style_type[button,image_button,field,pwdfield,textarea,checkbox,dropdown,listbox,textlist,tabheader;border_radius=8]",
-		"style_type[button:hover,image_button:hover;bgcolor=#ffffff22]",
-		"style_type[button:pressed,image_button:pressed;bgcolor=#ffffff44]",
-	}
+	local formspec = {}
 
 	-- handle errors
 	if gamedata ~= nil and gamedata.reconnect_requested then
@@ -131,6 +127,23 @@ function ui.update()
 			ui.childlist[ui.default]:show()
 			formspec = {ui.childlist[ui.default]:get_formspec()}
 		end
+
+		table.insert(formspec,
+			"style_type[button;border_radius=8]" ..
+			"style_type[image_button;border_radius=8]" ..
+			"style_type[field;border_radius=8]" ..
+			"style_type[pwdfield;border_radius=8]" ..
+			"style_type[textarea;border_radius=8]" ..
+			"style_type[checkbox;border_radius=8]" ..
+			"style_type[dropdown;border_radius=8]" ..
+			"style_type[listbox;border_radius=8]" ..
+			"style_type[textlist;border_radius=8]" ..
+			"style_type[tabheader;border_radius=8]" ..
+			"style_type[button:hover;bgcolor=#ffffff22]" ..
+			"style_type[image_button:hover;bgcolor=#ffffff22]" ..
+			"style_type[button:pressed;bgcolor=#ffffff44]" ..
+			"style_type[image_button:pressed;bgcolor=#ffffff44]"
+		)
 	end
 	core.update_formspec(table.concat(formspec))
 end

@@ -15,6 +15,7 @@
 #include "irrlicht_changes/CGUITTFont.h"
 #include "util/string.h"
 #include "guiScrollBar.h"
+#include "guiUtil.h"
 #include <IOSOperator.h>
 #include <string>
 
@@ -294,18 +295,15 @@ void GUIChatConsole::drawBackground()
 	}
 	else
 	{
-		driver->draw2DRectangle(
-			m_background_color,
-			core::rect<s32>(0, 0, m_screensize.X, m_height),
-			&AbsoluteClippingRect);
+		// Draw with rounded bottom corners by extending the rect upwards off-screen
+		core::rect<s32> rect(0, -12, m_screensize.X, m_height);
+		gui::drawRoundedRectangle(driver, rect, m_background_color, &AbsoluteClippingRect, 12.0f);
 
 		// Add a subtle bottom border
 		video::SColor border_color = m_background_color;
 		border_color.setAlpha(clamp_u8(m_background_color.getAlpha() + 40));
-		driver->draw2DRectangle(
-			border_color,
-			core::rect<s32>(0, m_height - 2, m_screensize.X, m_height),
-			&AbsoluteClippingRect);
+		core::rect<s32> border_rect(8, m_height - 2, m_screensize.X - 8, m_height);
+		driver->draw2DRectangle(border_color, border_rect, &AbsoluteClippingRect);
 	}
 }
 
@@ -388,8 +386,8 @@ void GUIChatConsole::drawPrompt()
 	// Draw prompt background
 	video::IVideoDriver* driver = Environment->getVideoDriver();
 	video::SColor prompt_bg_color(clamp_u8(m_background_color.getAlpha() / 2), 0, 0, 0);
-	core::rect<s32> prompt_bg_rect(0, y, m_screensize.X, y + font_height);
-	driver->draw2DRectangle(prompt_bg_color, prompt_bg_rect, &AbsoluteClippingRect);
+	core::rect<s32> prompt_bg_rect(4, y, m_screensize.X - 4, y + font_height);
+	gui::drawRoundedRectangle(driver, prompt_bg_rect, prompt_bg_color, &AbsoluteClippingRect, 8.0f);
 
 	m_font->draw(
 		prompt_text.c_str(),

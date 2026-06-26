@@ -13,6 +13,7 @@
 #include "irrlicht_changes/static_text.h"
 #include "porting.h"
 #include "StyleSpec.h"
+#include "guiUtil.h"
 #include "util/numeric.h"
 
 
@@ -259,19 +260,32 @@ void GUIButton::draw()
 
 	if (DrawBorder)
 	{
-		if (!Pressed)
-		{
-			// PATCH
-			skin->drawColored3DButtonPaneStandard(this, AbsoluteRect,
-					&AbsoluteClippingRect, Colors);
-			// END PATCH
-		}
-		else
-		{
-			// PATCH
-			skin->drawColored3DButtonPanePressed(this, AbsoluteRect,
-					&AbsoluteClippingRect, Colors);
-			// END PATCH
+		f32 radius = 0.0f;
+		StyleSpec::State state = StyleSpec::STATE_DEFAULT;
+		if (isPressed()) state = (StyleSpec::State)(state | StyleSpec::STATE_PRESSED);
+		if (isHovered()) state = (StyleSpec::State)(state | StyleSpec::STATE_HOVERED);
+		if (isFocused()) state = (StyleSpec::State)(state | StyleSpec::STATE_FOCUSED);
+
+		radius = Styles[state].getFloat(StyleSpec::BORDER_RADIUS,
+				Styles[StyleSpec::STATE_DEFAULT].getFloat(StyleSpec::BORDER_RADIUS, 0.0f));
+
+		if (radius > 0.0f) {
+			gui::drawRoundedRectangle(driver, AbsoluteRect, Colors[Pressed ? 1 : 0], &AbsoluteClippingRect, radius);
+		} else {
+			if (!Pressed)
+			{
+				// PATCH
+				skin->drawColored3DButtonPaneStandard(this, AbsoluteRect,
+						&AbsoluteClippingRect, Colors);
+				// END PATCH
+			}
+			else
+			{
+				// PATCH
+				skin->drawColored3DButtonPanePressed(this, AbsoluteRect,
+						&AbsoluteClippingRect, Colors);
+				// END PATCH
+			}
 		}
 	}
 

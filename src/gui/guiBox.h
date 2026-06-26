@@ -16,7 +16,8 @@ public:
 		const core::rect<s32> &rectangle,
 		const std::array<video::SColor, 4> &colors,
 		const std::array<video::SColor, 4> &bordercolors,
-		const std::array<s32, 4> &borderwidths);
+		const std::array<s32, 4> &borderwidths,
+		f32 radius = 0.0f);
 
 	virtual void draw() override;
 
@@ -24,4 +25,5 @@ private:
 	std::array<video::SColor, 4> m_colors;
 	std::array<video::SColor, 4> m_bordercolors;
 	std::array<s32, 4> m_borderwidths;
+	f32 m_radius;
 };

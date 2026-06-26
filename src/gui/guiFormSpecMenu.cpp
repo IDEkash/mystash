@@ -2236,7 +2236,7 @@ void GUIFormSpecMenu::parseItemImageButton(parserData* data, const std::string &
 void GUIFormSpecMenu::parseBox(parserData* data, const std::string &element)
 {
 	std::vector<std::string> parts;
-	if (!precheckElement("box", element, 3, 3, parts))
+	if (!precheckElement("box", element, 3, 4, parts))
 		return;
 
 	std::vector<std::string> v_pos = split(parts[0], ',');
@@ -2284,8 +2284,15 @@ void GUIFormSpecMenu::parseBox(parserData* data, const std::string &element)
 
 	core::rect<s32> rect(pos, pos + geom);
 
+	f32 radius = 0.0f;
+	if (parts.size() >= 4 && !parts[3].empty()) {
+		radius = mystof(parts[3]) * imgsize.X;
+	} else if (style.isNotDefault(StyleSpec::BORDER_RADIUS)) {
+		radius = style.getFloat(StyleSpec::BORDER_RADIUS, 0.0f) * (imgsize.X / 64.0f);
+	}
+
 	GUIBox *e = new GUIBox(Environment, data->current_parent, spec.fid, rect,
-		colors, bordercolors, borderwidths);
+		colors, bordercolors, borderwidths, radius);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, m_formspec_version < 3));
 	e->drop();
 
@@ -3071,7 +3078,7 @@ void GUIFormSpecMenu::regenerateGui(v2u32 screensize)
 		m_tooltip_element->enableOverrideColor(true);
 		m_tooltip_element->setBackgroundColor(m_default_tooltip_bgcolor);
 		m_tooltip_element->setDrawBackground(true);
-		m_tooltip_element->setDrawBorder(true);
+		m_tooltip_element->setDrawBorder(false); // We draw our own border/bg if rounded
 		m_tooltip_element->setOverrideColor(m_default_tooltip_color);
 		m_tooltip_element->setTextAlignment(gui::EGUIA_CENTER, gui::EGUIA_CENTER);
 		m_tooltip_element->setWordWrap(false);
@@ -3637,7 +3644,14 @@ void GUIFormSpecMenu::drawMenu()
 				rect.LowerRightCorner.X, rect.LowerRightCorner.Y), nullptr);
 	}
 
-	m_tooltip_element->draw();
+	// Draw tooltip with rounded corners
+	if (m_tooltip_element->isVisible()) {
+		video::IVideoDriver* driver = Environment->getVideoDriver();
+		core::rect<s32> rect = m_tooltip_element->getAbsolutePosition();
+		gui::drawRoundedRectangle(driver, rect, m_tooltip_element->getBackgroundColor(),
+				nullptr, 4.0f);
+		m_tooltip_element->draw();
+	}
 
 	/*
 		Draw dragged item stack

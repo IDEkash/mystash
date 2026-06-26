@@ -5,16 +5,19 @@
 #include "guiBox.h"
 #include <IVideoDriver.h>
 #include "irr_v2d.h"
+#include "guiUtil.h"
 
 GUIBox::GUIBox(gui::IGUIEnvironment *env, gui::IGUIElement *parent, s32 id,
 	const core::rect<s32> &rectangle,
 	const std::array<video::SColor, 4> &colors,
 	const std::array<video::SColor, 4> &bordercolors,
-	const std::array<s32, 4> &borderwidths) :
+	const std::array<s32, 4> &borderwidths,
+	f32 radius) :
 	gui::IGUIElement(gui::EGUIET_ELEMENT, env, parent, id, rectangle),
 	m_colors(colors),
 	m_bordercolors(bordercolors),
-	m_borderwidths(borderwidths)
+	m_borderwidths(borderwidths),
+	m_radius(radius)
 {
 }
 
@@ -22,6 +25,14 @@ void GUIBox::draw()
 {
 	if (!IsVisible)
 		return;
+
+	if (m_radius > 0.0f) {
+		video::IVideoDriver *driver = Environment->getVideoDriver();
+		gui::drawRoundedRectangle(driver, AbsoluteRect, m_colors[0], &AbsoluteClippingRect, m_radius);
+		// Note: multi-color boxes and borders are not supported with rounded corners yet.
+		IGUIElement::draw();
+		return;
+	}
 
 	std::array<s32, 4> negative_borders = {0, 0, 0, 0};
 	std::array<s32, 4> positive_borders = {0, 0, 0, 0};
