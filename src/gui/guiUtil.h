@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <irrlicht.h>
 #include "irrlichttypes_bloated.h"
 
 namespace gui {

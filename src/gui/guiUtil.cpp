@@ -65,13 +65,20 @@ void drawRoundedRectangle(video::IVideoDriver *driver, const core::rect<s32> &re
 	indices[i_idx++] = (u16)(v_idx - 1);
 	indices[i_idx++] = 1;
 
+	// Use viewport for clipping if necessary
+	core::rect<s32> old_viewport;
 	if (clip) {
-		driver->setClipRect(*clip);
+		old_viewport = driver->getViewPort();
+		core::rect<s32> new_viewport = *clip;
+		new_viewport.clipAgainst(old_viewport);
+		driver->setViewPort(new_viewport);
 	}
+
 	driver->draw2DVertexPrimitiveList(vertices, num_vertices, indices, segments * 4,
 			video::EVT_STANDARD, scene::EPT_TRIANGLES);
+
 	if (clip) {
-		driver->setClipRect();
+		driver->setViewPort(old_viewport);
 	}
 }
 
