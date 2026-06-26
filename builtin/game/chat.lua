@@ -21,6 +21,10 @@ function core.format_chat_message(name, message)
 	local str = core.settings:get("chat_message_format")
 	local replaced
 
+	local name_color = "#8dbafa" -- Modern light blue
+
+	name = core.colorize(name_color, name)
+
 	-- Name
 	str, replaced = safe_gsub(str, "@name", name)
 	if not replaced then

@@ -81,7 +81,7 @@ local function get_formspec(self)
 		tab_header_size.width = tab_header_size.width - end_button_size - 0.1
 	end
 
-	local formspec = (prepend or "")
+	local formspec = (prepend or "") .. (self.prepend or "")
 	formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#0000008C]"):format(
 			TABHEADER_H, orig_tsize.width, orig_tsize.height)
 	formspec = formspec .. self:tab_header(tab_header_size) .. content

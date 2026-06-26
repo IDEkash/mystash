@@ -118,7 +118,7 @@ local function get_formspec(tabview, name, tabdata)
 		"container_end[]" ..
 
 		"container[9.75,0]" ..
-		"box[0,0;5.75,7.1;#666666]" ..
+		"box[0,0;5.75,7.1;#ffffff10]" ..
 
 		-- TRANSLATORS: Network address
 		"label[0.25,0.35;" .. fgettext("Address") .. "]" ..
@@ -131,7 +131,7 @@ local function get_formspec(tabview, name, tabdata)
 
 		-- Description Background
 		"label[0.25,1.6;" .. fgettext("Server Description") .. "]" ..
-		"box[0.25,1.85;5.25,2.7;#999999]"..
+		"box[0.25,1.85;5.25,2.7;#ffffff20]"..
 
 		-- Name / Password
 		"container[0,4.8]" ..
@@ -143,6 +143,7 @@ local function get_formspec(tabview, name, tabdata)
 
 		-- Connect
 		-- TRANSLATORS: Login to server
+		"style[btn_mp_login;bgcolor=#44ff4433;bgcolor_hover=#44ff4466;font=bold]" ..
 		"button[3,6;2.5,0.75;btn_mp_login;" .. fgettext("Login") .. "]"
 
 	if core.settings:get_bool("enable_split_login_register") then

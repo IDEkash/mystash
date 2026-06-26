@@ -99,6 +99,13 @@ local function init_globals()
 	-- Create main tabview
 	local tv_main = tabview_create("maintab", {x = MAIN_TAB_W, y = MAIN_TAB_H}, {x = 0, y = 0})
 
+	tv_main.prepend = [[
+		style_type[button,image_button;border=false;content_offset=0]
+		style_type[button;bgcolor=#ffffff10]
+		style_type[button:hover;bgcolor=#ffffff20]
+		style_type[button:pressed;bgcolor=#ffffff30]
+	]]
+
 	tv_main:set_autosave_tab(true)
 	tv_main:add(tabs.local_game)
 	tv_main:add(tabs.play_online)
@@ -125,6 +132,8 @@ local function init_globals()
 			return true
 		end,
 	})
+
+	tv_main.header_y = -0.2
 
 	ui.set_default("maintab")
 	tv_main:show()

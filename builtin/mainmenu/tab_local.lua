@@ -210,6 +210,7 @@ local function get_formspec(tabview, name, tabdata)
 			"button[6.65,0;3.225,0.8;world_create;".. fgettext("New") .. "]"
 	if world then
 		retval = retval ..
+				"style[world_delete;bgcolor=#ff444433;bgcolor_hover=#ff444466]" ..
 				"button[0,0;3.225,0.8;world_delete;".. fgettext("Delete") .. "]" ..
 				"button[3.325,0;3.225,0.8;world_configure;".. fgettext("Select Mods") .. "]"
 	end
@@ -229,6 +230,7 @@ local function get_formspec(tabview, name, tabdata)
 
 	if core.settings:get_bool("enable_server") and disabled_settings["enable_server"] == nil then
 		retval = retval ..
+				"style[play;bgcolor=#44ff4433;bgcolor_hover=#44ff4466;font=bold]" ..
 				"button[10.1875,5.925;4.9375,0.8;play;".. fgettext("Host Game") .. "]" ..
 				"container[0.375,0.375]" ..
 				"checkbox[0,"..y..";cb_server_announce;" .. fgettext("Announce Server") .. ";" ..
@@ -264,6 +266,7 @@ local function get_formspec(tabview, name, tabdata)
 		retval = retval .. "container_end[]"
 	elseif world then
 		retval = retval ..
+				"style[play;bgcolor=#44ff4433;bgcolor_hover=#44ff4466;font=bold]" ..
 				"button[10.1875,5.925;4.9375,0.8;play;" .. fgettext("Play Game") .. "]"
 	end
 
