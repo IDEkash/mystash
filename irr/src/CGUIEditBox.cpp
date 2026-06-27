@@ -9,6 +9,7 @@
 #include "IGUIFont.h"
 #include "IGUIScrollBar.h"
 #include "IVideoDriver.h"
+#include "guiutil.h"
 #include "rect.h"
 #include "os.h"
 #include "Keycodes.h"
@@ -739,12 +740,12 @@ void CGUIEditBox::draw()
 	}
 
 	if (!Border && Background) {
-		skin->draw2DRectangle(this, bgColor, AbsoluteRect, &AbsoluteClippingRect);
+		draw2DRoundedRectangle(Environment->getVideoDriver(), AbsoluteRect, bgColor, 4, &AbsoluteClippingRect);
 	}
 
 	if (Border && IsWritable) {
 		// draw the border
-		skin->draw3DSunkenPane(this, bgColor, false, Background, AbsoluteRect, &AbsoluteClippingRect);
+		draw2DRoundedRectangle(Environment->getVideoDriver(), AbsoluteRect, bgColor, 4, &AbsoluteClippingRect, skin->getColor(EGDC_3D_HIGH_LIGHT), 1);
 	}
 
 	calculateFrameRect();

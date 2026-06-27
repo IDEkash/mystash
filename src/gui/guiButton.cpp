@@ -261,7 +261,13 @@ void GUIButton::draw()
 	if (DrawBorder)
 	{
 		s32 radius = BorderRadius.value_or(8);
-		gui::draw2DRoundedRectangle(driver, AbsoluteRect, Colors[2], radius, &AbsoluteClippingRect);
+		video::SColor border_color = skin->getColor(EGDC_3D_HIGH_LIGHT);
+		if (Pressed)
+			border_color = skin->getColor(EGDC_HIGH_LIGHT);
+		else if (hovered)
+			border_color = multiplyColorValue(border_color, 1.5f);
+
+		gui::draw2DRoundedRectangle(driver, AbsoluteRect, Colors[2], radius, &AbsoluteClippingRect, border_color, 1);
 	}
 
 	const core::position2di buttonCenter(AbsoluteRect.getCenter());

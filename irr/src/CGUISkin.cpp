@@ -18,31 +18,31 @@ namespace gui
 CGUISkin::CGUISkin(video::IVideoDriver* driver)
 : SpriteBank(0), Driver(driver)
 {
-	Colors[EGDC_3D_DARK_SHADOW]     = video::SColor(150,0,0,0);
-	Colors[EGDC_3D_SHADOW]          = video::SColor(150,50,50,50);
-	Colors[EGDC_3D_FACE]            = video::SColor(200,20,20,20);
-	Colors[EGDC_3D_HIGH_LIGHT]      = video::SColor(150,80,80,80);
-	Colors[EGDC_3D_LIGHT]           = video::SColor(150,60,60,60);
-	Colors[EGDC_ACTIVE_BORDER]      = video::SColor(101,16,14,115);
+	Colors[EGDC_3D_DARK_SHADOW]     = video::SColor(120,0,0,0);
+	Colors[EGDC_3D_SHADOW]          = video::SColor(100,20,30,40);
+	Colors[EGDC_3D_FACE]            = video::SColor(160,15,20,25);
+	Colors[EGDC_3D_HIGH_LIGHT]      = video::SColor(100,50,60,70);
+	Colors[EGDC_3D_LIGHT]           = video::SColor(100,40,50,60);
+	Colors[EGDC_ACTIVE_BORDER]      = video::SColor(180,40,50,80);
 	Colors[EGDC_ACTIVE_CAPTION]     = video::SColor(255,255,255,255);
-	Colors[EGDC_APP_WORKSPACE]      = video::SColor(101,100,100,100);
-	Colors[EGDC_BUTTON_TEXT]        = video::SColor(255,255,255,255);
-	Colors[EGDC_GRAY_TEXT]          = video::SColor(255,160,160,160);
-	Colors[EGDC_HIGH_LIGHT]         = video::SColor(200,60,60,120);
+	Colors[EGDC_APP_WORKSPACE]      = video::SColor(101,10,15,20);
+	Colors[EGDC_BUTTON_TEXT]        = video::SColor(255,230,235,240);
+	Colors[EGDC_GRAY_TEXT]          = video::SColor(255,120,130,140);
+	Colors[EGDC_HIGH_LIGHT]         = video::SColor(180,50,100,200);
 	Colors[EGDC_HIGH_LIGHT_TEXT]    = video::SColor(255,255,255,255);
-	Colors[EGDC_INACTIVE_BORDER]    = video::SColor(150,40,40,40);
-	Colors[EGDC_INACTIVE_CAPTION]   = video::SColor(255,100,100,100);
+	Colors[EGDC_INACTIVE_BORDER]    = video::SColor(120,30,35,40);
+	Colors[EGDC_INACTIVE_CAPTION]   = video::SColor(255,150,160,170);
 	Colors[EGDC_TOOLTIP]            = video::SColor(255,255,255,255);
-	Colors[EGDC_TOOLTIP_BACKGROUND] = video::SColor(220,20,20,20);
-	Colors[EGDC_SCROLLBAR]          = video::SColor(150,40,40,40);
-	Colors[EGDC_WINDOW]             = video::SColor(200,20,20,20);
-	Colors[EGDC_WINDOW_SYMBOL]      = video::SColor(255,255,255,255);
+	Colors[EGDC_TOOLTIP_BACKGROUND] = video::SColor(230,10,15,25);
+	Colors[EGDC_SCROLLBAR]          = video::SColor(120,20,25,30);
+	Colors[EGDC_WINDOW]             = video::SColor(180,10,12,15);
+	Colors[EGDC_WINDOW_SYMBOL]      = video::SColor(255,220,230,240);
 	Colors[EGDC_ICON]               = video::SColor(255,255,255,255);
-	Colors[EGDC_ICON_HIGH_LIGHT]    = video::SColor(200,60,60,120);
-	Colors[EGDC_GRAY_WINDOW_SYMBOL] = video::SColor(255,120,120,120);
-	Colors[EGDC_EDITABLE] 			= video::SColor(150,0,0,0);
-	Colors[EGDC_GRAY_EDITABLE]		= video::SColor(150,40,40,40);
-	Colors[EGDC_FOCUSED_EDITABLE]	= video::SColor(180,30,30,60);
+	Colors[EGDC_ICON_HIGH_LIGHT]    = video::SColor(200,60,120,240);
+	Colors[EGDC_GRAY_WINDOW_SYMBOL] = video::SColor(255,100,110,120);
+	Colors[EGDC_EDITABLE] 			= video::SColor(120,5,10,15);
+	Colors[EGDC_GRAY_EDITABLE]		= video::SColor(120,25,30,35);
+	Colors[EGDC_FOCUSED_EDITABLE]	= video::SColor(150,30,60,120);
 
 
 	Sizes[EGDS_SCROLLBAR_SIZE] = 14;
@@ -346,7 +346,7 @@ core::rect<s32> CGUISkin::drawColored3DWindowBackground(IGUIElement* element,
 
 	if ( !checkClientArea )
 	{
-		draw2DRoundedRectangle(Driver, r, colors[EGDC_3D_FACE], 8, clip);
+		draw2DRoundedRectangle(Driver, r, colors[EGDC_3D_FACE], 12, clip, colors[EGDC_3D_HIGH_LIGHT], 1);
 	}
 
 	core::rect<s32> rect = r;
@@ -377,7 +377,7 @@ core::rect<s32> CGUISkin::drawColored3DWindowBackground(IGUIElement* element,
 		else
 		{
 			// draw title bar
-			draw2DRoundedRectangle(Driver, rect, titleBarColor, 4, clip);
+			draw2DRoundedRectangle(Driver, rect, titleBarColor, 8, clip);
 		}
 	}
 
@@ -406,7 +406,7 @@ void CGUISkin::drawColored3DMenuPane(IGUIElement *element,
 	if (!colors)
 		colors = Colors;
 
-	draw2DRoundedRectangle(Driver, r, colors[EGDC_3D_FACE], 4, clip);
+	draw2DRoundedRectangle(Driver, r, colors[EGDC_3D_FACE], 8, clip, colors[EGDC_3D_HIGH_LIGHT], 1);
 }
 // END PATCH
 
@@ -524,7 +524,10 @@ void CGUISkin::draw2DRectangle(IGUIElement* element,
 		const video::SColor &color, const core::rect<s32>& pos,
 		const core::rect<s32>* clip)
 {
-	Driver->draw2DRectangle(color, pos, clip);
+	if (pos.getWidth() == pos.getHeight() && pos.getWidth() < 32)
+		draw2DRoundedRectangle(Driver, pos, color, 4, clip);
+	else
+		draw2DRoundedRectangle(Driver, pos, color, 2, clip);
 }
 
 

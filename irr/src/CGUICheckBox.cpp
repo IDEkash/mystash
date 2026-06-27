@@ -8,6 +8,7 @@
 #include "IGUIEnvironment.h"
 #include "IVideoDriver.h"
 #include "IGUIFont.h"
+#include "guiutil.h"
 #include "os.h"
 
 namespace gui
@@ -105,12 +106,12 @@ void CGUICheckBox::draw()
 		// draw background
 		if (Background) {
 			video::SColor bgColor = skin->getColor(gui::EGDC_3D_FACE);
-			driver->draw2DRectangle(bgColor, frameRect, &AbsoluteClippingRect);
+			draw2DRoundedRectangle(driver, frameRect, bgColor, 4, &AbsoluteClippingRect);
 		}
 
 		// draw the border
 		if (Border) {
-			skin->draw3DSunkenPane(this, 0, true, false, frameRect, &AbsoluteClippingRect);
+			draw2DRoundedRectangle(driver, frameRect, video::SColor(0), 4, &AbsoluteClippingRect, skin->getColor(EGDC_3D_HIGH_LIGHT), 1);
 			frameRect.UpperLeftCorner.X += skin->getSize(EGDS_TEXT_DISTANCE_X);
 			frameRect.LowerRightCorner.X -= skin->getSize(EGDS_TEXT_DISTANCE_X);
 		}
@@ -128,8 +129,7 @@ void CGUICheckBox::draw()
 		EGUI_DEFAULT_COLOR col = EGDC_GRAY_EDITABLE;
 		if (isEnabled())
 			col = Pressed ? EGDC_FOCUSED_EDITABLE : EGDC_EDITABLE;
-		skin->draw3DSunkenPane(this, skin->getColor(col),
-				false, true, checkRect, &AbsoluteClippingRect);
+		draw2DRoundedRectangle(driver, checkRect, skin->getColor(col), 4, &AbsoluteClippingRect, skin->getColor(EGDC_3D_HIGH_LIGHT), 1);
 
 		// the checked icon
 		if (Checked) {

@@ -9,6 +9,7 @@
 #include <IGUIFont.h>
 #include <IVideoDriver.h>
 #include <rect.h>
+#include "guiutil.h"
 #include <SColor.h>
 
 #include "CGUITTFont.h"
@@ -54,7 +55,7 @@ void StaticText::draw()
 	// draw background
 
 	if (Background)
-		driver->draw2DRectangle(getBackgroundColor(), frameRect, &AbsoluteClippingRect);
+		gui::draw2DRoundedRectangle(driver, frameRect, getBackgroundColor(), 4, &AbsoluteClippingRect);
 
 	// draw the border
 

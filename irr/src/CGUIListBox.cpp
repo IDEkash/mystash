@@ -11,6 +11,7 @@
 #include "IGUIFont.h"
 #include "IGUISpriteBank.h"
 #include "CGUIScrollBar.h"
+#include "guiutil.h"
 #include "os.h"
 
 namespace gui
@@ -447,8 +448,7 @@ void CGUIListBox::draw()
 	clientClip.LowerRightCorner.Y -= 1;
 	clientClip.clipAgainst(AbsoluteClippingRect);
 
-	skin->draw3DSunkenPane(this, skin->getColor(EGDC_3D_HIGH_LIGHT), true,
-			DrawBack, frameRect, &AbsoluteClippingRect);
+	draw2DRoundedRectangle(Driver, frameRect, skin->getColor(EGDC_EDITABLE), 4, &AbsoluteClippingRect, skin->getColor(EGDC_3D_HIGH_LIGHT), 1);
 
 	if (clipRect)
 		clientClip.clipAgainst(*clipRect);
@@ -469,7 +469,7 @@ void CGUIListBox::draw()
 		if (frameRect.LowerRightCorner.Y >= AbsoluteRect.UpperLeftCorner.Y &&
 				frameRect.UpperLeftCorner.Y <= AbsoluteRect.LowerRightCorner.Y) {
 			if (i == Selected && hl)
-				skin->draw2DRectangle(this, skin->getColor(EGDC_HIGH_LIGHT), frameRect, &clientClip);
+				draw2DRoundedRectangle(Driver, frameRect, skin->getColor(EGDC_HIGH_LIGHT), 4, &clientClip);
 
 			core::rect<s32> textRect = frameRect;
 			textRect.UpperLeftCorner.X += 3;

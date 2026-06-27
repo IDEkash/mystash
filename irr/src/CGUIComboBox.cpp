@@ -11,6 +11,7 @@
 #include "IGUIFont.h"
 #include "IGUIButton.h"
 #include "CGUIListBox.h"
+#include "guiutil.h"
 #include "os.h"
 
 namespace gui
@@ -389,8 +390,7 @@ void CGUIComboBox::draw()
 
 	// draw the border
 
-	skin->draw3DSunkenPane(this, skin->getColor(EGDC_3D_HIGH_LIGHT),
-			true, true, frameRect, &AbsoluteClippingRect);
+	draw2DRoundedRectangle(Driver, frameRect, skin->getColor(EGDC_EDITABLE), 4, &AbsoluteClippingRect, skin->getColor(EGDC_3D_HIGH_LIGHT), 1);
 
 	// draw children
 	IGUIElement::draw();

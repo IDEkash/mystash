@@ -15,6 +15,7 @@ the arrow buttons where there is insufficient space.
 #include "porting.h"
 #include "settings.h"
 #include <IGUISkin.h>
+#include "guiutil.h"
 
 GUIScrollBar::GUIScrollBar(IGUIEnvironment *environment, IGUIElement *parent, s32 id,
 		core::rect<s32> rectangle, bool horizontal, bool auto_scale,
@@ -157,8 +158,8 @@ void GUIScrollBar::draw()
 		refreshControls();
 
 	slider_rect = AbsoluteRect;
-	skin->draw2DRectangle(this, skin->getColor(EGDC_SCROLLBAR), slider_rect,
-			&AbsoluteClippingRect);
+	gui::draw2DRoundedRectangle(Environment->getVideoDriver(), slider_rect,
+			skin->getColor(EGDC_SCROLLBAR), 4, &AbsoluteClippingRect);
 
 	if (core::isnotzero(range())) {
 		if (is_horizontal) {
@@ -172,7 +173,9 @@ void GUIScrollBar::draw()
 			slider_rect.LowerRightCorner.Y =
 					slider_rect.UpperLeftCorner.Y + thumb_size;
 		}
-		skin->draw3DButtonPaneStandard(this, slider_rect, &AbsoluteClippingRect);
+		gui::draw2DRoundedRectangle(Environment->getVideoDriver(), slider_rect,
+				skin->getColor(EGDC_3D_FACE), 4, &AbsoluteClippingRect,
+				skin->getColor(EGDC_3D_HIGH_LIGHT), 1);
 	}
 	IGUIElement::draw();
 }

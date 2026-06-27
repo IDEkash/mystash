@@ -15,6 +15,8 @@ namespace gui {
 
 void draw2DRoundedRectangle(video::IVideoDriver *driver,
 		const core::rect<s32> &rect, video::SColor color,
-		s32 radius, const core::rect<s32> *clip = nullptr);
+		s32 radius, const core::rect<s32> *clip = nullptr,
+		video::SColor border_color = video::SColor(0),
+		s32 border_width = 0);
 
 } // namespace gui
