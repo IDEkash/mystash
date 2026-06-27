@@ -18,6 +18,7 @@
 #include "util/string.h" // for parseColorString()
 #include "porting.h" // for dpi
 #include "client/guiscalingfilter.h"
+#include "guiutil.h"
 
 /*
 	GUITable
@@ -646,13 +647,9 @@ void GUITable::draw()
 	// draw background
 
 	bool draw_background = m_background.getAlpha() > 0;
-	if (m_border)
-		skin->draw3DSunkenPane(this, m_background,
-				true, draw_background,
-				AbsoluteRect, &AbsoluteClippingRect);
-	else if (draw_background)
-		skin->draw2DRectangle(this, m_background,
-				AbsoluteRect, &AbsoluteClippingRect);
+	if (draw_background) {
+		draw2DRoundedRectangle(Environment->getVideoDriver(), AbsoluteRect, m_background, 4, &AbsoluteClippingRect);
+	}
 
 	// get clipping rect
 

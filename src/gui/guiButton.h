@@ -5,6 +5,7 @@
 #pragma once
 
 #include <IGUIStaticText.h>
+#include <optional>
 #include "irrlicht_changes/static_text.h"
 #include "IGUIButton.h"
 #include "IGUISpriteBank.h"
@@ -269,6 +270,7 @@ private:
 	core::rect<s32> BgMiddle;
 	core::rect<s32> Padding;
 	core::vector2d<s32> ContentOffset;
+	std::optional<s32> BorderRadius;
 	video::SColor BgColor = video::SColor(0xFF,0xFF,0xFF,0xFF);
 	// END PATCH
 };

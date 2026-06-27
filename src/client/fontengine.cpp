@@ -66,12 +66,12 @@ void FontEngine::clearCache()
 
 	for (auto &font_cache_it : m_font_cache) {
 
-		for (auto &font_it : font_cache_it) {
+		for (auto &font_it : font_cache_it.second) {
 			font_it.second->drop();
 			font_it.second = nullptr;
 		}
-		font_cache_it.clear();
 	}
+	m_font_cache.clear();
 }
 
 gui::IGUIFont *FontEngine::getFont(FontSpec spec)
@@ -95,7 +95,7 @@ gui::IGUIFont *FontEngine::getFont(FontSpec spec, bool may_fail)
 
 	RecursiveMutexAutoLock l(m_font_mutex);
 
-	const auto &cache = m_font_cache[spec.getHash()];
+	const auto &cache = m_font_cache[spec.getStringKey()];
 	auto it = cache.find(spec.size);
 	if (it != cache.end())
 		return it->second;
@@ -108,7 +108,7 @@ gui::IGUIFont *FontEngine::getFont(FontSpec spec, bool may_fail)
 		throw BaseException(err);
 	}
 
-	m_font_cache[spec.getHash()][spec.size] = font;
+	m_font_cache[spec.getStringKey()][spec.size] = font;
 
 	return font;
 }
@@ -194,15 +194,6 @@ void FontEngine::refresh()
 
 void FontEngine::setMediaFont(const std::string &name, const std::string &data)
 {
-	const static std::unordered_set<std::string> valid_names{
-		"regular", "bold", "italic", "bold_italic",
-		"mono", "mono_bold", "mono_italic", "mono_bold_italic",
-	};
-	if (!valid_names.count(name)) {
-		warningstream << "Ignoring unrecognized media font: " << name << std::endl;
-		return;
-	}
-
 	constexpr char TTF_MAGIC[5] = {0, 1, 0, 0, 0};
 	if (data.size() < 5 || (memcmp(data.data(), "wOFF", 4) &&
 			memcmp(data.data(), TTF_MAGIC, 5))) {
@@ -292,11 +283,14 @@ gui::IGUIFont *FontEngine::initFont(FontSpec spec)
 
 	// Use the server-provided font media (if available)
 	if (spec.allow_server_media) {
-		std::string media_name = spec.mode == FM_Mono
-				? "mono" + setting_suffix
-				: (setting_suffix.empty() ? "" : setting_suffix.substr(1));
-		if (media_name.empty())
-			media_name = "regular";
+		std::string media_name = spec.font_family;
+		if (media_name.empty()) {
+			media_name = spec.mode == FM_Mono
+					? "mono" + setting_suffix
+					: (setting_suffix.empty() ? "" : setting_suffix.substr(1));
+			if (media_name.empty())
+				media_name = "regular";
+		}
 
 		auto it = m_media_faces.find(media_name);
 		if (it != m_media_faces.end()) {

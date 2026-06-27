@@ -14,6 +14,7 @@
 #include "porting.h"
 #include "StyleSpec.h"
 #include "util/numeric.h"
+#include "guiutil.h"
 
 
 using namespace gui;
@@ -259,20 +260,8 @@ void GUIButton::draw()
 
 	if (DrawBorder)
 	{
-		if (!Pressed)
-		{
-			// PATCH
-			skin->drawColored3DButtonPaneStandard(this, AbsoluteRect,
-					&AbsoluteClippingRect, Colors);
-			// END PATCH
-		}
-		else
-		{
-			// PATCH
-			skin->drawColored3DButtonPanePressed(this, AbsoluteRect,
-					&AbsoluteClippingRect, Colors);
-			// END PATCH
-		}
+		s32 radius = BorderRadius.value_or(8);
+		draw2DRoundedRectangle(driver, AbsoluteRect, Colors[2], radius, &AbsoluteClippingRect);
 	}
 
 	const core::position2di buttonCenter(AbsoluteRect.getCenter());
@@ -749,6 +738,12 @@ void GUIButton::setFromStyle(const StyleSpec& style)
 	ContentOffset = style.getVector2i(StyleSpec::CONTENT_OFFSET, isPressed()
 			? defaultPressOffset
 			: core::vector2d<s32>(0));
+
+	if (style.isNotDefault(StyleSpec::BORDER_RADIUS)) {
+		BorderRadius = stoi(style.get(StyleSpec::BORDER_RADIUS, "0"));
+	} else {
+		BorderRadius = std::nullopt;
+	}
 
 	core::rect<s32> childBounds(
 				Padding.UpperLeftCorner.X + ContentOffset.X,

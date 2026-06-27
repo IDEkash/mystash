@@ -50,6 +50,7 @@
 #include "guiScrollContainer.h"
 #include "guiHyperText.h"
 #include "guiScene.h"
+#include "guiutil.h"
 
 #define MY_CHECKPOS(a,b)													\
 	if (v_pos.size() != 2) {												\
@@ -2286,6 +2287,11 @@ void GUIFormSpecMenu::parseBox(parserData* data, const std::string &element)
 
 	GUIBox *e = new GUIBox(Environment, data->current_parent, spec.fid, rect,
 		colors, bordercolors, borderwidths);
+
+	if (style.isNotDefault(StyleSpec::BORDER_RADIUS)) {
+		e->setBorderRadius(stoi(style.get(StyleSpec::BORDER_RADIUS, "0")));
+	}
+
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, m_formspec_version < 3));
 	e->drop();
 
@@ -3496,7 +3502,7 @@ void GUIFormSpecMenu::drawMenu()
 	if (m_bgfullscreen)
 		driver->draw2DRectangle(m_fullscreen_bgcolor, allbg, &allbg);
 	if (m_bgnonfullscreen)
-		driver->draw2DRectangle(m_bgcolor, AbsoluteRect, &AbsoluteClippingRect);
+		draw2DRoundedRectangle(driver, AbsoluteRect, m_bgcolor, 12, &AbsoluteClippingRect);
 
 	/*
 		Draw rect_mode tooltip

@@ -5,6 +5,7 @@
 #include "guiBox.h"
 #include <IVideoDriver.h>
 #include "irr_v2d.h"
+#include "guiutil.h"
 
 GUIBox::GUIBox(gui::IGUIEnvironment *env, gui::IGUIElement *parent, s32 id,
 	const core::rect<s32> &rectangle,
@@ -93,8 +94,13 @@ void GUIBox::draw()
 
 	video::IVideoDriver *driver = Environment->getVideoDriver();
 
-	driver->draw2DRectangle(main_rect, m_colors[0], m_colors[1], m_colors[3],
-		m_colors[2], &AbsoluteClippingRect);
+	s32 radius = m_border_radius.value_or(0);
+	if (radius > 0) {
+		draw2DRoundedRectangle(driver, main_rect, m_colors[0], radius, &AbsoluteClippingRect);
+	} else {
+		driver->draw2DRectangle(main_rect, m_colors[0], m_colors[1], m_colors[3],
+			m_colors[2], &AbsoluteClippingRect);
+	}
 
 	// The border rectangle can be larger than 'AbsoluteClippingRect',
 	// hence clip against the (generally larger) parent.

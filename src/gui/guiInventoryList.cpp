@@ -8,6 +8,7 @@
 #include "client/client.h"
 #include "client/renderingengine.h"
 #include <IVideoDriver.h>
+#include "guiutil.h"
 
 GUIInventoryList::GUIInventoryList(gui::IGUIEnvironment *env,
 	gui::IGUIElement *parent,
@@ -102,9 +103,9 @@ void GUIInventoryList::draw()
 
 		// layer 0
 		if (hovering) {
-			driver->draw2DRectangle(m_options.slotbg_h, rect, &AbsoluteClippingRect);
+			draw2DRoundedRectangle(driver, rect, m_options.slotbg_h, 4, &AbsoluteClippingRect);
 		} else {
-			driver->draw2DRectangle(m_options.slotbg_n, rect, &AbsoluteClippingRect);
+			draw2DRoundedRectangle(driver, rect, m_options.slotbg_n, 4, &AbsoluteClippingRect);
 		}
 
 		// Draw inv slot borders

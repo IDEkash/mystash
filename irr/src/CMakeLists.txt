@@ -443,6 +443,7 @@ add_library(IRRGUIOBJ OBJECT
 	CGUITabControl.cpp
 	CGUISpriteBank.cpp
 	CGUIImageList.cpp
+	guiutil.cpp
 )
 
 # Library

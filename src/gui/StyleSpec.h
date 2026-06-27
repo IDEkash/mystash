@@ -44,6 +44,8 @@ public:
 		SOUND,
 		SPACING,
 		SIZE,
+		BORDER_RADIUS,
+		FONT_FAMILY,
 		NUM_PROPERTIES,
 		NONE
 	};
@@ -117,6 +119,10 @@ public:
 			return SPACING;
 		} else if (name == "size") {
 			return SIZE;
+		} else if (name == "border_radius") {
+			return BORDER_RADIUS;
+		} else if (name == "font_family") {
+			return FONT_FAMILY;
 		} else {
 			return NONE;
 		}
@@ -301,9 +307,13 @@ public:
 
 		const std::string &font = properties[FONT];
 		const std::string &size = properties[FONT_SIZE];
+		const std::string &family = properties[FONT_FAMILY];
 
-		if (font.empty() && size.empty())
+		if (font.empty() && size.empty() && family.empty())
 			return nullptr;
+
+		if (!family.empty())
+			spec.font_family = family;
 
 		std::vector<std::string> modes = split(font, ',');
 

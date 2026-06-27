@@ -5,6 +5,7 @@
 #pragma once
 
 #include <array>
+#include <optional>
 #include <IGUIElement.h>
 #include <IGUIEnvironment.h>
 
@@ -24,4 +25,8 @@ private:
 	std::array<video::SColor, 4> m_colors;
 	std::array<video::SColor, 4> m_bordercolors;
 	std::array<s32, 4> m_borderwidths;
+	std::optional<s32> m_border_radius;
+
+public:
+	void setBorderRadius(s32 radius) { m_border_radius = radius; }
 };
