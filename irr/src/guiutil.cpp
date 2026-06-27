@@ -6,6 +6,8 @@
 #include <cmath>
 #include <algorithm>
 #include "irrMath.h"
+#include "IVideoDriver.h"
+#include "S3DVertex.h"
 
 namespace gui {
 

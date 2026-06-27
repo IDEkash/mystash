@@ -3,8 +3,13 @@
 
 #pragma once
 
-#include "irrlichttypes_bloated.h"
-#include <IVideoDriver.h>
+#include "irrTypes.h"
+#include "SColor.h"
+#include "rect.h"
+
+namespace video {
+	class IVideoDriver;
+}
 
 namespace gui {
 
