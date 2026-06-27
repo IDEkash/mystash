@@ -49,17 +49,17 @@ struct FontSpec {
 
 	std::string font_family = "";
 
+	bool operator<(const FontSpec& other) const {
+		if (size != other.size) return size < other.size;
+		if (mode != other.mode) return mode < other.mode;
+		if (bold != other.bold) return bold < other.bold;
+		if (italic != other.italic) return italic < other.italic;
+		if (allow_server_media != other.allow_server_media) return allow_server_media < other.allow_server_media;
+		return font_family < other.font_family;
+	}
+
 	static const unsigned VARIANT_BITS = 3;
 	static const size_t MAX_VARIANTS = FM_MaxMode << VARIANT_BITS;
-
-	std::string getStringKey() const
-	{
-		return std::to_string(mode) + ":" +
-			std::to_string(allow_server_media) + ":" +
-			std::to_string(bold) + ":" +
-			std::to_string(italic) + ":" +
-			font_family;
-	}
 
 	unsigned int size;
 	FontMode mode;
@@ -176,8 +176,8 @@ private:
 	/** mutex used to protect font init and cache */
 	std::recursive_mutex m_font_mutex;
 
-	/** internal storage for caching fonts of different size */
-	std::unordered_map<std::string, std::map<unsigned int, gui::IGUIFont*>> m_font_cache;
+	/** internal storage for caching fonts */
+	std::map<FontSpec, gui::IGUIFont*> m_font_cache;
 
 	/** local faces, indexed by file path */
 	std::unordered_map<std::string, irr_ptr<gui::SGUITTFace>> m_local_faces;
