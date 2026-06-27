@@ -103,9 +103,9 @@ void GUIInventoryList::draw()
 
 		// layer 0
 		if (hovering) {
-			draw2DRoundedRectangle(driver, rect, m_options.slotbg_h, 4, &AbsoluteClippingRect);
+			gui::draw2DRoundedRectangle(driver, rect, m_options.slotbg_h, 4, &AbsoluteClippingRect);
 		} else {
-			draw2DRoundedRectangle(driver, rect, m_options.slotbg_n, 4, &AbsoluteClippingRect);
+			gui::draw2DRoundedRectangle(driver, rect, m_options.slotbg_n, 4, &AbsoluteClippingRect);
 		}
 
 		// Draw inv slot borders

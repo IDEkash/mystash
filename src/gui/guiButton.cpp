@@ -261,7 +261,7 @@ void GUIButton::draw()
 	if (DrawBorder)
 	{
 		s32 radius = BorderRadius.value_or(8);
-		draw2DRoundedRectangle(driver, AbsoluteRect, Colors[2], radius, &AbsoluteClippingRect);
+		gui::draw2DRoundedRectangle(driver, AbsoluteRect, Colors[2], radius, &AbsoluteClippingRect);
 	}
 
 	const core::position2di buttonCenter(AbsoluteRect.getCenter());

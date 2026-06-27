@@ -96,7 +96,7 @@ void GUIBox::draw()
 
 	s32 radius = m_border_radius.value_or(0);
 	if (radius > 0) {
-		draw2DRoundedRectangle(driver, main_rect, m_colors[0], radius, &AbsoluteClippingRect);
+		gui::draw2DRoundedRectangle(driver, main_rect, m_colors[0], radius, &AbsoluteClippingRect);
 	} else {
 		driver->draw2DRectangle(main_rect, m_colors[0], m_colors[1], m_colors[3],
 			m_colors[2], &AbsoluteClippingRect);

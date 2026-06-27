@@ -648,7 +648,7 @@ void GUITable::draw()
 
 	bool draw_background = m_background.getAlpha() > 0;
 	if (draw_background) {
-		draw2DRoundedRectangle(Environment->getVideoDriver(), AbsoluteRect, m_background, 4, &AbsoluteClippingRect);
+		gui::draw2DRoundedRectangle(Environment->getVideoDriver(), AbsoluteRect, m_background, 4, &AbsoluteClippingRect);
 	}
 
 	// get clipping rect
