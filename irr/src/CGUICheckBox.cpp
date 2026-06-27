@@ -106,12 +106,12 @@ void CGUICheckBox::draw()
 		// draw background
 		if (Background) {
 			video::SColor bgColor = skin->getColor(gui::EGDC_3D_FACE);
-			draw2DRoundedRectangle(driver, frameRect, bgColor, 4, &AbsoluteClippingRect);
+			draw2DRoundedRectangle(driver, frameRect, bgColor, skin->getSize(EGDS_BORDER_RADIUS), &AbsoluteClippingRect);
 		}
 
 		// draw the border
 		if (Border) {
-			draw2DRoundedRectangle(driver, frameRect, video::SColor(0), 4, &AbsoluteClippingRect, skin->getColor(EGDC_3D_HIGH_LIGHT), 1);
+			draw2DRoundedRectangle(driver, frameRect, video::SColor(0), skin->getSize(EGDS_BORDER_RADIUS), &AbsoluteClippingRect, skin->getColor(EGDC_3D_HIGH_LIGHT), 1);
 			frameRect.UpperLeftCorner.X += skin->getSize(EGDS_TEXT_DISTANCE_X);
 			frameRect.LowerRightCorner.X -= skin->getSize(EGDS_TEXT_DISTANCE_X);
 		}
@@ -129,7 +129,7 @@ void CGUICheckBox::draw()
 		EGUI_DEFAULT_COLOR col = EGDC_GRAY_EDITABLE;
 		if (isEnabled())
 			col = Pressed ? EGDC_FOCUSED_EDITABLE : EGDC_EDITABLE;
-		draw2DRoundedRectangle(driver, checkRect, skin->getColor(col), 4, &AbsoluteClippingRect, skin->getColor(EGDC_3D_HIGH_LIGHT), 1);
+		draw2DRoundedRectangle(driver, checkRect, skin->getColor(col), skin->getSize(EGDS_BORDER_RADIUS), &AbsoluteClippingRect, skin->getColor(EGDC_3D_HIGH_LIGHT), 1);
 
 		// the checked icon
 		if (Checked) {

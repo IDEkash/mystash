@@ -390,7 +390,7 @@ void CGUIComboBox::draw()
 
 	// draw the border
 
-	draw2DRoundedRectangle(Driver, frameRect, skin->getColor(EGDC_EDITABLE), 4, &AbsoluteClippingRect, skin->getColor(EGDC_3D_HIGH_LIGHT), 1);
+	draw2DRoundedRectangle(Environment->getVideoDriver(), frameRect, skin->getColor(EGDC_EDITABLE), skin->getSize(EGDS_BORDER_RADIUS), &AbsoluteClippingRect, skin->getColor(EGDC_3D_HIGH_LIGHT), 1);
 
 	// draw children
 	IGUIElement::draw();

@@ -740,12 +740,12 @@ void CGUIEditBox::draw()
 	}
 
 	if (!Border && Background) {
-		draw2DRoundedRectangle(Environment->getVideoDriver(), AbsoluteRect, bgColor, 4, &AbsoluteClippingRect);
+		draw2DRoundedRectangle(Environment->getVideoDriver(), AbsoluteRect, bgColor, skin->getSize(EGDS_BORDER_RADIUS), &AbsoluteClippingRect);
 	}
 
 	if (Border && IsWritable) {
 		// draw the border
-		draw2DRoundedRectangle(Environment->getVideoDriver(), AbsoluteRect, bgColor, 4, &AbsoluteClippingRect, skin->getColor(EGDC_3D_HIGH_LIGHT), 1);
+		draw2DRoundedRectangle(Environment->getVideoDriver(), AbsoluteRect, bgColor, skin->getSize(EGDS_BORDER_RADIUS), &AbsoluteClippingRect, skin->getColor(EGDC_3D_HIGH_LIGHT), 1);
 	}
 
 	calculateFrameRect();

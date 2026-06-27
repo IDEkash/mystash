@@ -260,7 +260,7 @@ void GUIButton::draw()
 
 	if (DrawBorder)
 	{
-		s32 radius = BorderRadius.value_or(8);
+		s32 radius = BorderRadius.value_or(skin->getSize(EGDS_BORDER_RADIUS));
 		video::SColor border_color = skin->getColor(EGDC_3D_HIGH_LIGHT);
 		if (Pressed)
 			border_color = skin->getColor(EGDC_HIGH_LIGHT);

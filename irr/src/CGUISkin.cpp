@@ -18,31 +18,31 @@ namespace gui
 CGUISkin::CGUISkin(video::IVideoDriver* driver)
 : SpriteBank(0), Driver(driver)
 {
-	Colors[EGDC_3D_DARK_SHADOW]     = video::SColor(120,0,0,0);
-	Colors[EGDC_3D_SHADOW]          = video::SColor(100,20,30,40);
-	Colors[EGDC_3D_FACE]            = video::SColor(160,15,20,25);
-	Colors[EGDC_3D_HIGH_LIGHT]      = video::SColor(100,50,60,70);
-	Colors[EGDC_3D_LIGHT]           = video::SColor(100,40,50,60);
-	Colors[EGDC_ACTIVE_BORDER]      = video::SColor(180,40,50,80);
+	Colors[EGDC_3D_DARK_SHADOW]     = video::SColor(150,0,0,0);
+	Colors[EGDC_3D_SHADOW]          = video::SColor(120,20,22,25);
+	Colors[EGDC_3D_FACE]            = video::SColor(180,35,35,35);
+	Colors[EGDC_3D_HIGH_LIGHT]      = video::SColor(120,180,185,190);
+	Colors[EGDC_3D_LIGHT]           = video::SColor(100,80,85,90);
+	Colors[EGDC_ACTIVE_BORDER]      = video::SColor(200,60,100,200);
 	Colors[EGDC_ACTIVE_CAPTION]     = video::SColor(255,255,255,255);
-	Colors[EGDC_APP_WORKSPACE]      = video::SColor(101,10,15,20);
-	Colors[EGDC_BUTTON_TEXT]        = video::SColor(255,230,235,240);
-	Colors[EGDC_GRAY_TEXT]          = video::SColor(255,120,130,140);
-	Colors[EGDC_HIGH_LIGHT]         = video::SColor(180,50,100,200);
+	Colors[EGDC_APP_WORKSPACE]      = video::SColor(150,15,15,15);
+	Colors[EGDC_BUTTON_TEXT]        = video::SColor(255,245,245,245);
+	Colors[EGDC_GRAY_TEXT]          = video::SColor(255,140,145,150);
+	Colors[EGDC_HIGH_LIGHT]         = video::SColor(200,70,130,255);
 	Colors[EGDC_HIGH_LIGHT_TEXT]    = video::SColor(255,255,255,255);
-	Colors[EGDC_INACTIVE_BORDER]    = video::SColor(120,30,35,40);
-	Colors[EGDC_INACTIVE_CAPTION]   = video::SColor(255,150,160,170);
+	Colors[EGDC_INACTIVE_BORDER]    = video::SColor(120,40,42,45);
+	Colors[EGDC_INACTIVE_CAPTION]   = video::SColor(255,180,185,190);
 	Colors[EGDC_TOOLTIP]            = video::SColor(255,255,255,255);
-	Colors[EGDC_TOOLTIP_BACKGROUND] = video::SColor(230,10,15,25);
-	Colors[EGDC_SCROLLBAR]          = video::SColor(120,20,25,30);
-	Colors[EGDC_WINDOW]             = video::SColor(180,10,12,15);
-	Colors[EGDC_WINDOW_SYMBOL]      = video::SColor(255,220,230,240);
+	Colors[EGDC_TOOLTIP_BACKGROUND] = video::SColor(240,25,25,25);
+	Colors[EGDC_SCROLLBAR]          = video::SColor(140,40,42,45);
+	Colors[EGDC_WINDOW]             = video::SColor(200,20,20,20);
+	Colors[EGDC_WINDOW_SYMBOL]      = video::SColor(255,235,240,245);
 	Colors[EGDC_ICON]               = video::SColor(255,255,255,255);
-	Colors[EGDC_ICON_HIGH_LIGHT]    = video::SColor(200,60,120,240);
-	Colors[EGDC_GRAY_WINDOW_SYMBOL] = video::SColor(255,100,110,120);
-	Colors[EGDC_EDITABLE] 			= video::SColor(120,5,10,15);
-	Colors[EGDC_GRAY_EDITABLE]		= video::SColor(120,25,30,35);
-	Colors[EGDC_FOCUSED_EDITABLE]	= video::SColor(150,30,60,120);
+	Colors[EGDC_ICON_HIGH_LIGHT]    = video::SColor(220,90,150,255);
+	Colors[EGDC_GRAY_WINDOW_SYMBOL] = video::SColor(255,120,125,130);
+	Colors[EGDC_EDITABLE] 			= video::SColor(150,10,10,12);
+	Colors[EGDC_GRAY_EDITABLE]		= video::SColor(120,35,37,40);
+	Colors[EGDC_FOCUSED_EDITABLE]	= video::SColor(180,50,100,200);
 
 
 	Sizes[EGDS_SCROLLBAR_SIZE] = 14;
@@ -53,6 +53,7 @@ CGUISkin::CGUISkin(video::IVideoDriver* driver)
 	Sizes[EGDS_MESSAGE_BOX_HEIGHT] = 200;
 	Sizes[EGDS_BUTTON_WIDTH] = 80;
 	Sizes[EGDS_BUTTON_HEIGHT] = 30;
+	Sizes[EGDS_BORDER_RADIUS] = 6;
 
 	Sizes[EGDS_TEXT_DISTANCE_X] = 2;
 	Sizes[EGDS_TEXT_DISTANCE_Y] = 0;
@@ -265,7 +266,7 @@ void CGUISkin::drawColored3DButtonPaneStandard(IGUIElement* element,
 	if (!colors)
 		colors = Colors;
 
-	draw2DRoundedRectangle(Driver, r, colors[EGDC_3D_FACE], 8, clip);
+	draw2DRoundedRectangle(Driver, r, colors[EGDC_3D_FACE], getSize(EGDS_BORDER_RADIUS), clip);
 }
 // END PATCH
 
@@ -291,7 +292,7 @@ void CGUISkin::drawColored3DButtonPanePressed(IGUIElement* element,
 	if (!colors)
 		colors = Colors;
 
-	draw2DRoundedRectangle(Driver, r, colors[EGDC_HIGH_LIGHT], 8, clip);
+	draw2DRoundedRectangle(Driver, r, colors[EGDC_HIGH_LIGHT], getSize(EGDS_BORDER_RADIUS), clip);
 }
 // END PATCH
 
@@ -317,7 +318,7 @@ void CGUISkin::drawColored3DSunkenPane(IGUIElement* element, video::SColor bgcol
 		return;
 
 	if (fillBackGround) {
-		draw2DRoundedRectangle(Driver, r, bgcolor, 4, clip);
+		draw2DRoundedRectangle(Driver, r, bgcolor, getSize(EGDS_BORDER_RADIUS), clip);
 	}
 }
 // END PATCH
@@ -346,7 +347,7 @@ core::rect<s32> CGUISkin::drawColored3DWindowBackground(IGUIElement* element,
 
 	if ( !checkClientArea )
 	{
-		draw2DRoundedRectangle(Driver, r, colors[EGDC_3D_FACE], 12, clip, colors[EGDC_3D_HIGH_LIGHT], 1);
+		draw2DRoundedRectangle(Driver, r, colors[EGDC_3D_FACE], getSize(EGDS_BORDER_RADIUS), clip, colors[EGDC_3D_HIGH_LIGHT], 1);
 	}
 
 	core::rect<s32> rect = r;
@@ -377,7 +378,7 @@ core::rect<s32> CGUISkin::drawColored3DWindowBackground(IGUIElement* element,
 		else
 		{
 			// draw title bar
-			draw2DRoundedRectangle(Driver, rect, titleBarColor, 8, clip);
+			draw2DRoundedRectangle(Driver, rect, titleBarColor, getSize(EGDS_BORDER_RADIUS), clip);
 		}
 	}
 
@@ -406,7 +407,7 @@ void CGUISkin::drawColored3DMenuPane(IGUIElement *element,
 	if (!colors)
 		colors = Colors;
 
-	draw2DRoundedRectangle(Driver, r, colors[EGDC_3D_FACE], 8, clip, colors[EGDC_3D_HIGH_LIGHT], 1);
+	draw2DRoundedRectangle(Driver, r, colors[EGDC_3D_FACE], getSize(EGDS_BORDER_RADIUS), clip, colors[EGDC_3D_HIGH_LIGHT], 1);
 }
 // END PATCH
 
@@ -430,7 +431,7 @@ void CGUISkin::drawColored3DToolBar(IGUIElement* element,
 	if (!colors)
 		colors = Colors;
 
-	draw2DRoundedRectangle(Driver, r, colors[EGDC_3D_FACE], 4, clip);
+	draw2DRoundedRectangle(Driver, r, colors[EGDC_3D_FACE], getSize(EGDS_BORDER_RADIUS), clip);
 }
 // END PATCH
 
@@ -457,7 +458,7 @@ void CGUISkin::drawColored3DTabButton(IGUIElement* element, bool active,
 	if (active)
 		color = colors[EGDC_HIGH_LIGHT];
 
-	draw2DRoundedRectangle(Driver, frameRect, color, 8, clip);
+	draw2DRoundedRectangle(Driver, frameRect, color, getSize(EGDS_BORDER_RADIUS), clip);
 }
 // END PATCH
 
@@ -483,7 +484,7 @@ void CGUISkin::drawColored3DTabBody(IGUIElement* element, bool border, bool back
 
 	if (background)
 	{
-		draw2DRoundedRectangle(Driver, rect, colors[EGDC_3D_FACE], 8, clip);
+		draw2DRoundedRectangle(Driver, rect, colors[EGDC_3D_FACE], getSize(EGDS_BORDER_RADIUS), clip);
 	}
 }
 // END PATCH

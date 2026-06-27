@@ -448,7 +448,7 @@ void CGUIListBox::draw()
 	clientClip.LowerRightCorner.Y -= 1;
 	clientClip.clipAgainst(AbsoluteClippingRect);
 
-	draw2DRoundedRectangle(Driver, frameRect, skin->getColor(EGDC_EDITABLE), 4, &AbsoluteClippingRect, skin->getColor(EGDC_3D_HIGH_LIGHT), 1);
+	draw2DRoundedRectangle(Environment->getVideoDriver(), frameRect, skin->getColor(EGDC_EDITABLE), skin->getSize(EGDS_BORDER_RADIUS), &AbsoluteClippingRect, skin->getColor(EGDC_3D_HIGH_LIGHT), 1);
 
 	if (clipRect)
 		clientClip.clipAgainst(*clipRect);
@@ -469,7 +469,7 @@ void CGUIListBox::draw()
 		if (frameRect.LowerRightCorner.Y >= AbsoluteRect.UpperLeftCorner.Y &&
 				frameRect.UpperLeftCorner.Y <= AbsoluteRect.LowerRightCorner.Y) {
 			if (i == Selected && hl)
-				draw2DRoundedRectangle(Driver, frameRect, skin->getColor(EGDC_HIGH_LIGHT), 4, &clientClip);
+				draw2DRoundedRectangle(Environment->getVideoDriver(), frameRect, skin->getColor(EGDC_HIGH_LIGHT), skin->getSize(EGDS_BORDER_RADIUS), &clientClip);
 
 			core::rect<s32> textRect = frameRect;
 			textRect.UpperLeftCorner.X += 3;

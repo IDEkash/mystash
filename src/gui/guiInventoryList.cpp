@@ -103,9 +103,9 @@ void GUIInventoryList::draw()
 
 		// layer 0
 		if (hovering) {
-			gui::draw2DRoundedRectangle(driver, rect, m_options.slotbg_h, 6, &AbsoluteClippingRect, video::SColor(100, 255, 255, 255), 1);
+			gui::draw2DRoundedRectangle(driver, rect, m_options.slotbg_h, Environment->getSkin()->getSize(EGDS_BORDER_RADIUS), &AbsoluteClippingRect, video::SColor(100, 255, 255, 255), 1);
 		} else {
-			gui::draw2DRoundedRectangle(driver, rect, m_options.slotbg_n, 6, &AbsoluteClippingRect, video::SColor(50, 255, 255, 255), 1);
+			gui::draw2DRoundedRectangle(driver, rect, m_options.slotbg_n, Environment->getSkin()->getSize(EGDS_BORDER_RADIUS), &AbsoluteClippingRect, video::SColor(50, 255, 255, 255), 1);
 		}
 
 		// Draw inv slot borders

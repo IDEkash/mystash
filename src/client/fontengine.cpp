@@ -15,6 +15,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <unordered_map>
 #include <unordered_set>
 
 /** reference to access font engine, has to be initialized by main */
@@ -64,12 +65,8 @@ void FontEngine::clearCache()
 {
 	RecursiveMutexAutoLock l(m_font_mutex);
 
-	for (auto &font_cache_it : m_font_cache) {
-
-		for (auto &font_it : font_cache_it.second) {
-			font_it.second->drop();
-			font_it.second = nullptr;
-		}
+	for (auto &font_it : m_font_cache) {
+		font_it.second->drop();
 	}
 	m_font_cache.clear();
 }
@@ -95,9 +92,8 @@ gui::IGUIFont *FontEngine::getFont(FontSpec spec, bool may_fail)
 
 	RecursiveMutexAutoLock l(m_font_mutex);
 
-	const auto &cache = m_font_cache[spec.getStringKey()];
-	auto it = cache.find(spec.size);
-	if (it != cache.end())
+	auto it = m_font_cache.find(spec);
+	if (it != m_font_cache.end())
 		return it->second;
 
 	// Font does not yet exist
@@ -108,7 +104,8 @@ gui::IGUIFont *FontEngine::getFont(FontSpec spec, bool may_fail)
 		throw BaseException(err);
 	}
 
-	m_font_cache[spec.getStringKey()][spec.size] = font;
+	if (font)
+		m_font_cache[spec] = font;
 
 	return font;
 }

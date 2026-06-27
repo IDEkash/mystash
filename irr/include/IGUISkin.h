@@ -153,6 +153,8 @@ enum EGUI_DEFAULT_SIZE
 	EGDS_BUTTON_PRESSED_SPRITE_OFFSET_X,
 	//! pixels to move an unscaled button sprite down when a button is pressed
 	EGDS_BUTTON_PRESSED_SPRITE_OFFSET_Y,
+	//! default border radius for rounded rectangles
+	EGDS_BORDER_RADIUS,
 
 	//! this value is not used, it only specifies the amount of default sizes
 	//! available.
@@ -184,6 +186,7 @@ const c8 *const GUISkinSizeNames[EGDS_COUNT + 1] = {
 		"ButtonPressedTextOffsetY",
 		"ButtonPressedSpriteOffsetX",
 		"ButtonPressedSpriteOffsetY",
+		"BorderRadius",
 		0,
 	};
 

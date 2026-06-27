@@ -3502,7 +3502,7 @@ void GUIFormSpecMenu::drawMenu()
 	if (m_bgfullscreen)
 		driver->draw2DRectangle(m_fullscreen_bgcolor, allbg, &allbg);
 	if (m_bgnonfullscreen)
-		gui::draw2DRoundedRectangle(driver, AbsoluteRect, m_bgcolor, 12, &AbsoluteClippingRect);
+		gui::draw2DRoundedRectangle(driver, AbsoluteRect, m_bgcolor, skin->getSize(EGDS_BORDER_RADIUS), &AbsoluteClippingRect);
 
 	/*
 		Draw rect_mode tooltip
