@@ -2,8 +2,8 @@
 -- Copyright (C) 2014 sapier
 -- SPDX-License-Identifier: LGPL-2.1-or-later
 
-MAIN_TAB_W = 15.5
-MAIN_TAB_H = 7.1
+MAIN_TAB_W = 19
+MAIN_TAB_H = 8
 TABHEADER_H = 0.85
 GAMEBAR_H = 1.25
 GAMEBAR_OFFSET_DESKTOP = 0.375
@@ -101,12 +101,24 @@ local function init_globals()
 
 	tv_main.prepend = [[
 		style_type[button,image_button;border=false;content_offset=0]
-		style_type[button;bgcolor=#ffffff10]
-		style_type[button:hover;bgcolor=#ffffff20]
-		style_type[button:pressed;bgcolor=#ffffff30]
+		style_type[button;bgcolor=#ffffff08;textcolor=#ffffff]
+		style_type[button:hover;bgcolor=#ffffff18]
+		style_type[button:pressed;bgcolor=#ffffff28]
+		style_type[label;font_size=18]
+		style_type[checkbox;gui_color_accent=#44ccff]
+		style_type[table;bgcolor=#00000080;border=false]
+		style_type[field,pwdfield;bgcolor=#00000080;border=false;textcolor=#ffffff]
+		style_type[textarea;bgcolor=#00000080;border=false]
 	]]
 
 	tv_main:set_autosave_tab(true)
+	local iconpath = defaulttexturedir
+
+	tabs.local_game.icon = iconpath .. "start_icon.png"
+	tabs.play_online.icon = iconpath .. "server_public.png"
+	tabs.content.icon = iconpath .. "cdb_update.png"
+	tabs.about.icon = iconpath .. "settings_info.png"
+
 	tv_main:add(tabs.local_game)
 	tv_main:add(tabs.play_online)
 	tv_main:add(tabs.content)

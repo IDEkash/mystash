@@ -529,20 +529,21 @@ local function get_formspec(dialogdata)
 		formspec_show_hack and " " or "",
 
 		"box[0,0;", tostring(tabsize.width), ",", tostring(tabsize.height), ";#000000CC]",
+		"style[back;bgcolor=#ffffff10;bgcolor_hover=#ffffff20;content_offset=0]",
 
 		("button[0,%f;%f,0.8;back;%s]"):format(
 				tabsize.height + 0.2, back_w,
 				-- TRANSLATORS: Button text to go back
 				fgettext("Back")),
 
-		("box[%f,%f;%f,0.8;#00000040]"):format(
+		("box[%f,%f;%f,0.8;#00000060]"):format(
 			back_w + 0.2, tabsize.height + 0.2, checkbox_w),
 		("checkbox[%f,%f;show_technical_names;%s;%s]"):format(
 			back_w + 2*0.2, tabsize.height + 0.6,
 			-- TRANSLATORS: Checkbox that toggles displaying the technical setting names
 			fgettext("Show technical names"), tostring(show_technical_names)),
 
-		("box[%f,%f;%f,0.8;#00000040]"):format(
+		("box[%f,%f;%f,0.8;#00000060]"):format(
 			back_w + 2*0.2 + checkbox_w, tabsize.height + 0.2, checkbox_w),
 		("checkbox[%f,%f;show_advanced;%s;%s]"):format(
 			back_w + 3*0.2 + checkbox_w, tabsize.height + 0.6,
@@ -561,26 +562,31 @@ local function get_formspec(dialogdata)
 		"container_end[]",
 		("scroll_container[0.25,1.25;%f,%f;leftscroll;vertical;0.1;0]"):format(
 			left_pane_width, tabsize.height - 1.5),
-		"style_type[button;border=false;bgcolor=#ffffff10]",
-		"style_type[button:hover;border=false;bgcolor=#ffffff20]",
-		"style_type[field;bgcolor=#ffffff15;border=false]",
+		"style_type[button;border=false;bgcolor=#00000000;textcolor=#ffffff;content_offset=0]",
+		"style_type[button:hover;border=false;bgcolor=#ffffff10]",
+		"style_type[field;bgcolor=#00000060;border=false;textcolor=#ffffff]",
+		"style_type[checkbox;gui_color_accent=#44ccff]",
 	}
 
 	local y = 0
 	local last_section = nil
 	for _, other_page in ipairs(filtered_pages) do
 		if other_page.section ~= last_section then
-			fs[#fs + 1] = ("label[0.1,%f;%s]"):format(
+			y = y + 0.2
+			fs[#fs + 1] = ("label[0.2,%f;%s]"):format(
 				y + 0.41, core.colorize("#aaccffff", fgettext(other_page.section)))
 			last_section = other_page.section
-			y = y + 0.82
+			y = y + 0.7
 		end
 		if other_page.id == page_id then
-			fs[#fs + 1] = ("style[page_%s;bgcolor=#ffffff30;font=bold]"):format(other_page.id)
+			fs[#fs + 1] = ("style[page_%s;bgcolor=#ffffff15;font=bold;textcolor=#44ccff]"):format(other_page.id)
+			fs[#fs + 1] = ("box[0,%f;0.1,0.8;#44ccff]"):format(y)
+		else
+			fs[#fs + 1] = ("style[page_%s;textcolor=#ffffff]"):format(other_page.id)
 		end
-		fs[#fs + 1] = ("button[0,%f;%f,0.8;page_%s;%s]")
-			:format(y, left_pane_width-left_pane_padding, other_page.id, fgettext(other_page.title))
-		y = y + 0.82
+		fs[#fs + 1] = ("button[0.1,%f;%f,0.8;page_%s;%s]")
+			:format(y, left_pane_width-left_pane_padding-0.1, other_page.id, fgettext(other_page.title))
+		y = y + 0.9
 	end
 
 	if #filtered_pages == 0 then

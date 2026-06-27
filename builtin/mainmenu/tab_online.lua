@@ -118,22 +118,22 @@ local function get_formspec(tabview, name, tabdata)
 		"tooltip[btn_mp_refresh;" .. fgettext("Refresh") .. "]" ..
 		"container_end[]" ..
 
-		"container[9.75,0]" ..
-		"box[0,0;5.75,7.1;#00000040]" ..
+		"container[10.2,0.25]" ..
+		"box[0,0;4.5,7.5;#00000080]" ..
 		"style_type[field,pwdfield;bgcolor=#ffffff05;border=false]" ..
 
 		-- TRANSLATORS: Network address
 		"label[0.25,0.35;" .. fgettext("Address") .. "]" ..
 		-- TRANSLATORS: Network port
-		"label[4.25,0.35;" .. fgettext("Port") .. "]" ..
-		"field[0.25,0.5;4,0.75;te_address;;" ..
+		"label[3.25,0.35;" .. fgettext("Port") .. "]" ..
+		"field[0.25,0.5;2.75,0.75;te_address;;" ..
 			core.formspec_escape(core.settings:get("address")) .. "]" ..
-		"field[4.25,0.5;1.25,0.75;te_port;;" ..
+		"field[3.25,0.5;1.0,0.75;te_port;;" ..
 			core.formspec_escape(core.settings:get("remote_port")) .. "]" ..
 
 		-- Description Background
 		"label[0.25,1.6;" .. fgettext("Server Description") .. "]" ..
-		"box[0.25,1.85;5.25,2.7;#ffffff20]"..
+		"box[0.25,1.85;4,2.7;#ffffff20]"..
 
 		-- Name / Password
 		"container[0,4.8]" ..
@@ -146,13 +146,13 @@ local function get_formspec(tabview, name, tabdata)
 		-- Connect
 		-- TRANSLATORS: Login to server
 		"style[btn_mp_login;bgcolor=#44ff4440;bgcolor_hover=#44ff4480;font=bold;content_offset=0]" ..
-		"button[3,6;2.5,0.75;btn_mp_login;" .. fgettext("Login") .. "]"
+		"button[2.25,6.2;2.0,0.8;btn_mp_login;" .. fgettext("Login") .. "]"
 
 	if core.settings:get_bool("enable_split_login_register") then
 		-- TRANSLATORS: Register an account on a server
 		retval = retval ..
-			"style[btn_mp_register;bgcolor=#ffffff20;bgcolor_hover=#ffffff40;content_offset=0]" ..
-			"button[0.25,6;2.5,0.75;btn_mp_register;" .. fgettext("Register") .. "]"
+			"style[btn_mp_register;bgcolor=#ffffff10;bgcolor_hover=#ffffff30;content_offset=0]" ..
+			"button[0.25,6.2;2.0,0.8;btn_mp_register;" .. fgettext("Register") .. "]"
 	end
 
 	local selected_server = find_selected_server()
@@ -263,7 +263,7 @@ local function get_formspec(tabview, name, tabdata)
 		"color,align=inline,span=1;" ..
 		"text,align=inline,padding=1]" ..
 		"style[servers;bgcolor=#00000040;border=false]" ..
-		"table[0.25,1;9.25,5.8;servers;"
+		"table[0.25,1.2;9.5,6.5;servers;"
 
 	local servers = get_sorted_servers()
 

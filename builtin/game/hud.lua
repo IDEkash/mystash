@@ -162,8 +162,8 @@ register_builtin_hud_element("health", {
 		number = core.PLAYER_MAX_HP_DEFAULT,
 		item = core.PLAYER_MAX_HP_DEFAULT,
 		direction = 0,
-		size = {x = 24, y = 24},
-		offset = {x = (-10 * 24) - 25, y = -(48 + 24 + 16)},
+		size = {x = 20, y = 20},
+		offset = {x = (-10 * 20) - 20, y = -100},
 	},
 	events = {"properties_changed", "health_changed"},
 	show_elem = function(player, flags)
@@ -193,8 +193,8 @@ register_builtin_hud_element("breath", {
 		number = core.PLAYER_MAX_BREATH_DEFAULT * 2,
 		item = core.PLAYER_MAX_BREATH_DEFAULT * 2,
 		direction = 0,
-		size = {x = 24, y = 24},
-		offset = {x = 25, y= -(48 + 24 + 16)},
+		size = {x = 20, y = 20},
+		offset = {x = 20, y= -100},
 	},
 	events = {"properties_changed", "breath_changed"},
 	show_elem = function(player, flags, id)

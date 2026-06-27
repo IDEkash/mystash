@@ -209,37 +209,42 @@ local function get_formspec(tabview, name, tabdata)
 		"style_type[checkbox;gui_color_accent=#44ff44]"
 
 	retval = retval ..
-			"container[5,4.875]" ..
-			"style[world_create;bgcolor=#4444ff33;bgcolor_hover=#4444ff66]" ..
-			"button[6.65,0;3.225,0.8;world_create;".. fgettext("New") .. "]"
+			"container[4.5,6.5]" ..
+			"style[world_create;bgcolor=#4444ff40;bgcolor_hover=#4444ff80;content_offset=0]" ..
+			"button[6.75,0;3.25,1.0;world_create;".. fgettext("New") .. "]"
 	if world then
 		retval = retval ..
-				"style[world_delete;bgcolor=#ff444433;bgcolor_hover=#ff444466]" ..
-				"button[0,0;3.225,0.8;world_delete;".. fgettext("Delete") .. "]" ..
-				"style[world_configure;bgcolor=#ffffff15;bgcolor_hover=#ffffff30]" ..
-				"button[3.325,0;3.225,0.8;world_configure;".. fgettext("Select Mods") .. "]"
+				"style[world_delete;bgcolor=#ff444440;bgcolor_hover=#ff444480;content_offset=0]" ..
+				"button[0,0;3.25,1.0;world_delete;".. fgettext("Delete") .. "]" ..
+				"style[world_configure;bgcolor=#ffffff10;bgcolor_hover=#ffffff20;content_offset=0]" ..
+				"button[3.375,0;3.25,1.0;world_configure;".. fgettext("Select Mods") .. "]"
 	end
 	retval = retval ..
 			"container_end[]" ..
-			"container[0,0.375]" ..
+			"container[0.2,0.375]" ..
+			"box[0,0;4,2.5;#00000040]" ..
+			"container[0.1,0.1]" ..
 			creative ..
 			damage ..
 			host ..
 			"container_end[]" ..
-			"container[5,0.375]" ..
+			"container_end[]" ..
+			"container[4.5,0.5]" ..
 			"label[0,0.2;".. fgettext("Select World") .. "]"..
 			"tablecolumns[text;text]" ..
-			"style[sp_worlds;bgcolor=#00000040;border=false]" ..
-			"table[0,0.5;10.25,3.9;sp_worlds;" ..
+			"style[sp_worlds;bgcolor=#00000080;border=false]" ..
+			"table[0,0.8;10.25,5.5;sp_worlds;" ..
 			menu_render_worldlist() ..
 			";" .. index .. "]" ..
 			"container_end[]"
 
 	if core.settings:get_bool("enable_server") and disabled_settings["enable_server"] == nil then
 		retval = retval ..
-				"style[play;bgcolor=#44ff4433;bgcolor_hover=#44ff4466;font=bold]" ..
-				"button[10.1875,5.925;4.9375,0.8;play;".. fgettext("Host Game") .. "]" ..
-				"container[0.375,0.375]" ..
+				"style[play;bgcolor=#44ff4440;bgcolor_hover=#44ff4480;font=bold;content_offset=0]" ..
+				"button[10.1875,6.5;4.5,1.0;play;".. fgettext("Host Game") .. "]" ..
+				"container[0.2,3.0]" ..
+				"box[0,0;4,4.5;#00000040]" ..
+				"container[0.1,0.1]" ..
 				"checkbox[0,"..y..";cb_server_announce;" .. fgettext("Announce Server") .. ";" ..
 				dump(core.settings:get_bool("server_announce")) .. "]"
 
@@ -270,11 +275,11 @@ local function get_formspec(tabview, name, tabdata)
 				core.formspec_escape(current_port) .. "]"
 		end
 
-		retval = retval .. "container_end[]"
+		retval = retval .. "container_end[]container_end[]"
 	elseif world then
 		retval = retval ..
-				"style[play;bgcolor=#44ff4433;bgcolor_hover=#44ff4466;font=bold]" ..
-				"button[10.1875,5.925;4.9375,0.8;play;" .. fgettext("Play Game") .. "]"
+				"style[play;bgcolor=#44ff4440;bgcolor_hover=#44ff4480;font=bold;content_offset=0]" ..
+				"button[10.1875,6.5;4.5,1.0;play;" .. fgettext("Play Game") .. "]"
 	end
 
 	return retval

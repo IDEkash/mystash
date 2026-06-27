@@ -25,6 +25,7 @@ local function add_tab(self,tab)
 	local newtab = {
 		name = tab.name,
 		caption = tab.caption,
+		icon = tab.icon,
 		button_handler = tab.cbf_button_handler,
 		event_handler = tab.cbf_events,
 		get_formspec = tab.cbf_formspec,
@@ -82,24 +83,54 @@ local function get_formspec(self)
 	end
 
 	local formspec = (prepend or "") .. (self.prepend or "")
-	formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#0000008C]"):format(
-			TABHEADER_H, orig_tsize.width, orig_tsize.height)
-	formspec = formspec .. self:tab_header(tab_header_size) .. content
 
-	if self.end_button then
-		formspec = formspec ..
-				("style[%s;noclip=true;border=false]"):format(self.end_button.name) ..
-				("tooltip[%s;%s]"):format(self.end_button.name, self.end_button.label) ..
-				("image_button[%f,%f;%f,%f;%s;%s;]"):format(
-						self.width - end_button_size,
-						(-tab_header_size.height - end_button_size) / 2,
-						end_button_size,
-						end_button_size,
-						core.formspec_escape(self.end_button.icon),
-						self.end_button.name)
+	if self.sidebar then
+		local sidebar_w = self.sidebar_w or 4
+		formspec = formspec .. ("bgcolor[;neither]container[0,0]box[0,0;%f,%f;#050505ee]"):format(
+				sidebar_w, tsize.height)
+
+		-- Logo/Header Area
+		formspec = formspec .. ("image[0.8,0.4;%f,1.2;logo.png]"):format(sidebar_w - 1.6)
+
+		formspec = formspec .. self:tab_header({width = sidebar_w, height = TABHEADER_H})
+
+		formspec = formspec .. ("container[%f,0]box[-0.05,0;0.05,%f;#ffffff10]box[0,0;%f,%f;#00000060]"):format(
+				sidebar_w, tsize.height, orig_tsize.width - sidebar_w, tsize.height)
+		formspec = formspec .. content .. "container_end[]"
+
+		if self.end_button then
+			formspec = formspec ..
+					("style[%s;noclip=true;border=false;bgcolor=#ffffff08;bgcolor_hover=#ffffff18;textcolor=#ffffff;content_offset=0]"):format(self.end_button.name) ..
+					("tooltip[%s;%s]"):format(self.end_button.name, self.end_button.label) ..
+					("image_button[0.2,%f;%f,1.2;%s;%s;%s]"):format(
+							tsize.height - 1.6,
+							sidebar_w - 0.4,
+							core.formspec_escape(self.end_button.icon),
+							self.end_button.name,
+							core.formspec_escape(self.end_button.label))
+		end
+
+		formspec = formspec .. "container_end[]"
+	else
+		formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#0000008C]"):format(
+				TABHEADER_H, orig_tsize.width, orig_tsize.height)
+		formspec = formspec .. self:tab_header(tab_header_size) .. content
+
+		if self.end_button then
+			formspec = formspec ..
+					("style[%s;noclip=true;border=false]"):format(self.end_button.name) ..
+					("tooltip[%s;%s]"):format(self.end_button.name, self.end_button.label) ..
+					("image_button[%f,%f;%f,%f;%s;%s;]"):format(
+							self.width - end_button_size,
+							(-tab_header_size.height - end_button_size) / 2,
+							end_button_size,
+							end_button_size,
+							core.formspec_escape(self.end_button.icon),
+							self.end_button.name)
+		end
+
+		formspec = formspec .. "container_end[]"
 	end
-
-	formspec = formspec .. "container_end[]"
 
 	return formspec
 end
@@ -156,25 +187,55 @@ end
 --------------------------------------------------------------------------------
 local function tab_header(self, size)
 	local toadd = "container[" .. self.header_x .. "," .. self.header_y .. "]"
-	local x = 0
-	local tab_w = size.width / #self.tablist
 
-	for i = 1, #self.tablist do
-		local caption = self.tablist[i].caption
-		if type(caption) == "function" then
-			caption = caption(self)
+	if self.sidebar then
+		local y = 2.0
+		local sidebar_w = size.width
+		for i = 1, #self.tablist do
+			local tab = self.tablist[i]
+			local caption = tab.caption
+			if type(caption) == "function" then
+				caption = caption(self)
+			end
+
+			local btn_name = self.name .. "_tab_" .. i
+			if i == self.last_tab_index then
+				toadd = toadd .. ("style[%s;bgcolor=#ffffff15;font=bold;textcolor=#44ccff;content_offset=0]"):format(btn_name)
+				toadd = toadd .. ("box[0.1,%f;0.1,1.2;#44ccff]"):format(y)
+			else
+				toadd = toadd .. ("style[%s;bgcolor=#00000000;textcolor=#ffffff;content_offset=0]"):format(btn_name)
+			end
+
+			if tab.icon then
+				toadd = toadd .. ("image_button[0.2,%f;%f,1.2;%s;%s;%s]"):format(
+					y, sidebar_w - 0.4, core.formspec_escape(tab.icon), btn_name, core.formspec_escape(caption))
+			else
+				toadd = toadd .. ("button[0.2,%f;%f,1.2;%s;%s]"):format(
+					y, sidebar_w - 0.4, btn_name, core.formspec_escape(caption))
+			end
+			y = y + 1.3
 		end
+	else
+		local x = 0
+		local tab_w = size.width / #self.tablist
 
-		local btn_name = self.name .. "_tab_" .. i
-		if i == self.last_tab_index then
-			toadd = toadd .. ("style[%s;bgcolor=#ffffff40;font=bold]"):format(btn_name)
-		else
-			toadd = toadd .. ("style[%s;bgcolor=#ffffff10]"):format(btn_name)
+		for i = 1, #self.tablist do
+			local caption = self.tablist[i].caption
+			if type(caption) == "function" then
+				caption = caption(self)
+			end
+
+			local btn_name = self.name .. "_tab_" .. i
+			if i == self.last_tab_index then
+				toadd = toadd .. ("style[%s;bgcolor=#ffffff40;font=bold]"):format(btn_name)
+			else
+				toadd = toadd .. ("style[%s;bgcolor=#ffffff10]"):format(btn_name)
+			end
+
+			toadd = toadd .. ("button[%f,0;%f,%f;%s;%s]"):format(
+				x, tab_w, size.height, btn_name, core.formspec_escape(caption))
+			x = x + tab_w
 		end
-
-		toadd = toadd .. ("button[%f,0;%f,%f;%s;%s]"):format(
-			x, tab_w, size.height, btn_name, core.formspec_escape(caption))
-		x = x + tab_w
 	end
 	toadd = toadd .. "container_end[]"
 	return toadd

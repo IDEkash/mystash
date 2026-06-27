@@ -273,17 +273,20 @@ local function create_world_formspec(dialogdata)
 
 	local retval =
 		"size[12.25,7.4,true]" ..
+		"bgcolor[#000000CC]" ..
+		"style_type[field,pwdfield,dropdown;bgcolor=#ffffff10;border=false;textcolor=#ffffff]" ..
+		"style_type[button;bgcolor=#ffffff10;textcolor=#ffffff;border=false]" ..
 
 		-- Left side
 		"container[0,0]"..
-		"field[0.3,0.6;6,0.5;te_world_name;" ..
+		"field[0.3,0.6;6,0.7;te_world_name;" ..
 		fgettext("World name") ..
 		";" .. core.formspec_escape(dialogdata.worldname) .. "]" ..
 		"set_focus[te_world_name;false]"
 
 	if not disallowed_mapgen_settings["seed"] then
 
-		retval = retval .. "field[0.3,1.7;6,0.5;te_seed;" ..
+		retval = retval .. "field[0.3,1.7;6,0.7;te_seed;" ..
 				-- TRANSLATORS: Value for randomness
 				fgettext("Seed") ..
 				";".. core.formspec_escape(dialogdata.seed) .. "]"
@@ -291,14 +294,14 @@ local function create_world_formspec(dialogdata)
 	end
 
 	retval = retval ..
-		"label[0,2;" .. fgettext("Mapgen") .. "]"..
-		"dropdown[0,2.5;6.3;dd_mapgen;" .. mglist .. ";" .. selindex .. "]"
+		"label[0.3,2.7;" .. fgettext("Mapgen") .. "]"..
+		"dropdown[0.3,3.2;6.0;dd_mapgen;" .. mglist .. ";" .. selindex .. "]"
 
 	-- Warning when making a devtest world
 	if game.id == "devtest" then
 		retval = retval ..
-			"container[0,3.5]" ..
-			"box[0,0;5.8,1.7;#ff8800]" ..
+			"container[0,4.5]" ..
+			"box[0.3,0;5.8,1.7;#ff880040]" ..
 			"textarea[0.4,0.1;6,1.8;;;"..
 			fgettext("Development Test is meant for developers.") .. "]" ..
 			"button[1,1;4,0.5;world_create_open_cdb;" .. fgettext("Install another game") .. "]" ..
@@ -309,15 +312,16 @@ local function create_world_formspec(dialogdata)
 		"container_end[]" ..
 
 		-- Right side
-		"container[6.2,0]"..
+		"container[6.5,0]"..
 		label_flags .. str_flags ..
 		label_spflags .. str_spflags ..
 		"container_end[]"..
 
 		-- Menu buttons
-		"container[0,6.9]"..
-		"button[3.25,0;3,0.5;world_create_confirm;" .. fgettext("Create") .. "]" ..
-		"button[6.25,0;3,0.5;world_create_cancel;" .. fgettext("Cancel") .. "]" ..
+		"container[0,6.6]"..
+		"style[world_create_confirm;bgcolor=#44ff4440;bgcolor_hover=#44ff4480;font=bold]" ..
+		"button[3,0;3,0.8;world_create_confirm;" .. fgettext("Create") .. "]" ..
+		"button[6.25,0;3,0.8;world_create_cancel;" .. fgettext("Cancel") .. "]" ..
 		"container_end[]"
 
 	return retval

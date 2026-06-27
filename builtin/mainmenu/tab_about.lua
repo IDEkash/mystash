@@ -82,27 +82,35 @@ return {
 
 		hypertext = table.concat(hypertext):sub(1, -2)
 
-		local fs = "image[1.5,0.6;2.5,2.5;" .. core.formspec_escape(logofile) .. "]" ..
-			"style[label_button;border=false]" ..
-			"button[0.1,3.4;5.3,0.5;label_button;" ..
+		local fs = "container[0.5,0.5]" ..
+			"image[1.0,0.2;2.5,2.5;" .. core.formspec_escape(logofile) .. "]" ..
+			"style[label_button;border=false;bgcolor=#00000000;textcolor=#ffffff]" ..
+			"button[0.1,2.8;4.3,0.5;label_button;" ..
 			core.formspec_escape(version.project .. " " .. version.string) .. "]" ..
-			"button_url[1.5,4.1;2.5,0.8;homepage;luanti.org;https://www.luanti.org/]" ..
-			"hypertext[5.5,0.25;9.75,6.6;credits;" .. core.formspec_escape(hypertext) .. "]"
+			"style[homepage;bgcolor=#44ccff40;bgcolor_hover=#44ccff80;content_offset=0]" ..
+			"button_url[1.0,3.5;2.5,0.8;homepage;luanti.org;https://www.luanti.org/]" ..
+			"container_end[]" ..
+			"box[5.5,0.25;9.25,7.5;#00000040]" ..
+			"hypertext[5.7,0.45;8.85,7.1;credits;" .. core.formspec_escape(hypertext) .. "]"
 
-		local active_renderer_info = fgettext("Active renderer:") .. "\n" ..
+		local active_renderer_info = fgettext("Active renderer") .. "\n" ..
 			core.formspec_escape(get_renderer_info())
-		fs = fs .. "style[label_button2;border=false]" ..
-			"button[0.1,6;5.3,1;label_button2;" .. active_renderer_info .. "]"..
+		fs = fs .. "container[0.5,5.5]" ..
+			"style[label_button2;border=false;bgcolor=#ffffff05;textcolor=#cccccc;font_size=14]" ..
+			"button[0.1,1.2;4.3,0.8;label_button2;" .. active_renderer_info .. "]"..
 			"tooltip[label_button2;" .. active_renderer_info .. "]"
 
 		if PLATFORM == "Android" then
-			fs = fs .. "button[0.5,5.1;4.5,0.8;share_debug;" .. fgettext("Share debug log") .. "]"
+			fs = fs .. "style[share_debug;bgcolor=#ffffff10;content_offset=0]" ..
+				"button[0.1,0.2;4.3,0.8;share_debug;" .. fgettext("Share debug log") .. "]"
 		else
 			fs = fs .. "tooltip[userdata;" ..
 					fgettext("Opens the directory that contains user-provided worlds, games, mods,\n" ..
-							"and texture packs in a file manager / explorer.") .. "]"
-			fs = fs .. "button[0.5,5.1;4.5,0.8;userdata;" .. fgettext("Open User Data Directory") .. "]"
+							"and texture packs in a file manager / explorer.") .. "]" ..
+				"style[userdata;bgcolor=#ffffff10;content_offset=0]" ..
+				"button[0.1,0.2;4.3,0.8;userdata;" .. fgettext("User Data Directory") .. "]"
 		end
+		fs = fs .. "container_end[]"
 
 		return fs
 	end,

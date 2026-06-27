@@ -66,17 +66,21 @@ local function get_formspec(tabview, name, tabdata)
 	end
 
 	local retval = {
-		"label[0.4,0.4;", fgettext("Installed Packages:"), "]",
+		"container[0.2,0.2]",
+		"label[0.2,0.4;", fgettext("Installed Packages"), "]",
 		"tablecolumns[color;tree;image,align=inline,width=1.5",
 			",tooltip=", fgettext("Update available?"),
 			",0=", core.formspec_escape(defaulttexturedir .. "blank.png"),
 			",4=", core.formspec_escape(defaulttexturedir .. "cdb_update_cropped.png"),
 			";text]",
-		"table[0.4,0.8;6.3,4.8;pkglist;",
+		"style[pkglist;bgcolor=#00000080;border=false]",
+		"table[0.2,0.8;9.5,6.0;pkglist;",
 		pkgmgr.render_packagelist(packages, use_technical_names, update_icons),
 		";", tabdata.selected_pkg, "]",
 
-		"button[0.4,5.8;6.3,0.9;btn_contentdb;", contentdb_label, "]"
+		"style[btn_contentdb;bgcolor=#44ff4440;bgcolor_hover=#44ff4480;content_offset=0;font=bold]",
+		"button[0.2,7.0;9.5,0.8;btn_contentdb;", contentdb_label, "]",
+		"container_end[]"
 	}
 
 	local selected_pkg
@@ -129,6 +133,7 @@ local function get_formspec(tabview, name, tabdata)
 			desc_height = 2.1
 
 			table.insert_all(retval, {
+				"style[btn_mod_mgr_rename_modpack;bgcolor=#ffffff10;bgcolor_hover=#ffffff20;content_offset=0]",
 				"button[7.1,4.7;8,0.9;btn_mod_mgr_rename_modpack;",
 				fgettext("Rename"), "]"
 			})
@@ -157,11 +162,13 @@ local function get_formspec(tabview, name, tabdata)
 
 			if selected_pkg.enabled then
 				table.insert_all(retval, {
+					"style[btn_mod_mgr_disable_txp;bgcolor=#ff444440;bgcolor_hover=#ff444480;content_offset=0]",
 					"button[7.1,4.7;8,0.9;btn_mod_mgr_disable_txp;",
 					fgettext("Disable Texture Pack"), "]"
 				})
 			else
 				table.insert_all(retval, {
+					"style[btn_mod_mgr_use_txp;bgcolor=#44ff4440;bgcolor_hover=#44ff4480;content_offset=0]",
 					"button[7.1,4.7;8,0.9;btn_mod_mgr_use_txp;",
 					fgettext("Use Texture Pack"), "]"
 				})
@@ -169,25 +176,30 @@ local function get_formspec(tabview, name, tabdata)
 		end
 
 		table.insert_all(retval, {
-			"image[7.1,0.2;3,2;", core.formspec_escape(modscreenshot), "]",
-			"label[10.5,1;", core.formspec_escape(title_and_name), "]",
-			"box[7.1,2.4;8,", tostring(desc_height), ";#ffffff10]",
-			"textarea[7.1,2.4;8,", tostring(desc_height), ";;;", desc, "]",
+			"container[10.2,0.25]",
+			"image[0,0;4.5,3.0;", core.formspec_escape(modscreenshot), "]",
+			"label[0,3.2;", core.formspec_escape(title_and_name), "]",
+			"box[0,3.8;4.5,", tostring(desc_height), ";#00000080]",
+			"textarea[0,3.8;4.5,", tostring(desc_height), ";;;", desc, "]",
 		})
 
 		if core.may_modify_path(selected_pkg.path) then
 			table.insert_all(retval, {
-				"button[7.1,5.8;4,0.9;btn_mod_mgr_delete_mod;",
+				"style[btn_mod_mgr_delete_mod;bgcolor=#ff444440;bgcolor_hover=#ff444480;content_offset=0]",
+				"button[0,7.0;2.2,0.8;btn_mod_mgr_delete_mod;",
 				fgettext("Uninstall"), "]"
 			})
 		end
 
 		if update_icons[selected_pkg.virtual_path or selected_pkg.path] then
 			table.insert_all(retval, {
-				"button[11.1,5.8;4,0.9;btn_mod_mgr_update;",
+				"style[btn_mod_mgr_update;bgcolor=#44ff4440;bgcolor_hover=#44ff4480;content_offset=0;font=bold]",
+				"button[2.3,7.0;2.2,0.8;btn_mod_mgr_update;",
 				fgettext("Update"), "]"
 			})
 		end
+
+		table.insert(retval, "container_end[]")
 	end
 
 	return table.concat(retval)
