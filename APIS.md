@@ -822,5 +822,17 @@ These methods are available on the handle returned by `core.sound_play`.
 - `decay`: number (default `0.5`). Feedback/decay factor for the echo.
 
 ---
+
+## Pause API (Lua)
+
+These functions are available in the client and pause-menu environments. They only have an effect in singleplayer mode.
+
+`core.set_paused(paused)`
+- `paused`: boolean. If `true`, the game will be paused. This stops the server, client, animations, and sound.
+
+`core.get_paused() -> boolean`
+- Returns `true` if the game is currently paused.
+
+---
 - **More Soon!**
 - Latest Update: June, 10, 2026

@@ -27,7 +27,22 @@ int ModApiClientCommon::l_show_formspec(lua_State *L)
 }
 
 
+int ModApiClientCommon::l_set_paused(lua_State *L)
+{
+	bool paused = readParam<bool>(L, 1);
+	getClient(L)->setPaused(paused);
+	return 0;
+}
+
+int ModApiClientCommon::l_get_paused(lua_State *L)
+{
+	lua_pushboolean(L, getClient(L)->isPaused());
+	return 1;
+}
+
 void ModApiClientCommon::Initialize(lua_State *L, int top)
 {
 	API_FCT(show_formspec);
+	API_FCT(set_paused);
+	API_FCT(get_paused);
 }

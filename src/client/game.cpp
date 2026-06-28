@@ -2257,7 +2257,7 @@ void Game::updatePlayerControl(const CameraOrientation &cam)
 void Game::updatePauseState()
 {
 	bool was_paused = this->m_is_paused;
-	this->m_is_paused = this->simple_singleplayer_mode && g_menumgr.pausesGame();
+	this->m_is_paused = this->simple_singleplayer_mode && (g_menumgr.pausesGame() || client->isPaused());
 
 	if (!was_paused && this->m_is_paused) {
 		this->pauseAnimation();
