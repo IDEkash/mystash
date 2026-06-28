@@ -55,6 +55,11 @@ public:
 	void stopSound(sound_handle_t sound) override;
 	void fadeSound(sound_handle_t soundid, f32 step, f32 target_gain) override;
 	void updateSoundPosVel(sound_handle_t sound, const v3f &pos_, const v3f &vel_) override;
+
+	void setSoundPitch(sound_handle_t sound, f32 pitch) override;
+	void setSoundLowpass(sound_handle_t sound, f32 gain) override;
+	void setSoundReverb(sound_handle_t sound, const std::string &preset) override;
+	void setSoundEcho(sound_handle_t sound, f32 delay, f32 decay) override;
 };
 
 } // namespace sound

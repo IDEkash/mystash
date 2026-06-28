@@ -38,6 +38,41 @@ ALExtensions::ALExtensions(const ALCdevice *deviceHandle [[maybe_unused]])
 		}
 #endif
 	}
+
+	{
+		constexpr const char *ext_name = ALC_EXT_EFX_NAME;
+		bool blacklisted = blacklist.find(ext_name) != blacklist.end();
+		if (blacklisted)
+			infostream << "ALExtensions: Blacklisted: " << ext_name << std::endl;
+
+		bool found = alcIsExtensionPresent(const_cast<ALCdevice*>(deviceHandle), ext_name);
+		if (found)
+			infostream << "ALExtensions: Found: " << ext_name << std::endl;
+		else
+			infostream << "ALExtensions: Not found: " << ext_name << std::endl;
+
+		if (found && !blacklisted) {
+			alGenEffects = (LPALGENEFFECTS)alGetProcAddress("alGenEffects");
+			alDeleteEffects = (LPALDELETEEFFECTS)alGetProcAddress("alDeleteEffects");
+			alEffecti = (LPALEFFECTI)alGetProcAddress("alEffecti");
+			alEffectf = (LPALEFFECTF)alGetProcAddress("alEffectf");
+			alGenFilters = (LPALGENFILTERS)alGetProcAddress("alGenFilters");
+			alDeleteFilters = (LPALDELETEFILTERS)alGetProcAddress("alDeleteFilters");
+			alFilteri = (LPALFILTERI)alGetProcAddress("alFilteri");
+			alFilterf = (LPALFILTERF)alGetProcAddress("alFilterf");
+			alGenAuxiliaryEffectSlots = (LPALGENAUXILIARYEFFECTSLOTS)alGetProcAddress("alGenAuxiliaryEffectSlots");
+			alDeleteAuxiliaryEffectSlots = (LPALDELETEAUXILIARYEFFECTSLOTS)alGetProcAddress("alDeleteAuxiliaryEffectSlots");
+			alAuxiliaryEffectSloti = (LPALAUXILIARYEFFECTSLOTI)alGetProcAddress("alAuxiliaryEffectSloti");
+
+			if (alGenEffects && alDeleteEffects && alEffecti && alEffectf &&
+					alGenFilters && alDeleteFilters && alFilteri && alFilterf &&
+					alGenAuxiliaryEffectSlots && alDeleteAuxiliaryEffectSlots && alAuxiliaryEffectSloti) {
+				have_ext_ALC_EXT_EFX = true;
+			} else {
+				warningstream << "ALExtensions: EFX extension found but some functions are missing!" << std::endl;
+			}
+		}
+	}
 }
 
 }

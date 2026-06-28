@@ -10,6 +10,7 @@
 
 #include "al_extensions.h"
 #include "sound_constants.h"
+#include "efx_presets.h"
 #include <cassert>
 #include <cmath>
 
@@ -18,9 +19,9 @@ namespace sound {
 PlayingSound::PlayingSound(ALuint source_id, std::shared_ptr<ISoundDataOpen> data,
 		bool loop, f32 volume, f32 pitch, f32 start_time,
 		const std::optional<std::pair<v3f, v3f>> &pos_vel_opt,
-		const ALExtensions &exts [[maybe_unused]])
+		const ALExtensions &exts)
 	: m_source_id(source_id), m_data(std::move(data)), m_looping(loop),
-	m_is_positional(pos_vel_opt.has_value())
+	m_is_positional(pos_vel_opt.has_value()), m_exts(exts)
 {
 	// Calculate actual start_time (see lua_api.txt for specs)
 	f32 len_seconds = m_data->m_decode_info.length_seconds;
@@ -105,6 +106,15 @@ PlayingSound::PlayingSound(ALuint source_id, std::shared_ptr<ISoundDataOpen> dat
 	}
 	setGain(volume);
 	setPitch(pitch);
+}
+
+PlayingSound::~PlayingSound() noexcept
+{
+	alSourceStop(m_source_id);
+	alDeleteSources(1, &m_source_id);
+	if (m_filter) m_exts.alDeleteFilters(1, &m_filter);
+	if (m_effect) m_exts.alDeleteEffects(1, &m_effect);
+	if (m_slot) m_exts.alDeleteAuxiliaryEffectSlots(1, &m_slot);
 }
 
 bool PlayingSound::stepStream(bool playback_speed_changed)
@@ -260,6 +270,82 @@ void PlayingSound::setPitch(f32 pitch)
 	alSourcef(m_source_id, AL_PITCH, pitch);
 	if (isStreaming())
 		stepStream(true);
+}
+
+void PlayingSound::setLowpass(f32 gain)
+{
+	if (!m_exts.have_ext_ALC_EXT_EFX) return;
+
+	if (gain >= 1.0f) {
+		alSourcei(m_source_id, AL_DIRECT_FILTER, AL_FILTER_NULL);
+		return;
+	}
+
+	if (!m_filter) m_exts.alGenFilters(1, &m_filter);
+	m_exts.alFilteri(m_filter, AL_FILTER_TYPE, AL_FILTER_LOWPASS);
+	m_exts.alFilterf(m_filter, AL_LOWPASS_GAIN, 1.0f);
+	m_exts.alFilterf(m_filter, AL_LOWPASS_GAINHF, gain);
+	alSourcei(m_source_id, AL_DIRECT_FILTER, m_filter);
+}
+
+void PlayingSound::setReverb(const std::string &preset_name)
+{
+	if (!m_exts.have_ext_ALC_EXT_EFX) return;
+
+	const ReverbPreset *p = nullptr;
+	for (const auto &preset : reverb_presets) {
+		if (preset_name == preset.name) {
+			p = &preset;
+			break;
+		}
+	}
+
+	if (!p || preset_name == "none") {
+		alSource3i(m_source_id, AL_AUXILIARY_SEND_FILTER, AL_AUXILIARY_EFFECT_SLOT_NULL, 0, AL_FILTER_NULL);
+		return;
+	}
+
+	if (!m_effect) m_exts.alGenEffects(1, &m_effect);
+	if (!m_slot) m_exts.alGenAuxiliaryEffectSlots(1, &m_slot);
+
+	m_exts.alEffecti(m_effect, AL_EFFECT_TYPE, AL_EFFECT_REVERB);
+	m_exts.alEffectf(m_effect, AL_REVERB_DENSITY, p->density);
+	m_exts.alEffectf(m_effect, AL_REVERB_DIFFUSION, p->diffusion);
+	m_exts.alEffectf(m_effect, AL_REVERB_GAIN, p->gain);
+	m_exts.alEffectf(m_effect, AL_REVERB_GAINHF, p->gainhf);
+	m_exts.alEffectf(m_effect, AL_REVERB_DECAY_TIME, p->decay_time);
+	m_exts.alEffectf(m_effect, AL_REVERB_DECAY_HFRATIO, p->decay_hfratio);
+	m_exts.alEffectf(m_effect, AL_REVERB_REFLECTIONS_GAIN, p->reflections_gain);
+	m_exts.alEffectf(m_effect, AL_REVERB_REFLECTIONS_DELAY, p->reflections_delay);
+	m_exts.alEffectf(m_effect, AL_REVERB_LATE_REVERB_GAIN, p->late_reverb_gain);
+	m_exts.alEffectf(m_effect, AL_REVERB_LATE_REVERB_DELAY, p->late_reverb_delay);
+	m_exts.alEffectf(m_effect, AL_REVERB_AIR_ABSORPTION_GAINHF, p->air_absorption_gainhf);
+	m_exts.alEffectf(m_effect, AL_REVERB_ROOM_ROLLOFF_FACTOR, p->room_rolloff_factor);
+	m_exts.alEffecti(m_effect, AL_REVERB_DECAY_HFLIMIT, p->decay_hflimit);
+
+	m_exts.alAuxiliaryEffectSloti(m_slot, AL_AUXILIARY_EFFECT_SLOT_EFFECT, m_effect);
+	alSource3i(m_source_id, AL_AUXILIARY_SEND_FILTER, m_slot, 0, AL_FILTER_NULL);
+}
+
+void PlayingSound::setEcho(f32 delay, f32 decay)
+{
+	if (!m_exts.have_ext_ALC_EXT_EFX) return;
+
+	if (delay <= 0.0f) {
+		alSource3i(m_source_id, AL_AUXILIARY_SEND_FILTER, AL_AUXILIARY_EFFECT_SLOT_NULL, 0, AL_FILTER_NULL);
+		return;
+	}
+
+	if (!m_effect) m_exts.alGenEffects(1, &m_effect);
+	if (!m_slot) m_exts.alGenAuxiliaryEffectSlots(1, &m_slot);
+
+	m_exts.alEffecti(m_effect, AL_EFFECT_TYPE, AL_EFFECT_ECHO);
+	m_exts.alEffectf(m_effect, AL_ECHO_DELAY, delay);
+	m_exts.alEffectf(m_effect, AL_ECHO_LRDELAY, delay);
+	m_exts.alEffectf(m_effect, AL_ECHO_FEEDBACK, decay);
+
+	m_exts.alAuxiliaryEffectSloti(m_slot, AL_AUXILIARY_EFFECT_SLOT_EFFECT, m_effect);
+	alSource3i(m_source_id, AL_AUXILIARY_SEND_FILTER, m_slot, 0, AL_FILTER_NULL);
 }
 
 } // namespace sound

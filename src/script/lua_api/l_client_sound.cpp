@@ -95,6 +95,43 @@ int ClientSoundHandle::l_fade(lua_State *L)
 	return 0;
 }
 
+// :set_pitch(pitch)
+int ClientSoundHandle::l_set_pitch(lua_State *L)
+{
+	ClientSoundHandle *o = checkobject(L, 1);
+	float pitch = readParam<float>(L, 2);
+	getClient(L)->getSoundManager()->setSoundPitch(o->m_handle, pitch);
+	return 0;
+}
+
+// :set_lowpass(gain)
+int ClientSoundHandle::l_set_lowpass(lua_State *L)
+{
+	ClientSoundHandle *o = checkobject(L, 1);
+	float gain = readParam<float>(L, 2);
+	getClient(L)->getSoundManager()->setSoundLowpass(o->m_handle, gain);
+	return 0;
+}
+
+// :set_reverb(preset)
+int ClientSoundHandle::l_set_reverb(lua_State *L)
+{
+	ClientSoundHandle *o = checkobject(L, 1);
+	std::string preset = readParam<std::string>(L, 2);
+	getClient(L)->getSoundManager()->setSoundReverb(o->m_handle, preset);
+	return 0;
+}
+
+// :set_echo(delay, decay)
+int ClientSoundHandle::l_set_echo(lua_State *L)
+{
+	ClientSoundHandle *o = checkobject(L, 1);
+	float delay = readParam<float>(L, 2);
+	float decay = readParam<float>(L, 3, 0.5f);
+	getClient(L)->getSoundManager()->setSoundEcho(o->m_handle, delay, decay);
+	return 0;
+}
+
 void ClientSoundHandle::create(lua_State *L, sound_handle_t handle)
 {
 	ClientSoundHandle *o = new ClientSoundHandle(handle);
@@ -132,5 +169,9 @@ const char ClientSoundHandle::className[] = "ClientSoundHandle";
 const luaL_Reg ClientSoundHandle::methods[] = {
 	luamethod(ClientSoundHandle, stop),
 	luamethod(ClientSoundHandle, fade),
+	luamethod(ClientSoundHandle, set_pitch),
+	luamethod(ClientSoundHandle, set_lowpass),
+	luamethod(ClientSoundHandle, set_reverb),
+	luamethod(ClientSoundHandle, set_echo),
 	{0,0}
 };

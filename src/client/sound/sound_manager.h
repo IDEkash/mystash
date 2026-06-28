@@ -146,6 +146,11 @@ private:
 	void fadeSound(sound_handle_t soundid, f32 step, f32 target_gain);
 	void updateSoundPosVel(sound_handle_t sound, const v3f &pos_, const v3f &vel_);
 
+	void setSoundPitch(sound_handle_t id, f32 pitch);
+	void setSoundLowpass(sound_handle_t id, f32 gain);
+	void setSoundReverb(sound_handle_t id, const std::string &preset);
+	void setSoundEcho(sound_handle_t id, f32 delay, f32 decay);
+
 protected:
 	/* Thread stuff */
 
