@@ -825,7 +825,7 @@ These methods are available on the handle returned by `core.sound_play`.
 
 ## Pause API (Lua)
 
-These functions are available in the client and pause-menu environments. They only have an effect in singleplayer mode.
+These functions are available in the client and pause-menu environments. They only have an effect in singleplayer mode. Opening any menu/formspec in singleplayer will also automatically pause the game.
 
 `core.set_paused(paused)`
 - `paused`: boolean. If `true`, the game will be paused. This stops the server, client, animations, and sound.
