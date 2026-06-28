@@ -33,16 +33,18 @@ class PlayingSound final
 	bool m_stopped_means_dead = true;
 	std::optional<FadeState> m_fade_state = std::nullopt;
 
+	const ALExtensions &m_exts;
+	ALuint m_filter = 0;
+	ALuint m_effect = 0;
+	ALuint m_slot = 0;
+
 public:
 	PlayingSound(ALuint source_id, std::shared_ptr<ISoundDataOpen> data, bool loop,
 			f32 volume, f32 pitch, f32 start_time,
 			const std::optional<std::pair<v3f, v3f>> &pos_vel_opt,
-			const ALExtensions &exts [[maybe_unused]]);
+			const ALExtensions &exts);
 
-	~PlayingSound() noexcept
-	{
-		alDeleteSources(1, &m_source_id);
-	}
+	~PlayingSound() noexcept;
 
 	DISABLE_CLASS_COPY(PlayingSound)
 
@@ -62,6 +64,10 @@ public:
 	f32 getGain() noexcept;
 
 	void setPitch(f32 pitch);
+
+	void setLowpass(f32 gain);
+	void setReverb(const std::string &preset);
+	void setEcho(f32 delay, f32 decay);
 
 	bool isStreaming() const noexcept { return m_data->isStreaming(); }
 

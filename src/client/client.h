@@ -437,6 +437,9 @@ public:
 
 	const std::string &getFormspecPrepend() const;
 
+	void setPaused(bool paused) { m_pause_requested = paused; }
+	bool isPaused() const { return m_pause_requested; }
+
 	inline MeshGrid getMeshGrid()
 	{
 		return m_mesh_grid;
@@ -594,6 +597,8 @@ private:
 	u32 m_csm_restriction_noderange = 8;
 
 	std::unique_ptr<ModChannelMgr> m_modchannel_mgr;
+
+	bool m_pause_requested = false;
 
 	// The number of blocks the client will combine for mesh generation.
 	MeshGrid m_mesh_grid;

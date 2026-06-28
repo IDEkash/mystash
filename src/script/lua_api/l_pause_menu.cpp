@@ -22,9 +22,23 @@ int ModApiPauseMenu::l_is_internal_server(lua_State *L)
 	return 1;
 }
 
+int ModApiPauseMenu::l_set_paused(lua_State *L)
+{
+	bool paused = readParam<bool>(L, 1);
+	getClient(L)->setPaused(paused);
+	return 0;
+}
+
+int ModApiPauseMenu::l_get_paused(lua_State *L)
+{
+	lua_pushboolean(L, getClient(L)->isPaused());
+	return 1;
+}
 
 void ModApiPauseMenu::Initialize(lua_State *L, int top)
 {
 	API_FCT(show_touchscreen_layout);
 	API_FCT(is_internal_server);
+	API_FCT(set_paused);
+	API_FCT(get_paused);
 }

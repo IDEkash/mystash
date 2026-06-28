@@ -798,5 +798,41 @@ core.create_world("ProgrammaticWorld", "minetest", {
 ```
 
 ---
+
+## Audio Overhaul API (Lua)
+
+This overhaul adds support for real-time audio effects and dynamic property updates for playing sounds.
+
+### ClientSoundHandle methods
+
+These methods are available on the handle returned by `core.sound_play`.
+
+`sound:set_pitch(pitch)`
+- `pitch`: number. Multiplier for the sound's playback speed/pitch.
+
+`sound:set_lowpass(gain)`
+- `gain`: number (0.0 to 1.0). Controls the high-frequency attenuation. `1.0` means no filter, `0.0` is maximum muffling.
+
+`sound:set_reverb(preset)`
+- `preset`: string. One of: `"none"`, `"cave"`, `"room"`, `"forest"`, `"mountains"`.
+- Applies a reverb effect based on the chosen environment.
+
+`sound:set_echo(delay, decay)`
+- `delay`: number. Delay time in seconds. Set to `0` to disable.
+- `decay`: number (default `0.5`). Feedback/decay factor for the echo.
+
+---
+
+## Pause API (Lua)
+
+These functions are available in the client and pause-menu environments. They only have an effect in singleplayer mode. Opening any menu/formspec in singleplayer will also automatically pause the game.
+
+`core.set_paused(paused)`
+- `paused`: boolean. If `true`, the game will be paused. This stops the server, client, animations, and sound.
+
+`core.get_paused() -> boolean`
+- Returns `true` if the game is currently paused.
+
+---
 - **More Soon!**
-- Latest Update: May, 30, 2026
+- Latest Update: June, 10, 2026

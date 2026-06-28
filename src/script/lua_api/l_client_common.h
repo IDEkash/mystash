@@ -14,6 +14,9 @@ private:
 	// show_formspec(name, formspec)
 	static int l_show_formspec(lua_State *L);
 
+	static int l_set_paused(lua_State *L);
+	static int l_get_paused(lua_State *L);
+
 public:
 	static void Initialize(lua_State *L, int top);
 };

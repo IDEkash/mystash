@@ -436,6 +436,34 @@ void OpenALSoundManager::updateSoundPosVel(sound_handle_t id, const v3f &pos_,
 	i->second->updatePosVel(pos, vel);
 }
 
+void OpenALSoundManager::setSoundPitch(sound_handle_t id, f32 pitch)
+{
+	auto it = m_sounds_playing.find(id);
+	if (it != m_sounds_playing.end())
+		it->second->setPitch(pitch);
+}
+
+void OpenALSoundManager::setSoundLowpass(sound_handle_t id, f32 gain)
+{
+	auto it = m_sounds_playing.find(id);
+	if (it != m_sounds_playing.end())
+		it->second->setLowpass(gain);
+}
+
+void OpenALSoundManager::setSoundReverb(sound_handle_t id, const std::string &preset)
+{
+	auto it = m_sounds_playing.find(id);
+	if (it != m_sounds_playing.end())
+		it->second->setReverb(preset);
+}
+
+void OpenALSoundManager::setSoundEcho(sound_handle_t id, f32 delay, f32 decay)
+{
+	auto it = m_sounds_playing.find(id);
+	if (it != m_sounds_playing.end())
+		it->second->setEcho(delay, decay);
+}
+
 /* Thread stuff */
 
 void *OpenALSoundManager::run()
@@ -477,6 +505,15 @@ void *OpenALSoundManager::run()
 			mgr.fadeSound(msg.soundid, msg.step, msg.target_gain); return Result::Ok; }
 		Result operator()(UpdateSoundPosVel &&msg) {
 			mgr.updateSoundPosVel(msg.sound, msg.pos_, msg.vel_); return Result::Ok; }
+
+		Result operator()(SetSoundPitch &&msg) {
+			mgr.setSoundPitch(msg.sound, msg.pitch); return Result::Ok; }
+		Result operator()(SetSoundLowpass &&msg) {
+			mgr.setSoundLowpass(msg.sound, msg.gain); return Result::Ok; }
+		Result operator()(SetSoundReverb &&msg) {
+			mgr.setSoundReverb(msg.sound, msg.preset); return Result::Ok; }
+		Result operator()(SetSoundEcho &&msg) {
+			mgr.setSoundEcho(msg.sound, msg.delay, msg.decay); return Result::Ok; }
 
 		Result operator()(PleaseStop &&msg) {
 			return Result::StopRequested; }

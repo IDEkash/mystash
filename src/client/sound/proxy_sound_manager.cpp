@@ -149,4 +149,24 @@ void ProxySoundManager::updateSoundPosVel(sound_handle_t sound, const v3f &pos_,
 	send(sound_manager_messages_to_mgr::UpdateSoundPosVel{sound, pos_, vel_});
 }
 
+void ProxySoundManager::setSoundPitch(sound_handle_t sound, f32 pitch)
+{
+	send(sound_manager_messages_to_mgr::SetSoundPitch{sound, pitch});
+}
+
+void ProxySoundManager::setSoundLowpass(sound_handle_t sound, f32 gain)
+{
+	send(sound_manager_messages_to_mgr::SetSoundLowpass{sound, gain});
+}
+
+void ProxySoundManager::setSoundReverb(sound_handle_t sound, const std::string &preset)
+{
+	send(sound_manager_messages_to_mgr::SetSoundReverb{sound, preset});
+}
+
+void ProxySoundManager::setSoundEcho(sound_handle_t sound, f32 delay, f32 decay)
+{
+	send(sound_manager_messages_to_mgr::SetSoundEcho{sound, delay, decay});
+}
+
 } // namespace sound

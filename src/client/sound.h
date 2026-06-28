@@ -127,6 +127,11 @@ public:
 	virtual void updateSoundPosVel(sound_handle_t sound, const v3f &pos,
 			const v3f &vel) = 0;
 
+	virtual void setSoundPitch(sound_handle_t sound, f32 pitch) = 0;
+	virtual void setSoundLowpass(sound_handle_t sound, f32 gain) = 0;
+	virtual void setSoundReverb(sound_handle_t sound, const std::string &preset) = 0;
+	virtual void setSoundEcho(sound_handle_t sound, f32 delay, f32 decay) = 0;
+
 	/**
 	 * Get and reset the list of sounds that were stopped.
 	 */
@@ -173,6 +178,11 @@ public:
 	void stopSound(sound_handle_t sound) override {}
 	void fadeSound(sound_handle_t sound, f32 step, f32 target_gain) override {}
 	void updateSoundPosVel(sound_handle_t sound, const v3f &pos, const v3f &vel) override {}
+
+	void setSoundPitch(sound_handle_t sound, f32 pitch) override {}
+	void setSoundLowpass(sound_handle_t sound, f32 gain) override {}
+	void setSoundReverb(sound_handle_t sound, const std::string &preset) override {}
+	void setSoundEcho(sound_handle_t sound, f32 delay, f32 decay) override {}
 };
 
 /**

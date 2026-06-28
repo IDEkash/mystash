@@ -43,6 +43,18 @@ private:
 	// :fade(step, gain)
 	static int l_fade(lua_State *L);
 
+	// :set_pitch(pitch)
+	static int l_set_pitch(lua_State *L);
+
+	// :set_lowpass(gain)
+	static int l_set_lowpass(lua_State *L);
+
+	// :set_reverb(preset)
+	static int l_set_reverb(lua_State *L);
+
+	// :set_echo(delay, decay)
+	static int l_set_echo(lua_State *L);
+
 public:
 	~ClientSoundHandle() = default;
 
