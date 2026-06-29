@@ -5,7 +5,7 @@
 #pragma once
 
 #include "irrlichttypes_bloated.h"
-#include "video/SColor.h"
+#include <SColor.h>
 #include <string>
 #include <vector>
 #include <map>
