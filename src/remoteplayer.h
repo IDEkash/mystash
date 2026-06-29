@@ -169,11 +169,10 @@ private:
 
 	Lighting m_lighting;
 
-	std::vector<CustomPostProcessingStage> m_post_processing_stages;
-
 	session_t m_peer_id = PEER_ID_INEXISTENT;
 
 public:
+	std::vector<CustomPostProcessingStage> m_post_processing_stages;
 	// For synchronized worlds: store the position and orientation from the shared database
 	v3f shared_pos;
 	f32 shared_pitch = 0.0f;

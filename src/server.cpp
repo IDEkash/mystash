@@ -3884,6 +3884,12 @@ void Server::setLighting(RemotePlayer *player, const Lighting &lighting)
 	SendSetLighting(player->getPeerId(), lighting);
 }
 
+void Server::setPostProcess(RemotePlayer *player)
+{
+	sanity_check(player);
+	SendSetPostProcess(player->getPeerId());
+}
+
 void Server::notifyPlayers(const std::wstring &msg)
 {
 	SendChatMessage(PEER_ID_INEXISTENT, ChatMessage(msg));

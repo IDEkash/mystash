@@ -2761,7 +2761,7 @@ int ObjectRef::l_set_post_processing_effects(lua_State *L)
 		}
 	}
 
-	getServer(L)->SendSetPostProcess(player->getPeerId());
+	getServer(L)->setPostProcess(player);
 
 	return 0;
 }

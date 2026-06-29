@@ -405,6 +405,8 @@ public:
 
 	void setLighting(RemotePlayer *player, const Lighting &lighting);
 
+	void setPostProcess(RemotePlayer *player);
+
 	/* con::PeerHandler implementation. */
 	void peerAdded(con::IPeer *peer) override;
 	void deletingPeer(con::IPeer *peer, bool timeout) override;
