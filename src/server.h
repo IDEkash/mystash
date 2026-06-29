@@ -569,6 +569,7 @@ private:
 	void SendHUDSetFlags(session_t peer_id, u32 flags, u32 mask);
 	void SendHUDSetParam(session_t peer_id, u16 param, std::string_view value);
 	void SendSetSky(session_t peer_id, const SkyboxParams &params);
+	void SendSetPostProcess(session_t peer_id);
 	void SendSetSun(session_t peer_id, const SunParams &params);
 	void SendSetMoon(session_t peer_id, const MoonParams &params);
 	void SendSetStars(session_t peer_id, const StarParams &params);

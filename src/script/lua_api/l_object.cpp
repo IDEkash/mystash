@@ -24,6 +24,7 @@
 #include "serverenvironment.h"
 #include "settings.h"
 #include "hud_element.h"
+#include "custom_post_processing.h"
 #include "server/luaentity_sao.h"
 #include "server/player_sao.h"
 #include "server/serverinventorymgr.h"
@@ -2685,6 +2686,86 @@ int ObjectRef::l_hud_get_hotbar_selected_image(lua_State *L)
 }
 
 // set_sky(self, sky_parameters)
+int ObjectRef::l_set_post_processing_effects(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	RemotePlayer *player = getplayer(ref);
+	if (player == nullptr)
+		return 0;
+
+	player->m_post_processing_stages.clear();
+
+	if (lua_istable(L, 2)) {
+		int n = lua_objlen(L, 2);
+		for (int i = 1; i <= n; i++) {
+			lua_rawgeti(L, 2, i);
+			if (lua_istable(L, -1)) {
+				CustomPostProcessingStage stage;
+				getstringfield(L, -1, "name", stage.name);
+				getstringfield(L, -1, "shader", stage.shader_name);
+
+				lua_getfield(L, -1, "textures");
+				if (lua_istable(L, -1)) {
+					int nt = lua_objlen(L, -1);
+					for (int j = 1; j <= nt; j++) {
+						lua_rawgeti(L, -1, j);
+						stage.texture_map.push_back((u8)lua_tonumber(L, -1));
+						lua_pop(L, 1);
+					}
+				}
+				lua_pop(L, 1);
+
+				lua_getfield(L, -1, "uniforms");
+				if (lua_istable(L, -1)) {
+					lua_pushnil(L);
+					while (lua_next(L, -2) != 0) {
+						std::string key = luaL_checkstring(L, -2);
+						CustomUniformValue value;
+						if (lua_isnumber(L, -1)) {
+							value = (float)lua_tonumber(L, -1);
+						} else if (lua_istable(L, -1)) {
+							lua_getfield(L, -1, "r");
+							if (!lua_isnil(L, -1)) {
+								video::SColorf color;
+								color.r = lua_tonumber(L, -1);
+								lua_getfield(L, -2, "g");
+								color.g = lua_tonumber(L, -1);
+								lua_getfield(L, -3, "b");
+								color.b = lua_tonumber(L, -1);
+								lua_getfield(L, -4, "a");
+								color.a = lua_isnil(L, -1) ? 1.0f : lua_tonumber(L, -1);
+								value = color;
+								lua_pop(L, 4);
+							} else {
+								lua_pop(L, 1);
+								v3f vec = read_v3f(L, -1);
+								lua_getfield(L, -1, "z");
+								if (lua_isnil(L, -1)) {
+									value = v2f(vec.X, vec.Y);
+								} else {
+									value = vec;
+								}
+								lua_pop(L, 1);
+							}
+						}
+						stage.uniforms[key] = value;
+						lua_pop(L, 1);
+					}
+				}
+				lua_pop(L, 1);
+
+				player->m_post_processing_stages.push_back(stage);
+			}
+			lua_pop(L, 1);
+		}
+	}
+
+	getServer(L)->SendSetPostProcess(player->getPeerId());
+
+	return 0;
+}
+
 int ObjectRef::l_set_sky(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
@@ -3598,6 +3679,7 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod(ObjectRef, hud_set_hotbar_selected_image),
 	luamethod(ObjectRef, hud_get_hotbar_selected_image),
 	luamethod(ObjectRef, set_sky),
+	luamethod(ObjectRef, set_post_processing_effects),
 	luamethod(ObjectRef, get_sky),
 	luamethod(ObjectRef, get_sky_color),
 	luamethod(ObjectRef, set_sun),

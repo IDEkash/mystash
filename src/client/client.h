@@ -14,6 +14,7 @@
 #include "network/peerhandler.h"
 #include "util/numeric.h"
 #include "util/string.h" // StringMap
+#include "custom_post_processing.h"
 
 #include <map>
 #include <memory>
@@ -218,6 +219,7 @@ public:
 		void handleCommand_SetFogBoundary(NetworkPacket *pkt);
 		void handleCommand_Camera(NetworkPacket* pkt);
 		void handleCommand_SwitchWorld(NetworkPacket *pkt);
+		void handleCommand_SetPostProcess(NetworkPacket *pkt);
 
 	void ProcessData(NetworkPacket *pkt);
 
@@ -444,6 +446,8 @@ public:
 
 	bool inhibit_inventory_revert = false;
 
+	const std::vector<CustomPostProcessingStage> &getCustomPostProcessingStages() const { return m_post_processing_stages; }
+
 private:
 	void loadMods();
 
@@ -597,4 +601,6 @@ private:
 
 	// The number of blocks the client will combine for mesh generation.
 	MeshGrid m_mesh_grid;
+
+	std::vector<CustomPostProcessingStage> m_post_processing_stages;
 };

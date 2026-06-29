@@ -725,7 +725,25 @@ enum ToClientCommand : u16
 			u8[len] world name
 		*/
 
-		TOCLIENT_NUM_MSG_TYPES = 0x69,
+		TOCLIENT_SET_POST_PROCESS = 0x69,
+		/*
+			u16 command (0: clear, 1: add/update)
+			if command == 1:
+				u16 name_len
+				u8[name_len] name
+				u16 shader_len
+				u8[shader_len] shader_name
+				u8 texture_count
+				u8[texture_count] texture_map
+				u16 uniform_count
+				foreach uniform:
+					u16 name_len
+					u8[name_len] name
+					u8 type (0: float, 1: v2f, 2: v3f, 3: color)
+					data...
+		*/
+
+		TOCLIENT_NUM_MSG_TYPES = 0x6a,
 	};
 
 enum ToServerCommand : u16

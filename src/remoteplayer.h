@@ -10,6 +10,7 @@
 #include "skyparams.h"
 #include "fogparams.h"
 #include "lighting.h"
+#include "custom_post_processing.h"
 #include "network/networkprotocol.h" // session_t
 
 class PlayerSAO;
@@ -167,6 +168,8 @@ private:
 	FogBoundaryParams m_fog_boundary_params;
 
 	Lighting m_lighting;
+
+	std::vector<CustomPostProcessingStage> m_post_processing_stages;
 
 	session_t m_peer_id = PEER_ID_INEXISTENT;
 

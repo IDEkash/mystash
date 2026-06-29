@@ -798,5 +798,31 @@ core.create_world("ProgrammaticWorld", "minetest", {
 ```
 
 ---
+
+## Post-processing API (Lua)
+
+`ObjectRef:set_post_processing_effects(effects)`
+- `effects`: list of tables, each representing a post-processing stage:
+  - `name`: string, unique name for the stage
+  - `shader`: string, name of the shader (must be present in a `shaders/` directory)
+  - `textures`: (optional) list of texture indices from the render source. If omitted, defaults to the output of the previous stage.
+  - `uniforms`: (optional) table of uniforms to set. Supports numbers (float), tables `{x,y}` (v2f), tables `{x,y,z}` (v3f), and tables `{r,g,b,a}` (SColorf).
+
+Example:
+```lua
+player:set_post_processing_effects({
+    {
+        name = "bloom",
+        shader = "my_bloom_shader",
+        uniforms = {
+            intensity = 0.5,
+            color = {r=1, g=0.9, b=0.8, a=1}
+        }
+    }
+})
+```
+To clear all custom effects, pass an empty table or `nil`.
+
+---
 - **More Soon!**
 - Latest Update: May, 30, 2026

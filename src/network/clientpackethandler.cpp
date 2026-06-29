@@ -3,6 +3,8 @@
 // Copyright (C) 2015 nerzhul, Loic Blot <loic.blot@unix-experience.fr>
 
 #include "client/client.h"
+#include "client/renderingengine.h"
+#include "custom_post_processing.h"
 
 #include "exceptions.h"
 #include "irr_v2d.h"
@@ -1953,4 +1955,65 @@ void Client::handleCommand_SetFogBoundary(NetworkPacket *pkt)
 	e->type = CE_SET_FOG_BOUNDARY;
 	e->set_fog_boundary = new FogBoundaryParams(std::move(params));
 	m_client_event_queue.push(e);
+}
+
+void Client::handleCommand_SetPostProcess(NetworkPacket *pkt)
+{
+	u16 command;
+	*pkt >> command;
+
+	if (command == 0) {
+		m_post_processing_stages.clear();
+	} else if (command == 1) {
+		CustomPostProcessingStage stage;
+		*pkt >> stage.name >> stage.shader_name;
+
+		u8 texture_count;
+		*pkt >> texture_count;
+		for (u8 i = 0; i < texture_count; i++) {
+			u8 tex;
+			*pkt >> tex;
+			stage.texture_map.push_back(tex);
+		}
+
+		u16 uniform_count;
+		*pkt >> uniform_count;
+		for (u16 i = 0; i < uniform_count; i++) {
+			std::string name;
+			u8 type;
+			*pkt >> name >> type;
+			if (type == 0) {
+				float f;
+				*pkt >> f;
+				stage.uniforms[name] = f;
+			} else if (type == 1) {
+				v2f v;
+				*pkt >> v;
+				stage.uniforms[name] = v;
+			} else if (type == 2) {
+				v3f v;
+				*pkt >> v;
+				stage.uniforms[name] = v;
+			} else if (type == 3) {
+				video::SColorf c;
+				*pkt >> c.r >> c.g >> c.b >> c.a;
+				stage.uniforms[name] = c;
+			}
+		}
+
+		bool found = false;
+		for (auto &s : m_post_processing_stages) {
+			if (s.name == stage.name) {
+				s = stage;
+				found = true;
+				break;
+			}
+		}
+		if (!found)
+			m_post_processing_stages.push_back(stage);
+	}
+
+	if (m_rendering_engine) {
+		m_rendering_engine->initialize(this, m_rendering_engine->get_hud());
+	}
 }

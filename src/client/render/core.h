@@ -47,4 +47,5 @@ public:
 	v2u32 getVirtualSize() const;
 
 	ShadowRenderer *get_shadow_renderer() { return shadow_renderer.get(); };
+	Hud *get_hud() { return hud; }
 };

@@ -17,6 +17,7 @@
 #include "irr_v2d.h"
 #include "itemdef.h"
 #include "log.h"
+#include "custom_post_processing.h"
 #include "mapblock.h"
 #include "nodedef.h"
 #include "particles.h"
@@ -1939,6 +1940,43 @@ void Server::SendHUDSetParam(session_t peer_id, u16 param, std::string_view valu
 	NetworkPacket pkt(TOCLIENT_HUD_SET_PARAM, 0, peer_id);
 	pkt << param << value;
 	Send(&pkt);
+}
+
+void Server::SendSetPostProcess(session_t peer_id)
+{
+	RemotePlayer *player = m_env->getPlayer(peer_id);
+	if (!player)
+		return;
+
+	NetworkPacket pkt(TOCLIENT_SET_POST_PROCESS, 0, peer_id);
+
+	pkt << (u16) 0; // Clear all
+	Send(&pkt);
+
+	for (const auto &stage : player->m_post_processing_stages) {
+		NetworkPacket stage_pkt(TOCLIENT_SET_POST_PROCESS, 0, peer_id);
+		stage_pkt << (u16) 1; // Add/Update
+		stage_pkt << stage.name << stage.shader_name;
+		stage_pkt << (u8) stage.texture_map.size();
+		for (u8 tex : stage.texture_map)
+			stage_pkt << tex;
+
+		stage_pkt << (u16) stage.uniforms.size();
+		for (const auto &it : stage.uniforms) {
+			stage_pkt << it.first;
+			if (std::holds_alternative<float>(it.second)) {
+				stage_pkt << (u8) 0 << std::get<float>(it.second);
+			} else if (std::holds_alternative<v2f>(it.second)) {
+				stage_pkt << (u8) 1 << std::get<v2f>(it.second);
+			} else if (std::holds_alternative<v3f>(it.second)) {
+				stage_pkt << (u8) 2 << std::get<v3f>(it.second);
+			} else if (std::holds_alternative<video::SColorf>(it.second)) {
+				video::SColorf c = std::get<video::SColorf>(it.second);
+				stage_pkt << (u8) 3 << c.r << c.g << c.b << c.a;
+			}
+		}
+		Send(&stage_pkt);
+	}
 }
 
 void Server::SendSetSky(session_t peer_id, const SkyboxParams &params)
