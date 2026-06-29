@@ -57,6 +57,26 @@ int ModApiHTMLView::l_run(lua_State *L)
 	return 0;
 }
 
+int ModApiHTMLView::l_render_to_texture(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
+	std::string id = readParam<std::string>(L, 1);
+	luaL_checktype(L, 2, LUA_TTABLE);
+
+	std::string texture_name = getstringfield_default(L, 2, "texture_name", "");
+	if (texture_name.empty())
+		return 0;
+
+	int width = getintfield_default(L, 2, "width", 256);
+	int height = getintfield_default(L, 2, "height", 256);
+	int fps = getintfield_default(L, 2, "fps", 0); // 0 = capture once
+
+	htmlview_jni_render_to_texture(id, texture_name, width, height, fps);
+#endif
+	return 0;
+}
+
 int ModApiHTMLView::l_run_worker(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
@@ -501,6 +521,7 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "inject", dummy, tbl);
 		registerFunction(L, "pipe", dummy, tbl);
 		registerFunction(L, "capture", dummy, tbl);
+		registerFunction(L, "render_to_texture", dummy, tbl);
 		registerFunction(L, "input", dummy, tbl);
 		registerFunction(L, "state", dummy_nil, tbl);
 		registerFunction(L, "reload", dummy, tbl);
@@ -525,6 +546,7 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "inject", l_inject, tbl);
 		registerFunction(L, "pipe", l_pipe, tbl);
 		registerFunction(L, "capture", l_capture, tbl);
+		registerFunction(L, "render_to_texture", l_render_to_texture, tbl);
 		registerFunction(L, "input", l_input, tbl);
 		registerFunction(L, "state", l_state, tbl);
 		registerFunction(L, "reload", l_reload, tbl);

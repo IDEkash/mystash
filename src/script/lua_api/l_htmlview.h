@@ -20,6 +20,7 @@ private:
 	static int l_inject(lua_State *L);
 	static int l_pipe(lua_State *L);
 	static int l_capture(lua_State *L);
+	static int l_render_to_texture(lua_State *L);
 	static int l_input(lua_State *L);
 	static int l_state(lua_State *L);
 	static int l_reload(lua_State *L);

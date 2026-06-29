@@ -386,6 +386,82 @@ public class HTMLViewManager {
 		});
 	}
 
+	public void htmlview_render_to_texture(String id, String textureName, int width, int height, int fps) {
+		activity.runOnUiThread(() -> {
+			HtmlViewState st = views.get(id);
+			if (st == null)
+				return;
+			st.targetTexture = textureName;
+			st.renderW = width;
+			st.renderH = height;
+			st.renderFps = fps;
+			startStreamingIfNeeded(st);
+		});
+	}
+
+	private void startStreamingIfNeeded(HtmlViewState st) {
+		if (st.renderFps <= 0) {
+			captureToTextureOnUiThread(st);
+			return;
+		}
+		if (st.streaming)
+			return;
+		st.streaming = true;
+		long delay = 1000 / st.renderFps;
+		handler.postDelayed(new Runnable() {
+			@Override
+			public void run() {
+				if (!st.streaming || views.get(st.id) != st)
+					return;
+				captureToTextureOnUiThread(st);
+				handler.postDelayed(this, 1000 / st.renderFps);
+			}
+		}, delay);
+	}
+
+	private void captureToTextureOnUiThread(HtmlViewState st) {
+		if (st.webView == null || st.targetTexture == null)
+			return;
+
+		int w = st.renderW;
+		int h = st.renderH;
+		WebView wv = st.webView;
+		if (w <= 0) w = wv.getWidth();
+		if (h <= 0) h = wv.getHeight();
+		if (w <= 0) w = 256;
+		if (h <= 0) h = 256;
+		w = Math.min(w, 2048);
+		h = Math.min(h, 2048);
+
+		try {
+			Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+			Canvas canvas = new Canvas(bmp);
+			int vw = wv.getWidth();
+			int vh = wv.getHeight();
+			if (vw > 0 && vh > 0) {
+				float sx = w / (float) vw;
+				float sy = h / (float) vh;
+				canvas.save();
+				canvas.scale(sx, sy);
+				wv.draw(canvas);
+				canvas.restore();
+			} else {
+				int ws = View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY);
+				int hs = View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY);
+				wv.measure(ws, hs);
+				wv.layout(0, 0, w, h);
+				wv.draw(canvas);
+			}
+
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			bmp.compress(Bitmap.CompressFormat.PNG, 100, out);
+			bmp.recycle();
+			String b64 = Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
+			nativeOnHTMLTextureUpdate(st.targetTexture, b64);
+		} catch (Exception ignored) {
+		}
+	}
+
 	private void capturePngToNativeOnUiThread(String id, HtmlViewState st, int width, int height) {
 		WebView wv = st.webView;
 
@@ -867,6 +943,12 @@ public class HTMLViewManager {
 		String lastHtml;
 		boolean ready;
 
+		String targetTexture;
+		int renderW;
+		int renderH;
+		int renderFps;
+		boolean streaming;
+
 		boolean lastSafeArea = true;
 		boolean lastFullscreen = false;
 
@@ -932,4 +1014,5 @@ public class HTMLViewManager {
 	private static native void nativeOnHTMLMessage(String id, String message);
 	private static native void nativeOnHTMLCapture(String id, String pngBase64);
 	private static native void nativeOnHTMLReady(String id);
+	private static native void nativeOnHTMLTextureUpdate(String textureName, String pngBase64);
 }

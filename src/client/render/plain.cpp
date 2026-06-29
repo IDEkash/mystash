@@ -13,16 +13,43 @@
 #include "client/minimap.h"
 #include "client/shadows/dynamicshadowsrender.h"
 #include <IGUIEnvironment.h>
+#include <rect.h>
 
 /// Draw3D pipeline step
+void Draw3D::setViewport(const irr::core::rect<s32> &viewport)
+{
+	m_vx1 = viewport.UpperLeftCorner.X;
+	m_vy1 = viewport.UpperLeftCorner.Y;
+	m_vx2 = viewport.LowerRightCorner.X;
+	m_vy2 = viewport.LowerRightCorner.Y;
+	m_has_viewport = true;
+}
+
 void Draw3D::run(PipelineContext &context)
 {
 	if (m_target)
 		m_target->activate(context);
 
-	context.device->getSceneManager()->drawAll();
-	context.device->getVideoDriver()->setTransform(video::ETS_WORLD, core::IdentityMatrix);
-	if (!context.show_hud)
+	video::IVideoDriver *driver = context.device->getVideoDriver();
+	scene::ISceneManager *smgr = context.device->getSceneManager();
+
+	scene::ICameraSceneNode *old_camera = smgr->getActiveCamera();
+	if (m_camera)
+		smgr->setActiveCamera(m_camera);
+
+	core::rect<s32> old_viewport = driver->getViewPort();
+	if (m_has_viewport)
+		driver->setViewPort(core::rect<s32>(m_vx1, m_vy1, m_vx2, m_vy2));
+
+	smgr->drawAll();
+	driver->setTransform(video::ETS_WORLD, core::IdentityMatrix);
+
+	if (m_has_viewport)
+		driver->setViewPort(old_viewport);
+	if (m_camera)
+		smgr->setActiveCamera(old_camera);
+
+	if (!context.show_hud || m_has_viewport)
 		return;
 	context.hud->drawBlockBounds();
 	context.hud->drawSelectionMesh();

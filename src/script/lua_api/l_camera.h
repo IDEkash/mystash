@@ -6,11 +6,13 @@
 
 #include "l_base.h"
 
+namespace irr { namespace scene { class ICameraSceneNode; } }
 class Camera;
 
 class LuaCamera : public ModApiBase
 {
 private:
+	irr::scene::ICameraSceneNode *m_raw_cam = nullptr;
 	static const luaL_Reg methods[];
 
 	// garbage collector
@@ -28,6 +30,16 @@ private:
 	static int l_get_look_horizontal(lua_State *L);
 	static int l_get_aspect_ratio(lua_State *L);
 
+	static int l_set_fov(lua_State *L);
+	static int l_set_pos(lua_State *L);
+	static int l_set_look_vertical(lua_State *L);
+	static int l_set_look_horizontal(lua_State *L);
+	static int l_set_aspect_ratio(lua_State *L);
+
+	static int l_add(lua_State *L);
+	static int l_remove(lua_State *L);
+	static int l_render(lua_State *L);
+
 	static Camera *getobject(LuaCamera *ref);
 	static Camera *getobject(lua_State *L, int narg);
 
@@ -35,7 +47,7 @@ private:
 
 public:
 	LuaCamera(Camera *m);
-	~LuaCamera() = default;
+	~LuaCamera();
 
 	static void create(lua_State *L, Camera *m);
 
