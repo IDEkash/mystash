@@ -7,25 +7,25 @@
 #include "core.h"
 #include "pipeline.h"
 
+#include <ICameraSceneNode.h>
+
 /**
  * Implements a pipeline step that renders the 3D scene
  */
-class Draw3D : public RenderStep
+class Draw3D : public TrivialRenderStep
 {
 public:
-	virtual void setRenderSource(RenderSource *) override {}
-	virtual void setRenderTarget(RenderTarget *target) override { m_target = target; }
+	void setRenderTarget(RenderTarget *target) override { m_target = target; }
 
-	virtual void reset(PipelineContext &context) override {}
-	virtual void run(PipelineContext &context) override;
+	void run(PipelineContext &context) override;
 
-	void setCamera(scene::ICameraSceneNode *camera) { m_camera = camera; }
-	void setViewport(core::rect<s32> viewport) { m_viewport = viewport; m_has_viewport = true; }
+	void setCamera(irr::scene::ICameraSceneNode *camera) { m_camera = camera; }
+	void setViewport(irr::core::rect<irr::s32> viewport) { m_viewport = viewport; m_has_viewport = true; }
 
 private:
 	RenderTarget *m_target {nullptr};
-	scene::ICameraSceneNode *m_camera {nullptr};
-	core::rect<s32> m_viewport;
+	irr::scene::ICameraSceneNode *m_camera {nullptr};
+	irr::core::rect<irr::s32> m_viewport;
 	bool m_has_viewport {false};
 };
 

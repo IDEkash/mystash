@@ -404,6 +404,7 @@ Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLTextureUpdate(
 #include "texturesource.h"
 #include "util/base64.h"
 #include <IImage.h>
+#include <IFileSystem.h>
 
 struct HtmlViewTextureUpdate {
 	std::string texture_name;
@@ -444,16 +445,16 @@ void htmlview_jni_poll(ServerScripting *script)
 
 	if (!tex_batch.empty()) {
 		IWritableTextureSource *tsrc = (IWritableTextureSource *)RenderingEngine::get_texture_source();
-		video::IVideoDriver *driver = RenderingEngine::get_video_driver();
+		irr::video::IVideoDriver *driver = RenderingEngine::get_video_driver();
 		if (tsrc && driver) {
 			for (const auto &up : tex_batch) {
 				// Decode base64
 				std::string decoded = base64_decode(up.png_base64);
 				IrrlichtDevice *device = RenderingEngine::get_raw_device();
-				io::IReadFile *file = device->getFileSystem()->createMemoryReadFile(
+				irr::io::IReadFile *file = device->getFileSystem()->createMemoryReadFile(
 					decoded.data(), decoded.size(), "htmlview_tmp.png", false);
 				if (file) {
-					video::IImage *img = driver->createImageFromFile(file);
+					irr::video::IImage *img = driver->createImageFromFile(file);
 					if (img) {
 						tsrc->insertSourceImage(up.texture_name, img);
 						img->drop();

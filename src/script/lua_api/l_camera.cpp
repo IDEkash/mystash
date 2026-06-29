@@ -9,6 +9,7 @@
 #include "client/camera.h"
 #include "client/client.h"
 #include "client/localplayer.h"
+#include "client/renderingengine.h"
 #include <ICameraSceneNode.h>
 
 LuaCamera::LuaCamera(Camera *m) : m_camera(m)
@@ -88,7 +89,7 @@ int LuaCamera::l_get_camera_mode(lua_State *L)
 int LuaCamera::l_get_fov(lua_State *L)
 {
 	LuaCamera *ref = checkObject<LuaCamera>(L, 1);
-	scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
+	irr::scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
 	if (!cam)
 		return 0;
 
@@ -110,7 +111,7 @@ int LuaCamera::l_get_fov(lua_State *L)
 int LuaCamera::l_get_pos(lua_State *L)
 {
 	LuaCamera *ref = checkObject<LuaCamera>(L, 1);
-	scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
+	irr::scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
 	if (!cam)
 		return 0;
 
@@ -132,7 +133,7 @@ int LuaCamera::l_get_offset(lua_State *L)
 int LuaCamera::l_get_look_dir(lua_State *L)
 {
 	LuaCamera *ref = checkObject<LuaCamera>(L, 1);
-	scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
+	irr::scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
 	if (!cam)
 		return 0;
 
@@ -167,7 +168,7 @@ int LuaCamera::l_get_look_vertical(lua_State *L)
 int LuaCamera::l_get_aspect_ratio(lua_State *L)
 {
 	LuaCamera *ref = checkObject<LuaCamera>(L, 1);
-	scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
+	irr::scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
 	if (!cam)
 		return 0;
 
@@ -178,7 +179,7 @@ int LuaCamera::l_get_aspect_ratio(lua_State *L)
 int LuaCamera::l_set_fov(lua_State *L)
 {
 	LuaCamera *ref = checkObject<LuaCamera>(L, 1);
-	scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
+	irr::scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
 	if (!cam)
 		return 0;
 	float fov = luaL_checknumber(L, 2);
@@ -189,7 +190,7 @@ int LuaCamera::l_set_fov(lua_State *L)
 int LuaCamera::l_set_pos(lua_State *L)
 {
 	LuaCamera *ref = checkObject<LuaCamera>(L, 1);
-	scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
+	irr::scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
 	if (!cam)
 		return 0;
 	v3f pos = check_v3f(L, 2);
@@ -200,7 +201,7 @@ int LuaCamera::l_set_pos(lua_State *L)
 int LuaCamera::l_set_look_vertical(lua_State *L)
 {
 	LuaCamera *ref = checkObject<LuaCamera>(L, 1);
-	scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
+	irr::scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
 	if (!cam)
 		return 0;
 	float pitch = luaL_checknumber(L, 2);
@@ -213,7 +214,7 @@ int LuaCamera::l_set_look_vertical(lua_State *L)
 int LuaCamera::l_set_look_horizontal(lua_State *L)
 {
 	LuaCamera *ref = checkObject<LuaCamera>(L, 1);
-	scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
+	irr::scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
 	if (!cam)
 		return 0;
 	float yaw = luaL_checknumber(L, 2);
@@ -226,7 +227,7 @@ int LuaCamera::l_set_look_horizontal(lua_State *L)
 int LuaCamera::l_set_aspect_ratio(lua_State *L)
 {
 	LuaCamera *ref = checkObject<LuaCamera>(L, 1);
-	scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
+	irr::scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
 	if (!cam)
 		return 0;
 	float aspect = luaL_checknumber(L, 2);
@@ -236,8 +237,8 @@ int LuaCamera::l_set_aspect_ratio(lua_State *L)
 
 int LuaCamera::l_add(lua_State *L)
 {
-	scene::ISceneManager *smgr = RenderingEngine::get_scene_manager();
-	scene::ICameraSceneNode *cam = smgr->addCameraSceneNode();
+	irr::scene::ISceneManager *smgr = RenderingEngine::get_scene_manager();
+	irr::scene::ICameraSceneNode *cam = smgr->addCameraSceneNode();
 	if (!cam)
 		return 0;
 
@@ -262,14 +263,14 @@ int LuaCamera::l_remove(lua_State *L)
 int LuaCamera::l_render(lua_State *L)
 {
 	LuaCamera *ref = checkObject<LuaCamera>(L, 1);
-	scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
+	irr::scene::ICameraSceneNode *cam = ref->m_camera ? ref->m_camera->getCameraNode() : ref->m_raw_cam;
 	if (!cam)
 		return 0;
 
 	luaL_checktype(L, 2, LUA_TTABLE);
 	std::string texture_name = getstringfield_default(L, 2, "texture", "");
 
-	core::rect<s32> viewport(0, 0, 0, 0);
+	irr::core::rect<irr::s32> viewport(0, 0, 0, 0);
 	bool has_viewport = false;
 	lua_getfield(L, 2, "viewport");
 	if (lua_istable(L, -1)) {
@@ -281,18 +282,18 @@ int LuaCamera::l_render(lua_State *L)
 	}
 	lua_pop(L, 1);
 
-	video::IVideoDriver *driver = RenderingEngine::get_video_driver();
-	scene::ISceneManager *smgr = RenderingEngine::get_scene_manager();
+	irr::video::IVideoDriver *driver = RenderingEngine::get_video_driver();
+	irr::scene::ISceneManager *smgr = RenderingEngine::get_scene_manager();
 
-	scene::ICameraSceneNode *old_cam = smgr->getActiveCamera();
+	irr::scene::ICameraSceneNode *old_cam = smgr->getActiveCamera();
 	smgr->setActiveCamera(cam);
 
-	core::rect<s32> old_viewport = driver->getViewPort();
+	irr::core::rect<irr::s32> old_viewport = driver->getViewPort();
 	if (has_viewport) {
 		driver->setViewPort(viewport);
 	}
 
-	video::ITexture *render_tex = nullptr;
+	irr::video::ITexture *render_tex = nullptr;
 	if (!texture_name.empty()) {
 		render_tex = driver->getTexture(texture_name.c_str());
 		if (render_tex) {

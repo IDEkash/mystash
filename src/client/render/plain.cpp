@@ -20,19 +20,19 @@ void Draw3D::run(PipelineContext &context)
 	if (m_target)
 		m_target->activate(context);
 
-	video::IVideoDriver *driver = context.device->getVideoDriver();
-	scene::ISceneManager *smgr = context.device->getSceneManager();
+	irr::video::IVideoDriver *driver = context.device->getVideoDriver();
+	irr::scene::ISceneManager *smgr = context.device->getSceneManager();
 
-	scene::ICameraSceneNode *old_camera = smgr->getActiveCamera();
+	irr::scene::ICameraSceneNode *old_camera = smgr->getActiveCamera();
 	if (m_camera)
 		smgr->setActiveCamera(m_camera);
 
-	core::rect<s32> old_viewport = driver->getViewPort();
+	irr::core::rect<irr::s32> old_viewport = driver->getViewPort();
 	if (m_has_viewport)
 		driver->setViewPort(m_viewport);
 
 	smgr->drawAll();
-	driver->setTransform(video::ETS_WORLD, core::IdentityMatrix);
+	driver->setTransform(irr::video::ETS_WORLD, irr::core::IdentityMatrix);
 
 	if (m_has_viewport)
 		driver->setViewPort(old_viewport);

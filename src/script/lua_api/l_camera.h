@@ -6,12 +6,13 @@
 
 #include "l_base.h"
 
+namespace irr { namespace scene { class ICameraSceneNode; } }
 class Camera;
 
 class LuaCamera : public ModApiBase
 {
 private:
-	scene::ICameraSceneNode *m_raw_cam = nullptr;
+	irr::scene::ICameraSceneNode *m_raw_cam = nullptr;
 	static const luaL_Reg methods[];
 
 	// garbage collector
