@@ -19,8 +19,14 @@ public:
 	virtual void reset(PipelineContext &context) override {}
 	virtual void run(PipelineContext &context) override;
 
+	void setCamera(scene::ICameraSceneNode *camera) { m_camera = camera; }
+	void setViewport(core::rect<s32> viewport) { m_viewport = viewport; m_has_viewport = true; }
+
 private:
 	RenderTarget *m_target {nullptr};
+	scene::ICameraSceneNode *m_camera {nullptr};
+	core::rect<s32> m_viewport;
+	bool m_has_viewport {false};
 };
 
 class DrawWield : public RenderStep

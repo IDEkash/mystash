@@ -107,6 +107,29 @@ static void callVoidMethod1Str(const char *method_name, const std::string &a)
 		env->DeleteLocalRef(ja);
 }
 
+static void callVoidMethod2Str3Int(const char *method_name, const std::string &a,
+			const std::string &b, int c, int d, int e)
+{
+	JNIEnv *env = porting::getJNIEnv();
+	jmethodID mid = env->GetMethodID(porting::activityClass, method_name,
+		"(Ljava/lang/String;Ljava/lang/String;III)V");
+	if (!mid) {
+		errorstream << "htmlview_jni: missing method " << method_name << std::endl;
+		return;
+	}
+
+	jstring ja = env->NewStringUTF(a.c_str());
+	jstring jb = env->NewStringUTF(b.c_str());
+	jint jc = c;
+	jint jd = d;
+	jint je = e;
+	env->CallVoidMethod(porting::activity, mid, ja, jb, jc, jd, je);
+	if (ja)
+		env->DeleteLocalRef(ja);
+	if (jb)
+		env->DeleteLocalRef(jb);
+}
+
 static void callVoidMethod1Str2Int(const char *method_name, const std::string &a,
 			int b, int c)
 {
@@ -305,6 +328,12 @@ void htmlview_jni_capture(const std::string &id, int width, int height)
 	callVoidMethod1Str2Int("htmlview_capture", id, width, height);
 }
 
+void htmlview_jni_render_to_texture(const std::string &id, const std::string &texture_name,
+		int width, int height, int fps)
+{
+	callVoidMethod2Str3Int("htmlview_render_to_texture", id, texture_name, width, height, fps);
+}
+
 #if 0
 void htmlview_jni_inject(const std::string &id, const std::string &js)
 {
@@ -357,7 +386,31 @@ Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLReady(
 	}
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLTextureUpdate(
+		JNIEnv *env, jclass, jstring texture_name, jstring png_base64)
+{
+	HtmlViewTextureUpdate up;
+	up.texture_name = readJavaString(env, texture_name);
+	up.png_base64 = readJavaString(env, png_base64);
+	{
+		std::lock_guard<std::mutex> lock(g_msg_mutex);
+		g_texture_updates.push_back(std::move(up));
+	}
+}
+
 #include "scripting_server.h"
+#include "renderingengine.h"
+#include "texturesource.h"
+#include "util/base64.h"
+#include <IImage.h>
+
+struct HtmlViewTextureUpdate {
+	std::string texture_name;
+	std::string png_base64;
+};
+
+static std::deque<HtmlViewTextureUpdate> g_texture_updates;
 
 void htmlview_jni_poll(ServerScripting *script)
 {
@@ -381,6 +434,34 @@ void htmlview_jni_poll(ServerScripting *script)
 	for (const auto &e : event_batch) {
 		if (e.type == HtmlViewEvent::READY)
 			script->on_htmlview_ready(e.id);
+	}
+
+	std::deque<HtmlViewTextureUpdate> tex_batch;
+	{
+		std::lock_guard<std::mutex> lock(g_msg_mutex);
+		tex_batch.swap(g_texture_updates);
+	}
+
+	if (!tex_batch.empty()) {
+		IWritableTextureSource *tsrc = (IWritableTextureSource *)RenderingEngine::get_texture_source();
+		video::IVideoDriver *driver = RenderingEngine::get_video_driver();
+		if (tsrc && driver) {
+			for (const auto &up : tex_batch) {
+				// Decode base64
+				std::string decoded = base64_decode(up.png_base64);
+				IrrlichtDevice *device = RenderingEngine::get_raw_device();
+				io::IReadFile *file = device->getFileSystem()->createMemoryReadFile(
+					decoded.data(), decoded.size(), "htmlview_tmp.png", false);
+				if (file) {
+					video::IImage *img = driver->createImageFromFile(file);
+					if (img) {
+						tsrc->insertSourceImage(up.texture_name, img);
+						img->drop();
+					}
+					file->drop();
+				}
+			}
+		}
 	}
 }
 

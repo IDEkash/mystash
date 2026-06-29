@@ -20,9 +20,26 @@ void Draw3D::run(PipelineContext &context)
 	if (m_target)
 		m_target->activate(context);
 
-	context.device->getSceneManager()->drawAll();
-	context.device->getVideoDriver()->setTransform(video::ETS_WORLD, core::IdentityMatrix);
-	if (!context.show_hud)
+	video::IVideoDriver *driver = context.device->getVideoDriver();
+	scene::ISceneManager *smgr = context.device->getSceneManager();
+
+	scene::ICameraSceneNode *old_camera = smgr->getActiveCamera();
+	if (m_camera)
+		smgr->setActiveCamera(m_camera);
+
+	core::rect<s32> old_viewport = driver->getViewPort();
+	if (m_has_viewport)
+		driver->setViewPort(m_viewport);
+
+	smgr->drawAll();
+	driver->setTransform(video::ETS_WORLD, core::IdentityMatrix);
+
+	if (m_has_viewport)
+		driver->setViewPort(old_viewport);
+	if (m_camera)
+		smgr->setActiveCamera(old_camera);
+
+	if (!context.show_hud || m_has_viewport)
 		return;
 	context.hud->drawBlockBounds();
 	context.hud->drawSelectionMesh();

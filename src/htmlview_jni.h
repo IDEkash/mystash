@@ -31,6 +31,8 @@ class ServerScripting;
 	void htmlview_jni_shared_set(const std::string &key, const char *val);
 	std::string htmlview_jni_shared_get(const std::string &key);
 	void htmlview_jni_capture(const std::string &id, int width, int height);
+	void htmlview_jni_render_to_texture(const std::string &id, const std::string &texture_name,
+		int width, int height, int fps);
 	void htmlview_jni_poll(ServerScripting *script);
 
 #endif
