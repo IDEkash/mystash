@@ -7,25 +7,30 @@
 #include "core.h"
 #include "pipeline.h"
 
-#include <ICameraSceneNode.h>
+namespace irr {
+	namespace core { template <class T> class rect; }
+	namespace scene { class ICameraSceneNode; }
+}
 
 /**
  * Implements a pipeline step that renders the 3D scene
  */
-class Draw3D : public TrivialRenderStep
+class Draw3D : public RenderStep
 {
 public:
-	void setRenderTarget(RenderTarget *target) override { m_target = target; }
+	virtual void setRenderSource(RenderSource *source) override {}
+	virtual void setRenderTarget(RenderTarget *target) override { m_target = target; }
 
-	void run(PipelineContext &context) override;
+	virtual void reset(PipelineContext &context) override {}
+	virtual void run(PipelineContext &context) override;
 
 	void setCamera(irr::scene::ICameraSceneNode *camera) { m_camera = camera; }
-	void setViewport(irr::core::rect<irr::s32> viewport) { m_viewport = viewport; m_has_viewport = true; }
+	void setViewport(const irr::core::rect<irr::s32> &viewport);
 
 private:
 	RenderTarget *m_target {nullptr};
 	irr::scene::ICameraSceneNode *m_camera {nullptr};
-	irr::core::rect<irr::s32> m_viewport;
+	irr::s32 m_vx1 {0}, m_vy1 {0}, m_vx2 {0}, m_vy2 {0};
 	bool m_has_viewport {false};
 };
 

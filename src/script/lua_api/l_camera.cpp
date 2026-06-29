@@ -297,7 +297,7 @@ int LuaCamera::l_render(lua_State *L)
 	if (!texture_name.empty()) {
 		render_tex = driver->getTexture(texture_name.c_str());
 		if (render_tex) {
-			driver->setRenderTarget(render_tex, true, true, video::SColor(0,0,0,0));
+			driver->setRenderTarget(render_tex, true, true, irr::video::SColor(0,0,0,0));
 		}
 	}
 

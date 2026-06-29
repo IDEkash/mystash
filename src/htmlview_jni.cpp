@@ -445,16 +445,16 @@ void htmlview_jni_poll(ServerScripting *script)
 
 	if (!tex_batch.empty()) {
 		IWritableTextureSource *tsrc = (IWritableTextureSource *)RenderingEngine::get_texture_source();
-		irr::video::IVideoDriver *driver = RenderingEngine::get_video_driver();
+		video::IVideoDriver *driver = RenderingEngine::get_video_driver();
 		if (tsrc && driver) {
 			for (const auto &up : tex_batch) {
 				// Decode base64
 				std::string decoded = base64_decode(up.png_base64);
 				IrrlichtDevice *device = RenderingEngine::get_raw_device();
-				irr::io::IReadFile *file = device->getFileSystem()->createMemoryReadFile(
+				io::IReadFile *file = device->getFileSystem()->createMemoryReadFile(
 					decoded.data(), decoded.size(), "htmlview_tmp.png", false);
 				if (file) {
-					irr::video::IImage *img = driver->createImageFromFile(file);
+					video::IImage *img = driver->createImageFromFile(file);
 					if (img) {
 						tsrc->insertSourceImage(up.texture_name, img);
 						img->drop();
