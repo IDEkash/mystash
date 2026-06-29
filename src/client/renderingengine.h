@@ -147,6 +147,13 @@ public:
 			return s_singleton->core->get_shadow_renderer();
 		return nullptr;
 	}
+
+	static Hud *get_hud()
+	{
+		if (s_singleton && s_singleton->core)
+			return s_singleton->core->get_hud();
+		return nullptr;
+	}
 	static std::vector<video::E_DRIVER_TYPE> getSupportedVideoDrivers();
 
 	static void autosaveScreensizeAndCo(

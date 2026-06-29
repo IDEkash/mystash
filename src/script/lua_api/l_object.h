@@ -369,6 +369,9 @@ private:
 	// set_sky(self, sky_parameters)
 	static int l_set_sky(lua_State *L);
 
+	// set_post_processing_effects(self, effects)
+	static int l_set_post_processing_effects(lua_State *L);
+
 	// get_sky(self, as_table)
 	static int l_get_sky(lua_State *L);
 

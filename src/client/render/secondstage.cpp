@@ -9,6 +9,7 @@
 #include "client/shader.h"
 #include "settings.h"
 #include "plain.h"
+#include "custom_post_processing.h"
 #include <ISceneManager.h>
 
 PostProcessingStep::PostProcessingStep(u32 _shader_id, const std::vector<u8> &_texture_map) :
@@ -81,6 +82,39 @@ void PostProcessingStep::setBilinearFilter(u8 index, bool value)
 	material.TextureLayers[index].MinFilter = value ? video::ETMINF_LINEAR_MIPMAP_NEAREST : video::ETMINF_NEAREST_MIPMAP_NEAREST;
 	material.TextureLayers[index].MagFilter = value ? video::ETMAGF_LINEAR : video::ETMAGF_NEAREST;
 }
+
+class CustomPostProcessingUniformSetter : public IShaderUniformSetterRC
+{
+public:
+	CustomPostProcessingUniformSetter(const std::map<std::string, CustomUniformValue> &uniforms) :
+		m_uniforms(uniforms)
+	{}
+
+	virtual void onSetUniforms(video::IMaterialRendererServices *services) override
+	{
+		for (auto const& [name, value] : m_uniforms) {
+			if (std::holds_alternative<float>(value)) {
+				float f = std::get<float>(value);
+				services->setPixelShaderConstant(services->getPixelShaderConstantID(name.c_str()), &f, 1);
+			} else if (std::holds_alternative<v2f>(value)) {
+				v2f v = std::get<v2f>(value);
+				float f[2] = {v.X, v.Y};
+				services->setPixelShaderConstant(services->getPixelShaderConstantID(name.c_str()), f, 2);
+			} else if (std::holds_alternative<v3f>(value)) {
+				v3f v = std::get<v3f>(value);
+				float f[3] = {v.X, v.Y, v.Z};
+				services->setPixelShaderConstant(services->getPixelShaderConstantID(name.c_str()), f, 3);
+			} else if (std::holds_alternative<video::SColorf>(value)) {
+				video::SColorf c = std::get<video::SColorf>(value);
+				float f[4] = {c.r, c.g, c.b, c.a};
+				services->setPixelShaderConstant(services->getPixelShaderConstantID(name.c_str()), f, 4);
+			}
+		}
+	}
+
+private:
+	std::map<std::string, CustomUniformValue> m_uniforms;
+};
 
 RenderStep *addPostProcessing(RenderPipeline *pipeline, RenderStep *previousStep, v2f scale, Client *client)
 {
@@ -287,7 +321,38 @@ RenderStep *addPostProcessing(RenderPipeline *pipeline, RenderStep *previousStep
 		pipeline->addStep<SwapTexturesStep>(buffer, TEXTURE_EXPOSURE_1, TEXTURE_EXPOSURE_2);
 	}
 
-	return effect;
+	RenderStep *previous_step = effect;
+
+	// Custom post-processing stages
+	static const u8 TEXTURE_CUSTOM_1 = 30;
+	static const u8 TEXTURE_CUSTOM_2 = 31;
+
+	buffer->setTexture(TEXTURE_CUSTOM_1, scale, "custom_1", color_format);
+	buffer->setTexture(TEXTURE_CUSTOM_2, scale, "custom_2", color_format);
+
+	u8 current_source_texture = TEXTURE_CUSTOM_1;
+
+	for (const auto &stage : client->getCustomPostProcessingStages()) {
+		// The previous step must draw to a texture so that this step can read it.
+		previous_step->setRenderTarget(pipeline->createOwned<TextureBufferOutput>(buffer, current_source_texture));
+
+		auto setter = make_irr<CustomPostProcessingUniformSetter>(stage.uniforms);
+		u32 custom_shader_id = client->getShaderSource()->getShader(stage.shader_name, ShaderConstants(), video::EMT_SOLID, setter.get());
+
+		std::vector<u8> texture_map = stage.texture_map;
+		if (texture_map.empty()) {
+			texture_map.push_back(current_source_texture);
+		}
+
+		auto custom_step = pipeline->addStep<PostProcessingStep>(custom_shader_id, texture_map);
+		custom_step->setRenderSource(buffer);
+
+		previous_step = custom_step;
+		// Swap textures for the next stage
+		current_source_texture = (current_source_texture == TEXTURE_CUSTOM_1) ? TEXTURE_CUSTOM_2 : TEXTURE_CUSTOM_1;
+	}
+
+	return previous_step;
 }
 
 void ResolveMSAAStep::run(PipelineContext &context)
