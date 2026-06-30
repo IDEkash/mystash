@@ -13,6 +13,32 @@
 #include <deque>
 #include <mutex>
 #include <unordered_map>
+#include <vector>
+#include "irrlichttypes_bloated.h"
+#include "client/renderingengine.h"
+#include "client/camera.h"
+#include "client/client.h"
+#include "client/clientmap.h"
+#include "constants.h"
+#include "util/base64.h"
+#include "util/png.h"
+#include <IImage.h>
+
+struct Viewport {
+	v3f pos;
+	v3f dir;
+	float fov;
+	int width;
+	int height;
+	video::ITexture *texture = nullptr;
+	video::IImage *image = nullptr;
+	std::mutex image_mutex;
+	bool active = true;
+	bool pending_removal = false;
+};
+
+static std::mutex g_viewport_mutex;
+static std::unordered_map<std::string, std::unordered_map<std::string, std::unique_ptr<Viewport>>> g_viewports;
 
 struct HtmlViewMessage {
 	std::string id;
@@ -305,6 +331,119 @@ void htmlview_jni_capture(const std::string &id, int width, int height)
 	callVoidMethod1Str2Int("htmlview_capture", id, width, height);
 }
 
+void htmlview_jni_set_viewport(const std::string &id, const std::string &name,
+		v3f pos, v3f dir, float fov, int width, int height)
+{
+	std::lock_guard<std::mutex> lock(g_viewport_mutex);
+	auto &vps = g_viewports[id];
+	auto it = vps.find(name);
+	if (it == vps.end()) {
+		auto vp = std::make_unique<Viewport>();
+		vp->pos = pos;
+		vp->dir = dir;
+		vp->fov = fov;
+		vp->width = width;
+		vp->height = height;
+		vps[name] = std::move(vp);
+	} else {
+		it->second->pos = pos;
+		it->second->dir = dir;
+		it->second->fov = fov;
+		it->second->width = width;
+		it->second->height = height;
+		it->second->active = true;
+		it->second->pending_removal = false;
+	}
+}
+
+void htmlview_jni_remove_viewport(const std::string &id, const std::string &name)
+{
+	std::lock_guard<std::mutex> lock(g_viewport_mutex);
+	auto it = g_viewports.find(id);
+	if (it != g_viewports.end()) {
+		auto it2 = it->second.find(name);
+		if (it2 != it->second.end()) {
+			it2->second->pending_removal = true;
+		}
+	}
+}
+
+void htmlview_jni_render_viewports(Client *client)
+{
+	std::lock_guard<std::mutex> lock(g_viewport_mutex);
+	auto driver = RenderingEngine::get_video_driver();
+	auto smgr = RenderingEngine::get_raw_device()->getSceneManager();
+
+	for (auto &pair : g_viewports) {
+		auto &vps = pair.second;
+		for (auto it = vps.begin(); it != vps.end(); ) {
+			auto &vp = it->second;
+			if (vp->pending_removal) {
+				if (vp->texture)
+					driver->removeTexture(vp->texture);
+				{
+					std::lock_guard<std::mutex> img_lock(vp->image_mutex);
+					if (vp->image)
+						vp->image->drop();
+				}
+				it = vps.erase(it);
+				continue;
+			}
+
+			if (vp->active) {
+				// Initialize or resize texture
+				core::dimension2du size(vp->width, vp->height);
+				if (!vp->texture || vp->texture->getSize() != size) {
+					if (vp->texture)
+						driver->removeTexture(vp->texture);
+					static int tex_id = 0;
+					std::string tex_name = "htmlview_vp_" + std::to_string(tex_id++);
+					vp->texture = driver->addRenderTargetTexture(size, tex_name.c_str(), video::ECF_A8R8G8B8);
+				}
+
+				if (vp->texture) {
+					// Save current camera state
+					auto old_cam_node = smgr->getActiveCamera();
+					v3f old_pos = old_cam_node->getPosition();
+					v3f old_target = old_cam_node->getTarget();
+					float old_fov = old_cam_node->getFOV();
+					float old_aspect = old_cam_node->getAspectRatio();
+
+					// Setup viewport camera
+					old_cam_node->setPosition(vp->pos);
+					old_cam_node->setTarget(vp->pos + vp->dir * 100.0f);
+					old_cam_node->setFOV(vp->fov * core::DEGTORAD);
+					old_cam_node->setAspectRatio((float)vp->width / vp->height);
+					old_cam_node->updateMatrices();
+
+					// Render to texture
+					driver->setRenderTarget(vp->texture, true, true, video::SColor(255, 0, 0, 0));
+					smgr->drawAll();
+
+					// Capture to IImage
+					video::IImage *img = driver->createImage(vp->texture, core::position2d<s32>(0, 0), size);
+					if (img) {
+						std::lock_guard<std::mutex> img_lock(vp->image_mutex);
+						if (vp->image)
+							vp->image->drop();
+						vp->image = img;
+					}
+
+					driver->setRenderTarget(0, false, false);
+
+					// Restore camera state
+					old_cam_node->setPosition(old_pos);
+					old_cam_node->setTarget(old_target);
+					old_cam_node->setFOV(old_fov);
+					old_cam_node->setAspectRatio(old_aspect);
+					old_cam_node->updateMatrices();
+				}
+			}
+			++it;
+		}
+	}
+}
+
 #if 0
 void htmlview_jni_inject(const std::string &id, const std::string &js)
 {
@@ -355,6 +494,42 @@ Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLReady(
 		std::lock_guard<std::mutex> lock(g_msg_mutex);
 		g_events.push_back(std::move(e));
 	}
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_net_minetest_minetest_HTMLViewManager_nativeGetViewportFrame(
+		JNIEnv *env, jclass, jstring id, jstring name)
+{
+	std::string sid = readJavaString(env, id);
+	std::string sname = readJavaString(env, name);
+	std::lock_guard<std::mutex> lock(g_viewport_mutex);
+	auto it = g_viewports.find(sid);
+	if (it != g_viewports.end()) {
+		auto it2 = it->second.find(sname);
+		if (it2 != it->second.end()) {
+			auto &vp = it2->second;
+			std::lock_guard<std::mutex> img_lock(vp->image_mutex);
+			if (vp->image) {
+				auto size = vp->image->getDimension();
+				u32 pixel_count = size.Width * size.Height;
+				std::vector<u8> rgba_data(pixel_count * 4);
+				u8 *src = (u8*)vp->image->lock();
+				for (u32 i = 0; i < pixel_count; ++i) {
+					rgba_data[i*4+0] = src[i*4+2]; // R
+					rgba_data[i*4+1] = src[i*4+1]; // G
+					rgba_data[i*4+2] = src[i*4+0]; // B
+					rgba_data[i*4+3] = src[i*4+3]; // A
+				}
+				vp->image->unlock();
+				std::string png = encodePNG(rgba_data.data(), size.Width, size.Height, 6);
+
+				jbyteArray arr = env->NewByteArray(png.size());
+				env->SetByteArrayRegion(arr, 0, png.size(), (const jbyte*)png.data());
+				return arr;
+			}
+		}
+	}
+	return nullptr;
 }
 
 #include "scripting_server.h"

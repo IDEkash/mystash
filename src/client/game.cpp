@@ -3898,6 +3898,10 @@ void Game::drawScene(ProfilerGraph *graph, RunStats *stats)
 	this->m_rendering_engine->draw_scene(sky_color, this->m_game_ui->m_flags.show_hud,
 			draw_wield_tool, draw_crosshair);
 
+#ifdef __ANDROID__
+	htmlview_jni_render_viewports(client);
+#endif
+
 	/*
 		Profiler graph
 	*/

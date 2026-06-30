@@ -17,6 +17,7 @@
 		#include <json/json.h>
 		#include "convert_json.h"
 		#include "common/c_content.h"
+#include "constants.h"
 		#endif
 
 static constexpr const char *HTMLVIEW_CALLBACKS_RKEY = "HTMLVIEW_CALLBACKS";
@@ -454,6 +455,28 @@ int ModApiHTMLView::l_on_ready(lua_State *L)
 	return 0;
 }
 
+int ModApiHTMLView::l_set_viewport(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
+	std::string id = readParam<std::string>(L, 1);
+	std::string name = readParam<std::string>(L, 2);
+	if (lua_isnoneornil(L, 3)) {
+		htmlview_jni_remove_viewport(id, name);
+		return 0;
+	}
+	luaL_checktype(L, 3, LUA_TTABLE);
+	v3f pos = getv3f_default(L, 3, "pos", v3f(0, 0, 0)) * BS;
+	v3f dir = getv3f_default(L, 3, "dir", v3f(0, 0, 1));
+	float fov = getfloatfield_default(L, 3, "fov", 70.0f);
+	int w = getintfield_default(L, 3, "width", 256);
+	int h = getintfield_default(L, 3, "height", 256);
+
+	htmlview_jni_set_viewport(id, name, pos, dir, fov, w, h);
+#endif
+	return 0;
+}
+
 int ModApiHTMLView::l_is_supported(lua_State *L)
 {
 #ifdef __ANDROID__
@@ -511,6 +534,7 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "on_message_json", l_on_message_json, tbl);
 		registerFunction(L, "on_capture", l_on_capture, tbl);
 		registerFunction(L, "on_ready", l_on_ready, tbl);
+		registerFunction(L, "set_viewport", dummy, tbl);
 		registerFunction(L, "is_supported", l_is_supported, tbl);
 #else
 		registerFunction(L, "run", l_run, tbl);
@@ -535,6 +559,7 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "on_message_json", l_on_message_json, tbl);
 		registerFunction(L, "on_capture", l_on_capture, tbl);
 		registerFunction(L, "on_ready", l_on_ready, tbl);
+		registerFunction(L, "set_viewport", l_set_viewport, tbl);
 		registerFunction(L, "is_supported", l_is_supported, tbl);
 #endif
 
