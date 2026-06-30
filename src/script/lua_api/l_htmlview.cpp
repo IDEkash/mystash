@@ -481,7 +481,19 @@ int ModApiHTMLView::l_set_viewport(lua_State *L)
 	int w = getintfield_default(L, 3, "width", 256);
 	int h = getintfield_default(L, 3, "height", 256);
 
-	htmlview_jni_set_viewport(id, name, pos, dir, fov, w, h);
+	u32 refresh_ms = 50;
+	lua_getfield(L, 3, "fps");
+	if (lua_isnumber(L, -1)) {
+		float fps = lua_tonumber(L, -1);
+		if (fps > 0) refresh_ms = 1000 / fps;
+		else refresh_ms = 0;
+	}
+	lua_pop(L, 1);
+
+	std::string format = getstringfield_default(L, 3, "format", "jpeg");
+	int quality = getintfield_default(L, 3, "quality", 70);
+
+	htmlview_jni_set_viewport(id, name, pos, dir, fov, w, h, refresh_ms, format, quality);
 #endif
 	return 0;
 }

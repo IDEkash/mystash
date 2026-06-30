@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <vector>
 #include "irrlichttypes_bloated.h"
+#include "porting.h"
 #include "client/renderingengine.h"
 #include "client/camera.h"
 #include "client/client.h"
@@ -24,6 +25,10 @@
 #include "util/png.h"
 #include <IImage.h>
 #include <ICameraSceneNode.h>
+#include <IVideoDriver.h>
+#include <IWriteFile.h>
+#include <IFileSystem.h>
+#include "irr_ptr.h"
 
 struct Viewport {
 	v3f pos;
@@ -31,6 +36,12 @@ struct Viewport {
 	float fov;
 	int width;
 	int height;
+	u32 refresh_interval_ms = 50; // default 20 fps
+	u64 last_render_ms = 0;
+	bool dirty = true;
+	std::string format = "jpeg";
+	int quality = 70;
+
 	video::ITexture *texture = nullptr;
 	video::IImage *image = nullptr;
 	std::mutex image_mutex;
@@ -333,7 +344,8 @@ void htmlview_jni_capture(const std::string &id, int width, int height)
 }
 
 void htmlview_jni_set_viewport(const std::string &id, const std::string &name,
-		v3f pos, v3f dir, float fov, int width, int height)
+		v3f pos, v3f dir, float fov, int width, int height,
+		u32 refresh_interval_ms, const std::string &format, int quality)
 {
 	std::lock_guard<std::mutex> lock(g_viewport_mutex);
 	auto &vps = g_viewports[id];
@@ -345,13 +357,24 @@ void htmlview_jni_set_viewport(const std::string &id, const std::string &name,
 		vp->fov = fov;
 		vp->width = width;
 		vp->height = height;
+		vp->refresh_interval_ms = refresh_interval_ms;
+		vp->format = format;
+		vp->quality = quality;
+		vp->dirty = true;
 		vps[name] = std::move(vp);
 	} else {
+		if (it->second->pos != pos || it->second->dir != dir || it->second->fov != fov ||
+				it->second->width != width || it->second->height != height) {
+			it->second->dirty = true;
+		}
 		it->second->pos = pos;
 		it->second->dir = dir;
 		it->second->fov = fov;
 		it->second->width = width;
 		it->second->height = height;
+		it->second->refresh_interval_ms = refresh_interval_ms;
+		it->second->format = format;
+		it->second->quality = quality;
 		it->second->active = true;
 		it->second->pending_removal = false;
 	}
@@ -391,7 +414,12 @@ void htmlview_jni_render_viewports(Client *client)
 				continue;
 			}
 
-			if (vp->active) {
+			u64 now = porting::getTimeMs();
+			if (vp->active && (vp->dirty || (vp->refresh_interval_ms > 0 &&
+					now - vp->last_render_ms >= vp->refresh_interval_ms))) {
+				vp->dirty = false;
+				vp->last_render_ms = now;
+
 				// Initialize or resize texture
 				core::dimension2du size(vp->width, vp->height);
 				if (!vp->texture || vp->texture->getSize() != size) {
@@ -511,20 +539,54 @@ Java_net_minetest_minetest_HTMLViewManager_nativeGetViewportFrame(
 			auto &vp = it2->second;
 			std::lock_guard<std::mutex> img_lock(vp->image_mutex);
 			if (vp->image) {
-				auto size = vp->image->getDimension();
-				u32 pixel_count = size.Width * size.Height;
-				std::vector<u8> rgba_data(pixel_count * 4);
-				u8 *src = (u8*)vp->image->getData();
-				for (u32 i = 0; i < pixel_count; ++i) {
-					rgba_data[i*4+0] = src[i*4+2]; // R
-					rgba_data[i*4+1] = src[i*4+1]; // G
-					rgba_data[i*4+2] = src[i*4+0]; // B
-					rgba_data[i*4+3] = src[i*4+3]; // A
-				}
-				std::string png = encodePNG(rgba_data.data(), size.Width, size.Height, 6);
+				std::string out;
+				if (vp->format == "png") {
+					auto size = vp->image->getDimension();
+					u32 pixel_count = size.Width * size.Height;
+					std::vector<u8> rgba_data(pixel_count * 4);
+					u8 *src = (u8*)vp->image->getData();
+					for (u32 i = 0; i < pixel_count; ++i) {
+						rgba_data[i*4+0] = src[i*4+2]; // R
+						rgba_data[i*4+1] = src[i*4+1]; // G
+						rgba_data[i*4+2] = src[i*4+0]; // B
+						rgba_data[i*4+3] = src[i*4+3]; // A
+					}
+					out = encodePNG(rgba_data.data(), size.Width, size.Height, 6);
+				} else {
+					// Use Irrlicht's JPEG writer
+					auto driver = RenderingEngine::get_video_driver();
+					auto fs = RenderingEngine::get_raw_device()->getFileSystem();
 
-				jbyteArray arr = env->NewByteArray(png.size());
-				env->SetByteArrayRegion(arr, 0, png.size(), (const jbyte*)png.data());
+					// Max size for the buffer: width * height * 3 (uncompressed) should be enough for JPEG
+					u32 max_size = vp->width * vp->height * 3 + 1024;
+					std::vector<u8> buffer(max_size);
+
+					io::IWriteFile *mem_file = fs->createMemoryWriteFile(buffer.data(), max_size, "temp.jpg", false);
+					if (mem_file) {
+						if (driver->writeImageToFile(vp->image, mem_file, vp->quality)) {
+							out.assign((const char*)buffer.data(), mem_file->getPos());
+						}
+						mem_file->drop();
+					}
+
+					if (out.empty()) {
+						// Fallback to PNG if JPEG failed
+						auto size = vp->image->getDimension();
+						u32 pixel_count = size.Width * size.Height;
+						std::vector<u8> rgba_data(pixel_count * 4);
+						u8 *src = (u8*)vp->image->getData();
+						for (u32 i = 0; i < pixel_count; ++i) {
+							rgba_data[i*4+0] = src[i*4+2]; // R
+							rgba_data[i*4+1] = src[i*4+1]; // G
+							rgba_data[i*4+2] = src[i*4+0]; // B
+							rgba_data[i*4+3] = src[i*4+3]; // A
+						}
+						out = encodePNG(rgba_data.data(), size.Width, size.Height, 6);
+					}
+				}
+
+				jbyteArray arr = env->NewByteArray(out.size());
+				env->SetByteArrayRegion(arr, 0, out.size(), (const jbyte*)out.data());
 				return arr;
 			}
 		}

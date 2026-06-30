@@ -188,6 +188,9 @@ Allows rendering a secondary camera view into an HTML element.
   - `fov`: number (Field of View in degrees, default `70`)
   - `width`: number (render resolution width, default `256`)
   - `height`: number (render resolution height, default `256`)
+  - `fps`: number (refresh rate, default `20`. Set to `0` for manual dirty-only updates)
+  - `format`: string (`"jpeg"` or `"png"`, default `"jpeg"`)
+  - `quality`: number (`1..100`, only for `"jpeg"`, default `70`)
 
 **Usage in HTML (Javascript):**
 

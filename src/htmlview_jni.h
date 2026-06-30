@@ -34,7 +34,8 @@ class Client;
 	std::string htmlview_jni_shared_get(const std::string &key);
 	void htmlview_jni_capture(const std::string &id, int width, int height);
 	void htmlview_jni_set_viewport(const std::string &id, const std::string &name,
-			v3f pos, v3f dir, float fov, int width, int height);
+			v3f pos, v3f dir, float fov, int width, int height,
+			u32 refresh_interval_ms, const std::string &format, int quality);
 	void htmlview_jni_remove_viewport(const std::string &id, const std::string &name);
 	void htmlview_jni_render_viewports(Client *client);
 	void htmlview_jni_poll(ServerScripting *script);
