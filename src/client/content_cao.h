@@ -96,6 +96,7 @@ private:
 	MinimapMarker *m_marker = nullptr;
 	bool m_visuals_expired = false;
 	video::SColor m_last_light = video::SColor(0xFFFFFFFF);
+	u16 m_last_light_raw = 0;
 	bool m_is_visible = false;
 	std::vector<MeshAnimationInfo> m_meshnode_animation;
 
@@ -120,6 +121,7 @@ private:
 	v2f m_animation_range;
 	float m_animation_speed = 15.0f;
 	float m_animation_blend = 0.0f;
+	bool m_animation_forced = false;
 	u8 m_animation_clip_type = 0;
 	u16 m_animation_clip_index = 0;
 	std::string m_animation_clip_name;
@@ -181,6 +183,8 @@ public:
 
 	const v3f getPosition() const override final;
 
+	v3f getBoneWorldPos(const std::string &bone_name);
+
 	const v3f getVelocity() const override final { return m_velocity; }
 
 	inline const v3f &getRotation() const { return m_rotation; }
@@ -240,7 +244,7 @@ public:
 		m_is_visible = toset;
 	}
 
-	void setChildrenVisible(bool toset);
+	void setChildrenVisible(bool toset, u16 depth = 0);
 	void setAttachment(object_t parent_id, const std::string &bone, v3f position,
 			v3f rotation, bool force_visible) override;
 	void getAttachment(object_t *parent_id, std::string *bone, v3f *position,

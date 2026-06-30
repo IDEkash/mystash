@@ -34,6 +34,7 @@ RemotePlayer::RemotePlayer(const std::string &name, IItemDefManager *idef):
 	movement_acceleration_air       = g_settings->getFloat("movement_acceleration_air")       * BS;
 	movement_acceleration_fast      = g_settings->getFloat("movement_acceleration_fast")      * BS;
 	movement_speed_walk             = g_settings->getFloat("movement_speed_walk")             * BS;
+	movement_speed_sprint_factor    = g_settings->getFloat("movement_speed_sprint_factor");
 	movement_speed_crouch           = g_settings->getFloat("movement_speed_crouch")           * BS;
 	movement_speed_fast             = g_settings->getFloat("movement_speed_fast")             * BS;
 	movement_speed_climb            = g_settings->getFloat("movement_speed_climb")            * BS;

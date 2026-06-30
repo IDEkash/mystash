@@ -428,6 +428,8 @@ public:
 	void SendInventory(RemotePlayer *player, bool incremental);
 	void SendMovePlayer(PlayerSAO *sao);
 	void SendMovePlayerRel(session_t peer_id, const v3f &added_pos);
+	void SendLookDirection(session_t peer_id, float pitch, float yaw);
+	void SendWorldSwitch(session_t peer_id, const std::string &worldname);
 	void SendPlayerSpeed(session_t peer_id, const v3f &added_vel);
 	void SendPlayerFov(session_t peer_id);
 	void SendCamera(session_t peer_id, Player *player);
@@ -452,6 +454,8 @@ public:
 	// Returns all media files the server knows about
 	// map key = binary sha1, map value = file path
 	std::unordered_map<std::string, std::string> getMediaList();
+
+	std::string getMediaPath(const std::string &name);
 
 	static std::vector<std::string> getModStorageDatabaseBackends();
 

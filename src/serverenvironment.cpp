@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <stack>
 #include <utility>
+#include <fstream>
 #include "serverenvironment.h"
 #include "irr_aabb3d.h"
 #include "settings.h"
@@ -265,8 +266,13 @@ void ServerEnvironment::init()
 				<< "please read https://docs.luanti.org/for-server-hosts/database-backends." << std::endl;
 	}
 
-	m_player_database = openPlayerDatabase(player_backend_name, world_path, conf);
-	m_auth_database = openAuthDatabase(auth_backend_name, world_path, conf);
+	if (conf.exists("synchronizes")) {
+		m_sync_path = conf.get("synchronizes");
+		infostream << "World synchronization enabled with: " << m_sync_path << std::endl;
+	}
+
+	m_player_database = openPlayerDatabase(player_backend_name, m_sync_path.empty() ? world_path : m_sync_path, conf);
+	m_auth_database = openAuthDatabase(auth_backend_name, m_sync_path.empty() ? world_path : m_sync_path, conf);
 
 	if (m_map && m_script->has_on_mapblocks_changed()) {
 		m_map->addEventReceiver(&m_on_mapblocks_changed_receiver);
@@ -373,7 +379,12 @@ void ServerEnvironment::removePlayer(RemotePlayer *player)
 
 bool ServerEnvironment::removePlayerFromDatabase(const std::string &name)
 {
-	return m_player_database->removePlayer(name);
+	bool ret = m_player_database->removePlayer(name);
+	if (!m_sync_path.empty()) {
+		std::string path = m_server->getWorldPath() + DIR_DELIM + "players" + DIR_DELIM + name + ".pos";
+		fs::DeleteSingleFileOrEmptyDirectory(path, true);
+	}
+	return ret;
 }
 
 void ServerEnvironment::saveLoadedPlayers(bool force)
@@ -382,7 +393,7 @@ void ServerEnvironment::saveLoadedPlayers(bool force)
 		if (force || player->checkModified() || (player->getPlayerSAO() &&
 				player->getPlayerSAO()->getMeta().isModified())) {
 			try {
-				m_player_database->savePlayer(player);
+				savePlayer(player);
 			} catch (DatabaseException &e) {
 				errorstream << "Failed to save player " << player->getName() << " exception: "
 					<< e.what() << std::endl;
@@ -395,7 +406,43 @@ void ServerEnvironment::saveLoadedPlayers(bool force)
 void ServerEnvironment::savePlayer(RemotePlayer *player)
 {
 	try {
-		m_player_database->savePlayer(player);
+		if (!m_sync_path.empty()) {
+			PlayerSAO *sao = player->getPlayerSAO();
+			if (sao) {
+				// 1. Temporarily restore shared position to save to shared database
+				v3f local_pos = sao->getBasePosition();
+				f32 local_pitch = sao->getLookPitch();
+				f32 local_yaw = sao->getRotation().Y;
+
+				if (player->has_shared_pos) {
+					sao->setBasePosition(player->shared_pos);
+					sao->setLookPitch(player->shared_pitch);
+					sao->setPlayerYaw(player->shared_yaw);
+				}
+
+				m_player_database->savePlayer(player);
+
+				// 2. Restore local position
+				sao->setBasePosition(local_pos);
+				sao->setLookPitch(local_pitch);
+				sao->setPlayerYaw(local_yaw);
+
+				// 3. Save local position to .pos file
+				std::string players_dir = m_server->getWorldPath() + DIR_DELIM + "players";
+				fs::CreateDir(players_dir);
+				std::string path = players_dir + DIR_DELIM + player->getName() + ".pos";
+				std::ofstream os(path, std::ios::binary);
+				if (os.good()) {
+					os.write(reinterpret_cast<const char*>(&local_pos.X), sizeof(local_pos.X));
+					os.write(reinterpret_cast<const char*>(&local_pos.Y), sizeof(local_pos.Y));
+					os.write(reinterpret_cast<const char*>(&local_pos.Z), sizeof(local_pos.Z));
+					os.write(reinterpret_cast<const char*>(&local_pitch), sizeof(local_pitch));
+					os.write(reinterpret_cast<const char*>(&local_yaw), sizeof(local_yaw));
+				}
+			}
+		} else {
+			m_player_database->savePlayer(player);
+		}
 	} catch (DatabaseException &e) {
 		errorstream << "Failed to save player " << player->getName() << " exception: "
 			<< e.what() << std::endl;
@@ -418,9 +465,35 @@ std::unique_ptr<PlayerSAO> ServerEnvironment::loadPlayer(RemotePlayer *player, s
 		// Make sure the player is saved
 		player->setModified(true);
 	} else {
+		// If synchronization is enabled, position and orientation are NOT synchronized.
+		// They are kept local to each world via a separate file.
+		if (!m_sync_path.empty()) {
+			// Store the shared position to preserve it during save
+			player->shared_pos = playersao->getBasePosition();
+			player->shared_pitch = playersao->getLookPitch();
+			player->shared_yaw = playersao->getRotation().Y;
+			player->has_shared_pos = true;
+
+			std::string path = m_server->getWorldPath() + DIR_DELIM + "players" + DIR_DELIM + player->getName() + ".pos";
+			std::ifstream is(path, std::ios::binary);
+			if (is.good()) {
+				v3f pos;
+				f32 pitch, yaw;
+				is.read(reinterpret_cast<char*>(&pos.X), sizeof(pos.X));
+				is.read(reinterpret_cast<char*>(&pos.Y), sizeof(pos.Y));
+				is.read(reinterpret_cast<char*>(&pos.Z), sizeof(pos.Z));
+				is.read(reinterpret_cast<char*>(&pitch), sizeof(pitch));
+				is.read(reinterpret_cast<char*>(&yaw), sizeof(yaw));
+				playersao->setBasePosition(pos);
+				playersao->setLookPitch(pitch);
+				playersao->setPlayerYaw(yaw);
+			} else {
+				// No local position yet, use spawn pos
+				playersao->setBasePosition(m_server->findSpawnPos());
+			}
+		}
+
 		// If the player exists, ensure that they respawn inside legal bounds
-		// This fixes an assert crash when the player can't be added
-		// to the environment
 		if (objectpos_over_limit(playersao->getBasePosition())) {
 			actionstream << "Respawn position for player \""
 				<< player->getName() << "\" outside limits, resetting" << std::endl;

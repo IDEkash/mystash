@@ -104,6 +104,16 @@ public:
 		OnAnimateCallback = cb;
 	}
 
+	void setOnEventCallback(const std::function<void(const std::string&)> &cb)
+	{
+		OnEventCallback = cb;
+	}
+
+	void setOnCycleCallback(const std::function<void()> &cb)
+	{
+		OnCycleCallback = cb;
+	}
+
 	//! Sets the speed with which the animation is played.
 	/** \param framesPerSecond: Frames per second played. */
 	void setAnimationSpeed(f32 framesPerSecond);
@@ -196,6 +206,8 @@ private:
 
 	s32 PassCount;
 	std::function<void(f32)> OnAnimateCallback;
+	std::function<void(const std::string&)> OnEventCallback;
+	std::function<void()> OnCycleCallback;
 
 	struct PerJointData {
 		std::vector<irr_ptr<BoneSceneNode>> SceneNodes;

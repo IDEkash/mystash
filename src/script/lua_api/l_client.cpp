@@ -15,7 +15,9 @@
 #include "itemdef.h"
 #include "l_internal.h"
 #include "lua_api/l_nodemeta.h"
+#if CHECK_CLIENT_BUILD()
 #include "gui/mainmenumanager.h"
+#endif
 #include "map.h"
 #include "util/string.h"
 #include "nodedef.h"
@@ -86,6 +88,22 @@ int ModApiClient::l_display_chat_message(lua_State *L)
 	return 1;
 }
 
+// world_switch(name)
+int ModApiClient::l_world_switch(lua_State *L)
+{
+	if (getClient(L)->isShutdown()) {
+		lua_pushboolean(L, false);
+		return 1;
+	}
+
+	std::string worldname = luaL_checkstring(L, 1);
+#if CHECK_CLIENT_BUILD()
+	g_gamecallback->worldSwitch(worldname);
+#endif
+	lua_pushboolean(L, true);
+	return 1;
+}
+
 // send_chat_message(message)
 int ModApiClient::l_send_chat_message(lua_State *L)
 {
@@ -136,7 +154,9 @@ int ModApiClient::l_disconnect(lua_State *L)
 		return 1;
 	}
 
+#if CHECK_CLIENT_BUILD()
 	g_gamecallback->disconnect();
+#endif
 	lua_pushboolean(L, true);
 	return 1;
 }
@@ -326,6 +346,7 @@ void ModApiClient::Initialize(lua_State *L, int top)
 	API_FCT(gettext);
 	API_FCT(get_node_or_nil);
 	API_FCT(disconnect);
+	API_FCT(world_switch);
 	API_FCT(get_meta);
 	API_FCT(get_server_info);
 	API_FCT(get_item_def);

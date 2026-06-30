@@ -332,6 +332,8 @@ std::string PlayerSAO::generateUpdatePhysicsOverrideCommand() const
 	writeF32(os, phys.speed_fast);
 	writeF32(os, phys.acceleration_fast);
 	writeF32(os, phys.speed_walk);
+	writeF32(os, phys.step_height);
+	writeF32(os, phys.speed_sprint);
 	return os.str();
 }
 
@@ -432,7 +434,12 @@ void PlayerSAO::setWantedRange(const s16 range)
 void PlayerSAO::setPlayerYawAndSend(const float yaw)
 {
 	setPlayerYaw(yaw);
-	m_env->getGameDef()->SendMovePlayer(this);
+	if (m_player && m_player->protocol_version >= 52) {
+		sendOutdatedData();
+		m_env->getGameDef()->SendLookDirection(getPeerID(), m_pitch, yaw);
+	} else {
+		m_env->getGameDef()->SendMovePlayer(this);
+	}
 }
 
 void PlayerSAO::setLookPitch(const float pitch)
@@ -446,7 +453,12 @@ void PlayerSAO::setLookPitch(const float pitch)
 void PlayerSAO::setLookPitchAndSend(const float pitch)
 {
 	setLookPitch(pitch);
-	m_env->getGameDef()->SendMovePlayer(this);
+	if (m_player && m_player->protocol_version >= 52) {
+		sendOutdatedData();
+		m_env->getGameDef()->SendLookDirection(getPeerID(), m_pitch, m_rotation.Y);
+	} else {
+		m_env->getGameDef()->SendMovePlayer(this);
+	}
 }
 
 u32 PlayerSAO::punch(v3f dir,

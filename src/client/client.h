@@ -174,6 +174,7 @@ public:
 	void handleCommand_Breath(NetworkPacket* pkt);
 	void handleCommand_MovePlayer(NetworkPacket* pkt);
 	void handleCommand_MovePlayerRel(NetworkPacket* pkt);
+	void handleCommand_SetLookDirection(NetworkPacket* pkt);
 	void handleCommand_DeathScreenLegacy(NetworkPacket* pkt);
 	void handleCommand_AnnounceMedia(NetworkPacket* pkt);
 	void handleCommand_Media(NetworkPacket* pkt);
@@ -216,6 +217,7 @@ public:
 		void handleCommand_SetFog(NetworkPacket *pkt);
 		void handleCommand_SetFogBoundary(NetworkPacket *pkt);
 		void handleCommand_Camera(NetworkPacket* pkt);
+		void handleCommand_SwitchWorld(NetworkPacket *pkt);
 
 	void ProcessData(NetworkPacket *pkt);
 

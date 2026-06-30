@@ -116,6 +116,9 @@ struct PlayerPhysicsOverride
 	float speed_fast = 1.f;
 	float acceleration_fast = 1.f;
 	float speed_walk = 1.f;
+	float speed_sprint = 1.f;
+	float step_height = -1.f;
+	bool auto_climb = false;
 
 	bool operator==(const PlayerPhysicsOverride &other) const;
 	bool operator!=(const PlayerPhysicsOverride &other) const {
@@ -167,6 +170,10 @@ public:
 	}
 
 	CameraMode allowed_camera_mode = CAMERA_MODE_ANY;
+	bool camera_free_look = false;
+	bool camera_smooth = false;
+	f32 camera_tilt = 0.0f;
+	bool camera_anti_tilt_controller = false;
 
 	v3f eye_offset_first;
 	v3f eye_offset_third;
@@ -178,6 +185,7 @@ public:
 	f32 movement_acceleration_air;
 	f32 movement_acceleration_fast;
 	f32 movement_speed_walk;
+	f32 movement_speed_sprint_factor;
 	f32 movement_speed_crouch;
 	f32 movement_speed_fast;
 	f32 movement_speed_climb;

@@ -5,6 +5,8 @@ M._event_listeners = {}
 
 M._end_watchers = {}
 
+M._cycle_watchers = {}
+
 function M.register_on_event(cb)
 	assert(type(cb) == "function")
 	table.insert(M._event_listeners, cb)
@@ -19,6 +21,9 @@ function M.unregister_on_event(cb)
 	end
 	return false
 end
+
+M.registeronevent = M.register_on_event
+M.unregisteronevent = M.unregister_on_event
 
 local function anim_sig(obj)
 	local range, speed, blend, loop, clip = obj:get_animation()
@@ -44,8 +49,23 @@ function M.cancel_on_animation_end(obj)
 	M._end_watchers[obj] = nil
 end
 
+function M.on_animation_cycle(obj, cb)
+	assert(obj and obj.is_valid and obj:is_valid())
+	assert(type(cb) == "function")
+	M._cycle_watchers[obj] = cb
+	return obj
+end
+
+function M.cancel_on_animation_cycle(obj)
+	M._cycle_watchers[obj] = nil
+end
+
 if not core.on_animation_end then
 	core.on_animation_end = M.on_animation_end
+end
+
+if not core.on_animation_cycle then
+	core.on_animation_cycle = M.on_animation_cycle
 end
 
 local RAD = math.rad
@@ -230,6 +250,7 @@ function Animator:new(object, def)
 		layer_order = {},
 		_last_bone_rot = {},
 		_last_anim_sig = nil,
+		queue = {},
 	}
 	return setmetatable(o, self)
 end
@@ -262,17 +283,49 @@ function Animator:_apply_animation(state, blend)
 	end
 end
 
+function Animator:get_current_state()
+	return self.current
+end
+
+function Animator:get_queue()
+	return self.queue
+end
+
 function Animator:set_state(name, opts)
 	local state = self.states[name]
 	assert(state, "unknown state: " .. tostring(name))
 	opts = opts or {}
 
+	if not opts.queued then
+		self.queue = {}
+	end
+
+	local old_state = self.current
 	local blend = opts.blend
 	self.current = name
 	self.time_in_state = 0
 	self.prev_frame = nil
 	ensure_sorted_events(state)
 	self:_apply_animation(state, blend)
+
+	if old_state ~= name then
+		local payload = {
+			name = "transition",
+			from = old_state,
+			to = name,
+			blend = blend or state.blend or 0.1,
+			ctx = opts.ctx,
+		}
+		local cb = self.def.on_event
+		if type(cb) == "function" then
+			cb(self, self.object, payload)
+		end
+		for _, gcb in ipairs(M._event_listeners) do
+			if type(gcb) == "function" then
+				gcb(self, self.object, payload)
+			end
+		end
+	end
 end
 
 function Animator:_get_context(dtime)
@@ -479,6 +532,11 @@ function Animator:_apply_additive_layers()
 	end
 end
 
+function Animator:queue_state(name, opts)
+	assert(self.states[name], "unknown state: " .. tostring(name))
+	table.insert(self.queue, {name = name, opts = opts or {}})
+end
+
 function Animator:update(dtime)
 	if not self:is_valid() then
 		return false
@@ -487,13 +545,32 @@ function Animator:update(dtime)
 	local ctx = self:_get_context(dtime)
 	self.time_in_state = self.time_in_state + dtime
 
+	local state_def = self.states[self.current]
+	local finished = false
+	if state_def and state_def.loop == false then
+		local range = to_v2(state_def.range)
+		local speed = math.abs(state_def.speed or 15)
+		if speed > 0 then
+			local duration = math.abs(range.y - range.x) / speed
+			if self.time_in_state >= duration then
+				finished = true
+			end
+		end
+	end
+
 	local tr = self:_eval_transitions(ctx)
 	if tr then
 		local to = tr.to
 		local blend = tr.blend
 		if self.current ~= to then
-			self:set_state(to, {blend = blend})
+			self:set_state(to, {blend = blend, ctx = ctx})
 		end
+	elseif finished and #self.queue > 0 then
+		local next_s = table.remove(self.queue, 1)
+		local opts = next_s.opts
+		opts.queued = true
+		opts.ctx = ctx
+		self:set_state(next_s.name, opts)
 	end
 
 	self:_step_events(dtime, ctx)
@@ -519,6 +596,29 @@ end
 
 function M.unregister(anim)
 	registry[anim] = nil
+end
+
+if (INIT == "game" or INIT == "client") and core.register_on_animation_event then
+	core.register_on_animation_event(function(obj, event_name)
+		local payload = {
+			name = event_name,
+			engine = true,
+		}
+		for _, gcb in ipairs(M._event_listeners) do
+			if type(gcb) == "function" then
+				gcb(nil, obj, payload)
+			end
+		end
+	end)
+end
+
+if (INIT == "game" or INIT == "client") and core.register_on_animation_cycle then
+	core.register_on_animation_cycle(function(obj)
+		local cb = M._cycle_watchers[obj]
+		if type(cb) == "function" then
+			cb(obj)
+		end
+	end)
 end
 
 if INIT == "game" and core.register_globalstep then
@@ -618,6 +718,16 @@ function M.humanoid(object, clips, opts)
 		{ from = "*", to = "jump", priority = 90, condition = function(ctx)
 			return ctx and ctx.jumping
 		end },
+		{ from = "jump", to = "idle", priority = 95, condition = function(ctx)
+			return ctx and not ctx.jumping and (ctx.hs or 0) < walk_th
+		end },
+		{ from = "jump", to = "walk", priority = 95, condition = function(ctx)
+			local hs = ctx and (ctx.hs or 0) or 0
+			return ctx and not ctx.jumping and hs >= walk_th and hs < run_th
+		end },
+		{ from = "jump", to = "run", priority = 95, condition = function(ctx)
+			return ctx and not ctx.jumping and (ctx.hs or 0) >= run_th
+		end },
 		{ from = "*", to = "run", priority = 10, condition = function(ctx)
 			return ctx and not ctx.attack and not ctx.jumping and (ctx.hs or 0) >= run_th
 		end },
@@ -630,12 +740,46 @@ function M.humanoid(object, clips, opts)
 		end },
 	}
 
+	local user_on_event = opts.on_event
 	local def = {
 		states = states,
 		transitions = transitions,
 		initial = opts.initial or "idle",
 		get_context = opts.get_context,
-		on_event = opts.on_event,
+		on_event = function(animator, object, event)
+			if event.name == "transition" then
+				local ev_name = nil
+				if event.to == "jump" then
+					ev_name = "jump_start"
+				elseif event.from == "jump" then
+					-- Only fire land if we are no longer jumping
+					if not (event.ctx and event.ctx.jumping) then
+						ev_name = "land"
+					end
+				elseif event.to == "attack" then
+					ev_name = "attack_start"
+				end
+
+				if ev_name then
+					local payload = {
+						name = ev_name,
+						from = event.from,
+						to = event.to,
+					}
+					if type(user_on_event) == "function" then
+						user_on_event(animator, object, payload)
+					end
+					for _, gcb in ipairs(M._event_listeners) do
+						if type(gcb) == "function" then
+							gcb(animator, object, payload)
+						end
+					end
+				end
+			end
+			if type(user_on_event) == "function" then
+				user_on_event(animator, object, event)
+			end
+		end,
 		on_step = opts.on_step,
 		initial_blend = opts.initial_blend,
 	}

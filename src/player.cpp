@@ -24,6 +24,9 @@ bool is_valid_player_name(std::string_view name)
 }
 
 Player::Player(const std::string &name, IItemDefManager *idef):
+	eye_offset_first(0, 0, 0),
+	eye_offset_third(0, 0, 0),
+	eye_offset_third_front(0, 0, 0),
 	inventory(idef)
 {
 	m_name = name;
@@ -50,6 +53,7 @@ Player::Player(const std::string &name, IItemDefManager *idef):
 	movement_acceleration_air       = 2    * BS;
 	movement_acceleration_fast      = 10   * BS;
 	movement_speed_walk             = 4    * BS;
+	movement_speed_sprint_factor    = 1.3;
 	movement_speed_crouch           = 1.35 * BS;
 	movement_speed_fast             = 20   * BS;
 	movement_speed_climb            = 2    * BS;
@@ -252,7 +256,7 @@ static auto tie(const PlayerPhysicsOverride &o)
 	o.speed, o.jump, o.gravity, o.sneak, o.sneak_glitch, o.new_move, o.speed_climb,
 	o.speed_crouch, o.liquid_fluidity, o.liquid_fluidity_smooth, o.liquid_sink,
 	o.acceleration_default, o.acceleration_air, o.speed_fast, o.acceleration_fast,
-	o.speed_walk
+	o.speed_walk, o.speed_sprint, o.step_height
 	);
 }
 

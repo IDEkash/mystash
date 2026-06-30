@@ -215,4 +215,6 @@ const ClientCommandFactory clientCommandFactoryTable[TOCLIENT_NUM_MSG_TYPES] =
 		{ "TOCLIENT_SPAWN_PARTICLE_BATCH",     0, true }, // 0x64
 		{ "TOCLIENT_SET_FOG",                 0, true }, // 0x65
 		{ "TOCLIENT_SET_FOG_BOUNDARY",        0, true }, // 0x66
+		{ "TOCLIENT_SET_LOOK_DIRECTION",      0, true }, // 0x67
+		{ "TOCLIENT_SWITCH_WORLD",            0, true }, // 0x68
 	};

@@ -21,7 +21,7 @@
 
 const static std::string PlayerSettings_names[] = {
 	"free_move", "pitch_move", "fast_move", "continuous_forward", "always_fly_fast",
-	"aux1_descends", "noclip", "autojump"
+	"aux1_descends", "noclip", "autojump", "accessibilitysprintenabled", "autoclimbenabled"
 };
 
 void PlayerSettings::readGlobalSettings()
@@ -34,6 +34,8 @@ void PlayerSettings::readGlobalSettings()
 	aux1_descends = g_settings->getBool("aux1_descends");
 	noclip = g_settings->getBool("noclip");
 	autojump = g_settings->getBool("autojump");
+	accessibility_sprint_enabled = g_settings->getBool("accessibilitysprintenabled");
+	auto_climb = g_settings->getBool("autoclimbenabled");
 }
 
 
@@ -664,9 +666,13 @@ void LocalPlayer::move(f32 dtime, Environment *env,
 		if (is_valid_position) {
 			const ContentFeatures &cf = nodemgr->get(node.getContent());
 			in_liquid = cf.liquid_move_physics;
+			in_lava = itemgroup_get(cf.groups, "lava") != 0;
+			viscous_factor = (u8)itemgroup_get(cf.groups, "viscous");
 			move_resistance = cf.move_resistance;
 		} else {
 			in_liquid = false;
+			in_lava = false;
+			viscous_factor = 0;
 		}
 	} else {
 		// If not in liquid, the threshold of going in is at lower y
@@ -676,9 +682,13 @@ void LocalPlayer::move(f32 dtime, Environment *env,
 		if (is_valid_position) {
 			const ContentFeatures &cf = nodemgr->get(node.getContent());
 			in_liquid = cf.liquid_move_physics;
+			in_lava = itemgroup_get(cf.groups, "lava") != 0;
+			viscous_factor = (u8)itemgroup_get(cf.groups, "viscous");
 			move_resistance = cf.move_resistance;
 		} else {
 			in_liquid = false;
+			in_lava = false;
+			viscous_factor = 0;
 		}
 	}
 
@@ -711,10 +721,26 @@ void LocalPlayer::move(f32 dtime, Environment *env,
 			nodemgr->get(node2.getContent()).climbable) && !free_move;
 	}
 
+	if (is_climbing) {
+		float climb_speed = movement_speed_climb * physics_override.speed_climb;
+
+		if (m_speed.Y < -climb_speed)
+			m_speed.Y = -climb_speed;
+
+		bool auto_climb = physics_override.auto_climb || getPlayerSettings().auto_climb;
+		if ((control.direction_keys & 1) || (auto_climb && control.isMoving())) { // Up/Forward or Auto-climb
+			if (m_speed.Y < climb_speed)
+				m_speed.Y = climb_speed;
+		}
+	}
+
 	// Player object property step height is multiplied by BS in
 	// /src/script/common/c_content.cpp and /src/content_sao.cpp
 	float player_stepheight = (m_cao == nullptr) ? 0.0f :
 		(touching_ground ? m_cao->getStepHeight() : (0.2f * BS));
+
+	if (physics_override.step_height >= 0.0f)
+		player_stepheight = physics_override.step_height * BS;
 
 	v3f accel_f(0, -gravity, 0);
 	const v3f initial_position = position;
@@ -794,9 +820,9 @@ void LocalPlayer::move(f32 dtime, Environment *env,
 				bmin.Z - sneak_max.Z, bmax.Z + sneak_max.Z);
 
 			if (position.X != old_pos.X)
-				m_speed.X = 0.0f;
+				m_speed.X *= 0.5f;
 			if (position.Z != old_pos.Z)
-				m_speed.Z = 0.0f;
+				m_speed.Z *= 0.5f;
 		}
 
 		if (y_diff > 0 && m_speed.Y <= 0.0f) {
@@ -848,6 +874,7 @@ void LocalPlayer::move(f32 dtime, Environment *env,
 
 	if (!result.standing_on_object && !touching_ground_was && touching_ground) {
 		m_client->getEventManager()->put(new SimpleTriggerEvent(MtEvent::PLAYER_REGAIN_GROUND));
+		landed = true;
 
 		// Set camera impact value to be used for view bobbing
 		camera_impact = getSpeed().Y * -1;
@@ -951,8 +978,11 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 	// Whether superspeed mode is used or not
 	bool superspeed = false;
 
-	const f32 speed_walk = movement_speed_walk * physics_override.speed_walk;
+	f32 speed_walk = movement_speed_walk * physics_override.speed_walk;
 	const f32 speed_fast = movement_speed_fast * physics_override.speed_fast;
+
+	if (player_settings.accessibility_sprint_enabled && control.movement_speed >= 0.95f)
+		speed_walk *= movement_speed_sprint_factor * physics_override.speed_sprint;
 
 	if (always_fly_fast && free_move && fast_move)
 		superspeed = true;
@@ -975,6 +1005,9 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 				speedV.Y = -speed_walk;
 				swimming_vertical = true;
 			} else if (is_climbing && !m_disable_descend) {
+				speedV.Y = -movement_speed_climb * physics_override.speed_climb;
+			} else if ((physics_override.auto_climb || getPlayerSettings().auto_climb) &&
+					is_climbing && !m_disable_descend) {
 				speedV.Y = -movement_speed_climb * physics_override.speed_climb;
 			} else {
 				// If not free movement but fast is allowed, aux1 is
@@ -1014,6 +1047,11 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 					speedV.Y = -speed_fast;
 				else
 					speedV.Y = -movement_speed_climb * physics_override.speed_climb;
+			}
+		} else if ((physics_override.auto_climb || getPlayerSettings().auto_climb) &&
+				control.sneak && !control.jump) {
+			if (is_climbing && !m_disable_descend) {
+				speedV.Y = -movement_speed_climb * physics_override.speed_climb;
 			}
 		}
 	}
@@ -1055,6 +1093,7 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 				speedJ.Y = movement_speed_jump * physics_override.jump;
 				setSpeed(speedJ);
 				m_client->getEventManager()->put(new SimpleTriggerEvent(MtEvent::PLAYER_JUMP));
+				jumped = true;
 			}
 		} else if (in_liquid && !m_disable_jump && !control.sneak) {
 			if (fast_climb)
@@ -1180,10 +1219,11 @@ void LocalPlayer::accelerate(const v3f &target_speed, const f32 max_increase_H,
 	v3f d;
 
 	// Then compare the horizontal and vertical components with the wanted speed
-	if (max_increase_H > 0.0f) {
+	if (max_increase_H > 0.001f) {
 		v3f d_wanted_H = d_wanted * v3f(1.0f, 0.0f, 1.0f);
-		if (d_wanted_H.getLength() > max_increase_H)
-			d += d_wanted_H.normalize() * max_increase_H;
+		float len = d_wanted_H.getLength();
+		if (len > max_increase_H)
+			d += d_wanted_H * (max_increase_H / std::max(len, 0.0001f));
 		else
 			d += d_wanted_H;
 	}
@@ -1201,6 +1241,14 @@ void LocalPlayer::accelerate(const v3f &target_speed, const f32 max_increase_H,
 	// Finally rotate it again
 	if (use_pitch)
 		d.rotateYZBy(pitch);
+
+	if (!camera_anti_tilt_controller && std::isfinite(camera_tilt) && camera_tilt != 0.0f) {
+		v2f horizontal(d.X, d.Z);
+		horizontal.rotateBy(-camera_tilt);
+		d.X = horizontal.X;
+		d.Z = horizontal.Y;
+	}
+
 	d.rotateXZBy(yaw);
 
 	m_speed += d;
@@ -1468,6 +1516,7 @@ void LocalPlayer::old_move(f32 dtime, Environment *env,
 
 	if (!result.standing_on_object && !touching_ground_was && touching_ground) {
 		m_client->getEventManager()->put(new SimpleTriggerEvent(MtEvent::PLAYER_REGAIN_GROUND));
+		landed = true;
 		// Set camera impact value to be used for view bobbing
 		camera_impact = getSpeed().Y * -1.0f;
 	}

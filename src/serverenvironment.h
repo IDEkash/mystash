@@ -419,6 +419,7 @@ private:
 
 	PlayerDatabase *m_player_database = nullptr;
 	AuthDatabase *m_auth_database = nullptr;
+	std::string m_sync_path;
 
 	// Particles
 	IntervalLimiter m_particle_management_interval;

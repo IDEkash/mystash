@@ -716,11 +716,16 @@ void Game::run()
 		processUserInput(dtime);
 		// Update camera before player movement to avoid camera lag of one frame
 		updateCameraDirection(&cam_view_target, dtime);
-		if (m_cache_cam_smoothing <= 0.0f) {
+		LocalPlayer *player = client->getEnv().getLocalPlayer();
+		float smoothing = m_cache_cam_smoothing;
+		if (player && player->camera_smooth && smoothing <= 0.0f)
+			smoothing = 0.05f;
+
+		if (smoothing <= 0.0f) {
 			cam_view.camera_yaw = cam_view_target.camera_yaw;
 			cam_view.camera_pitch = cam_view_target.camera_pitch;
 		} else {
-			f32 cam_damp_lambda = 1.0f / m_cache_cam_smoothing * dtime;
+			f32 cam_damp_lambda = 1.0f / smoothing * dtime;
 			cam_view.camera_yaw = damp(
 					cam_view.camera_yaw,
 					cam_view_target.camera_yaw,
@@ -2137,11 +2142,14 @@ bool Game::isTouchShootlineUsed() const
 
 void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 {
+	f32 yaw_change = 0;
+	f32 pitch_change = 0;
+
 	if (g_touchcontrols) {
 		// User setting is already applied by TouchControls.
 		f32 sens_scale = getSensitivityScaleFactor();
-		cam->camera_yaw   += g_touchcontrols->getYawChange()   * sens_scale;
-		cam->camera_pitch += g_touchcontrols->getPitchChange() * sens_scale;
+		yaw_change   = g_touchcontrols->getYawChange()   * sens_scale;
+		pitch_change = g_touchcontrols->getPitchChange() * sens_scale;
 	} else {
 		v2s32 center(driver->getScreenSize().Width / 2, driver->getScreenSize().Height / 2);
 		v2s32 dist = input->getMousePos() - center;
@@ -2151,8 +2159,8 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 		}
 
 		f32 sens_scale = getSensitivityScaleFactor();
-		cam->camera_yaw   -= dist.X * m_cache_mouse_sensitivity * sens_scale;
-		cam->camera_pitch += dist.Y * m_cache_mouse_sensitivity * sens_scale;
+		yaw_change   = -dist.X * m_cache_mouse_sensitivity * sens_scale;
+		pitch_change =  dist.Y * m_cache_mouse_sensitivity * sens_scale;
 
 		if (dist.X != 0 || dist.Y != 0)
 			input->setMousePos(center.X, center.Y);
@@ -2161,9 +2169,24 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 	if (m_cache_enable_joysticks) {
 		f32 sens_scale = getSensitivityScaleFactor();
 		f32 c = m_cache_joystick_frustum_sensitivity * dtime * sens_scale;
-		cam->camera_yaw -= input->joystick.getAxisWithoutDead(JA_FRUSTUM_HORIZONTAL) * c;
-		cam->camera_pitch += input->joystick.getAxisWithoutDead(JA_FRUSTUM_VERTICAL) * c;
+		yaw_change   -= input->joystick.getAxisWithoutDead(JA_FRUSTUM_HORIZONTAL) * c;
+		pitch_change += input->joystick.getAxisWithoutDead(JA_FRUSTUM_VERTICAL) * c;
 	}
+
+	LocalPlayer *player = client->getEnv().getLocalPlayer();
+	if (player && !player->camera_anti_tilt_controller && std::isfinite(player->camera_tilt) && player->camera_tilt != 0.0f) {
+		// Luanti uses CCW yaw and CW pitch. To rotate screen-space deltas
+		// correctly, we need to invert pitch before rotation and re-invert after.
+		v2f change(yaw_change, -pitch_change);
+		change.rotateBy(-player->camera_tilt);
+		yaw_change = change.X;
+		pitch_change = -change.Y;
+	}
+
+	if (std::isfinite(yaw_change))
+		cam->camera_yaw   += yaw_change;
+	if (std::isfinite(pitch_change))
+		cam->camera_pitch += pitch_change;
 
 	cam->camera_pitch = rangelim(cam->camera_pitch, -90, 90);
 }
@@ -2364,8 +2387,20 @@ void Game::handleClientEvent_PlayerDamage(ClientEvent *event, CameraOrientation 
 
 void Game::handleClientEvent_PlayerForceMove(ClientEvent *event, CameraOrientation *cam)
 {
-	cam->camera_yaw = event->player_force_move.yaw;
-	cam->camera_pitch = event->player_force_move.pitch;
+	LocalPlayer *player = client->getEnv().getLocalPlayer();
+	if (player && player->camera_free_look) {
+		float delta_yaw = wrapDegrees_180(event->player_force_move.yaw - m_last_forced_yaw);
+		float delta_pitch = event->player_force_move.pitch - m_last_forced_pitch;
+
+		cam->camera_yaw += delta_yaw;
+		cam->camera_pitch += delta_pitch;
+	} else {
+		cam->camera_yaw = event->player_force_move.yaw;
+		cam->camera_pitch = event->player_force_move.pitch;
+	}
+
+	m_last_forced_yaw = event->player_force_move.yaw;
+	m_last_forced_pitch = event->player_force_move.pitch;
 }
 
 void Game::handleClientEvent_DeathscreenLegacy(ClientEvent *event, CameraOrientation *cam)
@@ -2656,6 +2691,17 @@ void Game::handleClientEvent_UpdateCamera(ClientEvent *event, CameraOrientation 
 	// no parameters to update here, this just makes sure the camera is in the
 	// state it should be after something was changed.
 	updateCameraMode();
+
+	LocalPlayer *player = client->getEnv().getLocalPlayer();
+	if (player && player->camera_free_look) {
+		if (!m_free_look_enabled) {
+			m_last_forced_yaw = cam->camera_yaw;
+			m_last_forced_pitch = cam->camera_pitch;
+			m_free_look_enabled = true;
+		}
+	} else {
+		m_free_look_enabled = false;
+	}
 }
 
 void Game::processClientEvents(CameraOrientation *cam)
@@ -2741,10 +2787,15 @@ void Game::updateCamera(f32 dtime)
 void Game::updateCameraMode()
 {
 	LocalPlayer *player = client->getEnv().getLocalPlayer();
+	if (!player || !camera)
+		return;
 
 	// Obey server choice
-	if (player->allowed_camera_mode != CAMERA_MODE_ANY)
-		camera->setCameraMode(player->allowed_camera_mode);
+	if (player->allowed_camera_mode != CAMERA_MODE_ANY) {
+		int mode_int = (int)player->allowed_camera_mode;
+		if (mode_int >= CAMERA_MODE_FIRST && mode_int <= CAMERA_MODE_THIRD_FRONT)
+			camera->setCameraMode(player->allowed_camera_mode);
+	}
 
 	GenericCAO *playercao = player->getCAO();
 	if (playercao) {
@@ -2858,11 +2909,14 @@ void Game::processPlayerInteraction(f32 dtime, bool show_hud)
 		shootline.end += intToFloat(camera_offset, BS);
 	}
 
-	PointedThing pointed = updatePointedThing(shootline,
-			selected_def.liquids_pointable,
-			selected_def.pointabilities,
-			!runData.btn_down_for_dig,
-			camera_offset);
+	PointedThing pointed;
+	if (shootline.getLengthSQ() > 0.001f) {
+		pointed = updatePointedThing(shootline,
+				selected_def.liquids_pointable,
+				selected_def.pointabilities,
+				!runData.btn_down_for_dig,
+				camera_offset);
+	}
 
 	if (pointed != runData.pointed_old)
 		infostream << "Pointing at " << pointed.dump() << std::endl;
@@ -3001,13 +3055,13 @@ PointedThing Game::updatePointedThing(
 
 		runData.selected_object = client->getEnv().getActiveObject(result.object_id);
 		aabb3f selection_box{{0.0f, 0.0f, 0.0f}};
-		if (show_entity_selectionbox && runData.selected_object->doShowSelectionBox() &&
+		if (runData.selected_object && show_entity_selectionbox && runData.selected_object->doShowSelectionBox() &&
 				runData.selected_object->getSelectionBox(&selection_box)) {
 			v3f pos = runData.selected_object->getPosition();
 			selectionboxes->push_back(selection_box);
 			hud->setSelectionPos(pos, camera_offset);
 			GenericCAO* gcao = dynamic_cast<GenericCAO*>(runData.selected_object);
-			if (gcao != nullptr && gcao->getProperties().rotate_selectionbox)
+			if (gcao != nullptr && gcao->getSceneNode() && gcao->getProperties().rotate_selectionbox)
 				hud->setSelectionRotationRadians(gcao->getSceneNode()
 						->getAbsoluteTransformation().getRotationRadians());
 			else
@@ -3828,7 +3882,9 @@ void Game::drawScene(ProfilerGraph *graph, RunStats *stats)
 	TimeTaker tt_draw("Draw scene", nullptr, PRECISION_MICRO);
 	this->driver->beginScene(true, true, sky_color);
 
-	assert(player);
+	if (!player)
+		return;
+
 	bool draw_wield_tool = (this->m_game_ui->m_flags.show_hud &&
 			(player->hud_flags & HUD_FLAG_WIELDITEM_VISIBLE) &&
 			(this->camera->getCameraMode() == CAMERA_MODE_FIRST));
@@ -3841,6 +3897,10 @@ void Game::drawScene(ProfilerGraph *graph, RunStats *stats)
 
 	this->m_rendering_engine->draw_scene(sky_color, this->m_game_ui->m_flags.show_hud,
 			draw_wield_tool, draw_crosshair);
+
+#ifdef __ANDROID__
+	htmlview_jni_render_viewports(client);
+#endif
 
 	/*
 		Profiler graph

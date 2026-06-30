@@ -490,7 +490,13 @@ void Server::init()
 	m_banmanager = new BanManager(ban_path);
 
 	// Create mod storage database and begin a save for later
-	m_mod_storage_database = openModStorageDatabase(m_path_world);
+	std::string mod_storage_path = m_path_world;
+	Settings world_mt;
+	std::string world_mt_path = m_path_world + DIR_DELIM + "world.mt";
+	if (world_mt.readConfigFile(world_mt_path.c_str()) && world_mt.exists("synchronizes")) {
+		mod_storage_path = world_mt.get("synchronizes");
+	}
+	m_mod_storage_database = openModStorageDatabase(mod_storage_path);
 	m_mod_storage_database->beginSave();
 
 	m_modmgr = std::make_unique<ServerModManager>(m_path_world, m_gamespec);
@@ -1473,7 +1479,7 @@ void Server::Send(session_t peer_id, NetworkPacket *pkt)
 
 void Server::SendMovement(session_t peer_id)
 {
-	NetworkPacket pkt(TOCLIENT_MOVEMENT, 12 * sizeof(float), peer_id);
+	NetworkPacket pkt(TOCLIENT_MOVEMENT, 13 * sizeof(float), peer_id);
 
 	pkt << g_settings->getFloat("movement_acceleration_default");
 	pkt << g_settings->getFloat("movement_acceleration_air");
@@ -1487,6 +1493,7 @@ void Server::SendMovement(session_t peer_id)
 	pkt << g_settings->getFloat("movement_liquid_fluidity_smooth");
 	pkt << g_settings->getFloat("movement_liquid_sink");
 	pkt << g_settings->getFloat("movement_gravity");
+	pkt << g_settings->getFloat("movement_speed_sprint_factor");
 
 	Send(&pkt);
 }
@@ -2054,9 +2061,17 @@ void Server::SendSetLighting(session_t peer_id, const Lighting &lighting)
 
 void Server::SendCamera(session_t peer_id, Player *player)
 {
-	NetworkPacket pkt(TOCLIENT_CAMERA, 1, peer_id);
+	NetworkPacket pkt(TOCLIENT_CAMERA, 1 + 1 + 4, peer_id);
 
 	pkt << static_cast<u8>(player->allowed_camera_mode);
+
+	u8 flags = 0;
+	if (player->camera_free_look) flags |= 1;
+	if (player->camera_smooth)    flags |= 2;
+	if (player->camera_anti_tilt_controller) flags |= 4;
+	pkt << flags;
+
+	pkt << player->camera_tilt;
 
 	Send(&pkt);
 }
@@ -2105,6 +2120,20 @@ void Server::SendMovePlayerRel(session_t peer_id, const v3f &added_pos)
 {
 	NetworkPacket pkt(TOCLIENT_MOVE_PLAYER_REL, 0, peer_id);
 	pkt << added_pos;
+	Send(&pkt);
+}
+
+void Server::SendLookDirection(session_t peer_id, float pitch, float yaw)
+{
+	NetworkPacket pkt(TOCLIENT_SET_LOOK_DIRECTION, sizeof(f32) * 2, peer_id);
+	pkt << pitch << yaw;
+	Send(&pkt);
+}
+
+void Server::SendWorldSwitch(session_t peer_id, const std::string &worldname)
+{
+	NetworkPacket pkt(TOCLIENT_SWITCH_WORLD, 0, peer_id);
+	pkt << worldname;
 	Send(&pkt);
 }
 
@@ -4512,6 +4541,16 @@ std::unordered_map<std::string, std::string> Server::getMediaList()
 		ret.emplace(it.second.sha1_digest, it.second.path);
 	}
 	return ret;
+}
+
+std::string Server::getMediaPath(const std::string &name)
+{
+	EnvAutoLock envlock(this);
+
+	auto it = m_media.find(name);
+	if (it == m_media.end())
+		return "";
+	return it->second.path;
 }
 
 ModStorageDatabase *Server::openModStorageDatabase(const std::string &world_path)

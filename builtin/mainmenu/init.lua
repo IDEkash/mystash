@@ -86,7 +86,7 @@ local function init_globals()
 		end,
 		-- Filter function
 		function(element, gameid)
-			return element.gameid == gameid
+			return element.gameid == gameid and element.visible ~= false
 		end
 	)
 

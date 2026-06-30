@@ -56,6 +56,7 @@ public class HTMLViewManager {
 	private final ViewGroup root;
 	private final HashMap<String, HtmlViewState> views = new HashMap<>();
 	private final HashMap<String, String> pipes = new HashMap<>();
+	private final HashMap<String, String> sharedMemory = new HashMap<>();
 	private final Handler handler = new Handler(Looper.getMainLooper());
 
 	public HTMLViewManager(GameActivity activity, ViewGroup root) {
@@ -360,6 +361,22 @@ public class HTMLViewManager {
 		activity.runOnUiThread(() -> pipes.put(fromId, toId));
 	}
 
+	public void htmlview_shared_set(String key, String val) {
+		synchronized (sharedMemory) {
+			if (val == null) {
+				sharedMemory.remove(key);
+			} else {
+				sharedMemory.put(key, val);
+			}
+		}
+	}
+
+	public String htmlview_shared_get(String key) {
+		synchronized (sharedMemory) {
+			return sharedMemory.get(key);
+		}
+	}
+
 	public void htmlview_capture(String id, int width, int height) {
 		activity.runOnUiThread(() -> {
 			HtmlViewState st = views.get(id);
@@ -660,7 +677,7 @@ public class HTMLViewManager {
 	}
 
 	private static String injectBridge(String html) {
-		String bridge = "<script>(function(){var _native=window.luanti;window.luanti={};luanti._messageCallbacks=[];luanti.on_message=function(cb){if(typeof cb==='function'){luanti._messageCallbacks.push(cb);}};luanti.on_message_json=function(cb){if(typeof cb==='function'){luanti._messageCallbacks.push(function(m){try{cb(JSON.parse(m),m);}catch(e){cb(null,m,String(e&&e.message||e));}});}};luanti._trigger=function(msg){for(var i=0;i<luanti._messageCallbacks.length;i++){try{luanti._messageCallbacks[i](msg);}catch(e){}}};luanti.send=function(msg){try{if(_native&&_native.send){_native.send(String(msg));}}catch(e){}};luanti.send_json=function(obj){try{luanti.send(JSON.stringify(obj));}catch(e){luanti.send(String(obj));}};})();</script>";
+		String bridge = "<script>(function(){var _native=window.luanti;window.luanti={};luanti._messageCallbacks=[];luanti.on_message=function(cb){if(typeof cb==='function'){luanti._messageCallbacks.push(cb);}};luanti.on_message_json=function(cb){if(typeof cb==='function'){luanti._messageCallbacks.push(function(m){try{cb(JSON.parse(m),m);}catch(e){cb(null,m,String(e&&e.message||e));}});}};luanti._trigger=function(msg){for(var i=0;i<luanti._messageCallbacks.length;i++){try{luanti._messageCallbacks[i](msg);}catch(e){}}};luanti.send=function(msg){try{if(_native&&_native.send){_native.send(String(msg));}}catch(e){}};luanti.send_json=function(obj){try{luanti.send(JSON.stringify(obj));}catch(e){luanti.send(String(obj));}};luanti.shared_set=function(k,v){try{if(_native&&_native.shared_set){_native.shared_set(String(k),v==null?null:String(v));}}catch(e){}};luanti.shared_get=function(k){try{if(_native&&_native.shared_get){return _native.shared_get(String(k));}}catch(e){}return null;};})();</script>";
 		if (html == null)
 			return bridge;
 
@@ -736,9 +753,31 @@ public class HTMLViewManager {
 	}
 
 	private WebResourceResponse serveFromExternal(HtmlViewState st, Uri url) {
-		if (st.externalRootDir == null || st.externalEntry == null)
-			return null;
 		if (url == null)
+			return null;
+
+		if ("luanti-viewport".equals(url.getScheme())) {
+			String name = url.getHost();
+			if (name == null || name.isEmpty())
+				return null;
+			byte[] data = nativeGetViewportFrame(st.id, name);
+			if (data == null || data.length == 0)
+				return null;
+			try {
+				WebResourceResponse resp = new WebResourceResponse("image/png", "utf-8", new ByteArrayInputStream(data));
+				if (Build.VERSION.SDK_INT >= 21) {
+					Map<String, String> headers = new HashMap<>();
+					headers.put("Access-Control-Allow-Origin", "*");
+					headers.put("Cache-Control", "no-cache, no-store, must-revalidate");
+					resp.setResponseHeaders(headers);
+				}
+				return resp;
+			} catch (Exception ignored) {
+				return null;
+			}
+		}
+
+		if (st.externalRootDir == null || st.externalEntry == null)
 			return null;
 		if (!"https".equals(url.getScheme()))
 			return null;
@@ -827,6 +866,7 @@ public class HTMLViewManager {
 		public void onPageFinished(WebView view, String url) {
 			st.ready = true;
 			updateInputShieldVisibility(st);
+			nativeOnHTMLReady(st.id);
 		}
 	}
 
@@ -899,8 +939,20 @@ public class HTMLViewManager {
 			}
 			nativeOnHTMLMessage(viewId, message);
 		}
+
+		@JavascriptInterface
+		public void shared_set(String key, String val) {
+			htmlview_shared_set(key, val);
+		}
+
+		@JavascriptInterface
+		public String shared_get(String key) {
+			return htmlview_shared_get(key);
+		}
 	}
 
 	private static native void nativeOnHTMLMessage(String id, String message);
 	private static native void nativeOnHTMLCapture(String id, String pngBase64);
+	private static native void nativeOnHTMLReady(String id);
+	private static native byte[] nativeGetViewportFrame(String id, String name);
 }

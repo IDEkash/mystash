@@ -23,6 +23,7 @@
 #include "client/clientevent.h"
 #include "client/sound.h"
 #include "client/localplayer.h"
+#include "gui/mainmenumanager.h"
 #include "network/clientopcodes.h"
 #include "network/connection.h"
 #include "network/networkpacket.h"
@@ -349,7 +350,8 @@ void Client::handleCommand_Inventory(NetworkPacket* pkt)
 	std::istringstream is(datastring, std::ios_base::binary);
 
 	LocalPlayer *player = m_env.getLocalPlayer();
-	assert(player != NULL);
+	if (!player)
+		return;
 
 	player->inventory.deSerialize(is);
 
@@ -484,12 +486,19 @@ void Client::handleCommand_ActiveObjectMessages(NetworkPacket* pkt)
 void Client::handleCommand_Movement(NetworkPacket* pkt)
 {
 	LocalPlayer *player = m_env.getLocalPlayer();
-	assert(player != NULL);
+	if (!player)
+		return;
 
 	float mad, maa, maf, msw, mscr, msf, mscl, msj, lf, lfs, ls, g;
 
 	*pkt >> mad >> maa >> maf >> msw >> mscr >> msf >> mscl >> msj
 		>> lf >> lfs >> ls >> g;
+
+	if (pkt->getRemainingBytes() >= sizeof(float)) {
+		float sprint_factor;
+		*pkt >> sprint_factor;
+		player->movement_speed_sprint_factor = sprint_factor;
+	}
 
 	player->movement_acceleration_default   = mad * BS;
 	player->movement_acceleration_air       = maa * BS;
@@ -519,15 +528,18 @@ void Client::handleCommand_Fov(NetworkPacket *pkt)
 	}
 
 	LocalPlayer *player = m_env.getLocalPlayer();
-	assert(player);
+	if (!player)
+		return;
 	player->setFov({ fov, is_multiplier, transition_time });
-	m_camera->notifyFovChange();
+	if (m_camera)
+		m_camera->notifyFovChange();
 }
 
 void Client::handleCommand_HP(NetworkPacket *pkt)
 {
 	LocalPlayer *player = m_env.getLocalPlayer();
-	assert(player != NULL);
+	if (!player)
+		return;
 
 	u16 oldhp = player->hp;
 
@@ -557,7 +569,8 @@ void Client::handleCommand_HP(NetworkPacket *pkt)
 void Client::handleCommand_Breath(NetworkPacket* pkt)
 {
 	LocalPlayer *player = m_env.getLocalPlayer();
-	assert(player != NULL);
+	if (!player)
+		return;
 
 	u16 breath;
 
@@ -569,7 +582,8 @@ void Client::handleCommand_Breath(NetworkPacket* pkt)
 void Client::handleCommand_MovePlayer(NetworkPacket* pkt)
 {
 	LocalPlayer *player = m_env.getLocalPlayer();
-	assert(player != NULL);
+	if (!player)
+		return;
 
 	v3f pos;
 	f32 pitch, yaw;
@@ -597,6 +611,15 @@ void Client::handleCommand_MovePlayer(NetworkPacket* pkt)
 	m_client_event_queue.push(event);
 }
 
+void Client::handleCommand_SwitchWorld(NetworkPacket *pkt)
+{
+	std::string worldname;
+	*pkt >> worldname;
+
+	infostream << "World switch requested to: " << worldname << std::endl;
+	g_gamecallback->worldSwitch(worldname);
+}
+
 void Client::handleCommand_MovePlayerRel(NetworkPacket *pkt)
 {
 	v3f added_pos;
@@ -604,8 +627,21 @@ void Client::handleCommand_MovePlayerRel(NetworkPacket *pkt)
 	*pkt >> added_pos;
 
 	LocalPlayer *player = m_env.getLocalPlayer();
-	assert(player);
+	if (!player)
+		return;
 	player->addPosition(added_pos);
+}
+
+void Client::handleCommand_SetLookDirection(NetworkPacket *pkt)
+{
+	f32 pitch, yaw;
+	*pkt >> pitch >> yaw;
+
+	ClientEvent *event = new ClientEvent();
+	event->type = CE_PLAYER_FORCE_MOVE;
+	event->player_force_move.pitch = pitch;
+	event->player_force_move.yaw = yaw;
+	m_client_event_queue.push(event);
 }
 
 void Client::handleCommand_DeathScreenLegacy(NetworkPacket* pkt)
@@ -915,7 +951,8 @@ void Client::handleCommand_Privileges(NetworkPacket* pkt)
 void Client::handleCommand_InventoryFormSpec(NetworkPacket* pkt)
 {
 	LocalPlayer *player = m_env.getLocalPlayer();
-	assert(player != NULL);
+	if (!player)
+		return;
 
 	// Store formspec in LocalPlayer
 	player->inventory_formspec = pkt->readLongString();
@@ -1289,7 +1326,8 @@ void Client::handleCommand_HudSetFlags(NetworkPacket* pkt)
 	*pkt >> flags >> mask;
 
 	LocalPlayer *player = m_env.getLocalPlayer();
-	assert(player != NULL);
+	if (!player)
+		return;
 
 	bool was_minimap_radar_visible = player->hud_flags & HUD_FLAG_MINIMAP_RADAR_VISIBLE;
 
@@ -1318,7 +1356,8 @@ void Client::handleCommand_HudSetParam(NetworkPacket* pkt)
 	*pkt >> param >> value;
 
 	LocalPlayer *player = m_env.getLocalPlayer();
-	assert(player != NULL);
+	if (!player)
+		return;
 
 	if (param == HUD_PARAM_HOTBAR_ITEMCOUNT && value.size() == 4) {
 		s32 hotbar_itemcount = readS32((u8*) value.c_str());
@@ -1539,7 +1578,8 @@ void Client::handleCommand_OverrideDayNightRatio(NetworkPacket* pkt)
 void Client::handleCommand_LocalPlayerAnimations(NetworkPacket* pkt)
 {
 	LocalPlayer *player = m_env.getLocalPlayer();
-	assert(player != NULL);
+	if (!player)
+		return;
 
 	for (int i = 0; i < 4; ++i) {
 		if (getProtoVersion() >= 46) {
@@ -1559,7 +1599,8 @@ void Client::handleCommand_LocalPlayerAnimations(NetworkPacket* pkt)
 void Client::handleCommand_EyeOffset(NetworkPacket* pkt)
 {
 	LocalPlayer *player = m_env.getLocalPlayer();
-	assert(player != NULL);
+	if (!player)
+		return;
 
 	*pkt >> player->eye_offset_first >> player->eye_offset_third;
 
@@ -1575,11 +1616,24 @@ void Client::handleCommand_EyeOffset(NetworkPacket* pkt)
 void Client::handleCommand_Camera(NetworkPacket* pkt)
 {
 	LocalPlayer *player = m_env.getLocalPlayer();
-	assert(player);
+	if (!player)
+		return;
 
 	u8 tmp;
 	*pkt >> tmp;
 	player->allowed_camera_mode = static_cast<CameraMode>(tmp);
+
+	if (pkt->getRemainingBytes() > 0) {
+		u8 flags;
+		*pkt >> flags;
+		player->camera_free_look = (flags & 1) != 0;
+		player->camera_smooth    = (flags & 2) != 0;
+		player->camera_anti_tilt_controller = (flags & 4) != 0;
+	}
+
+	if (pkt->getRemainingBytes() >= 4) {
+		*pkt >> player->camera_tilt;
+	}
 
 	m_client_event_queue.push(new ClientEvent(CE_UPDATE_CAMERA));
 }
@@ -1642,7 +1696,8 @@ void Client::handleCommand_SrpBytesSandB(NetworkPacket* pkt)
 void Client::handleCommand_FormspecPrepend(NetworkPacket *pkt)
 {
 	LocalPlayer *player = m_env.getLocalPlayer();
-	assert(player != NULL);
+	if (!player)
+		return;
 
 	// Store formspec in LocalPlayer
 	*pkt >> player->formspec_prepend;
@@ -1664,7 +1719,8 @@ void Client::handleCommand_PlayerSpeed(NetworkPacket *pkt)
 	*pkt >> added_vel;
 
 	LocalPlayer *player = m_env.getLocalPlayer();
-	assert(player != NULL);
+	if (!player)
+		return;
 	player->addVelocity(added_vel);
 }
 
@@ -1842,7 +1898,10 @@ void Client::handleCommand_MinimapModes(NetworkPacket *pkt)
 
 void Client::handleCommand_SetLighting(NetworkPacket *pkt)
 {
-	Lighting& lighting = m_env.getLocalPlayer()->getLighting();
+	LocalPlayer *player = m_env.getLocalPlayer();
+	if (!player)
+		return;
+	Lighting& lighting = player->getLighting();
 
 	*pkt >> lighting.shadow_intensity;
 	do {

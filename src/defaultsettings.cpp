@@ -300,6 +300,8 @@ void set_default_settings()
 	settings->setDefault("show_entity_selectionbox", "false");
 	settings->setDefault("ambient_occlusion_gamma", "1.8");
 	settings->setDefault("arm_inertia", "true");
+	settings->setDefault("accessibilitysprintenabled", "true");
+	settings->setDefault("autoclimbenabled", "false");
 	settings->setDefault("hurt_flash_enabled", "true");
 	settings->setDefault("show_nametag_backgrounds", "true");
 	settings->setDefault("show_block_bounds_radius_near", "4");
@@ -510,18 +512,19 @@ void set_default_settings()
 	settings->setDefault("secure.http_mods", "");
 
 	// Physics
-	settings->setDefault("movement_acceleration_default", "3");
-	settings->setDefault("movement_acceleration_air", "2");
+	settings->setDefault("movement_acceleration_default", "3.0");
+	settings->setDefault("movement_acceleration_air", "1.25");
 	settings->setDefault("movement_acceleration_fast", "10");
-	settings->setDefault("movement_speed_walk", "4");
-	settings->setDefault("movement_speed_crouch", "1.35");
+	settings->setDefault("movement_speed_walk", "4.3");
+	settings->setDefault("movement_speed_sprint_factor", "1.3");
+	settings->setDefault("movement_speed_crouch", "1.3");
 	settings->setDefault("movement_speed_fast", "20");
-	settings->setDefault("movement_speed_climb", "3");
-	settings->setDefault("movement_speed_jump", "6.5");
-	settings->setDefault("movement_liquid_fluidity", "1");
+	settings->setDefault("movement_speed_climb", "3.0");
+	settings->setDefault("movement_speed_jump", "9.5");
+	settings->setDefault("movement_liquid_fluidity", "0.2");
 	settings->setDefault("movement_liquid_fluidity_smooth", "0.5");
-	settings->setDefault("movement_liquid_sink", "10");
-	settings->setDefault("movement_gravity", "9.81");
+	settings->setDefault("movement_liquid_sink", "0.4");
+	settings->setDefault("movement_gravity", "32.0");
 
 	// Liquids
 	settings->setDefault("liquid_loop_max", "100000");

@@ -462,6 +462,8 @@ enum ToClientCommand : u16
 	TOCLIENT_CAMERA = 0x48,
 	/*
 		u8 allowed_camera_mode
+		u8 flags (bit 0: free_look, bit 1: smooth, bit 2: anti_tilt_controller)
+		f32 camera_tilt
 	*/
 
 	TOCLIENT_HUDADD = 0x49,
@@ -711,7 +713,19 @@ enum ToClientCommand : u16
 			FogBoundaryParams (see fogparams.h)
 		*/
 
-		TOCLIENT_NUM_MSG_TYPES = 0x67,
+		TOCLIENT_SET_LOOK_DIRECTION = 0x67,
+		/*
+			f32 player pitch
+			f32 player yaw
+		*/
+
+		TOCLIENT_SWITCH_WORLD = 0x68,
+		/*
+			u16 len
+			u8[len] world name
+		*/
+
+		TOCLIENT_NUM_MSG_TYPES = 0x69,
 	};
 
 enum ToServerCommand : u16
@@ -765,6 +779,7 @@ enum ToServerCommand : u16
 		u8 camera_inverted (bool)
 		f32 movement_speed
 		f32 movement_direction
+		u8 bits2 (jump: 1, land: 2)
 	*/
 
 	TOSERVER_GOTBLOCKS = 0x24,

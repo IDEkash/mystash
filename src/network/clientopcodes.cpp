@@ -114,6 +114,8 @@ const ToClientCommandHandler toClientCommandTable[TOCLIENT_NUM_MSG_TYPES] =
 		{ "TOCLIENT_SPAWN_PARTICLE_BATCH",     TOCLIENT_STATE_CONNECTED, &Client::handleCommand_SpawnParticleBatch }, // 0x64,
 		{ "TOCLIENT_SET_FOG",                 TOCLIENT_STATE_CONNECTED, &Client::handleCommand_SetFog }, // 0x65,
 		{ "TOCLIENT_SET_FOG_BOUNDARY",        TOCLIENT_STATE_CONNECTED, &Client::handleCommand_SetFogBoundary }, // 0x66,
+		{ "TOCLIENT_SET_LOOK_DIRECTION",      TOCLIENT_STATE_CONNECTED, &Client::handleCommand_SetLookDirection }, // 0x67,
+		{ "TOCLIENT_SWITCH_WORLD",            TOCLIENT_STATE_CONNECTED, &Client::handleCommand_SwitchWorld }, // 0x68,
 	};
 
 const static ServerCommandFactory null_command_factory = { nullptr, 0, false };

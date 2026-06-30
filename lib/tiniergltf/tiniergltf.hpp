@@ -401,6 +401,7 @@ struct Animation {
 	std::vector<AnimationChannel> channels;
 	std::optional<std::string> name;
 	std::vector<AnimationSampler> samplers;
+	Json::Value extras;
 	Animation(const Json::Value &o)
 		: channels(asVec<AnimationChannel>(o["channels"]))
 		, samplers(asVec<AnimationSampler>(o["samplers"]))
@@ -409,6 +410,9 @@ struct Animation {
 		check(channels.size() >= 1);
 		if (o.isMember("name")) {
 			name = as<std::string>(o["name"]);
+		}
+		if (o.isMember("extras")) {
+			extras = o["extras"];
 		}
 		check(samplers.size() >= 1);
 	}

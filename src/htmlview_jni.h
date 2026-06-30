@@ -4,8 +4,10 @@
 #pragma once
 
 #include <string>
+#include "irrlichttypes_bloated.h"
 
 class ServerScripting;
+class Client;
 
 #ifdef __ANDROID__
 
@@ -28,7 +30,14 @@ class ServerScripting;
 	void htmlview_jni_navigate(const std::string &id, const std::string &url);
 	void htmlview_jni_inject(const std::string &id, const std::string &js);
 	void htmlview_jni_pipe(const std::string &fromId, const std::string &toId);
+	void htmlview_jni_shared_set(const std::string &key, const char *val);
+	std::string htmlview_jni_shared_get(const std::string &key);
 	void htmlview_jni_capture(const std::string &id, int width, int height);
+	void htmlview_jni_set_viewport(const std::string &id, const std::string &name,
+			v3f pos, v3f dir, float fov, int width, int height,
+			u32 refresh_interval_ms, const std::string &format, int quality);
+	void htmlview_jni_remove_viewport(const std::string &id, const std::string &name);
+	void htmlview_jni_render_viewports(Client *client);
 	void htmlview_jni_poll(ServerScripting *script);
 
 #endif

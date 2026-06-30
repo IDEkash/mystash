@@ -3,15 +3,18 @@
 // Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
 
 #include "lua_api/l_object.h"
+#include <unordered_set>
 #include <cmath>
 #include <lua.h>
 #include "lua_api/l_internal.h"
 #include "lua_api/l_inventory.h"
 #include "lua_api/l_item.h"
 #include "lua_api/l_playermeta.h"
+#include "tiniergltf.hpp"
 #include "common/c_converter.h"
 #include "common/c_content.h"
 #include "cpp_api/s_base.h"
+#include "filesys.h"
 #include "log.h"
 #include "player.h"
 #include "server/serveractiveobject.h"
@@ -413,10 +416,16 @@ int ObjectRef::l_set_animation(lua_State *L)
 
 	if (lua_istable(L, 2)) {
 		int opts = 2;
-		v2f frame_range(1, 1);
+		v2f frame_range(0, 0);
+		bool range_set = false;
 		float frame_speed = 15.0f;
-		float frame_blend = 0.0f;
+		float frame_blend = 0.1f;
 		bool frame_loop = true;
+
+		std::string mesh;
+		if (auto *prop = sao->accessObjectProperties())
+			mesh = prop->mesh;
+		bool is_gltf = str_ends_with(mesh, ".gltf", true) || str_ends_with(mesh, ".glb", true);
 
 		if (getboolfield_default(L, opts, "pause", false) || getboolfield_default(L, opts, "paused", false))
 			frame_speed = 0.0f;
@@ -425,6 +434,7 @@ int ObjectRef::l_set_animation(lua_State *L)
 		if (lua_isnumber(L, -1)) {
 			float f = (float)lua_tonumber(L, -1);
 			frame_range = v2f(f, f);
+			range_set = true;
 		}
 		lua_pop(L, 1);
 
@@ -433,20 +443,57 @@ int ObjectRef::l_set_animation(lua_State *L)
 			lua_pop(L, 1);
 			lua_getfield(L, opts, "frame_range");
 		}
-		if (!lua_isnil(L, -1))
-			frame_range = read_v2f(L, -1);
+		if (!lua_isnil(L, -1)) {
+			v2f r = read_v2f(L, -1);
+			if (std::isfinite(r.X) && std::isfinite(r.Y)) {
+				frame_range = r;
+				range_set = true;
+			}
+		}
 		lua_pop(L, 1);
 
 		frame_speed = getfloatfield_default(L, opts, "speed", frame_speed);
 		frame_speed = getfloatfield_default(L, opts, "frame_speed", frame_speed);
 		float speed_scale = getfloatfield_default(L, opts, "speed_scale", 1.0f);
-		frame_speed *= speed_scale;
+		if (std::isfinite(speed_scale))
+			frame_speed *= speed_scale;
 
 		frame_blend = getfloatfield_default(L, opts, "blend", frame_blend);
 		frame_blend = getfloatfield_default(L, opts, "frame_blend", frame_blend);
 
+		if (!std::isfinite(frame_speed)) frame_speed = 15.0f;
+		if (!std::isfinite(frame_blend)) frame_blend = 0.1f;
+
 		frame_loop = getboolfield_default(L, opts, "loop", frame_loop);
 		frame_loop = getboolfield_default(L, opts, "frame_loop", frame_loop);
+
+		std::string time_mode = getstringfield_default(L, opts, "time_mode", "auto");
+		if (time_mode == "auto") {
+			if (is_gltf) {
+				// For glTF, if speed is suspiciously high (legacy default was 15),
+				// modder probably didn't realize it's a multiplier now.
+				if (frame_speed > 5.0f) {
+					warningstream << "set_animation: high speed (" << frame_speed
+						<< ") used with glTF model '" << mesh << "'. "
+						<< "For glTF, speed is a multiplier (normal=1.0)." << std::endl;
+				}
+			} else {
+				// For non-glTF, if modder used small range (e.g. 0-1) and speed=1,
+				// they might be thinking in seconds. But we don't have duration info here easily.
+			}
+		} else if (time_mode == "seconds") {
+			if (!is_gltf) {
+				// Convert seconds to frames using 24 FPS (typical for B3D in Minetest)
+				frame_range *= 24.0f;
+				frame_speed *= 24.0f;
+			}
+		} else if (time_mode == "frames") {
+			if (is_gltf) {
+				// Convert frames to seconds using 24 FPS
+				frame_range /= 24.0f;
+				frame_speed /= 24.0f;
+			}
+		}
 
 		lua_getfield(L, opts, "clip");
 		if (lua_isnumber(L, -1)) {
@@ -465,13 +512,15 @@ int ObjectRef::l_set_animation(lua_State *L)
 		}
 		lua_pop(L, 1);
 
+		if (!range_set)
+			frame_range = v2f(1, 1);
 		sao->setAnimation(frame_range, frame_speed, frame_blend, frame_loop);
 		return 0;
 	}
 
 	v2f frame_range   = readParam<v2f>(L,  2, v2f(1, 1));
 	float frame_speed = readParam<float>(L, 3, 15.0f);
-	float frame_blend = readParam<float>(L, 4, 0.0f);
+	float frame_blend = readParam<float>(L, 4, 0.1f);
 	bool frame_loop   = readParam<bool>(L, 5, true);
 
 	sao->setAnimation(frame_range, frame_speed, frame_blend, frame_loop);
@@ -501,9 +550,9 @@ int ObjectRef::l_set_animation_clip(lua_State *L)
 		clip_name = readParam<std::string>(L, 2);
 	}
 
-	v2f frame_range = readParam<v2f>(L, 3, v2f(1, 1));
+	v2f frame_range = readParam<v2f>(L, 3, v2f(0, 0));
 	float frame_speed = readParam<float>(L, 4, 15.0f);
-	float frame_blend = readParam<float>(L, 5, 0.0f);
+	float frame_blend = readParam<float>(L, 5, 0.1f);
 	bool frame_loop = readParam<bool>(L, 6, true);
 
 	if (clip_type == 1)
@@ -560,7 +609,7 @@ int ObjectRef::l_get_animation_info(lua_State *L)
 	float frame_speed = 15;
 	float frame_blend = 0;
 	bool frame_loop = true;
-	
+
 	sao->getAnimation(&frames, &frame_speed, &frame_blend, &frame_loop);
 
 	u8 clip_type = 0;
@@ -599,6 +648,44 @@ int ObjectRef::l_get_animation_info(lua_State *L)
 	lua_setfield(L, -2, "progress");
 	lua_pushnil(L);
 	lua_setfield(L, -2, "bones");
+
+	std::string mesh;
+	if (auto *prop = sao->accessObjectProperties())
+		mesh = prop->mesh;
+	bool is_gltf = str_ends_with(mesh, ".gltf", true) || str_ends_with(mesh, ".glb", true);
+	lua_pushboolean(L, is_gltf);
+	lua_setfield(L, -2, "is_gltf");
+	lua_pushstring(L, is_gltf ? "seconds" : "frames");
+	lua_setfield(L, -2, "unit");
+
+	return 1;
+}
+
+int ObjectRef::l_get_model_info(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	std::string mesh;
+	if (auto *prop = sao->accessObjectProperties())
+		mesh = prop->mesh;
+
+	lua_newtable(L);
+	lua_pushstring(L, mesh.c_str());
+	lua_setfield(L, -2, "mesh");
+
+	bool is_gltf = str_ends_with(mesh, ".gltf", true) || str_ends_with(mesh, ".glb", true);
+	lua_pushstring(L, is_gltf ? "gltf" : "b3d"); // simplistic check
+	lua_setfield(L, -2, "format");
+
+	lua_pushboolean(L, is_gltf);
+	lua_setfield(L, -2, "uses_time");
+
+	lua_pushnumber(L, is_gltf ? 1.0f : 15.0f);
+	lua_setfield(L, -2, "default_speed");
 
 	return 1;
 }
@@ -657,12 +744,17 @@ int ObjectRef::l_set_eye_offset(lua_State *L)
 	v3f offset_third = readParam<v3f>(L, 3, v3f(0, 0, 0));
 	v3f offset_third_front = readParam<v3f>(L, 4, offset_third);
 
+	if (!std::isfinite(offset_first.X) || !std::isfinite(offset_first.Y) || !std::isfinite(offset_first.Z) ||
+			!std::isfinite(offset_third.X) || !std::isfinite(offset_third.Y) || !std::isfinite(offset_third.Z) ||
+			!std::isfinite(offset_third_front.X) || !std::isfinite(offset_third_front.Y) || !std::isfinite(offset_third_front.Z))
+		return 0;
+
 	// Prevent abuse of offset values (keep player always visible)
 	auto clamp_third = [] (v3f &vec) {
-		vec.X = rangelim(vec.X, -10, 10);
-		vec.Z = rangelim(vec.Z, -5, 5);
+		vec.X = rangelim(vec.X, -10.0f, 10.0f);
+		vec.Z = rangelim(vec.Z, -5.0f, 5.0f);
 		/* TODO: if possible: improve the camera collision detection to allow Y <= -1.5) */
-		vec.Y = rangelim(vec.Y, -10, 15); // 1.5 * BS
+		vec.Y = rangelim(vec.Y, -10.0f, 15.0f); // 1.5 * BS
 	};
 	clamp_third(offset_third);
 	clamp_third(offset_third_front);
@@ -701,6 +793,51 @@ int ObjectRef::l_set_camera(lua_State *L)
 		string_to_enum(es_CameraMode, player->allowed_camera_mode, lua_tostring(L, -1));
 	lua_pop(L, 1);
 
+	lua_getfield(L, -1, "free_look");
+	if (lua_isboolean(L, -1))
+		player->camera_free_look = lua_toboolean(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "smooth");
+	if (lua_isboolean(L, -1))
+		player->camera_smooth = lua_toboolean(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "tilt");
+	if (lua_isnumber(L, -1)) {
+		float tilt = lua_tonumber(L, -1);
+		if (std::isfinite(tilt))
+			player->camera_tilt = tilt;
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "anti_tilt_controller");
+	if (lua_isboolean(L, -1))
+		player->camera_anti_tilt_controller = lua_toboolean(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "fov");
+	if (lua_isnumber(L, -1)) {
+		PlayerFovSpec s = player->getFov();
+		float fov = lua_tonumber(L, -1);
+		if (std::isfinite(fov))
+			s.fov = fov;
+
+		lua_getfield(L, 2, "fov_is_multiplier");
+		if (lua_isboolean(L, -1))
+			s.is_multiplier = lua_toboolean(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, 2, "fov_transition");
+		if (lua_isnumber(L, -1))
+			s.transition_time = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+
+		if (player->setFov(s))
+			getServer(L)->SendPlayerFov(player->getPeerId());
+	}
+	lua_pop(L, 1);
+
 	getServer(L)->SendCamera(player->getPeerId(), player);
 	return 0;
 }
@@ -715,6 +852,15 @@ int ObjectRef::l_get_camera(lua_State *L)
 
 	lua_newtable(L);
 	setstringfield(L, -1, "mode", enum_to_string(es_CameraMode, player->allowed_camera_mode));
+	setboolfield(L, -1, "free_look", player->camera_free_look);
+	setboolfield(L, -1, "smooth", player->camera_smooth);
+	setfloatfield(L, -1, "tilt", player->camera_tilt);
+	setboolfield(L, -1, "anti_tilt_controller", player->camera_anti_tilt_controller);
+
+	PlayerFovSpec fov = player->getFov();
+	setfloatfield(L, -1, "fov", fov.fov);
+	setboolfield(L, -1, "fov_is_multiplier", fov.is_multiplier);
+	setfloatfield(L, -1, "fov_transition", fov.transition_time);
 
 	return 1;
 }
@@ -756,34 +902,54 @@ int ObjectRef::l_set_animation_frame_speed(lua_State *L)
 	return 1;
 }
 
-// set_bone_position(self, bone, position, rotation)
+// set_bone_position(self, bone, position, opts?)
+// set_bone_position(self, bone, x, y, z, opts?)
 int ObjectRef::l_set_bone_position(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-
-	log_deprecated(L, "Deprecated call to set_bone_position, use set_bone_override instead", 1, true);
-
 	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
 	ServerActiveObject *sao = getobject(ref);
 	if (sao == nullptr)
 		return 0;
 
-	std::string bone;
-	if (!lua_isnoneornil(L, 2))
-		bone = readParam<std::string>(L, 2);
-	BoneOverride props;
-	if (!lua_isnoneornil(L, 3))
-		props.position.vector = check_v3f(L, 3);
-	if (!lua_isnoneornil(L, 4)) {
-		props.rotation.next_radians = check_v3f(L, 4) * core::DEGTORAD;
-		props.rotation.next = core::quaternion(props.rotation.next_radians);
+	std::string bone = readParam<std::string>(L, 2);
+
+	v3f pos;
+	int opts_index = 6;
+	if (lua_istable(L, 3)) {
+		pos = check_v3f(L, 3);
+		opts_index = 4;
+	} else {
+		pos = v3f(readParam<float>(L, 3), readParam<float>(L, 4), readParam<float>(L, 5));
 	}
-	props.position.absolute = true;
-	props.rotation.absolute = true;
+
+	if (!std::isfinite(pos.X) || !std::isfinite(pos.Y) || !std::isfinite(pos.Z))
+		return 0;
+
+	BoneOverride props = sao->getBoneOverride(bone);
+
+	bool absolute = false;
+	float interpolation = props.pos_smooth;
+	if (!lua_isnoneornil(L, opts_index)) {
+		luaL_checktype(L, opts_index, LUA_TTABLE);
+		lua_getfield(L, opts_index, "absolute");
+		absolute = lua_toboolean(L, -1);
+		lua_pop(L, 1);
+		lua_getfield(L, opts_index, "interpolation");
+		if (lua_isnumber(L, -1))
+			interpolation = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+	}
+
+	props.position.vector = pos;
+	props.position.absolute = absolute;
+	props.position.interp_duration = interpolation;
 	sao->setBoneOverride(bone, props);
 	return 0;
 }
 
+// set_bone_rotation(self, bone, rotation, opts?)
+// set_bone_rotation(self, bone, x, y, z, opts?)
 int ObjectRef::l_set_bone_rotation(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
@@ -803,8 +969,13 @@ int ObjectRef::l_set_bone_rotation(lua_State *L)
 		rot_deg = v3f(readParam<float>(L, 3), readParam<float>(L, 4), readParam<float>(L, 5));
 	}
 
+	if (!std::isfinite(rot_deg.X) || !std::isfinite(rot_deg.Y) || !std::isfinite(rot_deg.Z))
+		return 0;
+
+	BoneOverride props = sao->getBoneOverride(bone);
+
 	bool absolute = false;
-	float interpolation = 0.0f;
+	float interpolation = props.rot_smooth;
 	if (!lua_isnoneornil(L, opts_index)) {
 		luaL_checktype(L, opts_index, LUA_TTABLE);
 		lua_getfield(L, opts_index, "absolute");
@@ -816,7 +987,6 @@ int ObjectRef::l_set_bone_rotation(lua_State *L)
 		lua_pop(L, 1);
 	}
 
-	BoneOverride props = sao->getBoneOverride(bone);
 	props.rotation.next_radians = rot_deg * core::DEGTORAD;
 	props.rotation.next = core::quaternion(props.rotation.next_radians);
 	props.rotation.absolute = absolute;
@@ -825,13 +995,60 @@ int ObjectRef::l_set_bone_rotation(lua_State *L)
 	return 0;
 }
 
+// set_bone_scale(self, bone, scale, opts?)
+// set_bone_scale(self, bone, x, y, z, opts?)
+int ObjectRef::l_set_bone_scale(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	std::string bone = readParam<std::string>(L, 2);
+
+	v3f scale;
+	int opts_index = 6;
+	if (lua_istable(L, 3)) {
+		scale = check_v3f(L, 3);
+		opts_index = 4;
+	} else if (lua_isnumber(L, 3) && lua_isnumber(L, 4) && lua_isnumber(L, 5)) {
+		scale = v3f(readParam<float>(L, 3), readParam<float>(L, 4), readParam<float>(L, 5));
+	} else {
+		float s = readParam<float>(L, 3, 1.0f);
+		scale = v3f(s, s, s);
+		opts_index = 4;
+	}
+
+	if (!std::isfinite(scale.X) || !std::isfinite(scale.Y) || !std::isfinite(scale.Z))
+		return 0;
+
+	BoneOverride props = sao->getBoneOverride(bone);
+
+	bool absolute = false;
+	float interpolation = props.scale_smooth;
+	if (!lua_isnoneornil(L, opts_index)) {
+		luaL_checktype(L, opts_index, LUA_TTABLE);
+		lua_getfield(L, opts_index, "absolute");
+		absolute = lua_toboolean(L, -1);
+		lua_pop(L, 1);
+		lua_getfield(L, opts_index, "interpolation");
+		if (lua_isnumber(L, -1))
+			interpolation = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+	}
+
+	props.scale.vector = scale;
+	props.scale.absolute = absolute;
+	props.scale.interp_duration = interpolation;
+	sao->setBoneOverride(bone, props);
+	return 0;
+}
+
 // get_bone_position(self, bone)
 int ObjectRef::l_get_bone_position(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-
-	log_deprecated(L, "Deprecated call to get_bone_position, use get_bone_override instead", 1, true);
-
 	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
 	ServerActiveObject *sao = getobject(ref);
 	if (sao == nullptr)
@@ -844,6 +1061,90 @@ int ObjectRef::l_get_bone_position(lua_State *L)
 	// this **must not** compute equivalent euler angles from the quaternion
 	push_v3f(L, props.rotation.next_radians * core::RADTODEG);
 	return 2;
+}
+
+// get_bone_rotation(self, bone)
+int ObjectRef::l_get_bone_rotation(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	std::string bone = readParam<std::string>(L, 2, "");
+	BoneOverride props = sao->getBoneOverride(bone);
+	// In order to give modders back the euler angles they passed in,
+	// this **must not** compute equivalent euler angles from the quaternion
+	push_v3f(L, props.rotation.next_radians * core::RADTODEG);
+	return 1;
+}
+
+// get_bone_scale(self, bone)
+int ObjectRef::l_get_bone_scale(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	std::string bone = readParam<std::string>(L, 2, "");
+	BoneOverride props = sao->getBoneOverride(bone);
+	push_v3f(L, props.scale.vector);
+	return 1;
+}
+
+// get_bone_world_pos(self, bone)
+int ObjectRef::l_get_bone_world_pos(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	std::string bone = readParam<std::string>(L, 2, "");
+	push_v3f(L, sao->getBoneWorldPos(bone));
+	return 1;
+}
+
+// set_part_visible(self, bone, visible)
+int ObjectRef::l_set_part_visible(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	std::string bone = readParam<std::string>(L, 2);
+	bool visible = readParam<bool>(L, 3);
+
+	BoneOverride props = sao->getBoneOverride(bone);
+	props.hidden = !visible;
+	sao->setBoneOverride(bone, props);
+	return 0;
+}
+
+// set_part_smooth(self, bone, smooth_table)
+int ObjectRef::l_set_part_smooth(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	std::string bone = readParam<std::string>(L, 2);
+	luaL_checktype(L, 3, LUA_TTABLE);
+
+	BoneOverride props = sao->getBoneOverride(bone);
+	props.pos_smooth = getfloatfield_default(L, 3, "position", props.pos_smooth);
+	props.rot_smooth = getfloatfield_default(L, 3, "rotation", props.rot_smooth);
+	props.scale_smooth = getfloatfield_default(L, 3, "scale", props.scale_smooth);
+	sao->setBoneOverride(bone, props);
+	return 0;
 }
 
 // set_bone_override(self, bone, override)
@@ -877,8 +1178,11 @@ int ObjectRef::l_set_bone_override(lua_State *L)
 	lua_getfield(L, 3, "position");
 	if (!lua_isnil(L, -1)) {
 		lua_getfield(L, -1, "vec");
-		if (!lua_isnil(L, -1))
-			props.position.vector = check_v3f(L, -1);
+		if (!lua_isnil(L, -1)) {
+			v3f v = check_v3f(L, -1);
+			if (std::isfinite(v.X) && std::isfinite(v.Y) && std::isfinite(v.Z))
+				props.position.vector = v;
+		}
 		lua_pop(L, 1);
 
 		read_prop_attrs(props.position);
@@ -887,10 +1191,21 @@ int ObjectRef::l_set_bone_override(lua_State *L)
 
 	lua_getfield(L, 3, "rotation");
 	if (!lua_isnil(L, -1)) {
-		lua_getfield(L, -1, "vec");
+		int rot_idx = lua_gettop(L);
+		lua_getfield(L, rot_idx, "vec");
 		if (!lua_isnil(L, -1)) {
-			props.rotation.next_radians = check_v3f(L, -1);
-			props.rotation.next = core::quaternion(props.rotation.next_radians);
+			v3f v = check_v3f(L, -1);
+			if (std::isfinite(v.X) && std::isfinite(v.Y) && std::isfinite(v.Z)) {
+				lua_getfield(L, rot_idx, "degrees");
+				bool degrees = lua_toboolean(L, -1);
+				lua_pop(L, 1);
+
+				if (degrees)
+					v *= core::DEGTORAD;
+
+				props.rotation.next_radians = v;
+				props.rotation.next = core::quaternion(props.rotation.next_radians);
+			}
 		}
 		lua_pop(L, 1);
 
@@ -901,11 +1216,43 @@ int ObjectRef::l_set_bone_override(lua_State *L)
 	lua_getfield(L, 3, "scale");
 	if (!lua_isnil(L, -1)) {
 		lua_getfield(L, -1, "vec");
-		props.scale.vector = lua_isnil(L, -1) ? v3f(1) : check_v3f(L, -1);
+		v3f v = lua_isnil(L, -1) ? v3f(1) : check_v3f(L, -1);
+		if (std::isfinite(v.X) && std::isfinite(v.Y) && std::isfinite(v.Z))
+			props.scale.vector = v;
 		lua_pop(L, 1);
 
 		read_prop_attrs(props.scale);
 	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, 3, "visible");
+	if (!lua_isnil(L, -1))
+		props.hidden = !lua_toboolean(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, 3, "pos_smooth");
+	if (lua_isnumber(L, -1))
+		props.pos_smooth = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, 3, "rot_smooth");
+	if (lua_isnumber(L, -1))
+		props.rot_smooth = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, 3, "scale_smooth");
+	if (lua_isnumber(L, -1))
+		props.scale_smooth = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, 3, "color");
+	if (!lua_isnil(L, -1))
+		read_color(L, -1, &props.color);
+	lua_pop(L, 1);
+
+	lua_getfield(L, 3, "glow");
+	if (lua_isnumber(L, -1))
+		props.glow = lua_tonumber(L, -1);
 	lua_pop(L, 1);
 
 	sao->setBoneOverride(bone, props);
@@ -934,6 +1281,24 @@ static void push_bone_override(lua_State *L, const BoneOverride &props)
 	push_prop("rotation", props.rotation, props.rotation.next_radians);
 
 	push_prop("scale", props.scale, props.scale.vector);
+
+	lua_pushboolean(L, !props.hidden);
+	lua_setfield(L, -2, "visible");
+
+	lua_pushnumber(L, props.pos_smooth);
+	lua_setfield(L, -2, "pos_smooth");
+
+	lua_pushnumber(L, props.rot_smooth);
+	lua_setfield(L, -2, "rot_smooth");
+
+	lua_pushnumber(L, props.scale_smooth);
+	lua_setfield(L, -2, "scale_smooth");
+
+	push_ARGB8(L, props.color);
+	lua_setfield(L, -2, "color");
+
+	lua_pushnumber(L, props.glow);
+	lua_setfield(L, -2, "glow");
 
 	// leave only override table on top of the stack
 }
@@ -966,6 +1331,65 @@ int ObjectRef::l_get_bone_overrides(lua_State *L)
 		push_bone_override(L, bone_pos.second);
 		lua_setfield(L, -2, bone_pos.first.c_str());
 	}
+	return 1;
+}
+
+int ObjectRef::l_get_bone_list(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	ObjectProperties *prop = sao->accessObjectProperties();
+	if (!prop || prop->mesh.empty()) {
+		lua_newtable(L);
+		return 1;
+	}
+
+	std::string mesh_path = prop->mesh;
+	std::string full_path = getServer(L)->getMediaPath(mesh_path);
+	if (full_path.empty()) {
+		lua_newtable(L);
+		return 1;
+	}
+
+	if (str_ends_with(full_path, ".gltf") || str_ends_with(full_path, ".glb")) {
+		// Use tiniergltf to get bones
+		std::string data;
+		if (fs::ReadFile(full_path, data, true)) {
+			try {
+				std::optional<tiniergltf::GlTF> model;
+				if (str_ends_with(full_path, ".glb"))
+					model.emplace(tiniergltf::readGlb(data.data(), data.size()));
+				else
+					model.emplace(tiniergltf::readGlTF(data.data(), data.size()));
+
+				lua_newtable(L);
+				int table_idx = 1;
+				std::unordered_set<size_t> joint_nodes;
+				if (model->skins.has_value()) {
+					for (const auto &skin : *model->skins) {
+						for (size_t node : skin.joints) {
+							joint_nodes.insert(node);
+						}
+					}
+				}
+				for (size_t node_idx : joint_nodes) {
+					if (model->nodes.has_value() && node_idx < model->nodes->size()) {
+						const auto &n = model->nodes->at(node_idx);
+						std::string name = n.name.has_value() ? *n.name : ("bone_" + std::to_string(node_idx));
+						lua_pushstring(L, name.c_str());
+						lua_rawseti(L, -2, table_idx++);
+					}
+				}
+				return 1;
+			} catch (...) {}
+		}
+	}
+
+	lua_newtable(L);
 	return 1;
 }
 
@@ -1957,6 +2381,9 @@ int ObjectRef::l_set_physics_override(lua_State *L)
 	getfloatfield(L, 2, "speed_fast", phys.speed_fast);
 	getfloatfield(L, 2, "acceleration_fast", phys.acceleration_fast);
 	getfloatfield(L, 2, "speed_walk", phys.speed_walk);
+	getfloatfield(L, 2, "speed_sprint", phys.speed_sprint);
+	getfloatfield(L, 2, "step_height", phys.step_height);
+	getboolfield(L, 2, "auto_climb", phys.auto_climb);
 
 	if (phys != old)
 		playersao->m_physics_override_sent = false;
@@ -2006,6 +2433,12 @@ int ObjectRef::l_get_physics_override(lua_State *L)
 	lua_setfield(L, -2, "acceleration_fast");
 	lua_pushnumber(L, phys.speed_walk);
 	lua_setfield(L, -2, "speed_walk");
+	lua_pushnumber(L, phys.speed_sprint);
+	lua_setfield(L, -2, "speed_sprint");
+	lua_pushnumber(L, phys.step_height);
+	lua_setfield(L, -2, "step_height");
+	lua_pushboolean(L, phys.auto_climb);
+	lua_setfield(L, -2, "auto_climb");
 	return 1;
 }
 
@@ -3080,10 +3513,17 @@ luaL_Reg ObjectRef::methods[] = {
 		luamethod(ObjectRef, set_animation_clip),
 		luamethod(ObjectRef, get_animation),
 		luamethod(ObjectRef, get_animation_info),
+		luamethod(ObjectRef, get_model_info),
 		luamethod(ObjectRef, set_animation_frame_speed),
-	luamethod(ObjectRef, set_bone_position),
-	luamethod(ObjectRef, set_bone_rotation),
-	luamethod(ObjectRef, get_bone_position),
+	luamethod_aliased(ObjectRef, set_bone_position, setboneposition),
+	luamethod_aliased(ObjectRef, set_bone_rotation, setbonerotation),
+	luamethod_aliased(ObjectRef, set_bone_scale, setbonescale),
+	luamethod_aliased(ObjectRef, set_part_visible, setpartvisible),
+	luamethod_aliased(ObjectRef, set_part_smooth, setpartsmooth),
+	luamethod_aliased(ObjectRef, get_bone_position, getboneposition),
+	luamethod_aliased(ObjectRef, get_bone_rotation, getbonerotation),
+	luamethod_aliased(ObjectRef, get_bone_scale, getbonescale),
+	luamethod_aliased(ObjectRef, get_bone_world_pos, getboneworldpos),
 	luamethod(ObjectRef, set_bone_override),
 	luamethod(ObjectRef, get_bone_override),
 	luamethod(ObjectRef, get_bone_overrides),

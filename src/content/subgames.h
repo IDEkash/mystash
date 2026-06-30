@@ -68,11 +68,12 @@ struct WorldSpec
 	std::string path;
 	std::string name;
 	std::string gameid;
+	bool visible = true;
 
 	WorldSpec(const std::string &path = "", const std::string &name = "",
-			const std::string &gameid = "") :
+			const std::string &gameid = "", bool visible = true) :
 			path(path),
-			name(name), gameid(gameid)
+			name(name), gameid(gameid), visible(visible)
 	{
 	}
 
@@ -86,5 +87,5 @@ std::vector<WorldSpec> getAvailableWorlds();
 
 // loads the subgame's config and creates world directory
 // and world.mt if they don't exist
-void loadGameConfAndInitWorld(const std::string &path, const std::string &name,
+std::string loadGameConfAndInitWorld(const std::string &path, const std::string &name,
 		const SubgameSpec &gamespec, bool create_world);

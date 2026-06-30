@@ -25,8 +25,13 @@
 #include "serverenvironment.h"
 #include "server/player_sao.h"
 #include "fogparams.h"
+#include "content/subgames.h"
+#include "util/string.h"
+#include "porting.h"
+#include "settings.h"
 
 #include <algorithm>
+#include <unordered_map>
 
 // request_shutdown()
 int ModApiServer::l_request_shutdown(lua_State *L)
@@ -381,6 +386,258 @@ int ModApiServer::l_disconnect_player(lua_State *L)
 	return 1;
 }
 
+// world_switch(name, worldname)
+int ModApiServer::l_world_switch(lua_State *L)
+{
+	GET_ENV_PTR_NO_MAP_LOCK;
+
+	const char *name = luaL_checkstring(L, 1);
+	std::string worldname = luaL_checkstring(L, 2);
+
+	RemotePlayer *player = env->getPlayer(name);
+	if (!player) {
+		lua_pushboolean(L, false); // No such player
+		return 1;
+	}
+
+	Server *server = getServer(L);
+	server->SendWorldSwitch(player->getPeerId(), worldname);
+
+	lua_pushboolean(L, true);
+	return 1;
+}
+
+// create_world(name, gameid, options)
+int ModApiServer::l_create_world(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	const char *name = luaL_checkstring(L, 1);
+	const char *gameid = luaL_checkstring(L, 2);
+
+	infostream << "core.create_world: Creating world \"" << name << "\" with gameid \"" << gameid << "\"" << std::endl;
+
+	std::string current_mod_path = "";
+	std::string current_mod_name = ScriptApiBase::getCurrentModNameInsecure(L);
+	if (!current_mod_name.empty()) {
+		const ModSpec *spec = getGameDef(L)->getModSpec(current_mod_name);
+		if (spec) {
+			current_mod_path = spec->path;
+			infostream << "core.create_world: Called from mod \"" << current_mod_name << "\" at \"" << current_mod_path << "\"" << std::endl;
+		}
+	}
+
+	StringMap settings;
+	std::unordered_map<std::string, std::string> mods;
+
+	if (lua_istable(L, 3)) {
+		lua_pushnil(L);
+		while (lua_next(L, 3)) {
+			// Stack: [..., key, value]
+			lua_pushvalue(L, -2); // Copy the key so lua_tostring doesn't corrupt the stack
+			// Stack: [..., key, value, key_copy]
+			if (lua_isstring(L, -1)) {
+				std::string key = lua_tostring(L, -1);
+				if (key == "mods" || key == "worldmods") {
+					if (lua_istable(L, -2)) {
+						int mods_table_idx = lua_gettop(L) - 1;
+						lua_pushnil(L);
+						while (lua_next(L, mods_table_idx)) {
+							// Stack: [..., mods_table, mkey, mvalue]
+							if (lua_type(L, -2) == LUA_TNUMBER) {
+								// array-style: mvalue must be mod name
+								if (lua_isstring(L, -1))
+									mods[lua_tostring(L, -1)] = "true";
+							} else {
+								lua_pushvalue(L, -2); // copy mkey
+								if (lua_isstring(L, -1)) {
+									std::string modname = lua_tostring(L, -1);
+									if (lua_isboolean(L, -2))
+										mods[modname] = lua_toboolean(L, -2) ? "true" : "false";
+									else if (lua_isstring(L, -2))
+										mods[modname] = lua_tostring(L, -2);
+								}
+								lua_pop(L, 1); // pop mkey copy
+							}
+							lua_pop(L, 1); // pop mvalue, keep mkey for next lua_next
+						}
+					} else if (lua_isstring(L, -2)) {
+						// Treat string value as a path to expand
+						mods["_worldmods_path_" + std::to_string(mods.size())] = lua_tostring(L, -2);
+					}
+				} else if (key == "seed") {
+					if (lua_isstring(L, -2))
+						settings["fixed_map_seed"] = lua_tostring(L, -2);
+					else if (lua_isnumber(L, -2))
+						settings["fixed_map_seed"] = std::to_string(lua_tonumber(L, -2));
+				} else if (key == "synchronizes") {
+					if (lua_isstring(L, -2))
+						settings["synchronizes"] = lua_tostring(L, -2);
+				} else if (key == "visible") {
+					if (lua_isstring(L, -2))
+						settings["visible"] = lua_tostring(L, -2);
+					else if (lua_isboolean(L, -2))
+						settings["visible"] = lua_toboolean(L, -2) ? "visible" : "hidden";
+				} else {
+					if (lua_isstring(L, -2))
+						settings[key] = lua_tostring(L, -2);
+					else if (lua_isboolean(L, -2))
+						settings[key] = lua_toboolean(L, -2) ? "true" : "false";
+					else if (lua_isnumber(L, -2))
+						settings[key] = std::to_string(lua_tonumber(L, -2));
+				}
+			}
+			lua_pop(L, 2); // pop key_copy and value
+		}
+	}
+
+	std::string path = porting::path_user + DIR_DELIM "worlds" + DIR_DELIM +
+			sanitizeDirName(name, "world_");
+
+	SubgameSpec gamespec = findSubgame(gameid);
+	if (!gamespec.isValid()) {
+		lua_pushboolean(L, false);
+		lua_pushstring(L, "Game ID not found");
+		return 2;
+	}
+
+	StringMap backup;
+	for (auto const& [key, value] : settings) {
+		if (g_settings->existsLocal(key))
+			backup[key] = g_settings->get(key);
+		g_settings->set(key, value);
+	}
+
+	std::string final_path;
+	try {
+		final_path = loadGameConfAndInitWorld(path, name, gamespec, true);
+	} catch (const BaseException &e) {
+		for (auto const& [key, value] : settings) {
+			if (backup.count(key))
+				g_settings->set(key, backup[key]);
+			else
+				g_settings->remove(key);
+		}
+
+		lua_pushboolean(L, false);
+		lua_pushstring(L, e.what());
+		return 2;
+	}
+
+	for (auto const& [key, value] : settings) {
+		if (backup.count(key))
+			g_settings->set(key, backup[key]);
+		else
+			g_settings->remove(key);
+	}
+
+	// Now write mods and other settings to world.mt
+	std::string worldmt_path = final_path + DIR_DELIM + "world.mt";
+	Settings conf;
+	conf.readConfigFile(worldmt_path.c_str());
+
+	std::string worldmods_path = final_path + DIR_DELIM + "worldmods";
+
+	infostream << "core.create_world: Writing " << mods.size() << " mods to world.mt" << std::endl;
+
+	for (auto const& [modname, value] : mods) {
+		if (value == "true" || value == "false") {
+			conf.set("load_mod_" + modname, value);
+		} else {
+			// Path provided, copy it to worldmods/
+			std::string src_path = value;
+			if (!fs::IsPathAbsolute(src_path)) {
+				if (!current_mod_path.empty()) {
+					src_path = current_mod_path + DIR_DELIM + src_path;
+				} else {
+					src_path = porting::path_user + DIR_DELIM + src_path;
+				}
+			}
+
+			if (!src_path.empty()) {
+				infostream << "core.create_world: Processing mod path \"" << src_path << "\"" << std::endl;
+
+				if (fs::PathExists(src_path)) {
+					if (!fs::PathExists(worldmods_path)) {
+						infostream << "core.create_world: Creating worldmods directory at \"" << worldmods_path << "\"" << std::endl;
+					}
+					if (fs::CreateAllDirs(worldmods_path)) {
+						// Single mod or modpack check
+						bool is_mod = fs::IsFile(src_path + DIR_DELIM + "init.lua") ||
+								fs::IsFile(src_path + DIR_DELIM + "mod.conf") ||
+								fs::IsFile(src_path + DIR_DELIM + "modpack.conf");
+
+						if (is_mod) {
+							// Copy whole folder to worldmods/modname
+							std::string target_name = modname;
+							if (target_name.find("_worldmods_path_") == 0)
+								target_name = fs::GetFilenameFromPath(src_path.c_str());
+
+							std::string clean_name = sanitizeDirName(target_name, "mod_");
+							std::string dest_path = worldmods_path + DIR_DELIM + clean_name;
+							infostream << "core.create_world: Source path is a single mod/modpack. Copying from \""
+								<< src_path << "\" to \"" << dest_path << "\"" << std::endl;
+							if (fs::CopyDir(src_path, dest_path)) {
+								conf.set("load_mod_" + clean_name, "true");
+							} else {
+								errorstream << "core.create_world: Failed to copy mod folder to \"" << dest_path << "\"" << std::endl;
+							}
+						} else if (fs::IsDir(src_path)) {
+							// Collection of multiple mods, expand its contents into worldmods/
+							infostream << "core.create_world: Source path is a directory. Expanding contents from \""
+								<< src_path << "\" into \"" << worldmods_path << "\"" << std::endl;
+							std::vector<fs::DirListNode> content = fs::GetDirListing(src_path);
+							for (const auto &dln : content) {
+								if (dln.dir) {
+									std::string sub_src = src_path + DIR_DELIM + dln.name;
+									std::string clean_sub_name = sanitizeDirName(dln.name, "mod_");
+									std::string sub_dest = worldmods_path + DIR_DELIM + clean_sub_name;
+									infostream << "core.create_world: Copying sub-mod \"" << clean_sub_name << "\" to \"" << sub_dest << "\"" << std::endl;
+									if (fs::CopyDir(sub_src, sub_dest)) {
+										conf.set("load_mod_" + clean_sub_name, "true");
+									} else {
+										errorstream << "core.create_world: Failed to copy sub-mod \"" << dln.name << "\" to \"" << sub_dest << "\"" << std::endl;
+									}
+								}
+							}
+						} else {
+							warningstream << "core.create_world: Path is not a mod or directory: " << src_path << std::endl;
+						}
+					} else {
+						errorstream << "core.create_world: Failed to ensure worldmods directory at \"" << worldmods_path << "\"" << std::endl;
+					}
+				} else {
+					warningstream << "core.create_world: Source path for mod \"" << modname << "\" does not exist: \"" << src_path << "\"" << std::endl;
+				}
+			}
+		}
+	}
+	for (auto const& [key, value] : settings) {
+		if (key == "fixed_map_seed")
+			continue;
+		if (key == "synchronizes") {
+			std::string sync_target = value;
+			if (!fs::IsPathAbsolute(sync_target)) {
+				// Try to find world by name
+				std::vector<WorldSpec> worlds = getAvailableWorlds();
+				for (const auto &world : worlds) {
+					if (world.name == sync_target) {
+						sync_target = world.path;
+						break;
+					}
+				}
+			}
+			conf.set("synchronizes", sync_target);
+			continue;
+		}
+		conf.set(key, value);
+	}
+	conf.updateConfigFile(worldmt_path.c_str());
+
+	lua_pushboolean(L, true);
+	lua_pushstring(L, final_path.c_str());
+	return 2;
+}
+
 int ModApiServer::l_remove_player(lua_State *L)
 {
 	GET_ENV_PTR_NO_MAP_LOCK;
@@ -728,6 +985,21 @@ int ModApiServer::l_get_worldpath(lua_State *L)
 	return 1;
 }
 
+// get_synchronized_worldpath()
+int ModApiServer::l_get_synchronized_worldpath(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	const Server *srv = getServer(L);
+	std::string worldmt_path = srv->getWorldPath() + DIR_DELIM + "world.mt";
+	Settings world_mt;
+	if (world_mt.readConfigFile(worldmt_path.c_str()) && world_mt.exists("synchronizes")) {
+		lua_pushstring(L, world_mt.get("synchronizes").c_str());
+		return 1;
+	}
+	lua_pushnil(L);
+	return 1;
+}
+
 // get_mod_data_path()
 int ModApiServer::l_get_mod_data_path(lua_State *L)
 {
@@ -932,6 +1204,7 @@ void ModApiServer::Initialize(lua_State *L, int top)
 	API_FCT(get_server_max_lag);
 	API_FCT(get_mod_data_path);
 	API_FCT(get_worldpath);
+	API_FCT(get_synchronized_worldpath);
 	API_FCT(is_singleplayer);
 
 	API_FCT(get_current_modname);
@@ -960,6 +1233,8 @@ void ModApiServer::Initialize(lua_State *L, int top)
 	API_FCT(get_ban_description);
 	API_FCT(ban_player);
 	API_FCT(disconnect_player);
+	API_FCT(world_switch);
+	API_FCT(create_world);
 	API_FCT(remove_player);
 	API_FCT(unban_player_or_ip);
 	API_FCT(notify_authentication_modified);
@@ -973,6 +1248,7 @@ void ModApiServer::Initialize(lua_State *L, int top)
 void ModApiServer::InitializeAsync(lua_State *L, int top)
 {
 	API_FCT(get_worldpath);
+	API_FCT(get_synchronized_worldpath);
 	API_FCT(is_singleplayer);
 
 	API_FCT(get_current_modname);
