@@ -4,8 +4,10 @@
 #pragma once
 
 #include <string>
+#include "irrlichttypes_bloated.h"
 
 class ServerScripting;
+class Client;
 
 #ifdef __ANDROID__
 

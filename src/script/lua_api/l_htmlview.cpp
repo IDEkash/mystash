@@ -496,6 +496,7 @@ int ModApiHTMLView::l_is_supported(lua_State *L)
 	return 1;
 }
 
+#ifndef __ANDROID__
 static void log_htmlview_unavailable(lua_State *L)
 {
 	static bool warned = false;
@@ -504,6 +505,7 @@ static void log_htmlview_unavailable(lua_State *L)
 		warned = true;
 	}
 }
+#endif
 
 void ModApiHTMLView::Initialize(lua_State *L, int top)
 {

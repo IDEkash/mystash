@@ -23,6 +23,7 @@
 #include "util/base64.h"
 #include "util/png.h"
 #include <IImage.h>
+#include <ICameraSceneNode.h>
 
 struct Viewport {
 	v3f pos;
@@ -513,14 +514,13 @@ Java_net_minetest_minetest_HTMLViewManager_nativeGetViewportFrame(
 				auto size = vp->image->getDimension();
 				u32 pixel_count = size.Width * size.Height;
 				std::vector<u8> rgba_data(pixel_count * 4);
-				u8 *src = (u8*)vp->image->lock();
+				u8 *src = (u8*)vp->image->getData();
 				for (u32 i = 0; i < pixel_count; ++i) {
 					rgba_data[i*4+0] = src[i*4+2]; // R
 					rgba_data[i*4+1] = src[i*4+1]; // G
 					rgba_data[i*4+2] = src[i*4+0]; // B
 					rgba_data[i*4+3] = src[i*4+3]; // A
 				}
-				vp->image->unlock();
 				std::string png = encodePNG(rgba_data.data(), size.Width, size.Height, 6);
 
 				jbyteArray arr = env->NewByteArray(png.size());
