@@ -466,8 +466,17 @@ int ModApiHTMLView::l_set_viewport(lua_State *L)
 		return 0;
 	}
 	luaL_checktype(L, 3, LUA_TTABLE);
-	v3f pos = getv3f_default(L, 3, "pos", v3f(0, 0, 0)) * BS;
-	v3f dir = getv3f_default(L, 3, "dir", v3f(0, 0, 1));
+	v3f pos = v3f(0, 0, 0);
+	lua_getfield(L, 3, "pos");
+	if (!lua_isnil(L, -1)) pos = read_v3f(L, -1);
+	lua_pop(L, 1);
+	pos *= BS;
+
+	v3f dir = v3f(0, 0, 1);
+	lua_getfield(L, 3, "dir");
+	if (!lua_isnil(L, -1)) dir = read_v3f(L, -1);
+	lua_pop(L, 1);
+
 	float fov = getfloatfield_default(L, 3, "fov", 70.0f);
 	int w = getintfield_default(L, 3, "width", 256);
 	int h = getintfield_default(L, 3, "height", 256);
