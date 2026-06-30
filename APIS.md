@@ -175,6 +175,36 @@ Within the HTMLView (Javascript):
   - `visible`: boolean
   - `ready`: boolean (`true` after `onPageFinished`)
 
+### Viewports (Secondary Cameras)
+
+Allows rendering a secondary camera view into an HTML element.
+
+`htmlview.set_viewport(id, name, params)`
+- `id`: string (HTMLView instance ID)
+- `name`: string (Viewport name, used in the URL scheme)
+- `params`: table (or `nil` to remove the viewport)
+  - `pos`: vector (world position)
+  - `dir`: vector (look direction)
+  - `fov`: number (Field of View in degrees, default `70`)
+  - `width`: number (render resolution width, default `256`)
+  - `height`: number (render resolution height, default `256`)
+
+**Usage in HTML (Javascript):**
+
+To display the viewport feed, use the custom `luanti-viewport://` scheme. Since it's a live feed, you'll typically want to refresh it periodically.
+
+```html
+<img id="my_camera" src="luanti-viewport://main">
+
+<script>
+    const img = document.getElementById('my_camera');
+    setInterval(() => {
+        // Appending a timestamp prevents caching issues in the WebView
+        img.src = "luanti-viewport://main?t=" + Date.now();
+    }, 50); // ~20 FPS
+</script>
+```
+
 ---
 
 ## glTF multi-clip animation (Lua)
