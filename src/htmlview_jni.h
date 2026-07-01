@@ -8,6 +8,7 @@
 
 class ServerScripting;
 class Client;
+class ScriptApiHTMLView;
 
 #ifdef __ANDROID__
 
@@ -44,7 +45,9 @@ class Client;
 			u32 &refresh_interval_ms, std::string &format, int &quality,
 			bool &smooth_pos, bool &smooth_rot, float &pos_smooth, float &rot_smooth,
 			std::string &update_mode);
+	std::string htmlview_jni_get_viewport_frame(const std::string &id, const std::string &name);
+	std::vector<std::string> htmlview_jni_get_viewport_list(const std::string &id);
 	void htmlview_jni_render_viewports(Client *client, float dtime);
-	void htmlview_jni_poll(ServerScripting *script);
+	void htmlview_jni_poll(ScriptApiHTMLView *script);
 
 #endif

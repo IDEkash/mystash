@@ -633,78 +633,105 @@ bool htmlview_jni_get_viewport(const std::string &id, const std::string &name,
 	return false;
 }
 
+static std::string encode_viewport_frame(Viewport *vp)
+{
+	std::lock_guard<std::mutex> img_lock(vp->image_mutex);
+	if (!vp->image)
+		return "";
+
+	std::string out;
+	if (vp->format == "png") {
+		auto size = vp->image->getDimension();
+		u32 pixel_count = size.Width * size.Height;
+		std::vector<u8> rgba_data(pixel_count * 4);
+		u8 *src = (u8 *)vp->image->getData();
+		for (u32 i = 0; i < pixel_count; ++i) {
+			rgba_data[i * 4 + 0] = src[i * 4 + 2]; // R
+			rgba_data[i * 4 + 1] = src[i * 4 + 1]; // G
+			rgba_data[i * 4 + 2] = src[i * 4 + 0]; // B
+			rgba_data[i * 4 + 3] = src[i * 4 + 3]; // A
+		}
+		out = encodePNG(rgba_data.data(), size.Width, size.Height, 6);
+	} else {
+		// Use Irrlicht's JPEG writer
+		auto driver = RenderingEngine::get_video_driver();
+		auto fs = RenderingEngine::get_raw_device()->getFileSystem();
+
+		// Max size for the buffer: width * height * 3 (uncompressed) should be enough for JPEG
+		u32 max_size = vp->width * vp->height * 3 + 1024;
+		std::vector<u8> buffer(max_size);
+
+		io::IWriteFile *mem_file =
+				fs->createMemoryWriteFile(buffer.data(), max_size, "temp.jpg", false);
+		if (mem_file) {
+			if (driver->writeImageToFile(vp->image, mem_file, vp->quality)) {
+				out.assign((const char *)buffer.data(), mem_file->getPos());
+			}
+			mem_file->drop();
+		}
+
+		if (out.empty()) {
+			// Fallback to PNG if JPEG failed
+			auto size = vp->image->getDimension();
+			u32 pixel_count = size.Width * size.Height;
+			std::vector<u8> rgba_data(pixel_count * 4);
+			u8 *src = (u8 *)vp->image->getData();
+			for (u32 i = 0; i < pixel_count; ++i) {
+				rgba_data[i * 4 + 0] = src[i * 4 + 2]; // R
+				rgba_data[i * 4 + 1] = src[i * 4 + 1]; // G
+				rgba_data[i * 4 + 2] = src[i * 4 + 0]; // B
+				rgba_data[i * 4 + 3] = src[i * 4 + 3]; // A
+			}
+			out = encodePNG(rgba_data.data(), size.Width, size.Height, 6);
+		}
+	}
+	return out;
+}
+
+std::string htmlview_jni_get_viewport_frame(const std::string &id, const std::string &name)
+{
+	std::lock_guard<std::mutex> lock(g_viewport_mutex);
+	auto it = g_viewports.find(id);
+	if (it != g_viewports.end()) {
+		auto it2 = it->second.find(name);
+		if (it2 != it->second.end()) {
+			return encode_viewport_frame(it2->second.get());
+		}
+	}
+	return "";
+}
+
+std::vector<std::string> htmlview_jni_get_viewport_list(const std::string &id)
+{
+	std::vector<std::string> names;
+	std::lock_guard<std::mutex> lock(g_viewport_mutex);
+	auto it = g_viewports.find(id);
+	if (it != g_viewports.end()) {
+		for (const auto &pair : it->second) {
+			names.push_back(pair.first);
+		}
+	}
+	return names;
+}
+
 extern "C" JNIEXPORT jbyteArray JNICALL
 Java_net_minetest_minetest_HTMLViewManager_nativeGetViewportFrame(
 		JNIEnv *env, jclass, jstring id, jstring name)
 {
 	std::string sid = readJavaString(env, id);
 	std::string sname = readJavaString(env, name);
-	std::lock_guard<std::mutex> lock(g_viewport_mutex);
-	auto it = g_viewports.find(sid);
-	if (it != g_viewports.end()) {
-		auto it2 = it->second.find(sname);
-		if (it2 != it->second.end()) {
-			auto &vp = it2->second;
-			std::lock_guard<std::mutex> img_lock(vp->image_mutex);
-			if (vp->image) {
-				std::string out;
-				if (vp->format == "png") {
-					auto size = vp->image->getDimension();
-					u32 pixel_count = size.Width * size.Height;
-					std::vector<u8> rgba_data(pixel_count * 4);
-					u8 *src = (u8*)vp->image->getData();
-					for (u32 i = 0; i < pixel_count; ++i) {
-						rgba_data[i*4+0] = src[i*4+2]; // R
-						rgba_data[i*4+1] = src[i*4+1]; // G
-						rgba_data[i*4+2] = src[i*4+0]; // B
-						rgba_data[i*4+3] = src[i*4+3]; // A
-					}
-					out = encodePNG(rgba_data.data(), size.Width, size.Height, 6);
-				} else {
-					// Use Irrlicht's JPEG writer
-					auto driver = RenderingEngine::get_video_driver();
-					auto fs = RenderingEngine::get_raw_device()->getFileSystem();
+	std::string out = htmlview_jni_get_viewport_frame(sid, sname);
+	if (out.empty())
+		return nullptr;
 
-					// Max size for the buffer: width * height * 3 (uncompressed) should be enough for JPEG
-					u32 max_size = vp->width * vp->height * 3 + 1024;
-					std::vector<u8> buffer(max_size);
-
-					io::IWriteFile *mem_file = fs->createMemoryWriteFile(buffer.data(), max_size, "temp.jpg", false);
-					if (mem_file) {
-						if (driver->writeImageToFile(vp->image, mem_file, vp->quality)) {
-							out.assign((const char*)buffer.data(), mem_file->getPos());
-						}
-						mem_file->drop();
-					}
-
-					if (out.empty()) {
-						// Fallback to PNG if JPEG failed
-						auto size = vp->image->getDimension();
-						u32 pixel_count = size.Width * size.Height;
-						std::vector<u8> rgba_data(pixel_count * 4);
-						u8 *src = (u8*)vp->image->getData();
-						for (u32 i = 0; i < pixel_count; ++i) {
-							rgba_data[i*4+0] = src[i*4+2]; // R
-							rgba_data[i*4+1] = src[i*4+1]; // G
-							rgba_data[i*4+2] = src[i*4+0]; // B
-							rgba_data[i*4+3] = src[i*4+3]; // A
-						}
-						out = encodePNG(rgba_data.data(), size.Width, size.Height, 6);
-					}
-				}
-
-				jbyteArray arr = env->NewByteArray(out.size());
-				env->SetByteArrayRegion(arr, 0, out.size(), (const jbyte*)out.data());
-				return arr;
-			}
-		}
-	}
-	return nullptr;
+	jbyteArray arr = env->NewByteArray(out.size());
+	env->SetByteArrayRegion(arr, 0, out.size(), (const jbyte *)out.data());
+	return arr;
 }
 
-#include "scripting_server.h"
+#include "cpp_api/s_htmlview.h"
 
-void htmlview_jni_poll(ServerScripting *script)
+void htmlview_jni_poll(ScriptApiHTMLView *script)
 {
 	if (!script)
 		return;

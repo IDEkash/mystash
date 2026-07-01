@@ -640,6 +640,39 @@ int ModApiHTMLView::l_remove_viewport(lua_State *L)
 	return 0;
 }
 
+int ModApiHTMLView::l_get_viewport_frame(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
+	std::string id = readParam<std::string>(L, 1);
+	std::string name = readParam<std::string>(L, 2);
+	std::string frame = htmlview_jni_get_viewport_frame(id, name);
+	if (!frame.empty()) {
+		lua_pushlstring(L, frame.data(), frame.size());
+		return 1;
+	}
+#endif
+	lua_pushnil(L);
+	return 1;
+}
+
+int ModApiHTMLView::l_get_viewport_list(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
+	std::string id = readParam<std::string>(L, 1);
+	std::vector<std::string> list = htmlview_jni_get_viewport_list(id);
+	lua_newtable(L);
+	for (size_t i = 0; i < list.size(); i++) {
+		lua_pushlstring(L, list[i].data(), list[i].size());
+		lua_rawseti(L, -2, i + 1);
+	}
+	return 1;
+#endif
+	lua_newtable(L);
+	return 1;
+}
+
 int ModApiHTMLView::l_is_supported(lua_State *L)
 {
 #ifdef __ANDROID__
@@ -703,6 +736,8 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "get_viewport", dummy_nil, tbl);
 		registerFunction(L, "update_viewport", dummy_nil, tbl);
 		registerFunction(L, "remove_viewport", dummy, tbl);
+		registerFunction(L, "get_viewport_frame", dummy_nil, tbl);
+		registerFunction(L, "get_viewport_list", dummy_nil, tbl);
 		registerFunction(L, "is_supported", l_is_supported, tbl);
 #else
 		registerFunction(L, "run", l_run, tbl);
@@ -731,6 +766,8 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "get_viewport", l_get_viewport, tbl);
 		registerFunction(L, "update_viewport", l_update_viewport, tbl);
 		registerFunction(L, "remove_viewport", l_remove_viewport, tbl);
+		registerFunction(L, "get_viewport_frame", l_get_viewport_frame, tbl);
+		registerFunction(L, "get_viewport_list", l_get_viewport_list, tbl);
 		registerFunction(L, "is_supported", l_is_supported, tbl);
 #endif
 

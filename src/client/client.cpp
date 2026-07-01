@@ -15,6 +15,9 @@
 #include "client/particles.h"
 #include "client/renderingengine.h"
 #include "client/sound.h"
+#ifdef __ANDROID__
+#include "htmlview_jni.h"
+#endif
 #include "client/texturepaths.h"
 #include "client/texturesource.h"
 #include "camera.h"
@@ -599,6 +602,10 @@ void Client::step(float dtime)
 	// Step environment (also handles player controls)
 	m_env.step(dtime);
 	m_sound->step(dtime);
+
+#ifdef __ANDROID__
+	htmlview_jni_poll(m_script);
+#endif
 
 	/*
 		Get events
