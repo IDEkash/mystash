@@ -28,6 +28,14 @@
 #include <IVideoDriver.h>
 #include <IWriteFile.h>
 #include <IFileSystem.h>
+#include <ISceneManager.h>
+#include <ISceneCollisionManager.h>
+#include <IBillboardSceneNode.h>
+#include <IMeshSceneNode.h>
+#include <IMesh.h>
+#include <IGeometryCreator.h>
+#include <ISceneNode.h>
+#include <SViewFrustum.h>
 #include "irr_ptr.h"
 
 struct HtmlViewAnchor {

@@ -239,6 +239,9 @@ A convenience API that creates both a viewport and a 3D anchor that displays it.
 - `id`: string
 - `name`: string
 - `params`: table (combines viewport and anchor parameters)
+
+`htmlview.get_viewframeport(id, name) -> table | nil`
+- Returns the current parameters of a viewframeport.
   - `pos`: vector (viewport/camera position OR anchor position if `target` is not set)
   - `dir`: vector (look direction)
   - `fov`: number
