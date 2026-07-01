@@ -33,9 +33,20 @@
 struct Viewport {
 	v3f pos;
 	v3f dir;
+	v3f up = v3f(0, 1, 0);
 	float fov;
+	float tilt = 0.0f;
 	int width;
 	int height;
+
+	v3f target_pos;
+	v3f target_dir;
+	bool smooth_pos = false;
+	bool smooth_rot = false;
+	float pos_smoothing = 0.15f;
+	float rot_smoothing = 0.10f;
+	std::string update_mode = "continuous";
+
 	u32 refresh_interval_ms = 50; // default 20 fps
 	u64 last_render_ms = 0;
 	bool dirty = true;
@@ -344,8 +355,10 @@ void htmlview_jni_capture(const std::string &id, int width, int height)
 }
 
 void htmlview_jni_set_viewport(const std::string &id, const std::string &name,
-		v3f pos, v3f dir, float fov, int width, int height,
-		u32 refresh_interval_ms, const std::string &format, int quality)
+		v3f pos, v3f dir, v3f up, float fov, float tilt, int width, int height,
+		u32 refresh_interval_ms, const std::string &format, int quality,
+		bool smooth_pos, bool smooth_rot, float pos_smooth, float rot_smooth,
+		const std::string &update_mode)
 {
 	std::lock_guard<std::mutex> lock(g_viewport_mutex);
 	auto &vps = g_viewports[id];
@@ -354,29 +367,48 @@ void htmlview_jni_set_viewport(const std::string &id, const std::string &name,
 		auto vp = std::make_unique<Viewport>();
 		vp->pos = pos;
 		vp->dir = dir;
+		vp->up = up;
 		vp->fov = fov;
+		vp->tilt = tilt;
 		vp->width = width;
 		vp->height = height;
+		vp->target_pos = pos;
+		vp->target_dir = dir;
+		vp->smooth_pos = smooth_pos;
+		vp->smooth_rot = smooth_rot;
+		vp->pos_smoothing = pos_smooth;
+		vp->rot_smoothing = rot_smooth;
+		vp->update_mode = update_mode;
 		vp->refresh_interval_ms = refresh_interval_ms;
 		vp->format = format;
 		vp->quality = quality;
 		vp->dirty = true;
 		vps[name] = std::move(vp);
 	} else {
-		if (it->second->pos != pos || it->second->dir != dir || it->second->fov != fov ||
-				it->second->width != width || it->second->height != height) {
-			it->second->dirty = true;
+		auto &vp = it->second;
+		if (vp->fov != fov || vp->width != width || vp->height != height ||
+				vp->format != format || vp->quality != quality || vp->update_mode != update_mode) {
+			vp->dirty = true;
 		}
-		it->second->pos = pos;
-		it->second->dir = dir;
-		it->second->fov = fov;
-		it->second->width = width;
-		it->second->height = height;
-		it->second->refresh_interval_ms = refresh_interval_ms;
-		it->second->format = format;
-		it->second->quality = quality;
-		it->second->active = true;
-		it->second->pending_removal = false;
+		if (!smooth_pos) vp->pos = pos;
+		if (!smooth_rot) vp->dir = dir;
+		vp->target_pos = pos;
+		vp->target_dir = dir;
+		vp->up = up;
+		vp->fov = fov;
+		vp->tilt = tilt;
+		vp->width = width;
+		vp->height = height;
+		vp->smooth_pos = smooth_pos;
+		vp->smooth_rot = smooth_rot;
+		vp->pos_smoothing = pos_smooth;
+		vp->rot_smoothing = rot_smooth;
+		vp->update_mode = update_mode;
+		vp->refresh_interval_ms = refresh_interval_ms;
+		vp->format = format;
+		vp->quality = quality;
+		vp->active = true;
+		vp->pending_removal = false;
 	}
 }
 
@@ -392,7 +424,7 @@ void htmlview_jni_remove_viewport(const std::string &id, const std::string &name
 	}
 }
 
-void htmlview_jni_render_viewports(Client *client)
+void htmlview_jni_render_viewports(Client *client, float dtime)
 {
 	std::lock_guard<std::mutex> lock(g_viewport_mutex);
 	auto driver = RenderingEngine::get_video_driver();
@@ -414,9 +446,41 @@ void htmlview_jni_render_viewports(Client *client)
 				continue;
 			}
 
+			// Apply smoothing
+			if (vp->smooth_pos) {
+				float factor = 1.0f - std::exp(-dtime / std::max(0.001f, vp->pos_smoothing));
+				v3f delta = vp->target_pos - vp->pos;
+				if (delta.getLengthSQ() > 0.0001f) {
+					vp->pos += delta * factor;
+					if (vp->update_mode == "on_change") vp->dirty = true;
+				} else {
+					vp->pos = vp->target_pos;
+				}
+			}
+			if (vp->smooth_rot) {
+				float factor = 1.0f - std::exp(-dtime / std::max(0.001f, vp->rot_smoothing));
+				v3f delta = vp->target_dir - vp->dir;
+				if (delta.getLengthSQ() > 0.0001f) {
+					vp->dir += delta * factor;
+					vp->dir.normalize();
+					if (vp->update_mode == "on_change") vp->dirty = true;
+				} else {
+					vp->dir = vp->target_dir;
+				}
+			}
+
 			u64 now = porting::getTimeMs();
-			if (vp->active && (vp->dirty || (vp->refresh_interval_ms > 0 &&
-					now - vp->last_render_ms >= vp->refresh_interval_ms))) {
+			bool should_render = vp->active;
+			if (vp->update_mode == "manual") {
+				should_render = should_render && vp->dirty;
+			} else if (vp->update_mode == "on_change") {
+				should_render = should_render && vp->dirty;
+			} else { // continuous
+				should_render = should_render && (vp->dirty || (vp->refresh_interval_ms > 0 &&
+						now - vp->last_render_ms >= vp->refresh_interval_ms));
+			}
+
+			if (should_render) {
 				vp->dirty = false;
 				vp->last_render_ms = now;
 
@@ -435,12 +499,22 @@ void htmlview_jni_render_viewports(Client *client)
 					auto old_cam_node = smgr->getActiveCamera();
 					v3f old_pos = old_cam_node->getPosition();
 					v3f old_target = old_cam_node->getTarget();
+					v3f old_up = old_cam_node->getUpVector();
 					float old_fov = old_cam_node->getFOV();
 					float old_aspect = old_cam_node->getAspectRatio();
 
 					// Setup viewport camera
 					old_cam_node->setPosition(vp->pos);
 					old_cam_node->setTarget(vp->pos + vp->dir * 100.0f);
+
+					v3f up = vp->up;
+					if (vp->tilt != 0.0f) {
+						core::quaternion q;
+						q.fromAngleAxis(vp->tilt * core::DEGTORAD, vp->dir);
+						up = q * up;
+					}
+					old_cam_node->setUpVector(up);
+
 					old_cam_node->setFOV(vp->fov * core::DEGTORAD);
 					old_cam_node->setAspectRatio((float)vp->width / vp->height);
 					old_cam_node->updateMatrices();
@@ -463,6 +537,7 @@ void htmlview_jni_render_viewports(Client *client)
 					// Restore camera state
 					old_cam_node->setPosition(old_pos);
 					old_cam_node->setTarget(old_target);
+					old_cam_node->setUpVector(old_up);
 					old_cam_node->setFOV(old_fov);
 					old_cam_node->setAspectRatio(old_aspect);
 					old_cam_node->updateMatrices();
@@ -523,6 +598,39 @@ Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLReady(
 		std::lock_guard<std::mutex> lock(g_msg_mutex);
 		g_events.push_back(std::move(e));
 	}
+}
+
+bool htmlview_jni_get_viewport(const std::string &id, const std::string &name,
+		v3f &pos, v3f &dir, v3f &up, float &fov, float &tilt, int &width, int &height,
+		u32 &refresh_interval_ms, std::string &format, int &quality,
+		bool &smooth_pos, bool &smooth_rot, float &pos_smooth, float &rot_smooth,
+		std::string &update_mode)
+{
+	std::lock_guard<std::mutex> lock(g_viewport_mutex);
+	auto it = g_viewports.find(id);
+	if (it != g_viewports.end()) {
+		auto it2 = it->second.find(name);
+		if (it2 != it->second.end()) {
+			auto &vp = it2->second;
+			pos = vp->target_pos;
+			dir = vp->target_dir;
+			up = vp->up;
+			fov = vp->fov;
+			tilt = vp->tilt;
+			width = vp->width;
+			height = vp->height;
+			refresh_interval_ms = vp->refresh_interval_ms;
+			format = vp->format;
+			quality = vp->quality;
+			smooth_pos = vp->smooth_pos;
+			smooth_rot = vp->smooth_rot;
+			pos_smooth = vp->pos_smoothing;
+			rot_smooth = vp->rot_smoothing;
+			update_mode = vp->update_mode;
+			return true;
+		}
+	}
+	return false;
 }
 
 extern "C" JNIEXPORT jbyteArray JNICALL

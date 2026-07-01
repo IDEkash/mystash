@@ -477,7 +477,13 @@ int ModApiHTMLView::l_set_viewport(lua_State *L)
 	if (!lua_isnil(L, -1)) dir = read_v3f(L, -1);
 	lua_pop(L, 1);
 
+	v3f up = v3f(0, 1, 0);
+	lua_getfield(L, 3, "up");
+	if (!lua_isnil(L, -1)) up = read_v3f(L, -1);
+	lua_pop(L, 1);
+
 	float fov = getfloatfield_default(L, 3, "fov", 70.0f);
+	float tilt = getfloatfield_default(L, 3, "tilt", 0.0f);
 	int w = getintfield_default(L, 3, "width", 256);
 	int h = getintfield_default(L, 3, "height", 256);
 
@@ -493,7 +499,143 @@ int ModApiHTMLView::l_set_viewport(lua_State *L)
 	std::string format = getstringfield_default(L, 3, "format", "jpeg");
 	int quality = getintfield_default(L, 3, "quality", 70);
 
-	htmlview_jni_set_viewport(id, name, pos, dir, fov, w, h, refresh_ms, format, quality);
+	bool smooth_pos = getboolfield_default(L, 3, "smooth_position", false);
+	bool smooth_rot = getboolfield_default(L, 3, "smooth_rotation", false);
+	float pos_smooth = getfloatfield_default(L, 3, "position_smoothing", 0.15f);
+	float rot_smooth = getfloatfield_default(L, 3, "rotation_smoothing", 0.10f);
+	std::string update_mode = getstringfield_default(L, 3, "update_mode", "continuous");
+
+	htmlview_jni_set_viewport(id, name, pos, dir, up, fov, tilt, w, h, refresh_ms, format, quality,
+			smooth_pos, smooth_rot, pos_smooth, rot_smooth, update_mode);
+#endif
+	return 0;
+}
+
+int ModApiHTMLView::l_get_viewport(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
+	std::string id = readParam<std::string>(L, 1);
+	std::string name = readParam<std::string>(L, 2);
+
+	v3f pos, dir, up;
+	float fov, tilt, pos_smooth, rot_smooth;
+	int w, h, quality;
+	u32 refresh_ms;
+	std::string format, update_mode;
+	bool smooth_pos, smooth_rot;
+
+	if (htmlview_jni_get_viewport(id, name, pos, dir, up, fov, tilt, w, h,
+			refresh_ms, format, quality, smooth_pos, smooth_rot, pos_smooth, rot_smooth,
+			update_mode)) {
+		lua_newtable(L);
+		push_v3f(L, pos / BS);
+		lua_setfield(L, -2, "pos");
+		push_v3f(L, dir);
+		lua_setfield(L, -2, "dir");
+		push_v3f(L, up);
+		lua_setfield(L, -2, "up");
+		lua_pushnumber(L, fov);
+		lua_setfield(L, -2, "fov");
+		lua_pushnumber(L, tilt);
+		lua_setfield(L, -2, "tilt");
+		lua_pushinteger(L, w);
+		lua_setfield(L, -2, "width");
+		lua_pushinteger(L, h);
+		lua_setfield(L, -2, "height");
+		lua_pushnumber(L, refresh_ms > 0 ? 1000.0 / refresh_ms : 0);
+		lua_setfield(L, -2, "fps");
+		lua_pushstring(L, format.c_str());
+		lua_setfield(L, -2, "format");
+		lua_pushinteger(L, quality);
+		lua_setfield(L, -2, "quality");
+		lua_pushboolean(L, smooth_pos);
+		lua_setfield(L, -2, "smooth_position");
+		lua_pushboolean(L, smooth_rot);
+		lua_setfield(L, -2, "smooth_rotation");
+		lua_pushnumber(L, pos_smooth);
+		lua_setfield(L, -2, "position_smoothing");
+		lua_pushnumber(L, rot_smooth);
+		lua_setfield(L, -2, "rotation_smoothing");
+		lua_pushstring(L, update_mode.c_str());
+		lua_setfield(L, -2, "update_mode");
+		return 1;
+	}
+#endif
+	lua_pushnil(L);
+	return 1;
+}
+
+int ModApiHTMLView::l_update_viewport(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
+	std::string id = readParam<std::string>(L, 1);
+	std::string name = readParam<std::string>(L, 2);
+	luaL_checktype(L, 3, LUA_TTABLE);
+
+	v3f pos, dir, up;
+	float fov, tilt, pos_smooth, rot_smooth;
+	int w, h, quality;
+	u32 refresh_ms;
+	std::string format, update_mode;
+	bool smooth_pos, smooth_rot;
+
+	if (htmlview_jni_get_viewport(id, name, pos, dir, up, fov, tilt, w, h,
+			refresh_ms, format, quality, smooth_pos, smooth_rot, pos_smooth, rot_smooth,
+			update_mode)) {
+
+		lua_getfield(L, 3, "pos");
+		if (!lua_isnil(L, -1)) pos = read_v3f(L, -1) * BS;
+		lua_pop(L, 1);
+
+		lua_getfield(L, 3, "dir");
+		if (!lua_isnil(L, -1)) dir = read_v3f(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, 3, "up");
+		if (!lua_isnil(L, -1)) up = read_v3f(L, -1);
+		lua_pop(L, 1);
+
+		fov = getfloatfield_default(L, 3, "fov", fov);
+		tilt = getfloatfield_default(L, 3, "tilt", tilt);
+		w = getintfield_default(L, 3, "width", w);
+		h = getintfield_default(L, 3, "height", h);
+
+		lua_getfield(L, 3, "fps");
+		if (lua_isnumber(L, -1)) {
+			float fps = lua_tonumber(L, -1);
+			if (fps > 0) refresh_ms = 1000 / fps;
+			else refresh_ms = 0;
+		}
+		lua_pop(L, 1);
+
+		format = getstringfield_default(L, 3, "format", format.c_str());
+		quality = getintfield_default(L, 3, "quality", quality);
+
+		smooth_pos = getboolfield_default(L, 3, "smooth_position", smooth_pos);
+		smooth_rot = getboolfield_default(L, 3, "smooth_rotation", smooth_rot);
+		pos_smooth = getfloatfield_default(L, 3, "position_smoothing", pos_smooth);
+		rot_smooth = getfloatfield_default(L, 3, "rotation_smoothing", rot_smooth);
+		update_mode = getstringfield_default(L, 3, "update_mode", update_mode.c_str());
+
+		htmlview_jni_set_viewport(id, name, pos, dir, up, fov, tilt, w, h, refresh_ms, format, quality,
+				smooth_pos, smooth_rot, pos_smooth, rot_smooth, update_mode);
+		lua_pushboolean(L, true);
+		return 1;
+	}
+#endif
+	lua_pushboolean(L, false);
+	return 1;
+}
+
+int ModApiHTMLView::l_remove_viewport(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
+	std::string id = readParam<std::string>(L, 1);
+	std::string name = readParam<std::string>(L, 2);
+	htmlview_jni_remove_viewport(id, name);
 #endif
 	return 0;
 }
@@ -558,6 +700,9 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "on_capture", l_on_capture, tbl);
 		registerFunction(L, "on_ready", l_on_ready, tbl);
 		registerFunction(L, "set_viewport", dummy, tbl);
+		registerFunction(L, "get_viewport", dummy_nil, tbl);
+		registerFunction(L, "update_viewport", dummy_nil, tbl);
+		registerFunction(L, "remove_viewport", dummy, tbl);
 		registerFunction(L, "is_supported", l_is_supported, tbl);
 #else
 		registerFunction(L, "run", l_run, tbl);
@@ -583,6 +728,9 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "on_capture", l_on_capture, tbl);
 		registerFunction(L, "on_ready", l_on_ready, tbl);
 		registerFunction(L, "set_viewport", l_set_viewport, tbl);
+		registerFunction(L, "get_viewport", l_get_viewport, tbl);
+		registerFunction(L, "update_viewport", l_update_viewport, tbl);
+		registerFunction(L, "remove_viewport", l_remove_viewport, tbl);
 		registerFunction(L, "is_supported", l_is_supported, tbl);
 #endif
 
