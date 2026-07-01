@@ -647,17 +647,24 @@ int ModApiHTMLView::l_set_anchor(lua_State *L)
 	NO_MAP_LOCK_REQUIRED;
 #ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
-	if (lua_isnoneornil(L, 2)) {
-		htmlview_jni_set_anchor(id, "", v3f(0, 0, 0), 0, v3f(0, 0, 0), v2f(0, 0), v3f(0, 0, 0));
+	std::string name = "main";
+	int table_idx = 2;
+	if (lua_isstring(L, 2)) {
+		name = lua_tostring(L, 2);
+		table_idx = 3;
+	}
+
+	if (lua_isnoneornil(L, table_idx)) {
+		htmlview_jni_remove_anchor(id, name);
 		return 0;
 	}
-	luaL_checktype(L, 2, LUA_TTABLE);
+	luaL_checktype(L, table_idx, LUA_TTABLE);
 
-	std::string type = getstringfield_default(L, 2, "type", "2d");
+	std::string type = getstringfield_default(L, table_idx, "type", "2d");
 	v3f pos = v3f(0, 0, 0);
 	u16 object_id = 0;
 
-	lua_getfield(L, 2, "target");
+	lua_getfield(L, table_idx, "target");
 	if (lua_istable(L, -1)) {
 		pos = read_v3f(L, -1) * BS;
 	} else if (lua_isuserdata(L, -1)) {
@@ -671,24 +678,123 @@ int ModApiHTMLView::l_set_anchor(lua_State *L)
 	lua_pop(L, 1);
 
 	v3f offset = v3f(0, 0, 0);
-	lua_getfield(L, 2, "offset");
+	lua_getfield(L, table_idx, "offset");
 	if (!lua_isnil(L, -1))
 		offset = read_v3f(L, -1) * BS;
 	lua_pop(L, 1);
 
-	v2f size = v2f(0, 0);
-	lua_getfield(L, 2, "size");
+	v2f size = v2f(1, 1);
+	lua_getfield(L, table_idx, "size");
 	if (!lua_isnil(L, -1))
 		size = read_v2f(L, -1);
 	lua_pop(L, 1);
 
 	v3f rotation = v3f(0, 0, 0);
-	lua_getfield(L, 2, "rotation");
+	lua_getfield(L, table_idx, "rotation");
 	if (!lua_isnil(L, -1))
 		rotation = read_v3f(L, -1);
 	lua_pop(L, 1);
 
-	htmlview_jni_set_anchor(id, type, pos, object_id, offset, size, rotation);
+	std::string viewport = getstringfield_default(L, table_idx, "viewport", "");
+
+	htmlview_jni_set_anchor(id, name, type, pos, object_id, offset, size, rotation, viewport);
+#endif
+	return 0;
+}
+
+int ModApiHTMLView::l_remove_anchor(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
+	std::string id = readParam<std::string>(L, 1);
+	std::string name = readParam<std::string>(L, 2);
+	htmlview_jni_remove_anchor(id, name);
+#endif
+	return 0;
+}
+
+int ModApiHTMLView::l_set_viewframeport(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
+	std::string id = readParam<std::string>(L, 1);
+	std::string name = readParam<std::string>(L, 2);
+	if (lua_isnoneornil(L, 3)) {
+		htmlview_jni_remove_viewport(id, name);
+		htmlview_jni_remove_anchor(id, name);
+		return 0;
+	}
+	luaL_checktype(L, 3, LUA_TTABLE);
+
+	// First, set the viewport
+	l_set_viewport(L);
+
+	// Then, set an anchor (billboard) that uses this viewport
+	int params_idx = 3;
+	lua_newtable(L);
+	int new_params_idx = lua_gettop(L);
+
+	lua_getfield(L, params_idx, "target");
+	if (lua_isnil(L, -1)) {
+		lua_pop(L, 1);
+		lua_getfield(L, params_idx, "pos");
+	}
+	lua_setfield(L, new_params_idx, "target");
+
+	lua_getfield(L, params_idx, "offset");
+	lua_setfield(L, new_params_idx, "offset");
+
+	lua_getfield(L, params_idx, "size");
+	lua_setfield(L, new_params_idx, "size");
+
+	lua_getfield(L, params_idx, "rotation");
+	lua_setfield(L, new_params_idx, "rotation");
+
+	lua_getfield(L, params_idx, "anchor_type");
+	if (lua_isnil(L, -1)) {
+		lua_pop(L, 1);
+		lua_pushstring(L, "3d");
+	}
+	lua_setfield(L, new_params_idx, "type");
+
+	lua_pushvalue(L, 2); // viewport name same as anchor name
+	lua_setfield(L, new_params_idx, "viewport");
+
+	// Replace original params with the constructed one and call l_set_anchor
+	lua_replace(L, 3);
+	l_set_anchor(L);
+#endif
+	return 0;
+}
+
+int ModApiHTMLView::l_get_viewframeport(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
+	std::string id = readParam<std::string>(L, 1);
+	std::string name = readParam<std::string>(L, 2);
+
+	// Get viewport part
+	l_get_viewport(L);
+	if (lua_isnil(L, -1)) return 1;
+
+	// We have the viewport table, now we'd ideally add anchor info.
+	// For simplicity, we just return the viewport table for now,
+	// as viewport and anchor share many settings in set_viewframeport.
+	return 1;
+#endif
+	lua_pushnil(L);
+	return 1;
+}
+
+int ModApiHTMLView::l_remove_viewframeport(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
+	std::string id = readParam<std::string>(L, 1);
+	std::string name = readParam<std::string>(L, 2);
+	htmlview_jni_remove_viewport(id, name);
+	htmlview_jni_remove_anchor(id, name);
 #endif
 	return 0;
 }
@@ -792,6 +898,10 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "get_viewport_frame", dummy_nil, tbl);
 		registerFunction(L, "get_viewport_list", dummy_nil, tbl);
 		registerFunction(L, "set_anchor", dummy, tbl);
+		registerFunction(L, "remove_anchor", dummy, tbl);
+		registerFunction(L, "set_viewframeport", dummy, tbl);
+		registerFunction(L, "get_viewframeport", dummy_nil, tbl);
+		registerFunction(L, "remove_viewframeport", dummy, tbl);
 		registerFunction(L, "is_supported", l_is_supported, tbl);
 #else
 		registerFunction(L, "run", l_run, tbl);
@@ -823,6 +933,10 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "get_viewport_frame", l_get_viewport_frame, tbl);
 		registerFunction(L, "get_viewport_list", l_get_viewport_list, tbl);
 		registerFunction(L, "set_anchor", l_set_anchor, tbl);
+		registerFunction(L, "remove_anchor", l_remove_anchor, tbl);
+		registerFunction(L, "set_viewframeport", l_set_viewframeport, tbl);
+		registerFunction(L, "get_viewframeport", l_get_viewframeport, tbl);
+		registerFunction(L, "remove_viewframeport", l_remove_viewframeport, tbl);
 		registerFunction(L, "is_supported", l_is_supported, tbl);
 #endif
 

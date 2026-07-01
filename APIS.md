@@ -185,12 +185,71 @@ Allows rendering a secondary camera view into an HTML element.
 - `params`: table (or `nil` to remove the viewport)
   - `pos`: vector (world position)
   - `dir`: vector (look direction)
+  - `up`: vector (up direction, default `{x=0, y=1, z=0}`)
   - `fov`: number (Field of View in degrees, default `70`)
+  - `tilt`: number (camera roll in degrees, default `0`)
   - `width`: number (render resolution width, default `256`)
   - `height`: number (render resolution height, default `256`)
   - `fps`: number (refresh rate, default `20`. Set to `0` for manual dirty-only updates)
   - `format`: string (`"jpeg"` or `"png"`, default `"jpeg"`)
   - `quality`: number (`1..100`, only for `"jpeg"`, default `70`)
+  - `smooth_position`: boolean (default `false`)
+  - `smooth_rotation`: boolean (default `false`)
+  - `position_smoothing`: number (default `0.15`)
+  - `rotation_smoothing`: number (default `0.10`)
+  - `update_mode`: string (`"continuous"`, `"manual"`, `"on_change"`, default `"continuous"`)
+
+`htmlview.get_viewport(id, name) -> table | nil`
+- Returns the current parameters of a viewport.
+
+`htmlview.update_viewport(id, name, params)`
+- Updates existing viewport parameters. Only fields present in `params` are updated.
+
+`htmlview.remove_viewport(id, name)`
+- Removes a viewport.
+
+`htmlview.get_viewport_frame(id, name) -> string | nil`
+- Returns the current frame of the viewport as a raw binary string (JPEG or PNG).
+
+`htmlview.get_viewport_list(id) -> table`
+- Returns a list of all viewport names for a given HTMLView instance.
+
+### Anchors (3D Billboards & Planes)
+
+Allows attaching WebView content or Viewports to world positions or objects.
+
+`htmlview.set_anchor(id, [name], params)`
+- `id`: string
+- `name`: string (optional, defaults to `"main"`)
+- `params`: table (or `nil` to remove)
+  - `type`: string (`"2d"`, `"3d"`, or `"plane"`, default `"2d"`)
+  - `target`: vector (world position) or ObjectRef
+  - `offset`: vector (offset from target)
+  - `size`: vector2 (width and height for `"3d"`/`"plane"`)
+  - `rotation`: vector (Euler angles for `"plane"`)
+  - `viewport`: string (optional, name of a viewport to display instead of the WebView)
+
+`htmlview.remove_anchor(id, name)`
+
+### Viewframeports (Combined Viewport & Billboard)
+
+A convenience API that creates both a viewport and a 3D anchor that displays it.
+
+`htmlview.set_viewframeport(id, name, params)`
+- `id`: string
+- `name`: string
+- `params`: table (combines viewport and anchor parameters)
+  - `pos`: vector (viewport/camera position OR anchor position if `target` is not set)
+  - `dir`: vector (look direction)
+  - `fov`: number
+  - `width`, `height`: number (resolution)
+  - `fps`: number
+  - `size`: vector2 (billboard size in world)
+  - `anchor_type`: string (`"3d"` or `"plane"`, default `"3d"`)
+  - `offset`: vector (anchor offset from `pos` or `target`)
+  - `target`: vector or ObjectRef (anchor target)
+
+`htmlview.remove_viewframeport(id, name)`
 
 **Usage in HTML (Javascript):**
 

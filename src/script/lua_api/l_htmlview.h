@@ -37,6 +37,10 @@ private:
 	static int l_get_viewport_frame(lua_State *L);
 	static int l_get_viewport_list(lua_State *L);
 	static int l_set_anchor(lua_State *L);
+	static int l_remove_anchor(lua_State *L);
+	static int l_set_viewframeport(lua_State *L);
+	static int l_get_viewframeport(lua_State *L);
+	static int l_remove_viewframeport(lua_State *L);
 	static int l_is_supported(lua_State *L);
 
 public:

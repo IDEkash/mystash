@@ -37,6 +37,7 @@ struct HtmlViewAnchor {
 	v3f offset;
 	v2f size;
 	v3f rotation;
+	std::string viewport_name;
 	scene::ISceneNode *node = nullptr;
 	video::ITexture *texture = nullptr;
 	video::IImage *image = nullptr;
@@ -49,7 +50,7 @@ struct HtmlViewAnchor {
 };
 
 static std::mutex g_anchor_mutex;
-static std::unordered_map<std::string, std::unique_ptr<HtmlViewAnchor>> g_anchors;
+static std::unordered_map<std::string, std::unordered_map<std::string, std::unique_ptr<HtmlViewAnchor>>> g_anchors;
 
 struct Viewport {
 	v3f pos;
@@ -76,6 +77,7 @@ struct Viewport {
 
 	video::ITexture *texture = nullptr;
 	video::IImage *image = nullptr;
+	scene::ICameraSceneNode *camera_node = nullptr;
 	std::mutex image_mutex;
 	bool active = true;
 	bool pending_removal = false;
@@ -269,15 +271,44 @@ void htmlview_jni_run_external_worker(const std::string &id, const std::string &
 void htmlview_jni_stop(const std::string &id)
 {
 	callVoidMethod1Str("htmlview_stop", id);
-	htmlview_jni_set_anchor(id, "", v3f(0, 0, 0), 0, v3f(0, 0, 0), v2f(0, 0));
+	{
+		std::lock_guard<std::mutex> lock(g_anchor_mutex);
+		auto it = g_anchors.find(id);
+		if (it != g_anchors.end()) {
+			for (auto &pair : it->second) {
+				pair.second->pending_removal = true;
+			}
+		}
+	}
+	{
+		std::lock_guard<std::mutex> lock(g_viewport_mutex);
+		auto it = g_viewports.find(id);
+		if (it != g_viewports.end()) {
+			for (auto &pair : it->second) {
+				pair.second->pending_removal = true;
+			}
+		}
+	}
 }
 
 void htmlview_jni_shutdown_all()
 {
 	callVoidMethod0("htmlview_shutdown_all");
-	std::lock_guard<std::mutex> lock(g_anchor_mutex);
-	for (auto &pair : g_anchors) {
-		pair.second->pending_removal = true;
+	{
+		std::lock_guard<std::mutex> lock(g_anchor_mutex);
+		for (auto &pair : g_anchors) {
+			for (auto &pair2 : pair.second) {
+				pair2.second->pending_removal = true;
+			}
+		}
+	}
+	{
+		std::lock_guard<std::mutex> lock(g_viewport_mutex);
+		for (auto &pair : g_viewports) {
+			for (auto &pair2 : pair.second) {
+				pair2.second->pending_removal = true;
+			}
+		}
 	}
 }
 
@@ -450,18 +481,21 @@ void htmlview_jni_remove_viewport(const std::string &id, const std::string &name
 	}
 }
 
-void htmlview_jni_set_anchor(const std::string &id, const std::string &type,
-		v3f pos, u16 object_id, v3f offset, v2f size, v3f rotation)
+void htmlview_jni_set_anchor(const std::string &id, const std::string &name,
+		const std::string &type, v3f pos, u16 object_id, v3f offset,
+		v2f size, v3f rotation, const std::string &viewport_name)
 {
 	std::lock_guard<std::mutex> lock(g_anchor_mutex);
-	auto it = g_anchors.find(id);
+	auto &instances = g_anchors[id];
+	auto it = instances.find(name);
+
 	if (type.empty()) {
-		if (it != g_anchors.end())
+		if (it != instances.end())
 			it->second->pending_removal = true;
 		return;
 	}
 
-	auto &anchor = g_anchors[id];
+	auto &anchor = instances[name];
 	if (!anchor)
 		anchor = std::make_unique<HtmlViewAnchor>();
 
@@ -476,7 +510,21 @@ void htmlview_jni_set_anchor(const std::string &id, const std::string &type,
 	anchor->offset = offset;
 	anchor->size = size;
 	anchor->rotation = rotation;
+	anchor->viewport_name = viewport_name;
 	anchor->active = true;
+	anchor->pending_removal = false;
+}
+
+void htmlview_jni_remove_anchor(const std::string &id, const std::string &name)
+{
+	std::lock_guard<std::mutex> lock(g_anchor_mutex);
+	auto it = g_anchors.find(id);
+	if (it != g_anchors.end()) {
+		auto it2 = it->second.find(name);
+		if (it2 != it->second.end()) {
+			it2->second->pending_removal = true;
+		}
+	}
 }
 
 static void htmlview_jni_update_anchors(Client *client, float dtime)
@@ -486,130 +534,145 @@ static void htmlview_jni_update_anchors(Client *client, float dtime)
 	auto coll = smgr->getSceneCollisionManager();
 	auto camera = smgr->getActiveCamera();
 
-	std::lock_guard<std::mutex> lock(g_anchor_mutex);
-	for (auto it = g_anchors.begin(); it != g_anchors.end(); ) {
-		auto &anchor = it->second;
+	// Note: Locks (g_viewport_mutex, g_anchor_mutex) must be held by caller
+	// in that specific order to avoid deadlocks.
+	for (auto &pair : g_anchors) {
+		const std::string &id = pair.first;
+		auto &instances = pair.second;
 
-		if (anchor->pending_removal) {
-			if (anchor->node)
-				anchor->node->remove();
-			if (anchor->texture)
-				driver->removeTexture(anchor->texture);
-			{
-				std::lock_guard<std::mutex> img_lock(anchor->image_mutex);
-				if (anchor->image)
-					anchor->image->drop();
+		for (auto it = instances.begin(); it != instances.end(); ) {
+			auto &anchor = it->second;
+
+			if (anchor->pending_removal) {
+				if (anchor->node)
+					anchor->node->remove();
+				if (anchor->texture)
+					driver->removeTexture(anchor->texture);
+				{
+					std::lock_guard<std::mutex> img_lock(anchor->image_mutex);
+					if (anchor->image)
+						anchor->image->drop();
+				}
+				it = instances.erase(it);
+				continue;
 			}
-			it = g_anchors.erase(it);
-			continue;
-		}
 
-		v3f world_pos = anchor->pos;
-		if (anchor->object_id != 0) {
-			auto obj = client->getEnv().getActiveObject(anchor->object_id);
-			if (obj) {
-				world_pos = obj->getPosition();
-			} else {
-				// Object gone, keep last pos or hide?
-				// For now let's just use the pos.
+			v3f world_pos = anchor->pos;
+			if (anchor->object_id != 0) {
+				auto obj = client->getEnv().getActiveObject(anchor->object_id);
+				if (obj) {
+					world_pos = obj->getPosition();
+				}
 			}
-		}
-		world_pos += anchor->offset;
+			world_pos += anchor->offset;
 
-		if (anchor->type == "2d") {
-			core::position2d<s32> screen_pos =
-					coll->getScreenCoordinatesFrom3DPosition(world_pos, camera);
+			if (anchor->type == "2d") {
+				core::position2d<s32> screen_pos =
+						coll->getScreenCoordinatesFrom3DPosition(world_pos, camera);
 
-			// check if behind camera
-			core::matrix4 trans = camera->getProjectionMatrix();
-			trans *= camera->getViewMatrix();
-			f32 w = trans[3] * world_pos.X + trans[7] * world_pos.Y + trans[11] * world_pos.Z +
-					trans[15];
-			bool visible = w > 0;
+				// check if behind camera
+				core::matrix4 trans = camera->getProjectionMatrix();
+				trans *= camera->getViewMatrix();
+				f32 w = trans[3] * world_pos.X + trans[7] * world_pos.Y + trans[11] * world_pos.Z +
+						trans[15];
+				bool visible = w > 0;
 
-			// Call JNI to reposition
-			JNIEnv *env = porting::getJNIEnv();
-			jmethodID mid = env->GetMethodID(porting::activityClass, "htmlview_reposition",
-					"(Ljava/lang/String;IIZ)V");
-			if (mid) {
-				jstring jid = env->NewStringUTF(it->first.c_str());
-				env->CallVoidMethod(porting::activity, mid, jid, (jint)screen_pos.X,
-						(jint)screen_pos.Y, (jboolean)visible);
-				env->DeleteLocalRef(jid);
-			}
-		} else if (anchor->type == "3d" || anchor->type == "plane") {
-			if (!anchor->node) {
+				// Call JNI to reposition
+				JNIEnv *env = porting::getJNIEnv();
+				jmethodID mid = env->GetMethodID(porting::activityClass, "htmlview_reposition",
+						"(Ljava/lang/String;IIZ)V");
+				if (mid) {
+					jstring jid = env->NewStringUTF(id.c_str());
+					env->CallVoidMethod(porting::activity, mid, jid, (jint)screen_pos.X,
+							(jint)screen_pos.Y, (jboolean)visible);
+					env->DeleteLocalRef(jid);
+				}
+			} else if (anchor->type == "3d" || anchor->type == "plane") {
+				if (!anchor->node) {
+					if (anchor->type == "3d") {
+						anchor->node = smgr->addBillboardSceneNode(nullptr,
+								core::dimension2d<f32>(anchor->size.X, anchor->size.Y));
+					} else {
+						scene::IMesh *mesh = smgr->getGeometryCreator()->createPlaneMesh(
+								core::dimension2d<f32>(anchor->size.X, anchor->size.Y),
+								core::dimension2d<u32>(1, 1));
+						anchor->node = smgr->addMeshSceneNode(mesh);
+						mesh->drop();
+					}
+					anchor->node->setMaterialFlag(video::EMF_LIGHTING, false);
+					anchor->node->setMaterialType(video::EMT_TRANSPARENT_ALPHA_CHANNEL);
+				}
+				anchor->node->setPosition(world_pos);
 				if (anchor->type == "3d") {
-					anchor->node = smgr->addBillboardSceneNode(nullptr,
-							core::dimension2d<f32>(anchor->size.X, anchor->size.Y));
+					static_cast<scene::IBillboardSceneNode *>(anchor->node)
+							->setSize(core::dimension2d<f32>(anchor->size.X, anchor->size.Y));
 				} else {
-					// Create a plane mesh (default is horizontal XZ)
-					// We want it to be vertical XY for "plane" usually,
-					// but createPlaneMesh is XZ. User can rotate it.
-					scene::IMesh *mesh = smgr->getGeometryCreator()->createPlaneMesh(
-							core::dimension2d<f32>(anchor->size.X, anchor->size.Y),
-							core::dimension2d<u32>(1, 1));
-					anchor->node = smgr->addMeshSceneNode(mesh);
-					mesh->drop();
+					anchor->node->setRotation(anchor->rotation);
 				}
-				anchor->node->setMaterialFlag(video::EMF_LIGHTING, false);
-				anchor->node->setMaterialType(video::EMT_TRANSPARENT_ALPHA_CHANNEL);
-			}
-			anchor->node->setPosition(world_pos);
-			if (anchor->type == "3d") {
-				static_cast<scene::IBillboardSceneNode *>(anchor->node)
-						->setSize(core::dimension2d<f32>(anchor->size.X, anchor->size.Y));
-			} else {
-				anchor->node->setRotation(anchor->rotation);
-			}
 
-			// Frustum culling for texture updates
-			bool in_frustum = true;
-			if (anchor->node) {
-				core::aabbox3df box = anchor->node->getBoundingBox();
-				anchor->node->getAbsoluteTransformation().transformBoxEx(box);
-				if (!camera->getViewFrustum()->getBoundingBox().intersectsWithBox(box)) {
-					in_frustum = false;
-				}
-			}
-
-			u64 now = porting::getTimeMs();
-			if (in_frustum && now - anchor->last_request_ms > 33) { // limit to ~30fps request
-				anchor->last_request_ms = now;
-				callVoidMethod1Str("htmlview_request_texture_update", it->first);
-			}
-
-			std::lock_guard<std::mutex> img_lock(anchor->image_mutex);
-			if (anchor->image_dirty && anchor->image) {
-				core::dimension2du size = anchor->image->getDimension();
-				if (!anchor->texture || anchor->texture->getSize() != size) {
-					if (anchor->texture)
-						driver->removeTexture(anchor->texture);
-					static int tex_id = 0;
-					std::string tex_name = "htmlview_anchor_" + std::to_string(tex_id++);
-					anchor->texture = driver->addTexture(tex_name.c_str(), anchor->image);
+				if (!anchor->viewport_name.empty()) {
+					// Use viewport texture
+					auto it_vps = g_viewports.find(id);
+					if (it_vps != g_viewports.end()) {
+						auto it_vp = it_vps->second.find(anchor->viewport_name);
+						if (it_vp != it_vps->second.end()) {
+							if (it_vp->second->texture) {
+								anchor->node->setMaterialTexture(0, it_vp->second->texture);
+							}
+						}
+					}
 				} else {
-					void *data = anchor->texture->lock();
-					if (data) {
-						memcpy(data, anchor->image->getData(),
-								size.Width * size.Height * 4);
-						anchor->texture->unlock();
+					// Use WebView texture
+					// Frustum culling for texture updates
+					bool in_frustum = true;
+					if (anchor->node) {
+						core::aabbox3df box = anchor->node->getBoundingBox();
+						anchor->node->getAbsoluteTransformation().transformBoxEx(box);
+						if (!camera->getViewFrustum()->getBoundingBox().intersectsWithBox(box)) {
+							in_frustum = false;
+						}
+					}
+
+					u64 now = porting::getTimeMs();
+					if (in_frustum && now - anchor->last_request_ms > 33) {
+						anchor->last_request_ms = now;
+						callVoidMethod1Str("htmlview_request_texture_update", id);
+					}
+
+					std::lock_guard<std::mutex> img_lock(anchor->image_mutex);
+					if (anchor->image_dirty && anchor->image) {
+						core::dimension2du size = anchor->image->getDimension();
+						if (!anchor->texture || anchor->texture->getSize() != size) {
+							if (anchor->texture)
+								driver->removeTexture(anchor->texture);
+							static int tex_id = 0;
+							std::string tex_name = "htmlview_anchor_" + std::to_string(tex_id++);
+							anchor->texture = driver->addTexture(tex_name.c_str(), anchor->image);
+						} else {
+							void *data = anchor->texture->lock();
+							if (data) {
+								memcpy(data, anchor->image->getData(),
+										size.Width * size.Height * 4);
+								anchor->texture->unlock();
+							}
+						}
+						anchor->node->setMaterialTexture(0, anchor->texture);
+						anchor->image_dirty = false;
 					}
 				}
-				anchor->node->setMaterialTexture(0, anchor->texture);
-				anchor->image_dirty = false;
 			}
+			++it;
 		}
-
-		++it;
 	}
 }
 
 void htmlview_jni_render_viewports(Client *client, float dtime)
 {
+	std::lock_guard<std::mutex> vp_lock(g_viewport_mutex);
+	std::lock_guard<std::mutex> anchor_lock(g_anchor_mutex);
+
 	htmlview_jni_update_anchors(client, dtime);
 
-	std::lock_guard<std::mutex> lock(g_viewport_mutex);
 	auto driver = RenderingEngine::get_video_driver();
 	auto smgr = RenderingEngine::get_raw_device()->getSceneManager();
 
@@ -618,8 +681,24 @@ void htmlview_jni_render_viewports(Client *client, float dtime)
 		for (auto it = vps.begin(); it != vps.end(); ) {
 			auto &vp = it->second;
 			if (vp->pending_removal) {
+				// Clear texture from any anchor referencing this viewport
+				auto it_ans = g_anchors.find(pair.first);
+				if (it_ans != g_anchors.end()) {
+					for (auto &pair_an : it_ans->second) {
+						if (pair_an.second->viewport_name == it->first) {
+							if (pair_an.second->node)
+								pair_an.second->node->setMaterialTexture(0, nullptr);
+							pair_an.second->viewport_name = "";
+						}
+					}
+				}
+
 				if (vp->texture)
 					driver->removeTexture(vp->texture);
+				if (vp->camera_node) {
+					vp->camera_node->remove();
+					vp->camera_node = nullptr;
+				}
 				{
 					std::lock_guard<std::mutex> img_lock(vp->image_mutex);
 					if (vp->image)
@@ -678,17 +757,16 @@ void htmlview_jni_render_viewports(Client *client, float dtime)
 				}
 
 				if (vp->texture) {
-					// Save current camera state
+					if (!vp->camera_node) {
+						vp->camera_node = smgr->addCameraSceneNode();
+					}
+
 					auto old_cam_node = smgr->getActiveCamera();
-					v3f old_pos = old_cam_node->getPosition();
-					v3f old_target = old_cam_node->getTarget();
-					v3f old_up = old_cam_node->getUpVector();
-					float old_fov = old_cam_node->getFOV();
-					float old_aspect = old_cam_node->getAspectRatio();
+					smgr->setActiveCamera(vp->camera_node);
 
 					// Setup viewport camera
-					old_cam_node->setPosition(vp->pos);
-					old_cam_node->setTarget(vp->pos + vp->dir * 100.0f);
+					vp->camera_node->setPosition(vp->pos);
+					vp->camera_node->setTarget(vp->pos + vp->dir * 100.0f);
 
 					v3f up = vp->up;
 					if (vp->tilt != 0.0f) {
@@ -696,11 +774,11 @@ void htmlview_jni_render_viewports(Client *client, float dtime)
 						q.fromAngleAxis(vp->tilt * core::DEGTORAD, vp->dir);
 						up = q * up;
 					}
-					old_cam_node->setUpVector(up);
+					vp->camera_node->setUpVector(up);
 
-					old_cam_node->setFOV(vp->fov * core::DEGTORAD);
-					old_cam_node->setAspectRatio((float)vp->width / vp->height);
-					old_cam_node->updateMatrices();
+					vp->camera_node->setFOV(vp->fov * core::DEGTORAD);
+					vp->camera_node->setAspectRatio((float)vp->width / vp->height);
+					vp->camera_node->updateMatrices();
 
 					// Render to texture
 					driver->setRenderTarget(vp->texture, true, true, video::SColor(255, 0, 0, 0));
@@ -716,14 +794,7 @@ void htmlview_jni_render_viewports(Client *client, float dtime)
 					}
 
 					driver->setRenderTarget(0, false, false);
-
-					// Restore camera state
-					old_cam_node->setPosition(old_pos);
-					old_cam_node->setTarget(old_target);
-					old_cam_node->setUpVector(old_up);
-					old_cam_node->setFOV(old_fov);
-					old_cam_node->setAspectRatio(old_aspect);
-					old_cam_node->updateMatrices();
+					smgr->setActiveCamera(old_cam_node);
 				}
 			}
 			++it;
@@ -804,23 +875,27 @@ Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLTextureUpdate(
 	std::lock_guard<std::mutex> lock(g_anchor_mutex);
 	auto it = g_anchors.find(sid);
 	if (it != g_anchors.end()) {
-		auto &anchor = it->second;
-		u32 hsh = quick_hash(data, w * h * 4);
-		if (hsh == anchor->last_image_hash)
-			return;
-		anchor->last_image_hash = hsh;
+		for (auto &pair : it->second) {
+			auto &anchor = pair.second;
+			if (!anchor->viewport_name.empty()) continue; // Skip viewport anchors
 
-		std::lock_guard<std::mutex> img_lock(anchor->image_mutex);
-		core::dimension2du size(w, h);
-		if (!anchor->image || anchor->image->getDimension() != size) {
-			if (anchor->image)
-				anchor->image->drop();
-			auto driver = RenderingEngine::get_video_driver();
-			anchor->image = driver->createImage(video::ECF_A8R8G8B8, size);
-		}
-		if (anchor->image) {
-			memcpy(anchor->image->getData(), data, w * h * 4);
-			anchor->image_dirty = true;
+			u32 hsh = quick_hash(data, w * h * 4);
+			if (hsh == anchor->last_image_hash)
+				continue;
+			anchor->last_image_hash = hsh;
+
+			std::lock_guard<std::mutex> img_lock(anchor->image_mutex);
+			core::dimension2du size(w, h);
+			if (!anchor->image || anchor->image->getDimension() != size) {
+				if (anchor->image)
+					anchor->image->drop();
+				auto driver = RenderingEngine::get_video_driver();
+				anchor->image = driver->createImage(video::ECF_A8R8G8B8, size);
+			}
+			if (anchor->image) {
+				memcpy(anchor->image->getData(), data, w * h * 4);
+				anchor->image_dirty = true;
+			}
 		}
 	}
 }
