@@ -47,6 +47,8 @@ class ScriptApiHTMLView;
 			std::string &update_mode);
 	std::string htmlview_jni_get_viewport_frame(const std::string &id, const std::string &name);
 	std::vector<std::string> htmlview_jni_get_viewport_list(const std::string &id);
+	void htmlview_jni_set_anchor(const std::string &id, const std::string &type,
+			v3f pos, u16 object_id, v3f offset, v2f size, v3f rotation);
 	void htmlview_jni_render_viewports(Client *client, float dtime);
 	void htmlview_jni_poll(ScriptApiHTMLView *script);
 

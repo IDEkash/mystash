@@ -169,6 +169,16 @@ public class GameActivity extends SDLActivity {
 				drag_embed, border_radius);
 	}
 
+	public void htmlview_reposition(String id, int x, int y, boolean visible) {
+		if (mHtmlViewManager != null)
+			mHtmlViewManager.htmlview_reposition(id, x, y, visible);
+	}
+
+	public void htmlview_request_texture_update(String id) {
+		if (mHtmlViewManager != null)
+			mHtmlViewManager.htmlview_request_texture_update(id);
+	}
+
 	public void htmlview_input(String id, boolean blockGameInput) {
 		if (mHtmlViewManager != null)
 			mHtmlViewManager.htmlview_input(id, blockGameInput);

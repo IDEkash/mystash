@@ -30,6 +30,27 @@
 #include <IFileSystem.h>
 #include "irr_ptr.h"
 
+struct HtmlViewAnchor {
+	std::string type;
+	v3f pos;
+	u16 object_id;
+	v3f offset;
+	v2f size;
+	v3f rotation;
+	scene::ISceneNode *node = nullptr;
+	video::ITexture *texture = nullptr;
+	video::IImage *image = nullptr;
+	std::mutex image_mutex;
+	bool image_dirty = false;
+	u32 last_image_hash = 0;
+	u64 last_request_ms = 0;
+	bool active = true;
+	bool pending_removal = false;
+};
+
+static std::mutex g_anchor_mutex;
+static std::unordered_map<std::string, std::unique_ptr<HtmlViewAnchor>> g_anchors;
+
 struct Viewport {
 	v3f pos;
 	v3f dir;
@@ -248,11 +269,16 @@ void htmlview_jni_run_external_worker(const std::string &id, const std::string &
 void htmlview_jni_stop(const std::string &id)
 {
 	callVoidMethod1Str("htmlview_stop", id);
+	htmlview_jni_set_anchor(id, "", v3f(0, 0, 0), 0, v3f(0, 0, 0), v2f(0, 0));
 }
 
 void htmlview_jni_shutdown_all()
 {
 	callVoidMethod0("htmlview_shutdown_all");
+	std::lock_guard<std::mutex> lock(g_anchor_mutex);
+	for (auto &pair : g_anchors) {
+		pair.second->pending_removal = true;
+	}
 }
 
 void htmlview_jni_reload(const std::string &id)
@@ -424,8 +450,165 @@ void htmlview_jni_remove_viewport(const std::string &id, const std::string &name
 	}
 }
 
+void htmlview_jni_set_anchor(const std::string &id, const std::string &type,
+		v3f pos, u16 object_id, v3f offset, v2f size, v3f rotation)
+{
+	std::lock_guard<std::mutex> lock(g_anchor_mutex);
+	auto it = g_anchors.find(id);
+	if (type.empty()) {
+		if (it != g_anchors.end())
+			it->second->pending_removal = true;
+		return;
+	}
+
+	auto &anchor = g_anchors[id];
+	if (!anchor)
+		anchor = std::make_unique<HtmlViewAnchor>();
+
+	if (anchor->node && anchor->type != type) {
+		anchor->node->remove();
+		anchor->node = nullptr;
+	}
+
+	anchor->type = type;
+	anchor->pos = pos;
+	anchor->object_id = object_id;
+	anchor->offset = offset;
+	anchor->size = size;
+	anchor->rotation = rotation;
+	anchor->active = true;
+}
+
+static void htmlview_jni_update_anchors(Client *client, float dtime)
+{
+	auto driver = RenderingEngine::get_video_driver();
+	auto smgr = RenderingEngine::get_raw_device()->getSceneManager();
+	auto coll = smgr->getSceneCollisionManager();
+	auto camera = smgr->getActiveCamera();
+
+	std::lock_guard<std::mutex> lock(g_anchor_mutex);
+	for (auto it = g_anchors.begin(); it != g_anchors.end(); ) {
+		auto &anchor = it->second;
+
+		if (anchor->pending_removal) {
+			if (anchor->node)
+				anchor->node->remove();
+			if (anchor->texture)
+				driver->removeTexture(anchor->texture);
+			{
+				std::lock_guard<std::mutex> img_lock(anchor->image_mutex);
+				if (anchor->image)
+					anchor->image->drop();
+			}
+			it = g_anchors.erase(it);
+			continue;
+		}
+
+		v3f world_pos = anchor->pos;
+		if (anchor->object_id != 0) {
+			auto obj = client->getEnv().getActiveObject(anchor->object_id);
+			if (obj) {
+				world_pos = obj->getPosition();
+			} else {
+				// Object gone, keep last pos or hide?
+				// For now let's just use the pos.
+			}
+		}
+		world_pos += anchor->offset;
+
+		if (anchor->type == "2d") {
+			core::position2d<s32> screen_pos =
+					coll->getScreenCoordinatesFrom3DPosition(world_pos, camera);
+
+			// check if behind camera
+			core::matrix4 trans = camera->getProjectionMatrix();
+			trans *= camera->getViewMatrix();
+			f32 w = trans[3] * world_pos.X + trans[7] * world_pos.Y + trans[11] * world_pos.Z +
+					trans[15];
+			bool visible = w > 0;
+
+			// Call JNI to reposition
+			JNIEnv *env = porting::getJNIEnv();
+			jmethodID mid = env->GetMethodID(porting::activityClass, "htmlview_reposition",
+					"(Ljava/lang/String;IIZ)V");
+			if (mid) {
+				jstring jid = env->NewStringUTF(it->first.c_str());
+				env->CallVoidMethod(porting::activity, mid, jid, (jint)screen_pos.X,
+						(jint)screen_pos.Y, (jboolean)visible);
+				env->DeleteLocalRef(jid);
+			}
+		} else if (anchor->type == "3d" || anchor->type == "plane") {
+			if (!anchor->node) {
+				if (anchor->type == "3d") {
+					anchor->node = smgr->addBillboardSceneNode(nullptr,
+							core::dimension2d<f32>(anchor->size.X, anchor->size.Y));
+				} else {
+					// Create a plane mesh (default is horizontal XZ)
+					// We want it to be vertical XY for "plane" usually,
+					// but createPlaneMesh is XZ. User can rotate it.
+					scene::IMesh *mesh = smgr->getGeometryCreator()->createPlaneMesh(
+							core::dimension2d<f32>(anchor->size.X, anchor->size.Y),
+							core::dimension2d<u32>(1, 1));
+					anchor->node = smgr->addMeshSceneNode(mesh);
+					mesh->drop();
+				}
+				anchor->node->setMaterialFlag(video::EMF_LIGHTING, false);
+				anchor->node->setMaterialType(video::EMT_TRANSPARENT_ALPHA_CHANNEL);
+			}
+			anchor->node->setPosition(world_pos);
+			if (anchor->type == "3d") {
+				static_cast<scene::IBillboardSceneNode *>(anchor->node)
+						->setSize(core::dimension2d<f32>(anchor->size.X, anchor->size.Y));
+			} else {
+				anchor->node->setRotation(anchor->rotation);
+			}
+
+			// Frustum culling for texture updates
+			bool in_frustum = true;
+			if (anchor->node) {
+				core::aabbox3df box = anchor->node->getBoundingBox();
+				anchor->node->getAbsoluteTransformation().transformBoxEx(box);
+				if (!camera->getViewFrustum()->getBoundingBox().intersectsWithBox(box)) {
+					in_frustum = false;
+				}
+			}
+
+			u64 now = porting::getTimeMs();
+			if (in_frustum && now - anchor->last_request_ms > 33) { // limit to ~30fps request
+				anchor->last_request_ms = now;
+				callVoidMethod1Str("htmlview_request_texture_update", it->first);
+			}
+
+			std::lock_guard<std::mutex> img_lock(anchor->image_mutex);
+			if (anchor->image_dirty && anchor->image) {
+				core::dimension2du size = anchor->image->getDimension();
+				if (!anchor->texture || anchor->texture->getSize() != size) {
+					if (anchor->texture)
+						driver->removeTexture(anchor->texture);
+					static int tex_id = 0;
+					std::string tex_name = "htmlview_anchor_" + std::to_string(tex_id++);
+					anchor->texture = driver->addTexture(tex_name.c_str(), anchor->image);
+				} else {
+					void *data = anchor->texture->lock();
+					if (data) {
+						memcpy(data, anchor->image->getData(),
+								size.Width * size.Height * 4);
+						anchor->texture->unlock();
+					}
+				}
+				anchor->node->setMaterialTexture(0, anchor->texture);
+				anchor->image_dirty = false;
+			}
+		}
+
+		++it;
+	}
+}
+
 void htmlview_jni_render_viewports(Client *client, float dtime)
 {
+	htmlview_jni_update_anchors(client, dtime);
+
 	std::lock_guard<std::mutex> lock(g_viewport_mutex);
 	auto driver = RenderingEngine::get_video_driver();
 	auto smgr = RenderingEngine::get_raw_device()->getSceneManager();
@@ -600,6 +783,48 @@ Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLReady(
 	}
 }
 
+static u32 quick_hash(const void *data, size_t size)
+{
+	u32 hash = 5381;
+	const u8 *p = (const u8 *)data;
+	for (size_t i = 0; i < size; i++)
+		hash = ((hash << 5) + hash) + p[i];
+	return hash;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLTextureUpdate(
+		JNIEnv *env, jclass, jstring id, jobject byteBuffer, jint w, jint h)
+{
+	std::string sid = readJavaString(env, id);
+	void *data = env->GetDirectBufferAddress(byteBuffer);
+	if (!data)
+		return;
+
+	std::lock_guard<std::mutex> lock(g_anchor_mutex);
+	auto it = g_anchors.find(sid);
+	if (it != g_anchors.end()) {
+		auto &anchor = it->second;
+		u32 hsh = quick_hash(data, w * h * 4);
+		if (hsh == anchor->last_image_hash)
+			return;
+		anchor->last_image_hash = hsh;
+
+		std::lock_guard<std::mutex> img_lock(anchor->image_mutex);
+		core::dimension2du size(w, h);
+		if (!anchor->image || anchor->image->getDimension() != size) {
+			if (anchor->image)
+				anchor->image->drop();
+			auto driver = RenderingEngine::get_video_driver();
+			anchor->image = driver->createImage(video::ECF_A8R8G8B8, size);
+		}
+		if (anchor->image) {
+			memcpy(anchor->image->getData(), data, w * h * 4);
+			anchor->image_dirty = true;
+		}
+	}
+}
+
 bool htmlview_jni_get_viewport(const std::string &id, const std::string &name,
 		v3f &pos, v3f &dir, v3f &up, float &fov, float &tilt, int &width, int &height,
 		u32 &refresh_interval_ms, std::string &format, int &quality,
@@ -633,57 +858,52 @@ bool htmlview_jni_get_viewport(const std::string &id, const std::string &name,
 	return false;
 }
 
+static std::string encode_image_to_png(video::IImage *image)
+{
+	auto size = image->getDimension();
+	u32 pixel_count = size.Width * size.Height;
+	std::vector<u8> rgba_data(pixel_count * 4);
+	u8 *src = (u8 *)image->getData();
+	for (u32 i = 0; i < pixel_count; ++i) {
+		rgba_data[i * 4 + 0] = src[i * 4 + 2]; // R
+		rgba_data[i * 4 + 1] = src[i * 4 + 1]; // G
+		rgba_data[i * 4 + 2] = src[i * 4 + 0]; // B
+		rgba_data[i * 4 + 3] = src[i * 4 + 3]; // A
+	}
+	return encodePNG(rgba_data.data(), size.Width, size.Height, 6);
+}
+
 static std::string encode_viewport_frame(Viewport *vp)
 {
 	std::lock_guard<std::mutex> img_lock(vp->image_mutex);
 	if (!vp->image)
 		return "";
 
-	std::string out;
 	if (vp->format == "png") {
-		auto size = vp->image->getDimension();
-		u32 pixel_count = size.Width * size.Height;
-		std::vector<u8> rgba_data(pixel_count * 4);
-		u8 *src = (u8 *)vp->image->getData();
-		for (u32 i = 0; i < pixel_count; ++i) {
-			rgba_data[i * 4 + 0] = src[i * 4 + 2]; // R
-			rgba_data[i * 4 + 1] = src[i * 4 + 1]; // G
-			rgba_data[i * 4 + 2] = src[i * 4 + 0]; // B
-			rgba_data[i * 4 + 3] = src[i * 4 + 3]; // A
-		}
-		out = encodePNG(rgba_data.data(), size.Width, size.Height, 6);
-	} else {
-		// Use Irrlicht's JPEG writer
-		auto driver = RenderingEngine::get_video_driver();
-		auto fs = RenderingEngine::get_raw_device()->getFileSystem();
+		return encode_image_to_png(vp->image);
+	}
 
-		// Max size for the buffer: width * height * 3 (uncompressed) should be enough for JPEG
-		u32 max_size = vp->width * vp->height * 3 + 1024;
-		std::vector<u8> buffer(max_size);
+	// Use Irrlicht's JPEG writer
+	auto driver = RenderingEngine::get_video_driver();
+	auto fs = RenderingEngine::get_raw_device()->getFileSystem();
 
-		io::IWriteFile *mem_file =
-				fs->createMemoryWriteFile(buffer.data(), max_size, "temp.jpg", false);
-		if (mem_file) {
-			if (driver->writeImageToFile(vp->image, mem_file, vp->quality)) {
-				out.assign((const char *)buffer.data(), mem_file->getPos());
-			}
-			mem_file->drop();
-		}
+	// Max size for the buffer: width * height * 3 (uncompressed) should be enough for JPEG
+	u32 max_size = vp->width * vp->height * 3 + 1024;
+	std::vector<u8> buffer(max_size);
 
-		if (out.empty()) {
-			// Fallback to PNG if JPEG failed
-			auto size = vp->image->getDimension();
-			u32 pixel_count = size.Width * size.Height;
-			std::vector<u8> rgba_data(pixel_count * 4);
-			u8 *src = (u8 *)vp->image->getData();
-			for (u32 i = 0; i < pixel_count; ++i) {
-				rgba_data[i * 4 + 0] = src[i * 4 + 2]; // R
-				rgba_data[i * 4 + 1] = src[i * 4 + 1]; // G
-				rgba_data[i * 4 + 2] = src[i * 4 + 0]; // B
-				rgba_data[i * 4 + 3] = src[i * 4 + 3]; // A
-			}
-			out = encodePNG(rgba_data.data(), size.Width, size.Height, 6);
+	std::string out;
+	io::IWriteFile *mem_file =
+			fs->createMemoryWriteFile(buffer.data(), max_size, "temp.jpg", false);
+	if (mem_file) {
+		if (driver->writeImageToFile(vp->image, mem_file, vp->quality)) {
+			out.assign((const char *)buffer.data(), mem_file->getPos());
 		}
+		mem_file->drop();
+	}
+
+	if (out.empty()) {
+		// Fallback to PNG if JPEG failed
+		return encode_image_to_png(vp->image);
 	}
 	return out;
 }

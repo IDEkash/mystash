@@ -5,6 +5,7 @@
 
 #include "common/c_converter.h"
 #include "lua_api/l_internal.h"
+#include "lua_api/l_object.h"
 #include "cpp_api/s_security.h"
 
 #include <memory>
@@ -640,6 +641,57 @@ int ModApiHTMLView::l_remove_viewport(lua_State *L)
 	return 0;
 }
 
+int ModApiHTMLView::l_set_anchor(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
+	std::string id = readParam<std::string>(L, 1);
+	if (lua_isnoneornil(L, 2)) {
+		htmlview_jni_set_anchor(id, "", v3f(0, 0, 0), 0, v3f(0, 0, 0), v2f(0, 0), v3f(0, 0, 0));
+		return 0;
+	}
+	luaL_checktype(L, 2, LUA_TTABLE);
+
+	std::string type = getstringfield_default(L, 2, "type", "2d");
+	v3f pos = v3f(0, 0, 0);
+	u16 object_id = 0;
+
+	lua_getfield(L, 2, "target");
+	if (lua_istable(L, -1)) {
+		pos = read_v3f(L, -1) * BS;
+	} else if (lua_isuserdata(L, -1)) {
+		ObjectRef *ref = ObjectRef::checkobject(L, -1);
+		if (ref) {
+			auto obj = ref->getObject();
+			if (obj)
+				object_id = obj->getId();
+		}
+	}
+	lua_pop(L, 1);
+
+	v3f offset = v3f(0, 0, 0);
+	lua_getfield(L, 2, "offset");
+	if (!lua_isnil(L, -1))
+		offset = read_v3f(L, -1) * BS;
+	lua_pop(L, 1);
+
+	v2f size = v2f(0, 0);
+	lua_getfield(L, 2, "size");
+	if (!lua_isnil(L, -1))
+		size = read_v2f(L, -1);
+	lua_pop(L, 1);
+
+	v3f rotation = v3f(0, 0, 0);
+	lua_getfield(L, 2, "rotation");
+	if (!lua_isnil(L, -1))
+		rotation = read_v3f(L, -1);
+	lua_pop(L, 1);
+
+	htmlview_jni_set_anchor(id, type, pos, object_id, offset, size, rotation);
+#endif
+	return 0;
+}
+
 int ModApiHTMLView::l_get_viewport_frame(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
@@ -738,6 +790,7 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "remove_viewport", dummy, tbl);
 		registerFunction(L, "get_viewport_frame", dummy_nil, tbl);
 		registerFunction(L, "get_viewport_list", dummy_nil, tbl);
+		registerFunction(L, "set_anchor", dummy, tbl);
 		registerFunction(L, "is_supported", l_is_supported, tbl);
 #else
 		registerFunction(L, "run", l_run, tbl);
@@ -768,6 +821,7 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "remove_viewport", l_remove_viewport, tbl);
 		registerFunction(L, "get_viewport_frame", l_get_viewport_frame, tbl);
 		registerFunction(L, "get_viewport_list", l_get_viewport_list, tbl);
+		registerFunction(L, "set_anchor", l_set_anchor, tbl);
 		registerFunction(L, "is_supported", l_is_supported, tbl);
 #endif
 

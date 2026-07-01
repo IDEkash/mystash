@@ -39,6 +39,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HashMap;
@@ -377,6 +378,86 @@ public class HTMLViewManager {
 		}
 	}
 
+	public void htmlview_reposition(String id, int x, int y, boolean visible) {
+		activity.runOnUiThread(() -> {
+			HtmlViewState st = views.get(id);
+			if (st == null || !st.attachedToRoot)
+				return;
+
+			if (!visible) {
+				if (st.container.getVisibility() != View.GONE) {
+					st.container.setVisibility(View.GONE);
+					updateInputShieldVisibility(st);
+				}
+				return;
+			}
+
+			if (st.container.getVisibility() != View.VISIBLE) {
+				st.container.setVisibility(View.VISIBLE);
+				updateInputShieldVisibility(st);
+			}
+
+			FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) st.container.getLayoutParams();
+			int w = st.container.getWidth();
+			int h = st.container.getHeight();
+			if (w <= 0) w = lp.width;
+			if (h <= 0) h = lp.height;
+
+			lp.leftMargin = x - (w / 2);
+			lp.topMargin = y - (h / 2);
+			st.container.setLayoutParams(lp);
+		});
+	}
+
+	public void htmlview_request_texture_update(String id) {
+		activity.runOnUiThread(() -> {
+			HtmlViewState st = views.get(id);
+			if (st == null || (!st.viewDirty && st.textureBuffer != null))
+				return;
+			captureTextureToNativeOnUiThread(id, st);
+		});
+	}
+
+	private void captureTextureToNativeOnUiThread(String id, HtmlViewState st) {
+		st.viewDirty = false;
+		WebView wv = st.webView;
+		int w = wv.getWidth();
+		int h = wv.getHeight();
+		if (w <= 0) w = st.container.getWidth();
+		if (h <= 0) h = st.container.getHeight();
+		if (w <= 0 || h <= 0) return;
+
+		// Limit texture size
+		if (w > 1024) w = 1024;
+		if (h > 1024) h = 1024;
+
+		try {
+			Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+			Canvas canvas = new Canvas(bmp);
+			int vw = wv.getWidth();
+			int vh = wv.getHeight();
+			if (vw > 0 && vh > 0) {
+				float sx = w / (float) vw;
+				float sy = h / (float) vh;
+				canvas.save();
+				canvas.scale(sx, sy);
+				wv.draw(canvas);
+				canvas.restore();
+			} else {
+				wv.draw(canvas);
+			}
+
+			if (st.textureBuffer == null || st.textureBuffer.capacity() < w * h * 4) {
+				st.textureBuffer = ByteBuffer.allocateDirect(w * h * 4);
+			}
+			st.textureBuffer.rewind();
+			bmp.copyPixelsToBuffer(st.textureBuffer);
+			bmp.recycle();
+			nativeOnHTMLTextureUpdate(id, st.textureBuffer, w, h);
+		} catch (Exception ignored) {
+		}
+	}
+
 	public void htmlview_capture(String id, int width, int height) {
 		activity.runOnUiThread(() -> {
 			HtmlViewState st = views.get(id);
@@ -452,6 +533,9 @@ public class HTMLViewManager {
 		st.attachedToRoot = attachToRoot;
 
 		wv.setWebViewClient(new LocalContentClient(st));
+		if (Build.VERSION.SDK_INT >= 16) {
+			wv.getViewTreeObserver().addOnDrawListener(() -> st.viewDirty = true);
+		}
 		wv.setWebChromeClient(new WebChromeClient() {
 			@Override
 			public void onPermissionRequest(final PermissionRequest request) {
@@ -892,6 +976,9 @@ public class HTMLViewManager {
 		boolean lastSafeArea = true;
 		boolean lastFullscreen = false;
 
+		ByteBuffer textureBuffer;
+		boolean viewDirty = true;
+
 		float dragStartRawX;
 		float dragStartRawY;
 		int dragStartLeft;
@@ -954,5 +1041,6 @@ public class HTMLViewManager {
 	private static native void nativeOnHTMLMessage(String id, String message);
 	private static native void nativeOnHTMLCapture(String id, String pngBase64);
 	private static native void nativeOnHTMLReady(String id);
+	private static native void nativeOnHTMLTextureUpdate(String id, ByteBuffer buffer, int w, int h);
 	private static native byte[] nativeGetViewportFrame(String id, String name);
 }
