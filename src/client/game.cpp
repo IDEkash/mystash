@@ -3750,7 +3750,7 @@ void Game::updateFrame(ProfilerGraph *graph, RunStats *stats, f32 dtime,
 		==================== Drawing begins ====================
 	*/
 	if (device->isWindowVisible())
-		drawScene(graph, stats);
+		drawScene(graph, stats, dtime);
 	/*
 		==================== End scene ====================
 	*/
@@ -3829,7 +3829,7 @@ void Game::updateShadows()
 	shadow->getDirectionalLight().updateFrustum(camera, client);
 }
 
-void Game::drawScene(ProfilerGraph *graph, RunStats *stats)
+void Game::drawScene(ProfilerGraph *graph, RunStats *stats, f32 dtime)
 {
 	ZoneScoped;
 
@@ -3897,6 +3897,10 @@ void Game::drawScene(ProfilerGraph *graph, RunStats *stats)
 
 	this->m_rendering_engine->draw_scene(sky_color, this->m_game_ui->m_flags.show_hud,
 			draw_wield_tool, draw_crosshair);
+
+#ifdef __ANDROID__
+	htmlview_jni_render_viewports(client, dtime);
+#endif
 
 	/*
 		Profiler graph

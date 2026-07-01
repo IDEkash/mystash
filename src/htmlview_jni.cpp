@@ -13,6 +13,55 @@
 #include <deque>
 #include <mutex>
 #include <unordered_map>
+#include <vector>
+#include "irrlichttypes_bloated.h"
+#include "porting.h"
+#include "client/renderingengine.h"
+#include "client/camera.h"
+#include "client/client.h"
+#include "client/clientmap.h"
+#include "constants.h"
+#include "util/base64.h"
+#include "util/png.h"
+#include <IImage.h>
+#include <ICameraSceneNode.h>
+#include <IVideoDriver.h>
+#include <IWriteFile.h>
+#include <IFileSystem.h>
+#include "irr_ptr.h"
+
+struct Viewport {
+	v3f pos;
+	v3f dir;
+	v3f up = v3f(0, 1, 0);
+	float fov;
+	float tilt = 0.0f;
+	int width;
+	int height;
+
+	v3f target_pos;
+	v3f target_dir;
+	bool smooth_pos = false;
+	bool smooth_rot = false;
+	float pos_smoothing = 0.15f;
+	float rot_smoothing = 0.10f;
+	std::string update_mode = "continuous";
+
+	u32 refresh_interval_ms = 50; // default 20 fps
+	u64 last_render_ms = 0;
+	bool dirty = true;
+	std::string format = "jpeg";
+	int quality = 70;
+
+	video::ITexture *texture = nullptr;
+	video::IImage *image = nullptr;
+	std::mutex image_mutex;
+	bool active = true;
+	bool pending_removal = false;
+};
+
+static std::mutex g_viewport_mutex;
+static std::unordered_map<std::string, std::unordered_map<std::string, std::unique_ptr<Viewport>>> g_viewports;
 
 struct HtmlViewMessage {
 	std::string id;
@@ -305,6 +354,200 @@ void htmlview_jni_capture(const std::string &id, int width, int height)
 	callVoidMethod1Str2Int("htmlview_capture", id, width, height);
 }
 
+void htmlview_jni_set_viewport(const std::string &id, const std::string &name,
+		v3f pos, v3f dir, v3f up, float fov, float tilt, int width, int height,
+		u32 refresh_interval_ms, const std::string &format, int quality,
+		bool smooth_pos, bool smooth_rot, float pos_smooth, float rot_smooth,
+		const std::string &update_mode)
+{
+	std::lock_guard<std::mutex> lock(g_viewport_mutex);
+	auto &vps = g_viewports[id];
+	auto it = vps.find(name);
+	if (it == vps.end()) {
+		auto vp = std::make_unique<Viewport>();
+		vp->pos = pos;
+		vp->dir = dir;
+		vp->up = up;
+		vp->fov = fov;
+		vp->tilt = tilt;
+		vp->width = width;
+		vp->height = height;
+		vp->target_pos = pos;
+		vp->target_dir = dir;
+		vp->smooth_pos = smooth_pos;
+		vp->smooth_rot = smooth_rot;
+		vp->pos_smoothing = pos_smooth;
+		vp->rot_smoothing = rot_smooth;
+		vp->update_mode = update_mode;
+		vp->refresh_interval_ms = refresh_interval_ms;
+		vp->format = format;
+		vp->quality = quality;
+		vp->dirty = true;
+		vps[name] = std::move(vp);
+	} else {
+		auto &vp = it->second;
+		if (vp->fov != fov || vp->width != width || vp->height != height ||
+				vp->format != format || vp->quality != quality || vp->update_mode != update_mode) {
+			vp->dirty = true;
+		}
+		if (!smooth_pos) vp->pos = pos;
+		if (!smooth_rot) vp->dir = dir;
+		vp->target_pos = pos;
+		vp->target_dir = dir;
+		vp->up = up;
+		vp->fov = fov;
+		vp->tilt = tilt;
+		vp->width = width;
+		vp->height = height;
+		vp->smooth_pos = smooth_pos;
+		vp->smooth_rot = smooth_rot;
+		vp->pos_smoothing = pos_smooth;
+		vp->rot_smoothing = rot_smooth;
+		vp->update_mode = update_mode;
+		vp->refresh_interval_ms = refresh_interval_ms;
+		vp->format = format;
+		vp->quality = quality;
+		vp->active = true;
+		vp->pending_removal = false;
+	}
+}
+
+void htmlview_jni_remove_viewport(const std::string &id, const std::string &name)
+{
+	std::lock_guard<std::mutex> lock(g_viewport_mutex);
+	auto it = g_viewports.find(id);
+	if (it != g_viewports.end()) {
+		auto it2 = it->second.find(name);
+		if (it2 != it->second.end()) {
+			it2->second->pending_removal = true;
+		}
+	}
+}
+
+void htmlview_jni_render_viewports(Client *client, float dtime)
+{
+	std::lock_guard<std::mutex> lock(g_viewport_mutex);
+	auto driver = RenderingEngine::get_video_driver();
+	auto smgr = RenderingEngine::get_raw_device()->getSceneManager();
+
+	for (auto &pair : g_viewports) {
+		auto &vps = pair.second;
+		for (auto it = vps.begin(); it != vps.end(); ) {
+			auto &vp = it->second;
+			if (vp->pending_removal) {
+				if (vp->texture)
+					driver->removeTexture(vp->texture);
+				{
+					std::lock_guard<std::mutex> img_lock(vp->image_mutex);
+					if (vp->image)
+						vp->image->drop();
+				}
+				it = vps.erase(it);
+				continue;
+			}
+
+			// Apply smoothing
+			if (vp->smooth_pos) {
+				float factor = 1.0f - std::exp(-dtime / std::max(0.001f, vp->pos_smoothing));
+				v3f delta = vp->target_pos - vp->pos;
+				if (delta.getLengthSQ() > 0.0001f) {
+					vp->pos += delta * factor;
+					if (vp->update_mode == "on_change") vp->dirty = true;
+				} else {
+					vp->pos = vp->target_pos;
+				}
+			}
+			if (vp->smooth_rot) {
+				float factor = 1.0f - std::exp(-dtime / std::max(0.001f, vp->rot_smoothing));
+				v3f delta = vp->target_dir - vp->dir;
+				if (delta.getLengthSQ() > 0.0001f) {
+					vp->dir += delta * factor;
+					vp->dir.normalize();
+					if (vp->update_mode == "on_change") vp->dirty = true;
+				} else {
+					vp->dir = vp->target_dir;
+				}
+			}
+
+			u64 now = porting::getTimeMs();
+			bool should_render = vp->active;
+			if (vp->update_mode == "manual") {
+				should_render = should_render && vp->dirty;
+			} else if (vp->update_mode == "on_change") {
+				should_render = should_render && vp->dirty;
+			} else { // continuous
+				should_render = should_render && (vp->dirty || (vp->refresh_interval_ms > 0 &&
+						now - vp->last_render_ms >= vp->refresh_interval_ms));
+			}
+
+			if (should_render) {
+				vp->dirty = false;
+				vp->last_render_ms = now;
+
+				// Initialize or resize texture
+				core::dimension2du size(vp->width, vp->height);
+				if (!vp->texture || vp->texture->getSize() != size) {
+					if (vp->texture)
+						driver->removeTexture(vp->texture);
+					static int tex_id = 0;
+					std::string tex_name = "htmlview_vp_" + std::to_string(tex_id++);
+					vp->texture = driver->addRenderTargetTexture(size, tex_name.c_str(), video::ECF_A8R8G8B8);
+				}
+
+				if (vp->texture) {
+					// Save current camera state
+					auto old_cam_node = smgr->getActiveCamera();
+					v3f old_pos = old_cam_node->getPosition();
+					v3f old_target = old_cam_node->getTarget();
+					v3f old_up = old_cam_node->getUpVector();
+					float old_fov = old_cam_node->getFOV();
+					float old_aspect = old_cam_node->getAspectRatio();
+
+					// Setup viewport camera
+					old_cam_node->setPosition(vp->pos);
+					old_cam_node->setTarget(vp->pos + vp->dir * 100.0f);
+
+					v3f up = vp->up;
+					if (vp->tilt != 0.0f) {
+						core::quaternion q;
+						q.fromAngleAxis(vp->tilt * core::DEGTORAD, vp->dir);
+						up = q * up;
+					}
+					old_cam_node->setUpVector(up);
+
+					old_cam_node->setFOV(vp->fov * core::DEGTORAD);
+					old_cam_node->setAspectRatio((float)vp->width / vp->height);
+					old_cam_node->updateMatrices();
+
+					// Render to texture
+					driver->setRenderTarget(vp->texture, true, true, video::SColor(255, 0, 0, 0));
+					smgr->drawAll();
+
+					// Capture to IImage
+					video::IImage *img = driver->createImage(vp->texture, core::position2d<s32>(0, 0), size);
+					if (img) {
+						std::lock_guard<std::mutex> img_lock(vp->image_mutex);
+						if (vp->image)
+							vp->image->drop();
+						vp->image = img;
+					}
+
+					driver->setRenderTarget(0, false, false);
+
+					// Restore camera state
+					old_cam_node->setPosition(old_pos);
+					old_cam_node->setTarget(old_target);
+					old_cam_node->setUpVector(old_up);
+					old_cam_node->setFOV(old_fov);
+					old_cam_node->setAspectRatio(old_aspect);
+					old_cam_node->updateMatrices();
+				}
+			}
+			++it;
+		}
+	}
+}
+
 #if 0
 void htmlview_jni_inject(const std::string &id, const std::string &js)
 {
@@ -355,6 +598,108 @@ Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLReady(
 		std::lock_guard<std::mutex> lock(g_msg_mutex);
 		g_events.push_back(std::move(e));
 	}
+}
+
+bool htmlview_jni_get_viewport(const std::string &id, const std::string &name,
+		v3f &pos, v3f &dir, v3f &up, float &fov, float &tilt, int &width, int &height,
+		u32 &refresh_interval_ms, std::string &format, int &quality,
+		bool &smooth_pos, bool &smooth_rot, float &pos_smooth, float &rot_smooth,
+		std::string &update_mode)
+{
+	std::lock_guard<std::mutex> lock(g_viewport_mutex);
+	auto it = g_viewports.find(id);
+	if (it != g_viewports.end()) {
+		auto it2 = it->second.find(name);
+		if (it2 != it->second.end()) {
+			auto &vp = it2->second;
+			pos = vp->target_pos;
+			dir = vp->target_dir;
+			up = vp->up;
+			fov = vp->fov;
+			tilt = vp->tilt;
+			width = vp->width;
+			height = vp->height;
+			refresh_interval_ms = vp->refresh_interval_ms;
+			format = vp->format;
+			quality = vp->quality;
+			smooth_pos = vp->smooth_pos;
+			smooth_rot = vp->smooth_rot;
+			pos_smooth = vp->pos_smoothing;
+			rot_smooth = vp->rot_smoothing;
+			update_mode = vp->update_mode;
+			return true;
+		}
+	}
+	return false;
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_net_minetest_minetest_HTMLViewManager_nativeGetViewportFrame(
+		JNIEnv *env, jclass, jstring id, jstring name)
+{
+	std::string sid = readJavaString(env, id);
+	std::string sname = readJavaString(env, name);
+	std::lock_guard<std::mutex> lock(g_viewport_mutex);
+	auto it = g_viewports.find(sid);
+	if (it != g_viewports.end()) {
+		auto it2 = it->second.find(sname);
+		if (it2 != it->second.end()) {
+			auto &vp = it2->second;
+			std::lock_guard<std::mutex> img_lock(vp->image_mutex);
+			if (vp->image) {
+				std::string out;
+				if (vp->format == "png") {
+					auto size = vp->image->getDimension();
+					u32 pixel_count = size.Width * size.Height;
+					std::vector<u8> rgba_data(pixel_count * 4);
+					u8 *src = (u8*)vp->image->getData();
+					for (u32 i = 0; i < pixel_count; ++i) {
+						rgba_data[i*4+0] = src[i*4+2]; // R
+						rgba_data[i*4+1] = src[i*4+1]; // G
+						rgba_data[i*4+2] = src[i*4+0]; // B
+						rgba_data[i*4+3] = src[i*4+3]; // A
+					}
+					out = encodePNG(rgba_data.data(), size.Width, size.Height, 6);
+				} else {
+					// Use Irrlicht's JPEG writer
+					auto driver = RenderingEngine::get_video_driver();
+					auto fs = RenderingEngine::get_raw_device()->getFileSystem();
+
+					// Max size for the buffer: width * height * 3 (uncompressed) should be enough for JPEG
+					u32 max_size = vp->width * vp->height * 3 + 1024;
+					std::vector<u8> buffer(max_size);
+
+					io::IWriteFile *mem_file = fs->createMemoryWriteFile(buffer.data(), max_size, "temp.jpg", false);
+					if (mem_file) {
+						if (driver->writeImageToFile(vp->image, mem_file, vp->quality)) {
+							out.assign((const char*)buffer.data(), mem_file->getPos());
+						}
+						mem_file->drop();
+					}
+
+					if (out.empty()) {
+						// Fallback to PNG if JPEG failed
+						auto size = vp->image->getDimension();
+						u32 pixel_count = size.Width * size.Height;
+						std::vector<u8> rgba_data(pixel_count * 4);
+						u8 *src = (u8*)vp->image->getData();
+						for (u32 i = 0; i < pixel_count; ++i) {
+							rgba_data[i*4+0] = src[i*4+2]; // R
+							rgba_data[i*4+1] = src[i*4+1]; // G
+							rgba_data[i*4+2] = src[i*4+0]; // B
+							rgba_data[i*4+3] = src[i*4+3]; // A
+						}
+						out = encodePNG(rgba_data.data(), size.Width, size.Height, 6);
+					}
+				}
+
+				jbyteArray arr = env->NewByteArray(out.size());
+				env->SetByteArrayRegion(arr, 0, out.size(), (const jbyte*)out.data());
+				return arr;
+			}
+		}
+	}
+	return nullptr;
 }
 
 #include "scripting_server.h"

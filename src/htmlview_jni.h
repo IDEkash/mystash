@@ -4,8 +4,10 @@
 #pragma once
 
 #include <string>
+#include "irrlichttypes_bloated.h"
 
 class ServerScripting;
+class Client;
 
 #ifdef __ANDROID__
 
@@ -31,6 +33,18 @@ class ServerScripting;
 	void htmlview_jni_shared_set(const std::string &key, const char *val);
 	std::string htmlview_jni_shared_get(const std::string &key);
 	void htmlview_jni_capture(const std::string &id, int width, int height);
+	void htmlview_jni_set_viewport(const std::string &id, const std::string &name,
+			v3f pos, v3f dir, v3f up, float fov, float tilt, int width, int height,
+			u32 refresh_interval_ms, const std::string &format, int quality,
+			bool smooth_pos, bool smooth_rot, float pos_smooth, float rot_smooth,
+			const std::string &update_mode);
+	void htmlview_jni_remove_viewport(const std::string &id, const std::string &name);
+	bool htmlview_jni_get_viewport(const std::string &id, const std::string &name,
+			v3f &pos, v3f &dir, v3f &up, float &fov, float &tilt, int &width, int &height,
+			u32 &refresh_interval_ms, std::string &format, int &quality,
+			bool &smooth_pos, bool &smooth_rot, float &pos_smooth, float &rot_smooth,
+			std::string &update_mode);
+	void htmlview_jni_render_viewports(Client *client, float dtime);
 	void htmlview_jni_poll(ServerScripting *script);
 
 #endif

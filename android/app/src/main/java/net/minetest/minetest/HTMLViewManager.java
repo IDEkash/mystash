@@ -753,9 +753,31 @@ public class HTMLViewManager {
 	}
 
 	private WebResourceResponse serveFromExternal(HtmlViewState st, Uri url) {
-		if (st.externalRootDir == null || st.externalEntry == null)
-			return null;
 		if (url == null)
+			return null;
+
+		if ("luanti-viewport".equals(url.getScheme())) {
+			String name = url.getHost();
+			if (name == null || name.isEmpty())
+				return null;
+			byte[] data = nativeGetViewportFrame(st.id, name);
+			if (data == null || data.length == 0)
+				return null;
+			try {
+				WebResourceResponse resp = new WebResourceResponse("image/png", "utf-8", new ByteArrayInputStream(data));
+				if (Build.VERSION.SDK_INT >= 21) {
+					Map<String, String> headers = new HashMap<>();
+					headers.put("Access-Control-Allow-Origin", "*");
+					headers.put("Cache-Control", "no-cache, no-store, must-revalidate");
+					resp.setResponseHeaders(headers);
+				}
+				return resp;
+			} catch (Exception ignored) {
+				return null;
+			}
+		}
+
+		if (st.externalRootDir == null || st.externalEntry == null)
 			return null;
 		if (!"https".equals(url.getScheme()))
 			return null;
@@ -932,4 +954,5 @@ public class HTMLViewManager {
 	private static native void nativeOnHTMLMessage(String id, String message);
 	private static native void nativeOnHTMLCapture(String id, String pngBase64);
 	private static native void nativeOnHTMLReady(String id);
+	private static native byte[] nativeGetViewportFrame(String id, String name);
 }
