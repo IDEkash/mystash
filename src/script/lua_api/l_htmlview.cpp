@@ -6,6 +6,7 @@
 #include "common/c_converter.h"
 #include "lua_api/l_internal.h"
 #include "lua_api/l_object.h"
+#include "server/serveractiveobject.h"
 #include "cpp_api/s_security.h"
 
 #include <memory>
@@ -660,9 +661,9 @@ int ModApiHTMLView::l_set_anchor(lua_State *L)
 	if (lua_istable(L, -1)) {
 		pos = read_v3f(L, -1) * BS;
 	} else if (lua_isuserdata(L, -1)) {
-		ObjectRef *ref = ObjectRef::checkobject(L, -1);
+		ObjectRef *ref = checkObject<ObjectRef>(L, -1);
 		if (ref) {
-			auto obj = ref->getObject();
+			auto obj = ObjectRef::getobject(ref);
 			if (obj)
 				object_id = obj->getId();
 		}
