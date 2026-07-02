@@ -189,7 +189,7 @@ htmlview.run(id, "<h1>Hello Minetest!</h1>")
 htmlview.set_stream(id, {width = 512, height = 512, fps = 10})
 ```
 
-*Note: It is recommended to call `set_stream` as soon as possible (e.g. on server join or when the view is created) so the engine can initialize the texture correctly.*
+*Note: It is recommended to call `set_stream` as soon as possible (e.g. on server join or when the view is created) so the engine can initialize the texture correctly. If you apply the texture to a node, ensure that `set_stream` is called before the player's client starts rendering that node for the first time.*
 
 ### Input control
 

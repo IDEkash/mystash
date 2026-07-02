@@ -534,11 +534,15 @@ void TextureSource::insertSourceImage(const std::string &name, video::IImage *im
 	m_imagesource.insertSourceImage(name, img, true);
 	m_source_image_existence.set(name, true);
 
-	// If the image is cached, we need to remove it from the cache
-	auto it = m_image_cache.find(name);
-	if (it != m_image_cache.end()) {
-		it->second.image->drop();
-		m_image_cache.erase(it);
+	// If the image is cached, we need to remove it from the cache.
+	// Also remove all images that depend on this source image.
+	for (auto it = m_image_cache.begin(); it != m_image_cache.end(); ) {
+		if (it->first == name || it->second.sourceImages.find(name) != it->second.sourceImages.end()) {
+			it->second.image->drop();
+			it = m_image_cache.erase(it);
+		} else {
+			++it;
+		}
 	}
 
 	// now we need to check for any textures that need updating
