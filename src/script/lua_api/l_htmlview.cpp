@@ -455,6 +455,24 @@ int ModApiHTMLView::l_on_ready(lua_State *L)
 	return 0;
 }
 
+int ModApiHTMLView::l_set_stream(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+#ifdef __ANDROID__
+	std::string id = readParam<std::string>(L, 1);
+	int width = 0;
+	int height = 0;
+	u32 fps = 0;
+	if (lua_istable(L, 2)) {
+		width = getintfield_default(L, 2, "width", 256);
+		height = getintfield_default(L, 2, "height", 256);
+		fps = getintfield_default(L, 2, "fps", 20);
+	}
+	htmlview_jni_set_stream(id, width, height, fps);
+#endif
+	return 0;
+}
+
 int ModApiHTMLView::l_set_viewport(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
@@ -732,6 +750,7 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "on_message_json", l_on_message_json, tbl);
 		registerFunction(L, "on_capture", l_on_capture, tbl);
 		registerFunction(L, "on_ready", l_on_ready, tbl);
+		registerFunction(L, "set_stream", dummy, tbl);
 		registerFunction(L, "set_viewport", dummy, tbl);
 		registerFunction(L, "get_viewport", dummy_nil, tbl);
 		registerFunction(L, "update_viewport", dummy_nil, tbl);
@@ -762,6 +781,7 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "on_message_json", l_on_message_json, tbl);
 		registerFunction(L, "on_capture", l_on_capture, tbl);
 		registerFunction(L, "on_ready", l_on_ready, tbl);
+		registerFunction(L, "set_stream", l_set_stream, tbl);
 		registerFunction(L, "set_viewport", l_set_viewport, tbl);
 		registerFunction(L, "get_viewport", l_get_viewport, tbl);
 		registerFunction(L, "update_viewport", l_update_viewport, tbl);

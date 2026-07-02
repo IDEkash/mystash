@@ -30,6 +30,7 @@ private:
 	static int l_on_message_json(lua_State *L);
 	static int l_on_capture(lua_State *L);
 	static int l_on_ready(lua_State *L);
+	static int l_set_stream(lua_State *L);
 	static int l_set_viewport(lua_State *L);
 	static int l_get_viewport(lua_State *L);
 	static int l_update_viewport(lua_State *L);

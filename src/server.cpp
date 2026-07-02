@@ -681,7 +681,7 @@ void Server::AsyncRunStep(float dtime, bool initial_step)
 	}
 
 #ifdef __ANDROID__
-	htmlview_jni_poll(getScriptIface());
+	htmlview_jni_poll(getScriptIface(), nullptr);
 #endif
 
 	{

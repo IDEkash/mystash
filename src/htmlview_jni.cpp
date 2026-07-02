@@ -73,6 +73,13 @@ struct HtmlViewCapture {
 	std::string png_base64;
 };
 
+struct HtmlViewStreamFrame {
+	std::string id;
+	int width;
+	int height;
+	std::vector<u32> data;
+};
+
 struct HtmlViewEvent {
 	enum Type { READY } type;
 	std::string id;
@@ -81,6 +88,7 @@ struct HtmlViewEvent {
 static std::mutex g_msg_mutex;
 static std::deque<HtmlViewMessage> g_messages;
 static std::deque<HtmlViewCapture> g_captures;
+static std::deque<HtmlViewStreamFrame> g_stream_frames;
 static std::deque<HtmlViewEvent> g_events;
 
 static std::string readJavaString(JNIEnv *env, jstring j_str)
@@ -354,6 +362,26 @@ void htmlview_jni_capture(const std::string &id, int width, int height)
 	callVoidMethod1Str2Int("htmlview_capture", id, width, height);
 }
 
+void htmlview_jni_set_stream(const std::string &id, int width, int height, u32 fps)
+{
+	JNIEnv *env = porting::getJNIEnv();
+	jmethodID mid = env->GetMethodID(porting::activityClass, "htmlview_set_stream",
+		"(Ljava/lang/String;III)V");
+	if (!mid) {
+		errorstream << "htmlview_jni: missing method htmlview_set_stream" << std::endl;
+		return;
+	}
+
+	jstring jid = env->NewStringUTF(id.c_str());
+	jint jw = width;
+	jint jh = height;
+	jint jfps = fps;
+
+	env->CallVoidMethod(porting::activity, mid, jid, jw, jh, jfps);
+	if (jid)
+		env->DeleteLocalRef(jid);
+}
+
 void htmlview_jni_set_viewport(const std::string &id, const std::string &name,
 		v3f pos, v3f dir, v3f up, float fov, float tilt, int width, int height,
 		u32 refresh_interval_ms, const std::string &format, int quality,
@@ -600,6 +628,25 @@ Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLReady(
 	}
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_net_minetest_minetest_HTMLViewManager_nativeOnStreamFrame(
+		JNIEnv *env, jclass, jstring id, jintArray pixels, jint width, jint height)
+{
+	HtmlViewStreamFrame f;
+	f.id = readJavaString(env, id);
+	f.width = width;
+	f.height = height;
+	jint *p = env->GetIntArrayElements(pixels, nullptr);
+	if (p) {
+		f.data.assign(p, p + (width * height));
+		env->ReleaseIntArrayElements(pixels, p, JNI_ABORT);
+	}
+	{
+		std::lock_guard<std::mutex> lock(g_msg_mutex);
+		g_stream_frames.push_back(std::move(f));
+	}
+}
+
 bool htmlview_jni_get_viewport(const std::string &id, const std::string &name,
 		v3f &pos, v3f &dir, v3f &up, float &fov, float &tilt, int &width, int &height,
 		u32 &refresh_interval_ms, std::string &format, int &quality,
@@ -730,20 +777,43 @@ Java_net_minetest_minetest_HTMLViewManager_nativeGetViewportFrame(
 }
 
 #include "cpp_api/s_htmlview.h"
+#include "client/texturesource.h"
 
-void htmlview_jni_poll(ScriptApiHTMLView *script)
+void htmlview_jni_poll(ScriptApiHTMLView *script, IWritableTextureSource *tsrc)
 {
-	if (!script)
-		return;
 	std::deque<HtmlViewMessage> batch;
 	std::deque<HtmlViewCapture> cap_batch;
+	std::deque<HtmlViewStreamFrame> stream_batch;
 	std::deque<HtmlViewEvent> event_batch;
 	{
 		std::lock_guard<std::mutex> lock(g_msg_mutex);
 		batch.swap(g_messages);
 		cap_batch.swap(g_captures);
+		stream_batch.swap(g_stream_frames);
 		event_batch.swap(g_events);
 	}
+
+	if (tsrc) {
+		std::unordered_map<std::string, size_t> latest_frames;
+		for (size_t i = 0; i < stream_batch.size(); ++i) {
+			latest_frames[stream_batch[i].id] = i;
+		}
+
+		for (auto const& [id, index] : latest_frames) {
+			auto &f = stream_batch[index];
+			video::IImage *img = RenderingEngine::get_video_driver()->createImage(
+				video::ECF_A8R8G8B8, core::dimension2du(f.width, f.height));
+			if (img) {
+				memcpy(img->getData(), f.data.data(), f.width * f.height * 4);
+				tsrc->insertSourceImage("luanti-viewport://" + id, img);
+				img->drop();
+			}
+		}
+	}
+
+	if (!script)
+		return;
+
 	for (const auto &m : batch) {
 		script->on_htmlview_message(m.id, m.message);
 	}

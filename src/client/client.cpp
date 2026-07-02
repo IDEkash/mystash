@@ -604,7 +604,7 @@ void Client::step(float dtime)
 	m_sound->step(dtime);
 
 #ifdef __ANDROID__
-	htmlview_jni_poll(m_script);
+	htmlview_jni_poll(m_script, m_tsrc);
 #endif
 
 	/*

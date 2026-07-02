@@ -386,6 +386,78 @@ public class HTMLViewManager {
 		});
 	}
 
+	public void htmlview_set_stream(String id, int width, int height, int fps) {
+		activity.runOnUiThread(() -> {
+			HtmlViewState st = views.get(id);
+			if (st == null)
+				return;
+
+			st.streamWidth = width;
+			st.streamHeight = height;
+			st.streamFps = fps;
+
+			if (fps > 0) {
+				if (st.streamRunnable == null) {
+					st.streamRunnable = new Runnable() {
+						@Override
+						public void run() {
+							if (st.streamFps <= 0) {
+								st.streamRunnable = null;
+								return;
+							}
+							captureStreamFrameOnUiThread(st.id, st);
+							handler.postDelayed(this, 1000 / st.streamFps);
+						}
+					};
+					handler.post(st.streamRunnable);
+				}
+			} else {
+				st.streamRunnable = null;
+			}
+		});
+	}
+
+	private void captureStreamFrameOnUiThread(String id, HtmlViewState st) {
+		WebView wv = st.webView;
+		int w = st.streamWidth > 0 ? st.streamWidth : wv.getWidth();
+		int h = st.streamHeight > 0 ? st.streamHeight : wv.getHeight();
+		if (w <= 0) w = st.container.getWidth();
+		if (h <= 0) h = st.container.getHeight();
+		if (w <= 0) w = 256;
+		if (h <= 0) h = 256;
+
+		w = Math.min(w, 2048);
+		h = Math.min(h, 2048);
+
+		try {
+			Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+			Canvas canvas = new Canvas(bmp);
+			int vw = wv.getWidth();
+			int vh = wv.getHeight();
+			if (vw > 0 && vh > 0) {
+				float sx = w / (float) vw;
+				float sy = h / (float) vh;
+				canvas.save();
+				canvas.scale(sx, sy);
+				wv.draw(canvas);
+				canvas.restore();
+			} else {
+				int ws = View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY);
+				int hs = View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY);
+				wv.measure(ws, hs);
+				wv.layout(0, 0, w, h);
+				wv.draw(canvas);
+			}
+
+			int[] pixels = new int[w * h];
+			bmp.getPixels(pixels, 0, w, 0, 0, w, h);
+			bmp.recycle();
+
+			nativeOnStreamFrame(id, pixels, w, h);
+		} catch (Exception ignored) {
+		}
+	}
+
 	private void capturePngToNativeOnUiThread(String id, HtmlViewState st, int width, int height) {
 		WebView wv = st.webView;
 
@@ -892,6 +964,11 @@ public class HTMLViewManager {
 		boolean lastSafeArea = true;
 		boolean lastFullscreen = false;
 
+		int streamWidth;
+		int streamHeight;
+		int streamFps;
+		Runnable streamRunnable;
+
 		float dragStartRawX;
 		float dragStartRawY;
 		int dragStartLeft;
@@ -954,5 +1031,6 @@ public class HTMLViewManager {
 	private static native void nativeOnHTMLMessage(String id, String message);
 	private static native void nativeOnHTMLCapture(String id, String pngBase64);
 	private static native void nativeOnHTMLReady(String id);
+	private static native void nativeOnStreamFrame(String id, int[] pixels, int width, int height);
 	private static native byte[] nativeGetViewportFrame(String id, String name);
 }

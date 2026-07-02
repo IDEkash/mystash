@@ -48,6 +48,7 @@ class ScriptApiHTMLView;
 	std::string htmlview_jni_get_viewport_frame(const std::string &id, const std::string &name);
 	std::vector<std::string> htmlview_jni_get_viewport_list(const std::string &id);
 	void htmlview_jni_render_viewports(Client *client, float dtime);
-	void htmlview_jni_poll(ScriptApiHTMLView *script);
+	void htmlview_jni_set_stream(const std::string &id, int width, int height, u32 fps);
+	void htmlview_jni_poll(ScriptApiHTMLView *script, class IWritableTextureSource *tsrc);
 
 #endif

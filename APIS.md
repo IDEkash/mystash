@@ -159,6 +159,18 @@ Within the HTMLView (Javascript):
 `htmlview.on_capture(id, cb_or_nil)`
 - `cb(png_bytes)` where `png_bytes` is a Lua string containing PNG file bytes.
 
+### Streaming
+
+`htmlview.set_stream(id, params)`
+- `id`: string (HTMLView instance ID)
+- `params`: table (or `nil` to stop streaming)
+  - `width`: number (stream resolution width, default `256`)
+  - `height`: number (stream resolution height, default `256`)
+  - `fps`: number (frame rate, default `20`. Set to `0` to stop)
+- When streaming is active, the `HTMLView` content is periodically captured and made available as a texture.
+- The texture name is `luanti-viewport://<id>`.
+- This texture can be used on nodes, entities, or meshes.
+
 ### Input control
 
 `htmlview.input(id, opts)`
