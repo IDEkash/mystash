@@ -85,10 +85,17 @@ struct HtmlViewEvent {
 	std::string id;
 };
 
+struct HtmlViewStreamPreInit {
+	std::string id;
+	int width;
+	int height;
+};
+
 static std::mutex g_msg_mutex;
 static std::deque<HtmlViewMessage> g_messages;
 static std::deque<HtmlViewCapture> g_captures;
 static std::deque<HtmlViewStreamFrame> g_stream_frames;
+static std::deque<HtmlViewStreamPreInit> g_stream_preinits;
 static std::deque<HtmlViewEvent> g_events;
 
 static std::string readJavaString(JNIEnv *env, jstring j_str)
@@ -370,6 +377,11 @@ void htmlview_jni_set_stream(const std::string &id, int width, int height, u32 f
 	if (!mid) {
 		errorstream << "htmlview_jni: missing method htmlview_set_stream" << std::endl;
 		return;
+	}
+
+	if (fps > 0 && width > 0 && height > 0) {
+		std::lock_guard<std::mutex> lock(g_msg_mutex);
+		g_stream_preinits.push_back({id, width, height});
 	}
 
 	jstring jid = env->NewStringUTF(id.c_str());
@@ -792,18 +804,31 @@ void htmlview_jni_poll(ScriptApiHTMLView *script, IWritableTextureSource *tsrc)
 	std::deque<HtmlViewMessage> batch;
 	std::deque<HtmlViewCapture> cap_batch;
 	std::deque<HtmlViewStreamFrame> stream_batch;
+	std::deque<HtmlViewStreamPreInit> preinit_batch;
 	std::deque<HtmlViewEvent> event_batch;
 	{
 		std::lock_guard<std::mutex> lock(g_msg_mutex);
 		batch.swap(g_messages);
 		cap_batch.swap(g_captures);
 		stream_batch.swap(g_stream_frames);
+		preinit_batch.swap(g_stream_preinits);
 		event_batch.swap(g_events);
 	}
 
 	if (tsrc) {
 		auto driver = RenderingEngine::get_video_driver();
 		if (driver) {
+			for (auto &pi : preinit_batch) {
+				if (tsrc->isKnownSourceImage("htmlview://" + pi.id))
+					continue;
+				video::IImage *img = driver->createImage(
+					video::ECF_A8R8G8B8, core::dimension2du(pi.width, pi.height));
+				if (img) {
+					img->fill(video::SColor(0, 0, 0, 0));
+					tsrc->insertSourceImage("htmlview://" + pi.id, img);
+					img->drop();
+				}
+			}
 			for (auto &f : stream_batch) {
 				video::IImage *img = driver->createImage(
 					video::ECF_A8R8G8B8, core::dimension2du(f.width, f.height));

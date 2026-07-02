@@ -171,6 +171,26 @@ Within the HTMLView (Javascript):
 - The texture name is `htmlview://<id>`.
 - This texture can be used on nodes, entities, or meshes.
 
+**How to use (Example):**
+
+1. Register a node that uses the special texture name:
+```lua
+minetest.register_node("mymod:screen", {
+    description = "Computer Screen",
+    tiles = {"htmlview://myscreen"}, -- Uses the ID 'myscreen'
+    -- ... other fields
+})
+```
+
+2. Start the HTMLView and enable streaming:
+```lua
+local id = "myscreen"
+htmlview.run(id, "<h1>Hello Minetest!</h1>")
+htmlview.set_stream(id, {width = 512, height = 512, fps = 10})
+```
+
+*Note: It is recommended to call `set_stream` as soon as possible (e.g. on server join or when the view is created) so the engine can initialize the texture correctly.*
+
 ### Input control
 
 `htmlview.input(id, opts)`
