@@ -632,8 +632,9 @@ extern "C" JNIEXPORT void JNICALL
 Java_net_minetest_minetest_HTMLViewManager_nativeOnStreamFrame(
 		JNIEnv *env, jclass, jstring id, jintArray pixels, jint width, jint height)
 {
+	std::string sid = readJavaString(env, id);
 	HtmlViewStreamFrame f;
-	f.id = readJavaString(env, id);
+	f.id = sid;
 	f.width = width;
 	f.height = height;
 	jint *p = env->GetIntArrayElements(pixels, nullptr);
@@ -643,6 +644,13 @@ Java_net_minetest_minetest_HTMLViewManager_nativeOnStreamFrame(
 	}
 	{
 		std::lock_guard<std::mutex> lock(g_msg_mutex);
+		// Replace existing pending frame for this id if it exists to avoid backlog
+		for (auto &existing : g_stream_frames) {
+			if (existing.id == sid) {
+				existing = std::move(f);
+				return;
+			}
+		}
 		g_stream_frames.push_back(std::move(f));
 	}
 }
@@ -794,19 +802,16 @@ void htmlview_jni_poll(ScriptApiHTMLView *script, IWritableTextureSource *tsrc)
 	}
 
 	if (tsrc) {
-		std::unordered_map<std::string, size_t> latest_frames;
-		for (size_t i = 0; i < stream_batch.size(); ++i) {
-			latest_frames[stream_batch[i].id] = i;
-		}
-
-		for (auto const& [id, index] : latest_frames) {
-			auto &f = stream_batch[index];
-			video::IImage *img = RenderingEngine::get_video_driver()->createImage(
-				video::ECF_A8R8G8B8, core::dimension2du(f.width, f.height));
-			if (img) {
-				memcpy(img->getData(), f.data.data(), f.width * f.height * 4);
-				tsrc->insertSourceImage("luanti-viewport://" + id, img);
-				img->drop();
+		auto driver = RenderingEngine::get_video_driver();
+		if (driver) {
+			for (auto &f : stream_batch) {
+				video::IImage *img = driver->createImage(
+					video::ECF_A8R8G8B8, core::dimension2du(f.width, f.height));
+				if (img) {
+					memcpy(img->getData(), f.data.data(), f.width * f.height * 4);
+					tsrc->insertSourceImage("htmlview://" + f.id, img);
+					img->drop();
+				}
 			}
 		}
 	}

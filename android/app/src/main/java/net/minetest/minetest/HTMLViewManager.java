@@ -189,6 +189,13 @@ public class HTMLViewManager {
 			HtmlViewState st = views.remove(id);
 			if (st == null)
 				return;
+			st.streamFps = 0;
+			st.streamRunnable = null;
+			if (st.streamBitmap != null) {
+				st.streamBitmap.recycle();
+				st.streamBitmap = null;
+			}
+			st.streamPixels = null;
 			try {
 				if (st.attachedToRoot)
 					root.removeView(st.container);
@@ -392,23 +399,25 @@ public class HTMLViewManager {
 			if (st == null)
 				return;
 
+			boolean wasStreaming = st.streamFps > 0;
 			st.streamWidth = width;
 			st.streamHeight = height;
 			st.streamFps = fps;
 
 			if (fps > 0) {
-				if (st.streamRunnable == null) {
-					st.streamRunnable = new Runnable() {
+				if (!wasStreaming || st.streamRunnable == null) {
+					final Runnable[] r = new Runnable[1];
+					r[0] = new Runnable() {
 						@Override
 						public void run() {
-							if (st.streamFps <= 0) {
-								st.streamRunnable = null;
+							if (st.streamFps <= 0 || st.streamRunnable != r[0]) {
 								return;
 							}
 							captureStreamFrameOnUiThread(st.id, st);
 							handler.postDelayed(this, 1000 / st.streamFps);
 						}
 					};
+					st.streamRunnable = r[0];
 					handler.post(st.streamRunnable);
 				}
 			} else {
@@ -430,8 +439,15 @@ public class HTMLViewManager {
 		h = Math.min(h, 2048);
 
 		try {
-			Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+			if (st.streamBitmap == null || st.streamBitmap.getWidth() != w || st.streamBitmap.getHeight() != h) {
+				if (st.streamBitmap != null) st.streamBitmap.recycle();
+				st.streamBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+				st.streamPixels = new int[w * h];
+			}
+			Bitmap bmp = st.streamBitmap;
 			Canvas canvas = new Canvas(bmp);
+			canvas.drawColor(Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR);
+
 			int vw = wv.getWidth();
 			int vh = wv.getHeight();
 			if (vw > 0 && vh > 0) {
@@ -449,11 +465,8 @@ public class HTMLViewManager {
 				wv.draw(canvas);
 			}
 
-			int[] pixels = new int[w * h];
-			bmp.getPixels(pixels, 0, w, 0, 0, w, h);
-			bmp.recycle();
-
-			nativeOnStreamFrame(id, pixels, w, h);
+			bmp.getPixels(st.streamPixels, 0, w, 0, 0, w, h);
+			nativeOnStreamFrame(id, st.streamPixels, w, h);
 		} catch (Exception ignored) {
 		}
 	}
@@ -968,6 +981,8 @@ public class HTMLViewManager {
 		int streamHeight;
 		int streamFps;
 		Runnable streamRunnable;
+		Bitmap streamBitmap;
+		int[] streamPixels;
 
 		float dragStartRawX;
 		float dragStartRawY;

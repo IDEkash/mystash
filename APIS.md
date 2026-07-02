@@ -168,7 +168,7 @@ Within the HTMLView (Javascript):
   - `height`: number (stream resolution height, default `256`)
   - `fps`: number (frame rate, default `20`. Set to `0` to stop)
 - When streaming is active, the `HTMLView` content is periodically captured and made available as a texture.
-- The texture name is `luanti-viewport://<id>`.
+- The texture name is `htmlview://<id>`.
 - This texture can be used on nodes, entities, or meshes.
 
 ### Input control

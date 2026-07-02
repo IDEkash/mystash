@@ -534,6 +534,13 @@ void TextureSource::insertSourceImage(const std::string &name, video::IImage *im
 	m_imagesource.insertSourceImage(name, img, true);
 	m_source_image_existence.set(name, true);
 
+	// If the image is cached, we need to remove it from the cache
+	auto it = m_image_cache.find(name);
+	if (it != m_image_cache.end()) {
+		it->second.image->drop();
+		m_image_cache.erase(it);
+	}
+
 	// now we need to check for any textures that need updating
 	MutexAutoLock lock(m_textureinfo_cache_mutex);
 

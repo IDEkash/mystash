@@ -215,6 +215,11 @@ public class GameActivity extends SDLActivity {
 			mHtmlViewManager.htmlview_capture(id, width, height);
 	}
 
+	public void htmlview_set_stream(String id, int width, int height, int fps) {
+		if (mHtmlViewManager != null)
+			mHtmlViewManager.htmlview_set_stream(id, width, height, fps);
+	}
+
 	private NotificationManager mNotifyManager;
 	private boolean gameNotificationShown = false;
 
