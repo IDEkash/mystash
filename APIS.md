@@ -831,5 +831,43 @@ core.create_world("ProgrammaticWorld", "minetest", {
 ```
 
 ---
+
+## HTML Streams to Nodes API
+
+This API provides a way to parse HTML content into a hierarchical node structure. It supports both direct parsing of strings and streaming parsing for large datasets.
+
+### `core.html.parse(text)`
+- `text`: string
+- Returns a `Node` (the root element).
+
+### `core.html.stream()`
+- Returns an `HTMLStream` object.
+
+**`HTMLStream` methods:**
+- `feed(text)`: Adds a chunk of HTML data to the parser.
+- `end()`: Signals the end of the HTML stream.
+- `get_root()`: Returns the root `Node` of the parsed HTML.
+
+#### `Node` definition
+A table representing an HTML element, text node, or comment.
+```lua
+{
+    type = "element" | "text" | "comment",
+    -- For "element" type:
+    name = "div", -- tag name
+    attributes = { -- table of attributes
+        class = "test",
+        id = "main",
+    },
+    children = { -- list of child Nodes
+        { type = "text", text = "Hello" },
+        -- ...
+    },
+    -- For "text" or "comment" type:
+    text = "content",
+}
+```
+
+---
 - **More Soon!**
-- Latest Update: May, 30, 2026
+- Latest Update: July, 03, 2026

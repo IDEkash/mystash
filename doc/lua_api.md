@@ -7709,35 +7709,6 @@ Misc.
            values.
     * Example: `write_json({10, {a = false}})`,
       returns `'[10, {"a": false}]'`
-* `core.html.parse(text)`: returns a `Node`
-    * Parses a string containing HTML data into a hierarchical node structure.
-    * returns a `Node` (the root element).
-* `core.html.stream()`: returns an `HTMLStream` object
-    * Creates a streaming HTML parser.
-    * `HTMLStream` methods:
-        * `feed(text)`: Adds a chunk of HTML data to the parser.
-        * `end()`: Signals the end of the HTML stream.
-        * `get_root()`: returns the root `Node` of the parsed HTML.
-
-#### `Node` definition
-A table representing an HTML element, text node, or comment.
-```lua
-{
-    type = "element" | "text" | "comment",
-    -- For "element" type:
-    name = "div", -- tag name
-    attributes = { -- table of attributes
-        class = "test",
-        id = "main",
-    },
-    children = { -- list of child Nodes
-        { type = "text", text = "Hello" },
-        -- ...
-    },
-    -- For "text" or "comment" type:
-    text = "content",
-}
-```
 * `core.serialize(table)`: returns a string
     * Convert a value into string form readable by `core.deserialize`.
     * Supports tables, strings, numbers, booleans and `nil`.
