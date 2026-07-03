@@ -22,6 +22,8 @@
 
 static constexpr const char *HTMLVIEW_CALLBACKS_RKEY = "HTMLVIEW_CALLBACKS";
 static constexpr const char *HTMLVIEW_JSON_CALLBACKS_RKEY = "HTMLVIEW_JSON_CALLBACKS";
+static constexpr const char *HTMLVIEW_COMMANDS_RKEY = "HTMLVIEW_COMMANDS";
+static constexpr const char *HTMLVIEW_PERMS_RKEY = "HTMLVIEW_PERMS";
 static constexpr const char *HTMLVIEW_CAPTURE_CALLBACKS_RKEY = "HTMLVIEW_CAPTURE_CALLBACKS";
 static constexpr const char *HTMLVIEW_READY_CALLBACKS_RKEY = "HTMLVIEW_READY_CALLBACKS";
 
@@ -371,6 +373,73 @@ int ModApiHTMLView::l_on_message(lua_State *L)
 	lua_settable(L, -3);
 
 	lua_pop(L, 1);
+	return 0;
+}
+
+int ModApiHTMLView::l_set_permissions(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	std::string id = readParam<std::string>(L, 1);
+	bool clear = lua_isnil(L, 2);
+	if (!clear)
+		luaL_checktype(L, 2, LUA_TTABLE);
+
+	lua_getfield(L, LUA_REGISTRYINDEX, HTMLVIEW_PERMS_RKEY);
+	if (!lua_istable(L, -1)) {
+		lua_pop(L, 1);
+		lua_newtable(L);
+		lua_pushvalue(L, -1);
+		lua_setfield(L, LUA_REGISTRYINDEX, HTMLVIEW_PERMS_RKEY);
+	}
+
+	lua_pushlstring(L, id.c_str(), id.size());
+	if (clear)
+		lua_pushnil(L);
+	else
+		lua_pushvalue(L, 2);
+	lua_settable(L, -3);
+
+	lua_pop(L, 1);
+	return 0;
+}
+
+int ModApiHTMLView::l_register_command(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	std::string id = readParam<std::string>(L, 1);
+	std::string cmd = readParam<std::string>(L, 2);
+	bool clear = lua_isnil(L, 3);
+	if (!clear)
+		luaL_checktype(L, 3, LUA_TFUNCTION);
+
+	lua_getfield(L, LUA_REGISTRYINDEX, HTMLVIEW_COMMANDS_RKEY);
+	if (!lua_istable(L, -1)) {
+		lua_pop(L, 1);
+		lua_newtable(L);
+		lua_pushvalue(L, -1);
+		lua_setfield(L, LUA_REGISTRYINDEX, HTMLVIEW_COMMANDS_RKEY);
+	}
+
+	// commands[id] = commands[id] or {}
+	lua_pushlstring(L, id.c_str(), id.size());
+	lua_gettable(L, -2);
+	if (!lua_istable(L, -1)) {
+		lua_pop(L, 1);
+		lua_newtable(L);
+		lua_pushlstring(L, id.c_str(), id.size());
+		lua_pushvalue(L, -2);
+		lua_settable(L, -4);
+	}
+
+	// commands[id][cmd] = func
+	lua_pushlstring(L, cmd.c_str(), cmd.size());
+	if (clear)
+		lua_pushnil(L);
+	else
+		lua_pushvalue(L, 3);
+	lua_settable(L, -3);
+
+	lua_pop(L, 2);
 	return 0;
 }
 
@@ -732,6 +801,8 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "on_message_json", l_on_message_json, tbl);
 		registerFunction(L, "on_capture", l_on_capture, tbl);
 		registerFunction(L, "on_ready", l_on_ready, tbl);
+		registerFunction(L, "set_permissions", l_set_permissions, tbl);
+		registerFunction(L, "register_command", l_register_command, tbl);
 		registerFunction(L, "set_viewport", dummy, tbl);
 		registerFunction(L, "get_viewport", dummy_nil, tbl);
 		registerFunction(L, "update_viewport", dummy_nil, tbl);
@@ -762,6 +833,8 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "on_message_json", l_on_message_json, tbl);
 		registerFunction(L, "on_capture", l_on_capture, tbl);
 		registerFunction(L, "on_ready", l_on_ready, tbl);
+		registerFunction(L, "set_permissions", l_set_permissions, tbl);
+		registerFunction(L, "register_command", l_register_command, tbl);
 		registerFunction(L, "set_viewport", l_set_viewport, tbl);
 		registerFunction(L, "get_viewport", l_get_viewport, tbl);
 		registerFunction(L, "update_viewport", l_update_viewport, tbl);

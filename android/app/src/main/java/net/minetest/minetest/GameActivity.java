@@ -195,6 +195,11 @@ public class GameActivity extends SDLActivity {
 			mHtmlViewManager.htmlview_send(id, message);
 	}
 
+	public void htmlview_command_response(String id, String callId, boolean success, String resultJson, String error) {
+		if (mHtmlViewManager != null)
+			mHtmlViewManager.htmlview_command_response(id, callId, success, resultJson, error);
+	}
+
 	public void htmlview_navigate(String id, String url) {
 		if (mHtmlViewManager != null)
 			mHtmlViewManager.htmlview_navigate(id, url);

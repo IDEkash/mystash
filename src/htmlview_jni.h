@@ -49,5 +49,7 @@ class ScriptApiHTMLView;
 	std::vector<std::string> htmlview_jni_get_viewport_list(const std::string &id);
 	void htmlview_jni_render_viewports(Client *client, float dtime);
 	void htmlview_jni_poll(ScriptApiHTMLView *script);
+	void htmlview_jni_command_response(const std::string &id, const std::string &callId,
+			bool success, const std::string &resultJson, const std::string &error);
 
 #endif

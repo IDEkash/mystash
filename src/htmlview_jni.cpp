@@ -68,6 +68,13 @@ struct HtmlViewMessage {
 	std::string message;
 };
 
+struct HtmlViewCommand {
+	std::string id;
+	std::string callId;
+	std::string cmd;
+	std::string paramsJson;
+};
+
 struct HtmlViewCapture {
 	std::string id;
 	std::string png_base64;
@@ -80,6 +87,7 @@ struct HtmlViewEvent {
 
 static std::mutex g_msg_mutex;
 static std::deque<HtmlViewMessage> g_messages;
+static std::deque<HtmlViewCommand> g_commands;
 static std::deque<HtmlViewCapture> g_captures;
 static std::deque<HtmlViewEvent> g_events;
 
@@ -354,6 +362,31 @@ void htmlview_jni_capture(const std::string &id, int width, int height)
 	callVoidMethod1Str2Int("htmlview_capture", id, width, height);
 }
 
+void htmlview_jni_command_response(const std::string &id, const std::string &callId,
+		bool success, const std::string &resultJson, const std::string &error)
+{
+	JNIEnv *env = porting::getJNIEnv();
+	jmethodID mid = env->GetMethodID(porting::activityClass, "htmlview_command_response",
+		"(Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;)V");
+	if (!mid) {
+		errorstream << "htmlview_jni: missing method htmlview_command_response" << std::endl;
+		return;
+	}
+
+	jstring jid = env->NewStringUTF(id.c_str());
+	jstring jcid = env->NewStringUTF(callId.c_str());
+	jboolean jsuc = success;
+	jstring jres = resultJson.empty() ? nullptr : env->NewStringUTF(resultJson.c_str());
+	jstring jerr = error.empty() ? nullptr : env->NewStringUTF(error.c_str());
+
+	env->CallVoidMethod(porting::activity, mid, jid, jcid, jsuc, jres, jerr);
+
+	if (jid) env->DeleteLocalRef(jid);
+	if (jcid) env->DeleteLocalRef(jcid);
+	if (jres) env->DeleteLocalRef(jres);
+	if (jerr) env->DeleteLocalRef(jerr);
+}
+
 void htmlview_jni_set_viewport(const std::string &id, const std::string &name,
 		v3f pos, v3f dir, v3f up, float fov, float tilt, int width, int height,
 		u32 refresh_interval_ms, const std::string &format, int quality,
@@ -575,6 +608,21 @@ Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLMessage(
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLCommand(
+		JNIEnv *env, jclass, jstring id, jstring callId, jstring cmd, jstring paramsJson)
+{
+	HtmlViewCommand c;
+	c.id = readJavaString(env, id);
+	c.callId = readJavaString(env, callId);
+	c.cmd = readJavaString(env, cmd);
+	c.paramsJson = readJavaString(env, paramsJson);
+	{
+		std::lock_guard<std::mutex> lock(g_msg_mutex);
+		g_commands.push_back(std::move(c));
+	}
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLCapture(
 		JNIEnv *env, jclass, jstring id, jstring png_base64)
 {
@@ -736,16 +784,21 @@ void htmlview_jni_poll(ScriptApiHTMLView *script)
 	if (!script)
 		return;
 	std::deque<HtmlViewMessage> batch;
+	std::deque<HtmlViewCommand> cmd_batch;
 	std::deque<HtmlViewCapture> cap_batch;
 	std::deque<HtmlViewEvent> event_batch;
 	{
 		std::lock_guard<std::mutex> lock(g_msg_mutex);
 		batch.swap(g_messages);
+		cmd_batch.swap(g_commands);
 		cap_batch.swap(g_captures);
 		event_batch.swap(g_events);
 	}
 	for (const auto &m : batch) {
 		script->on_htmlview_message(m.id, m.message);
+	}
+	for (const auto &c : cmd_batch) {
+		script->on_htmlview_command(c.id, c.callId, c.cmd, c.paramsJson);
 	}
 	for (const auto &c : cap_batch) {
 		script->on_htmlview_capture(c.id, c.png_base64);

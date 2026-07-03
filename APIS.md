@@ -116,6 +116,16 @@ Workers still support `send`, `inject`, `navigate`, and `on_message`, but `displ
 `htmlview.on_ready(id, cb_or_nil)`
 - `cb()`: Fired once after `onPageFinished`.
 
+`htmlview.set_permissions(id, permissions_table_or_nil)`
+- `permissions_table`: `{ command_name = boolean, ... }`
+- Whitelists which commands can be called from JS via `luanti.command()`.
+
+`htmlview.register_command(id, command_name, cb_or_nil)`
+- `cb(params_table) -> return_value`
+- Registers a Lua function to be invoked from JS.
+- `params_table`: The parameters passed from JS (decoded from JSON).
+- `return_value`: The value returned to JS (encoded to JSON).
+
 `htmlview.pipe(from_id, to_id)`
 - Forwards messages from one HTMLView instance to another.
 
@@ -147,6 +157,11 @@ Within the HTMLView (Javascript):
 `luanti.shared_set(key, val)`
 
 `luanti.shared_get(key) -> string | null`
+
+`luanti.command(command_name, params_object) -> Promise`
+- Invokes a Lua command registered via `htmlview.register_command`.
+- Returns a Promise that resolves with the Lua return value or rejects with an error.
+- **Security:** Requires the command to be whitelisted via `htmlview.set_permissions`.
 
 ### Capture
 

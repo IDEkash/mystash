@@ -336,6 +336,23 @@ public class HTMLViewManager {
 		});
 	}
 
+	public void htmlview_command_response(String id, String callId, boolean success, String resultJson, String error) {
+		activity.runOnUiThread(() -> {
+			HtmlViewState st = views.get(id);
+			if (st == null)
+				return;
+
+			String resLit = resultJson != null ? JSONObject.quote(resultJson) : "null";
+			String errLit = error != null ? JSONObject.quote(error) : "null";
+			String js = "(function(){try{if(window.luanti&&luanti._on_command_response){luanti._on_command_response(\"" + callId + "\"," + success + "," + resLit + "," + errLit + ");}}catch(e){}})();";
+			if (Build.VERSION.SDK_INT >= 19) {
+				st.webView.evaluateJavascript(js, null);
+			} else {
+				st.webView.loadUrl("javascript:" + js);
+			}
+		});
+	}
+
 	public void htmlview_navigate(String id, String url) {
 		activity.runOnUiThread(() -> {
 			HtmlViewState st = views.get(id);
@@ -677,7 +694,19 @@ public class HTMLViewManager {
 	}
 
 	private static String injectBridge(String html) {
-		String bridge = "<script>(function(){var _native=window.luanti;window.luanti={};luanti._messageCallbacks=[];luanti.on_message=function(cb){if(typeof cb==='function'){luanti._messageCallbacks.push(cb);}};luanti.on_message_json=function(cb){if(typeof cb==='function'){luanti._messageCallbacks.push(function(m){try{cb(JSON.parse(m),m);}catch(e){cb(null,m,String(e&&e.message||e));}});}};luanti._trigger=function(msg){for(var i=0;i<luanti._messageCallbacks.length;i++){try{luanti._messageCallbacks[i](msg);}catch(e){}}};luanti.send=function(msg){try{if(_native&&_native.send){_native.send(String(msg));}}catch(e){}};luanti.send_json=function(obj){try{luanti.send(JSON.stringify(obj));}catch(e){luanti.send(String(obj));}};luanti.shared_set=function(k,v){try{if(_native&&_native.shared_set){_native.shared_set(String(k),v==null?null:String(v));}}catch(e){}};luanti.shared_get=function(k){try{if(_native&&_native.shared_get){return _native.shared_get(String(k));}}catch(e){}return null;};})();</script>";
+		String bridge = "<script>(function(){var _n=window.luanti;var l=window.luanti={};l._mcb=[];l._ccb={};l._cid=1;" +
+				"l.on_message=function(cb){if(typeof cb==='function')l._mcb.push(cb);};" +
+				"l.on_message_json=function(cb){if(typeof cb==='function')l._mcb.push(function(m){try{cb(JSON.parse(m),m);}catch(e){cb(null,m,String(e&&e.message||e));}});};" +
+				"l._trigger=function(m){for(var i=0;i<l._mcb.length;i++){try{l._mcb[i](m);}catch(e){}}};" +
+				"l.send=function(m){try{if(_n&&_n.send)_n.send(String(m));}catch(e){}};" +
+				"l.send_json=function(o){try{l.send(JSON.stringify(o));}catch(e){l.send(String(o));}};" +
+				"l.shared_set=function(k,v){try{if(_n&&_n.shared_set)_n.shared_set(String(k),v==null?null:String(v));}catch(e){}};" +
+				"l.shared_get=function(k){try{if(_n&&_n.shared_get)return _n.shared_get(String(k));}catch(e){}return null;};" +
+				"l.command=function(c,p){return new Promise(function(res,rej){var id=String(l._cid++);l._ccb[id]={res:res,rej:rej};" +
+				"try{if(_n&&_n.command){_n.command(id,String(c),p?JSON.stringify(p):null);}else{rej('Native bridge unavailable');}}catch(e){rej(String(e));}}).catch(function(e){console.error('Luanti command error:',e);throw e;});};" +
+				"l._on_command_response=function(id,s,r,e){var cb=l._ccb[id];if(!cb)return;delete l._ccb[id];" +
+				"if(s){try{cb.res(r?JSON.parse(r):null);}catch(ex){cb.rej('JSON parse error: '+String(ex));}}else{cb.rej(e||'Unknown error');}};" +
+				"})();</script>";
 		if (html == null)
 			return bridge;
 
@@ -949,9 +978,15 @@ public class HTMLViewManager {
 		public String shared_get(String key) {
 			return htmlview_shared_get(key);
 		}
+
+		@JavascriptInterface
+		public void command(String callId, String cmd, String paramsJson) {
+			nativeOnHTMLCommand(viewId, callId, cmd, paramsJson);
+		}
 	}
 
 	private static native void nativeOnHTMLMessage(String id, String message);
+	private static native void nativeOnHTMLCommand(String id, String callId, String cmd, String paramsJson);
 	private static native void nativeOnHTMLCapture(String id, String pngBase64);
 	private static native void nativeOnHTMLReady(String id);
 	private static native byte[] nativeGetViewportFrame(String id, String name);
