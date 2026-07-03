@@ -15,6 +15,7 @@
 #include "itemdef.h"
 #include "l_internal.h"
 #include "lua_api/l_nodemeta.h"
+#include "client/renderingengine.h"
 #if CHECK_CLIENT_BUILD()
 #include "gui/mainmenumanager.h"
 #endif

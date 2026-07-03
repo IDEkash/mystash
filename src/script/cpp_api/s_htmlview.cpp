@@ -7,7 +7,7 @@
 
 #include "client/client.h"
 #include "client/texturesource.h"
-#include "renderingengine.h"
+#include "client/renderingengine.h"
 #include "util/base64.h"
 
 #include <json/json.h>
