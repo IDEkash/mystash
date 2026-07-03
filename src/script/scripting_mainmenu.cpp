@@ -11,6 +11,7 @@
 #include "lua_api/l_menu_common.h"
 #include "lua_api/l_util.h"
 #include "lua_api/l_settings.h"
+#include "lua_api/l_html.h"
 #include "log.h"
 #include "filesys.h"
 #include "porting.h"
@@ -58,12 +59,14 @@ void MainMenuScripting::initializeModApi(lua_State *L, int top)
 	ModApiUtil::Initialize(L, top);
 	ModApiMainMenuSound::Initialize(L, top);
 	ModApiHttp::Initialize(L, top);
+	ModApiHTML::Initialize(L, top);
 
 	asyncEngine.registerStateInitializer(registerLuaClasses);
 	asyncEngine.registerStateInitializer(ModApiMenuCommon::InitializeAsync);
 	asyncEngine.registerStateInitializer(ModApiMainMenu::InitializeAsync);
 	asyncEngine.registerStateInitializer(ModApiUtil::InitializeAsync);
 	asyncEngine.registerStateInitializer(ModApiHttp::InitializeAsync);
+	asyncEngine.registerStateInitializer(ModApiHTML::Initialize);
 
 	// Initialize async environment
 	asyncEngine.initialize(MAINMENU_NUM_ASYNC_THREADS);
@@ -73,6 +76,7 @@ void MainMenuScripting::registerLuaClasses(lua_State *L, int top)
 {
 	LuaSettings::Register(L);
 	MainMenuSoundHandle::Register(L);
+	LuaHTMLStream::Register(L);
 }
 
 bool MainMenuScripting::mayModifyPath(const std::string &path)

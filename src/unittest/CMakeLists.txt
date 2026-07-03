@@ -12,6 +12,7 @@ set (UNITTEST_SRCS
 	${CMAKE_CURRENT_SOURCE_DIR}/test_compression.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/test_connection.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/test_craft.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/test_html.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/test_datastructures.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/test_k_d_tree.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/test_filesys.cpp

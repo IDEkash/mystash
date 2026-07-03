@@ -34,6 +34,7 @@
 #include "lua_api/l_storage.h"
 #include "lua_api/l_ipc.h"
 #include "lua_api/l_htmlview.h"
+#include "lua_api/l_html.h"
 
 extern "C" {
 #include <lualib.h>
@@ -113,6 +114,7 @@ void ServerScripting::initAsync()
 	asyncEngine.registerStateInitializer(ModApiItem::InitializeAsync);
 	asyncEngine.registerStateInitializer(ModApiServer::InitializeAsync);
 	asyncEngine.registerStateInitializer(ModApiIPC::Initialize);
+	asyncEngine.registerStateInitializer(ModApiHTML::Initialize);
 	// not added: ModApiMapgen is a minefield for thread safety
 	// not added: ModApiHttp async api can't really work together with our jobs
 	// not added: ModApiStorage is probably not thread safe(?)
@@ -141,6 +143,7 @@ void ServerScripting::InitializeModApi(lua_State *L, int top)
 	LuaSettings::Register(L);
 	StorageRef::Register(L);
 	ModChannelRef::Register(L);
+	LuaHTMLStream::Register(L);
 
 	// Initialize mod api modules
 	ModApiAsync::Initialize(L, top);
@@ -159,6 +162,7 @@ void ServerScripting::InitializeModApi(lua_State *L, int top)
 	ModApiChannels::Initialize(L, top);
 	ModApiIPC::Initialize(L, top);
 	ModApiHTMLView::Initialize(L, top);
+	ModApiHTML::Initialize(L, top);
 }
 
 void ServerScripting::InitializeAsync(lua_State *L, int top)
@@ -174,6 +178,7 @@ void ServerScripting::InitializeAsync(lua_State *L, int top)
 	LuaSecureRandom::Register(L);
 	LuaVoxelManip::Register(L);
 	LuaSettings::Register(L);
+	LuaHTMLStream::Register(L);
 
 	// globals data
 	auto *data = ModApiBase::getServer(L)->m_lua_globals_data.get();
