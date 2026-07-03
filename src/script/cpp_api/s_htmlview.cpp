@@ -9,6 +9,8 @@
 #include "client/texturesource.h"
 #include "client/renderingengine.h"
 #include "util/base64.h"
+#include <IFileSystem.h>
+#include <IReadFile.h>
 
 #include <json/json.h>
 #include <memory>
@@ -109,7 +111,7 @@ void ScriptApiHTMLView::on_htmlview_capture(const std::string &id, const std::st
 			video::IImage *img = driver->createImageFromFile(file);
 			file->drop();
 			if (img) {
-				IWritableTextureSource *tsrc = (IWritableTextureSource *)getClient(L)->getTextureSource();
+				IWritableTextureSource *tsrc = (IWritableTextureSource *)getClient()->getTextureSource();
 				tsrc->insertSourceImage(tex_name, img);
 				img->drop();
 			}
