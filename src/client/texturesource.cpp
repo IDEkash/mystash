@@ -110,6 +110,10 @@ public:
 	// Shall be called from the main thread.
 	void insertSourceImage(const std::string &name, video::IImage *img);
 
+	// Remove a source image from the cache.
+	// Shall be called from the main thread.
+	void removeSourceImage(const std::string &name);
+
 	// Rebuild images and textures from the current set of source images
 	// Shall be called from the main thread.
 	void rebuildImagesAndTextures();
@@ -553,6 +557,35 @@ void TextureSource::insertSourceImage(const std::string &name, video::IImage *im
 	}
 	if (affected > 0)
 		verbosestream << "TextureSource: inserting \"" << name << "\" caused rebuild of "
+				<< affected << " textures." << std::endl;
+}
+
+void TextureSource::removeSourceImage(const std::string &name)
+{
+	sanity_check(std::this_thread::get_id() == m_main_thread);
+
+	m_imagesource.removeSourceImage(name);
+	m_source_image_existence.set(name, false);
+
+	// now we need to check for any textures that need updating
+	MutexAutoLock lock(m_textureinfo_cache_mutex);
+
+	video::IVideoDriver *driver = RenderingEngine::get_video_driver();
+	sanity_check(driver);
+
+	// Recreate affected textures
+	u32 affected = 0;
+	for (TextureInfo &ti : m_textureinfo_cache) {
+		if (ti.name.empty())
+			continue; // Skip dummy entry
+		// If the source image was used, we need to rebuild this texture
+		if (ti.sourceImages.find(name) != ti.sourceImages.end()) {
+			rebuildTexture(driver, ti);
+			affected++;
+		}
+	}
+	if (affected > 0)
+		verbosestream << "TextureSource: removing \"" << name << "\" caused rebuild of "
 				<< affected << " textures." << std::endl;
 }
 

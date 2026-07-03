@@ -22,6 +22,8 @@ public:
 
 	void insert(const std::string &name, video::IImage *img, bool prefer_local);
 
+	void remove(const std::string &name);
+
 	video::IImage* get(const std::string &name);
 
 	// Primarily fetches from cache, secondarily tries to read from filesystem.
@@ -43,6 +45,9 @@ struct ImageSource {
 
 	// Insert a source image into the cache without touching the filesystem.
 	void insertSourceImage(const std::string &name, video::IImage *img, bool prefer_local);
+
+	// Remove a source image from the cache.
+	void removeSourceImage(const std::string &name);
 
 	// This was picked so that the image buffer size fits in an s32 (assuming 32bpp).
 	// The exact value is 23170 but this provides some leeway.

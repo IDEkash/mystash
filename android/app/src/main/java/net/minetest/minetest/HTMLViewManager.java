@@ -382,11 +382,20 @@ public class HTMLViewManager {
 			HtmlViewState st = views.get(id);
 			if (st == null)
 				return;
-			capturePngToNativeOnUiThread(id, st, width, height);
+			capturePngToNativeOnUiThread(id, st, width, height, null);
 		});
 	}
 
-	private void capturePngToNativeOnUiThread(String id, HtmlViewState st, int width, int height) {
+	public void htmlview_capture(String id, int width, int height, String tex_name) {
+		activity.runOnUiThread(() -> {
+			HtmlViewState st = views.get(id);
+			if (st == null)
+				return;
+			capturePngToNativeOnUiThread(id, st, width, height, tex_name);
+		});
+	}
+
+	private void capturePngToNativeOnUiThread(String id, HtmlViewState st, int width, int height, String tex_name) {
 		WebView wv = st.webView;
 
 		int w = width > 0 ? width : wv.getWidth();
@@ -427,7 +436,7 @@ public class HTMLViewManager {
 			bmp.compress(Bitmap.CompressFormat.PNG, 100, out);
 			bmp.recycle();
 			String b64 = Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
-			nativeOnHTMLCapture(id, b64);
+			nativeOnHTMLCapture(id, b64, tex_name);
 		} catch (Exception ignored) {
 		}
 	}
@@ -952,7 +961,7 @@ public class HTMLViewManager {
 	}
 
 	private static native void nativeOnHTMLMessage(String id, String message);
-	private static native void nativeOnHTMLCapture(String id, String pngBase64);
+	private static native void nativeOnHTMLCapture(String id, String pngBase64, String texName);
 	private static native void nativeOnHTMLReady(String id);
 	private static native byte[] nativeGetViewportFrame(String id, String name);
 }

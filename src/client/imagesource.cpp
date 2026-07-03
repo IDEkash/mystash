@@ -61,6 +61,16 @@ void SourceImageCache::insert(const std::string &name, video::IImage *img, bool 
 	m_images[name] = toadd;
 }
 
+void SourceImageCache::remove(const std::string &name)
+{
+	auto n = m_images.find(name);
+	if (n != m_images.end()){
+		if (n->second)
+			n->second->drop();
+		m_images.erase(n);
+	}
+}
+
 video::IImage* SourceImageCache::get(const std::string &name)
 {
 	auto n = m_images.find(name);
@@ -1921,4 +1931,9 @@ video::IImage* ImageSource::generateImage(std::string_view name,
 void ImageSource::insertSourceImage(const std::string &name, video::IImage *img, bool prefer_local)
 {
 	m_sourcecache.insert(name, img, prefer_local);
+}
+
+void ImageSource::removeSourceImage(const std::string &name)
+{
+	m_sourcecache.remove(name);
 }

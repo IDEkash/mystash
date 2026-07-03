@@ -71,6 +71,7 @@ struct HtmlViewMessage {
 struct HtmlViewCapture {
 	std::string id;
 	std::string png_base64;
+	std::string tex_name;
 };
 
 struct HtmlViewEvent {
@@ -349,9 +350,31 @@ std::string htmlview_jni_shared_get(const std::string &key)
 	return callStringMethod1Str("htmlview_shared_get", key);
 }
 
-void htmlview_jni_capture(const std::string &id, int width, int height)
+void htmlview_jni_capture(const std::string &id, int width, int height,
+		const std::string &tex_name)
 {
-	callVoidMethod1Str2Int("htmlview_capture", id, width, height);
+	if (tex_name.empty()) {
+		callVoidMethod1Str2Int("htmlview_capture", id, width, height);
+	} else {
+		JNIEnv *env = porting::getJNIEnv();
+		jmethodID mid = env->GetMethodID(porting::activityClass, "htmlview_capture",
+			"(Ljava/lang/String;IILjava/lang/String;)V");
+		if (!mid) {
+			errorstream << "htmlview_jni: missing method htmlview_capture with tex_name" << std::endl;
+			callVoidMethod1Str2Int("htmlview_capture", id, width, height);
+			return;
+		}
+
+		jstring jid = env->NewStringUTF(id.c_str());
+		jint jw = width;
+		jint jh = height;
+		jstring jtex = env->NewStringUTF(tex_name.c_str());
+		env->CallVoidMethod(porting::activity, mid, jid, jw, jh, jtex);
+		if (jid)
+			env->DeleteLocalRef(jid);
+		if (jtex)
+			env->DeleteLocalRef(jtex);
+	}
 }
 
 void htmlview_jni_set_viewport(const std::string &id, const std::string &name,
@@ -576,11 +599,13 @@ Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLMessage(
 
 extern "C" JNIEXPORT void JNICALL
 Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLCapture(
-		JNIEnv *env, jclass, jstring id, jstring png_base64)
+		JNIEnv *env, jclass, jstring id, jstring png_base64, jstring tex_name)
 {
 	HtmlViewCapture c;
 	c.id = readJavaString(env, id);
 	c.png_base64 = readJavaString(env, png_base64);
+	if (tex_name)
+		c.tex_name = readJavaString(env, tex_name);
 	{
 		std::lock_guard<std::mutex> lock(g_msg_mutex);
 		g_captures.push_back(std::move(c));
@@ -748,7 +773,7 @@ void htmlview_jni_poll(ScriptApiHTMLView *script)
 		script->on_htmlview_message(m.id, m.message);
 	}
 	for (const auto &c : cap_batch) {
-		script->on_htmlview_capture(c.id, c.png_base64);
+		script->on_htmlview_capture(c.id, c.png_base64, c.tex_name);
 	}
 	for (const auto &e : event_batch) {
 		if (e.type == HtmlViewEvent::READY)

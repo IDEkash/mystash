@@ -132,6 +132,11 @@ public:
 	virtual void insertSourceImage(const std::string &name, video::IImage *img)=0;
 
 	/**
+	 * @brief Removes a source image. Must be called from the main thread.
+	 */
+	virtual void removeSourceImage(const std::string &name)=0;
+
+	/**
 	 * Rebuilds all textures (in case-source images have changed)
 	 * @note This won't invalidate old ITexture's, but may or may not reuse them.
 	 * So you have to re-get all textures anyway.

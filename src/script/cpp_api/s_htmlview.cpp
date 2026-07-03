@@ -5,6 +5,9 @@
 
 #include "cpp_api/s_internal.h"
 
+#include "client/client.h"
+#include "client/texturesource.h"
+#include "renderingengine.h"
 #include "util/base64.h"
 
 #include <json/json.h>
@@ -88,13 +91,30 @@ void ScriptApiHTMLView::on_htmlview_message(const std::string &id, const std::st
 	lua_remove(L, error_handler);
 }
 
-void ScriptApiHTMLView::on_htmlview_capture(const std::string &id, const std::string &png_base64)
+void ScriptApiHTMLView::on_htmlview_capture(const std::string &id, const std::string &png_base64,
+		const std::string &tex_name)
 {
 	SCRIPTAPI_PRECHECKHEADER
 
 	if (!base64_is_valid(png_base64))
 		return;
 	std::string png = base64_decode(png_base64);
+
+	if (!tex_name.empty()) {
+		video::IVideoDriver *driver = RenderingEngine::get_video_driver();
+		io::IFileSystem *fs = RenderingEngine::get_raw_device()->getFileSystem();
+
+		io::IReadFile *file = fs->createMemoryReadFile(png.data(), png.size(), tex_name.c_str(), false);
+		if (file) {
+			video::IImage *img = driver->createImageFromFile(file);
+			file->drop();
+			if (img) {
+				IWritableTextureSource *tsrc = (IWritableTextureSource *)getClient(L)->getTextureSource();
+				tsrc->insertSourceImage(tex_name, img);
+				img->drop();
+			}
+		}
+	}
 
 	int error_handler = PUSH_ERROR_HANDLER(L);
 

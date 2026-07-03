@@ -70,6 +70,15 @@ private:
 	// get_csm_restrictions()
 	static int l_get_csm_restrictions(lua_State *L);
 
+	// dynamic_texture_update(name, png_bytes)
+	static int l_dynamic_texture_update(lua_State *L);
+
+	// dynamic_texture_info(name)
+	static int l_dynamic_texture_info(lua_State *L);
+
+	// dynamic_texture_delete(name)
+	static int l_dynamic_texture_delete(lua_State *L);
+
 public:
 	static void Initialize(lua_State *L, int top);
 	static void InitializeSSCSM(lua_State *L, int top);

@@ -235,16 +235,18 @@ int ModApiHTMLView::l_capture(lua_State *L)
 	std::string id = readParam<std::string>(L, 1);
 	int width = 0;
 	int height = 0;
+	std::string tex_name = "";
 	if (lua_istable(L, 2)) {
 		width = getintfield_default(L, 2, "width", 0);
 		height = getintfield_default(L, 2, "height", 0);
+		tex_name = getstringfield_default(L, 2, "tex_name", "");
 	}
 	if (width < 0)
 		width = 0;
 	if (height < 0)
 		height = 0;
 
-	htmlview_jni_capture(id, width, height);
+	htmlview_jni_capture(id, width, height, tex_name);
 #endif
 	return 0;
 }

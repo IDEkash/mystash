@@ -334,6 +334,71 @@ int ModApiClient::l_get_csm_restrictions(lua_State *L)
 	return 1;
 }
 
+// dynamic_texture_update(name, png_bytes)
+int ModApiClient::l_dynamic_texture_update(lua_State *L)
+{
+	std::string name = readParam<std::string>(L, 1);
+	size_t len;
+	const char *png_bytes = luaL_checklstring(L, 2, &len);
+
+	video::IVideoDriver *driver = RenderingEngine::get_video_driver();
+	io::IFileSystem *fs = RenderingEngine::get_raw_device()->getFileSystem();
+
+	io::IReadFile *file = fs->createMemoryReadFile(png_bytes, len, name.c_str(), false);
+	if (!file) {
+		lua_pushboolean(L, false);
+		lua_pushstring(L, "Failed to create memory file");
+		return 2;
+	}
+
+	video::IImage *img = driver->createImageFromFile(file);
+	file->drop();
+
+	if (!img) {
+		lua_pushboolean(L, false);
+		lua_pushstring(L, "Failed to create image from PNG bytes");
+		return 2;
+	}
+
+	IWritableTextureSource *tsrc = (IWritableTextureSource *)getClient(L)->getTextureSource();
+	tsrc->insertSourceImage(name, img);
+	img->drop();
+
+	lua_pushboolean(L, true);
+	return 1;
+}
+
+// dynamic_texture_info(name)
+int ModApiClient::l_dynamic_texture_info(lua_State *L)
+{
+	std::string name = readParam<std::string>(L, 1);
+	ITextureSource *tsrc = getClient(L)->getTextureSource();
+
+	if (!tsrc->isKnownSourceImage(name)) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	core::dimension2du dim = tsrc->getTextureDimensions(name);
+	lua_newtable(L);
+	lua_pushinteger(L, dim.Width);
+	lua_setfield(L, -2, "width");
+	lua_pushinteger(L, dim.Height);
+	lua_setfield(L, -2, "height");
+	lua_pushstring(L, "a8r8g8b8");
+	lua_setfield(L, -2, "format");
+	return 1;
+}
+
+// dynamic_texture_delete(name)
+int ModApiClient::l_dynamic_texture_delete(lua_State *L)
+{
+	std::string name = readParam<std::string>(L, 1);
+	IWritableTextureSource *tsrc = (IWritableTextureSource *)getClient(L)->getTextureSource();
+	tsrc->removeSourceImage(name);
+	return 0;
+}
+
 void ModApiClient::Initialize(lua_State *L, int top)
 {
 	API_FCT(get_current_modname);
@@ -355,6 +420,9 @@ void ModApiClient::Initialize(lua_State *L, int top)
 	API_FCT(get_builtin_path);
 	API_FCT(get_language);
 	API_FCT(get_csm_restrictions);
+	API_FCT(dynamic_texture_update);
+	API_FCT(dynamic_texture_info);
+	API_FCT(dynamic_texture_delete);
 }
 
 void ModApiClient::InitializeSSCSM(lua_State *L, int top)
