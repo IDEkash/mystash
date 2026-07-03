@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "common/c_content.h"
+#include "convert_json.h"
 #ifdef __ANDROID__
 #include "htmlview_jni.h"
 #endif
