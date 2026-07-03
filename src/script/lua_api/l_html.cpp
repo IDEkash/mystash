@@ -92,7 +92,7 @@ LuaHTMLStream::LuaHTMLStream()
 
 int LuaHTMLStream::gc_object(lua_State *L)
 {
-	LuaHTMLStream *o = (LuaHTMLStream *)get_userdata(L, 1);
+	LuaHTMLStream *o = *(LuaHTMLStream **)(lua_touserdata(L, 1));
 	delete o;
 	return 0;
 }
