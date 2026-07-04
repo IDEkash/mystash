@@ -568,26 +568,35 @@ collisionMoveResult collisionMoveSimple(Environment *env, IGameDef *gamedef,
 
 			float v_rel = (vel1 - vel2).dotProduct(normal);
 
-			// Only resolve if they are moving towards each other
-			if (v_rel < -0.01f) {
+			// Resolve if they are moving towards each other OR if they are overlapping
+			// (v_rel < -0.01f handles movement, while the second part handles resting/overlap)
+			if (v_rel < -0.01f || nearest_dtime < 0) {
 				// Simple impulse-based collision response
 				// impulse = (1+e) * v_rel / (1/m1 + 1/m2)
 				// We use e=0 for non-bouncy "pushing" feel
 				float k = 1.2f; // Push strength constant (tuning: > 1.0 makes it feel more responsive)
+
+				// Scale k based on whether it's a dynamic collision or an overlap resolution
+				if (nearest_dtime < 0) k *= 2.0f;
+
 				float impulse = (v_rel * k) / (1.0f / m1 + 1.0f / m2);
 
 				v3f impulse_vec = normal * impulse;
 
 				// Adjust velocity of both objects
+				// If we are much lighter than the other object, we take most of the velocity change
 				*speed_f -= impulse_vec / m1;
+
+				// Only push the other object if it's not "locked" (simulated by adding velocity)
 				nearest_info.obj->addVelocity(impulse_vec / m2);
 
 				// Position correction to prevent overlap (sinking)
-				// We move self out of the other object.
-				// Use a small fixed penetration depth or calculate from overlap if available.
-				// For now, a small constant works to keep things stable.
-				float penetration_depth = 0.01f * BS;
-				*pos_f += normal * (penetration_depth * (m2 / (m1 + m2)));
+				// We move self out of the other object proportionally to mass ratio.
+				// This prevents "locking" by ensuring objects actually separate.
+				float separation = 0.02f * BS;
+				if (nearest_dtime < 0) separation = 0.05f * BS; // More aggressive if already overlapping
+
+				*pos_f += normal * (separation * (m2 / (m1 + m2)));
 
 				// We can't easily move the other object's position here without
 				// potentially causing other issues, but adding velocity helps.

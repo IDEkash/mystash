@@ -322,6 +322,8 @@ const std::array<const char *, 38> object_property_keys = {
 	"model_unit_scale",
 	"auto_normalize",
 	"target_height",
+	"mass",
+	"pushable",
 };
 
 /******************************************************************************/
@@ -518,6 +520,8 @@ void read_object_properties(lua_State *L, int index,
 
 	getboolfield(L, -1, "auto_normalize", prop->auto_normalize);
 	getfloatfield(L, -1, "target_height", prop->target_height);
+	getfloatfield(L, -1, "mass", prop->mass);
+	getboolfield(L, -1, "pushable", prop->pushable);
 
 	getstringfield(L, -1, "infotext", prop->infotext);
 	getboolfield(L, -1, "static_save", prop->static_save);
@@ -631,6 +635,10 @@ void push_object_properties(lua_State *L, const ObjectProperties *prop)
 	lua_setfield(L, -2, "auto_normalize");
 	lua_pushnumber(L, prop->target_height);
 	lua_setfield(L, -2, "target_height");
+	lua_pushnumber(L, prop->mass);
+	lua_setfield(L, -2, "mass");
+	lua_pushboolean(L, prop->pushable);
+	lua_setfield(L, -2, "pushable");
 
 	lua_pushlstring(L, prop->infotext.c_str(), prop->infotext.size());
 	lua_setfield(L, -2, "infotext");

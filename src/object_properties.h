@@ -58,7 +58,7 @@ struct ObjectProperties
 	float eye_height = 1.625f;
 	float zoom_fov = 0.0f;
 	float target_height = 0.0f;
-	float mass = 1.0f;
+	float mass = 0.0f; // 0.0 means "auto-calculate from volume"
 	std::optional<u32> nametag_fontsize;
 	MapNode node = MapNode(CONTENT_IGNORE);
 	u16 hp_max = 1;
