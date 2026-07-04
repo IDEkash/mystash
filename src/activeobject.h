@@ -200,7 +200,7 @@ public:
 
 	virtual bool collideWithObjects() const = 0;
 
-	virtual v3f getVelocity() const { return v3f(0, 0, 0); }
+	virtual const v3f getVelocity() const { return v3f(0, 0, 0); }
 	virtual void addVelocity(v3f velocity) {}
 
 	virtual float getMass() const { return 1.0f; }

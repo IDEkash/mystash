@@ -763,7 +763,7 @@ bool PlayerSAO::getCollisionBox(aabb3f *toset) const
 	return true;
 }
 
-v3f PlayerSAO::getVelocity() const
+const v3f PlayerSAO::getVelocity() const
 {
 	return m_player->getSpeed();
 }
