@@ -44,7 +44,9 @@ struct NearbyCollisionInfo {
 		box(box),
 		bouncy(bouncy),
 		is_unloaded(false),
-		is_step_up(false)
+		is_step_up(false),
+		mass(obj ? obj->getMass() : 1.0f),
+		pushable(obj ? obj->isPushable() : false)
 	{}
 
 	inline bool isObject() const { return obj != nullptr; }
@@ -55,6 +57,8 @@ struct NearbyCollisionInfo {
 	u8 bouncy;
 	// bitfield to save space
 	bool is_unloaded:1, is_step_up:1;
+	float mass = 1.0f;
+	bool pushable = false;
 };
 
 // Helper functions:
@@ -550,6 +554,49 @@ collisionMoveResult collisionMoveSimple(Environment *env, IGameDef *gamedef,
 		if (step_up) {
 			// Special case: Handle stairs
 			nearest_info.is_step_up = true;
+		} else if (nearest_info.isObject() && nearest_info.pushable) {
+			// Object-object collision with pushable object
+			v3f normal(0, 0, 0);
+			if (nearest_collided == COLLISION_AXIS_X) normal.X = (speed_f->X > 0) ? -1 : 1;
+			else if (nearest_collided == COLLISION_AXIS_Y) normal.Y = (speed_f->Y > 0) ? -1 : 1;
+			else if (nearest_collided == COLLISION_AXIS_Z) normal.Z = (speed_f->Z > 0) ? -1 : 1;
+
+			v3f vel1 = *speed_f;
+			v3f vel2 = nearest_info.obj->getVelocity();
+			float m1 = self ? self->getMass() : 1.0f;
+			float m2 = nearest_info.mass;
+
+			float v_rel = (vel1 - vel2).dotProduct(normal);
+
+			// Only resolve if they are moving towards each other
+			if (v_rel < -0.01f) {
+				// Simple impulse-based collision response
+				// impulse = (1+e) * v_rel / (1/m1 + 1/m2)
+				// We use e=0 for non-bouncy "pushing" feel
+				float k = 1.2f; // Push strength constant (tuning: > 1.0 makes it feel more responsive)
+				float impulse = (v_rel * k) / (1.0f / m1 + 1.0f / m2);
+
+				v3f impulse_vec = normal * impulse;
+
+				// Adjust velocity of both objects
+				*speed_f -= impulse_vec / m1;
+				nearest_info.obj->addVelocity(impulse_vec / m2);
+
+				// Position correction to prevent overlap (sinking)
+				// We move self out of the other object.
+				// Use a small fixed penetration depth or calculate from overlap if available.
+				// For now, a small constant works to keep things stable.
+				float penetration_depth = 0.01f * BS;
+				*pos_f += normal * (penetration_depth * (m2 / (m1 + m2)));
+
+				// We can't easily move the other object's position here without
+				// potentially causing other issues, but adding velocity helps.
+				// For Y axis, still set touching_ground if applicable (normal.Y > 0 means hitting top of object)
+				if (nearest_collided == COLLISION_AXIS_Y && normal.Y > 0.0f) {
+					result.touching_ground = true;
+					result.standing_on_object = true;
+				}
+			}
 		} else if (nearest_collided == COLLISION_AXIS_X) {
 			if (bounce < -1e-4 && fabsf(speed_f->X) > BS * 3) {
 				speed_f->X *= bounce;

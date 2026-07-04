@@ -763,6 +763,16 @@ bool PlayerSAO::getCollisionBox(aabb3f *toset) const
 	return true;
 }
 
+v3f PlayerSAO::getVelocity() const
+{
+	return m_player->getSpeed();
+}
+
+void PlayerSAO::addVelocity(v3f velocity)
+{
+	m_player->setSpeed(m_player->getSpeed() + velocity);
+}
+
 bool PlayerSAO::getSelectionBox(aabb3f *toset) const
 {
 	if (!m_prop.is_visible) {

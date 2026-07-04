@@ -86,6 +86,8 @@ std::string ObjectProperties::dump() const
 	os << ", model_unit_scale=" << model_unit_scale;
 	os << ", auto_normalize=" << auto_normalize;
 	os << ", target_height=" << target_height;
+	os << ", mass=" << mass;
+	os << ", pushable=" << pushable;
 	os << ", node=(" << (int)node.getContent() << ", " << (int)node.getParam1()
 		<< ", " << (int)node.getParam2() << ")";
 	os << ", use_texture_alpha=" << use_texture_alpha;
@@ -106,9 +108,9 @@ static inline auto tie(const ObjectProperties &o)
 	o.initial_sprite_basepos,
 	o.stepheight, o.automatic_rotate, o.automatic_face_movement_dir_offset,
 	o.automatic_face_movement_max_rotation_per_sec, o.eye_height, o.zoom_fov,
-	o.model_unit_scale, o.auto_normalize, o.target_height,
+	o.model_unit_scale, o.auto_normalize, o.target_height, o.mass,
 	o.node, o.hp_max, o.breath_max, o.glow, o.pointable, o.physical,
-	o.collideWithObjects, o.rotate_selectionbox, o.is_visible, o.makes_footstep_sound,
+	o.collideWithObjects, o.pushable, o.rotate_selectionbox, o.is_visible, o.makes_footstep_sound,
 	o.automatic_face_movement_dir, o.backface_culling, o.static_save, o.use_texture_alpha,
 	o.shaded, o.show_on_minimap, o.nametag_scale_z
 	);
@@ -225,6 +227,9 @@ void ObjectProperties::serialize(std::ostream &os) const
 	writeU8(os, auto_normalize);
 	writeF32(os, target_height);
 
+	writeF32(os, mass);
+	writeU8(os, pushable);
+
 	// Add stuff only at the bottom.
 	// Never remove anything, because we don't want new versions of this!
 }
@@ -334,6 +339,13 @@ void ObjectProperties::deSerialize(std::istream &is)
 	model_unit_scale = readV3F32(is);
 	auto_normalize = readU8(is);
 	target_height = readF32(is);
+
+	if (!canRead(is))
+		return;
+	// >= 5.16.0-dev
+
+	mass = readF32(is);
+	pushable = readU8(is);
 
 	//if (!canRead(is))
 	//	return;

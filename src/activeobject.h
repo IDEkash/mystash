@@ -200,6 +200,12 @@ public:
 
 	virtual bool collideWithObjects() const = 0;
 
+	virtual v3f getVelocity() const { return v3f(0, 0, 0); }
+	virtual void addVelocity(v3f velocity) {}
+
+	virtual float getMass() const { return 1.0f; }
+	virtual bool isPushable() const { return false; }
+
 
 	virtual void setAttachment(object_t parent_id, const std::string &bone, v3f position,
 			v3f rotation, bool force_visible) {}

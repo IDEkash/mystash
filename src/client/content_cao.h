@@ -186,6 +186,7 @@ public:
 	v3f getBoneWorldPos(const std::string &bone_name);
 
 	const v3f getVelocity() const override final { return m_velocity; }
+	void addVelocity(v3f velocity) override { m_velocity += velocity; }
 
 	inline const v3f &getRotation() const { return m_rotation; }
 
@@ -223,6 +224,9 @@ public:
 	{
 		return m_prop.stepheight;
 	}
+
+	float getMass() const override { return m_prop.mass; }
+	bool isPushable() const override { return m_prop.pushable; }
 
 	inline bool isLocalPlayer() const override
 	{

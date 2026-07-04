@@ -48,8 +48,8 @@ public:
 
 	/* LuaEntitySAO-specific */
 	void setVelocity(v3f velocity);
-	void addVelocity(v3f velocity) { m_velocity += velocity; }
-	v3f getVelocity();
+	void addVelocity(v3f velocity) override { m_velocity += velocity; }
+	v3f getVelocity() const override;
 	void setAcceleration(v3f acceleration);
 	v3f getAcceleration();
 

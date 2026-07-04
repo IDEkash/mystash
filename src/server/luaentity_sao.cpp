@@ -445,7 +445,7 @@ void LuaEntitySAO::setVelocity(v3f velocity)
 	m_velocity = velocity;
 }
 
-v3f LuaEntitySAO::getVelocity()
+v3f LuaEntitySAO::getVelocity() const
 {
 	return m_velocity;
 }

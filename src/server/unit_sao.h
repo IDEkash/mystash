@@ -84,6 +84,9 @@ public:
 	// Object properties
 	ObjectProperties *accessObjectProperties() override;
 	void notifyObjectPropertiesModified() override;
+
+	float getMass() const override { return m_prop.mass; }
+	bool isPushable() const override { return m_prop.pushable; }
 	void sendOutdatedData();
 
 	// Update packets

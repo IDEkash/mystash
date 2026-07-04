@@ -171,6 +171,9 @@ public:
 	bool getSelectionBox(aabb3f *toset) const override;
 	bool collideWithObjects() const override { return true; }
 
+	v3f getVelocity() const override;
+	void addVelocity(v3f velocity) override;
+
 	void finalize(RemotePlayer *player, const std::set<std::string> &privs);
 
 	v3f getEyePosition() const { return getBasePosition() + getEyeOffset(); }
