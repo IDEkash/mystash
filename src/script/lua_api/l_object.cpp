@@ -1709,10 +1709,10 @@ int ObjectRef::l_add_velocity(lua_State *L)
 	v3f vel = checkFloatPos(L, 2);
 
 	if (sao->getType() == ACTIVEOBJECT_TYPE_LUAENTITY) {
-		LuaEntitySAO *entitysao = dynamic_cast<LuaEntitySAO*>(sao);
+		LuaEntitySAO *entitysao = (LuaEntitySAO *)sao;
 		entitysao->addVelocity(vel);
 	} else if (sao->getType() == ACTIVEOBJECT_TYPE_PLAYER) {
-		PlayerSAO *playersao = dynamic_cast<PlayerSAO*>(sao);
+		PlayerSAO *playersao = (PlayerSAO *)sao;
 		playersao->setMaxSpeedOverride(vel);
 		getServer(L)->SendPlayerSpeed(playersao->getPeerID(), vel);
 	}
@@ -1730,12 +1730,12 @@ int ObjectRef::l_get_velocity(lua_State *L)
 		return 0;
 
 	if (sao->getType() == ACTIVEOBJECT_TYPE_LUAENTITY) {
-		LuaEntitySAO *entitysao = dynamic_cast<LuaEntitySAO*>(sao);
+		LuaEntitySAO *entitysao = (LuaEntitySAO *)sao;
 		v3f vel = entitysao->getVelocity();
 		pushFloatPos(L, vel);
 		return 1;
 	} else if (sao->getType() == ACTIVEOBJECT_TYPE_PLAYER) {
-		RemotePlayer *player = dynamic_cast<PlayerSAO*>(sao)->getPlayer();
+		RemotePlayer *player = ((PlayerSAO *)sao)->getPlayer();
 		push_v3f(L, player->getSpeed() / BS);
 		return 1;
 	}

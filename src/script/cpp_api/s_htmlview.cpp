@@ -148,8 +148,13 @@ void ScriptApiHTMLView::on_htmlview_command(const std::string &id, const std::st
 
 				lua_pushnil(L);
 				int nullindex = lua_gettop(L);
-				if (ok) push_json_value(L, root, nullindex);
-				else lua_pushnil(L);
+				if (ok) {
+					if (!push_json_value(L, root, nullindex)) {
+						lua_pushnil(L);
+					}
+				} else {
+					lua_pushnil(L);
+				}
 				lua_remove(L, nullindex);
 
 				if (lua_pcall(L, 1, 1, error_handler) != 0) {
