@@ -604,7 +604,12 @@ void Client::step(float dtime)
 	m_sound->step(dtime);
 
 #ifdef __ANDROID__
-	htmlview_jni_poll(m_script);
+	{
+		// On the client side, we usually don't need a heavy environment lock for poll,
+		// but we must ensure we aren't crashing if the script engine is being deleted.
+		if (m_script)
+			htmlview_jni_poll(m_script);
+	}
 #endif
 
 	/*

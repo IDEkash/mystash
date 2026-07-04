@@ -10,6 +10,7 @@
 class ScriptApiHTMLView : virtual public ScriptApiBase
 {
 public:
+	virtual ~ScriptApiHTMLView();
 	void on_htmlview_message(const std::string &id, const std::string &message);
 	void on_htmlview_command(const std::string &id, const std::string &callId,
 			const std::string &cmd, const std::string &paramsJson);

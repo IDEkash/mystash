@@ -680,14 +680,17 @@ void Server::AsyncRunStep(float dtime, bool initial_step)
 		return;
 	}
 
-#ifdef __ANDROID__
-	htmlview_jni_poll(getScriptIface());
-#endif
-
 	{
 		// Send blocks to clients
 		SendBlocks(dtime);
 	}
+
+#ifdef __ANDROID__
+	{
+		EnvAutoLock envlock(this);
+		htmlview_jni_poll(getScriptIface());
+	}
+#endif
 
 	// If paused, this function is called with a 0.0f literal
 	if ((dtime == 0.0f) && !initial_step)

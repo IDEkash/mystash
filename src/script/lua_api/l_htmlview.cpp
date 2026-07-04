@@ -6,6 +6,7 @@
 #include "common/c_converter.h"
 #include "lua_api/l_internal.h"
 #include "cpp_api/s_security.h"
+#include "cpp_api/s_htmlview.h"
 
 #include <memory>
 
@@ -55,6 +56,7 @@ int ModApiHTMLView::l_run(lua_State *L)
 #ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	std::string html = readParam<std::string>(L, 2);
+	htmlview_jni_claim_id(id, getScriptApi<ScriptApiHTMLView>(L));
 	htmlview_jni_run(id, html);
 #endif
 	return 0;
@@ -66,6 +68,7 @@ int ModApiHTMLView::l_run_worker(lua_State *L)
 #ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	std::string html = readParam<std::string>(L, 2);
+	htmlview_jni_claim_id(id, getScriptApi<ScriptApiHTMLView>(L));
 	htmlview_jni_run_worker(id, html);
 #endif
 	return 0;
@@ -82,6 +85,7 @@ int ModApiHTMLView::l_run_external(lua_State *L)
 		entry = readParam<std::string>(L, 3);
 
 	CHECK_SECURE_PATH(L, root_dir.c_str(), false);
+	htmlview_jni_claim_id(id, getScriptApi<ScriptApiHTMLView>(L));
 	htmlview_jni_run_external(id, root_dir, entry);
 #endif
 	return 0;
@@ -98,6 +102,7 @@ int ModApiHTMLView::l_run_external_worker(lua_State *L)
 		entry = readParam<std::string>(L, 3);
 
 	CHECK_SECURE_PATH(L, root_dir.c_str(), false);
+	htmlview_jni_claim_id(id, getScriptApi<ScriptApiHTMLView>(L));
 	htmlview_jni_run_external_worker(id, root_dir, entry);
 #endif
 	return 0;
@@ -108,6 +113,7 @@ int ModApiHTMLView::l_stop(lua_State *L)
 	NO_MAP_LOCK_REQUIRED;
 #ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
+	htmlview_jni_release_id(id);
 	htmlview_jni_stop(id);
 #endif
 	return 0;

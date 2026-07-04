@@ -90,6 +90,7 @@ static std::deque<HtmlViewMessage> g_messages;
 static std::deque<HtmlViewCommand> g_commands;
 static std::deque<HtmlViewCapture> g_captures;
 static std::deque<HtmlViewEvent> g_events;
+static std::unordered_map<std::string, ScriptApiHTMLView *> g_owners;
 
 static std::string readJavaString(JNIEnv *env, jstring j_str)
 {
@@ -779,6 +780,29 @@ Java_net_minetest_minetest_HTMLViewManager_nativeGetViewportFrame(
 
 #include "cpp_api/s_htmlview.h"
 
+void htmlview_jni_claim_id(const std::string &id, ScriptApiHTMLView *script)
+{
+	std::lock_guard<std::mutex> lock(g_msg_mutex);
+	g_owners[id] = script;
+}
+
+void htmlview_jni_release_id(const std::string &id)
+{
+	std::lock_guard<std::mutex> lock(g_msg_mutex);
+	g_owners.erase(id);
+}
+
+void htmlview_jni_release_script(ScriptApiHTMLView *script)
+{
+	std::lock_guard<std::mutex> lock(g_msg_mutex);
+	for (auto it = g_owners.begin(); it != g_owners.end(); ) {
+		if (it->second == script)
+			it = g_owners.erase(it);
+		else
+			++it;
+	}
+}
+
 void htmlview_jni_poll(ScriptApiHTMLView *script)
 {
 	if (!script)
@@ -787,13 +811,43 @@ void htmlview_jni_poll(ScriptApiHTMLView *script)
 	std::deque<HtmlViewCommand> cmd_batch;
 	std::deque<HtmlViewCapture> cap_batch;
 	std::deque<HtmlViewEvent> event_batch;
+
+	std::deque<HtmlViewMessage> leftovers_msg;
+	std::deque<HtmlViewCommand> leftovers_cmd;
+	std::deque<HtmlViewCapture> leftovers_cap;
+	std::deque<HtmlViewEvent> leftovers_event;
+
 	{
 		std::lock_guard<std::mutex> lock(g_msg_mutex);
-		batch.swap(g_messages);
-		cmd_batch.swap(g_commands);
-		cap_batch.swap(g_captures);
-		event_batch.swap(g_events);
+		for (auto &m : g_messages) {
+			auto it = g_owners.find(m.id);
+			if (it != g_owners.end() && it->second == script) batch.push_back(std::move(m));
+			else leftovers_msg.push_back(std::move(m));
+		}
+		g_messages.swap(leftovers_msg);
+
+		for (auto &m : g_commands) {
+			auto it = g_owners.find(m.id);
+			if (it != g_owners.end() && it->second == script) cmd_batch.push_back(std::move(m));
+			else leftovers_cmd.push_back(std::move(m));
+		}
+		g_commands.swap(leftovers_cmd);
+
+		for (auto &m : g_captures) {
+			auto it = g_owners.find(m.id);
+			if (it != g_owners.end() && it->second == script) cap_batch.push_back(std::move(m));
+			else leftovers_cap.push_back(std::move(m));
+		}
+		g_captures.swap(leftovers_cap);
+
+		for (auto &m : g_events) {
+			auto it = g_owners.find(m.id);
+			if (it != g_owners.end() && it->second == script) event_batch.push_back(std::move(m));
+			else leftovers_event.push_back(std::move(m));
+		}
+		g_events.swap(leftovers_event);
 	}
+
 	for (const auto &m : batch) {
 		script->on_htmlview_message(m.id, m.message);
 	}

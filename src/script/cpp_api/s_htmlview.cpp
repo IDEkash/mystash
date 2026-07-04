@@ -225,6 +225,13 @@ void ScriptApiHTMLView::on_htmlview_capture(const std::string &id, const std::st
 	lua_remove(L, error_handler);
 }
 
+ScriptApiHTMLView::~ScriptApiHTMLView()
+{
+#ifdef __ANDROID__
+	htmlview_jni_release_script(this);
+#endif
+}
+
 void ScriptApiHTMLView::on_htmlview_ready(const std::string &id)
 {
 	SCRIPTAPI_PRECHECKHEADER
