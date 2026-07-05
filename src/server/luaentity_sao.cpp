@@ -574,8 +574,10 @@ bool LuaEntitySAO::getCollisionBoxes(std::vector<aabb3f> *toset) const
 	if (!m_prop.physical)
 		return false;
 
-	if (m_prop.collisionboxes.empty())
-		return getCollisionBox(&((*toset).emplace_back()));
+	if (m_prop.collisionboxes.empty()) {
+		toset->emplace_back(0, 0, 0, 0, 0, 0);
+		return getCollisionBox(&(toset->back()));
+	}
 
 	for (const auto &cbox : m_prop.collisionboxes) {
 		aabb3f box = cbox.box;

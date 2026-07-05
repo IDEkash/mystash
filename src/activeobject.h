@@ -196,7 +196,7 @@ public:
 	 */
 	virtual bool getCollisionBoxes(std::vector<aabb3f> *toset) const
 	{
-		aabb3f box;
+		aabb3f box(0, 0, 0, 0, 0, 0);
 		if (getCollisionBox(&box)) {
 			toset->push_back(box);
 			return true;
