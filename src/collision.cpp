@@ -52,6 +52,7 @@ struct NearbyCollisionInfo {
 	{}
 
 	inline bool isObject() const { return obj != nullptr; }
+	inline bool isPlayer() const { return obj && obj->isPlayer(); }
 
 	ActiveObject *obj;
 	aabb3f box;
@@ -620,7 +621,7 @@ collisionMoveResult collisionMoveSimple(Environment *env, IGameDef *gamedef,
 				else if (nearest_collided == COLLISION_AXIS_Y) penetration = std::min(box1.MaxEdge.Y - box2.MinEdge.Y, box2.MaxEdge.Y - box1.MinEdge.Y);
 				else if (nearest_collided == COLLISION_AXIS_Z) penetration = std::min(box1.MaxEdge.Z - box2.MinEdge.Z, box2.MaxEdge.Z - box1.MinEdge.Z);
 
-				float correction = std::max(penetration, 0.1f * BS);
+				float correction = std::max(penetration, 0.01f * BS);
 				*pos_f += normal * (correction * (m2 / (m1 + m2)));
 				v3f other_pos = pos2 - normal * (correction * (m1 / (m1 + m2)));
 				nearest_info.obj->setPosition(other_pos);
@@ -632,6 +633,11 @@ collisionMoveResult collisionMoveSimple(Environment *env, IGameDef *gamedef,
 						info.box.MaxEdge -= normal * (correction * (m1 / (m1 + m2)));
 					}
 				}
+
+				// Update movingbox for subsequent checks in this step
+				movingbox = box_0;
+				movingbox.MinEdge += *pos_f;
+				movingbox.MaxEdge += *pos_f;
 
 				if (nearest_collided == COLLISION_AXIS_Y && normal.Y > 0.0f) {
 					result.touching_ground = true;
