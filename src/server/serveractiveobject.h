@@ -73,6 +73,8 @@ public:
 
 	virtual void setPos(const v3f &pos)
 		{ setBasePosition(pos); }
+	void setPosition(v3f pos) override { setPos(pos); }
+	const v3f getPosition() const override { return getBasePosition(); }
 	virtual void addPos(const v3f &added_pos)
 		{ setBasePosition(m_base_position + added_pos); }
 	// continuous: if true, object does not stop immediately at pos

@@ -35,7 +35,8 @@ struct NearbyCollisionInfo {
 		position(pos),
 		bouncy(bouncy),
 		is_unloaded(is_ul),
-		is_step_up(false)
+		is_step_up(false),
+		is_pushed(false)
 	{}
 
 	// object
@@ -45,6 +46,7 @@ struct NearbyCollisionInfo {
 		bouncy(bouncy),
 		is_unloaded(false),
 		is_step_up(false),
+		is_pushed(false),
 		mass(obj ? obj->getMass() : 1.0f),
 		pushable(obj ? obj->isPushable() : false)
 	{}
@@ -56,7 +58,7 @@ struct NearbyCollisionInfo {
 	v3s16 position;
 	u8 bouncy;
 	// bitfield to save space
-	bool is_unloaded:1, is_step_up:1;
+	bool is_unloaded:1, is_step_up:1, is_pushed:1;
 	float mass = 1.0f;
 	bool pushable = false;
 };
@@ -472,8 +474,8 @@ collisionMoveResult collisionMoveSimple(Environment *env, IGameDef *gamedef,
 		// Go through every nodebox, find nearest collision
 		for (u32 boxindex = 0; boxindex < cinfo.size(); boxindex++) {
 			const NearbyCollisionInfo &box_info = cinfo[boxindex];
-			// Ignore if already stepped up this nodebox.
-			if (box_info.is_step_up)
+			// Ignore if already stepped up this nodebox or already pushed this object.
+			if (box_info.is_step_up || (box_info.isObject() && box_info.is_pushed))
 				continue;
 
 			// Find nearest collision of the two boxes (raytracing-like)
@@ -566,45 +568,48 @@ collisionMoveResult collisionMoveSimple(Environment *env, IGameDef *gamedef,
 			float m1 = self ? self->getMass() : 1.0f;
 			float m2 = nearest_info.mass;
 
+			// If movingbox is a player, give it a "pushing bonus" to make it feel powerful
+			if (self && self->isPlayer()) m1 *= 5.0f;
+
 			float v_rel = (vel1 - vel2).dotProduct(normal);
 
 			// Resolve if they are moving towards each other OR if they are overlapping
-			// (v_rel < -0.01f handles movement, while the second part handles resting/overlap)
-			if (v_rel < -0.01f || nearest_dtime < 0) {
-				// Simple impulse-based collision response
-				// impulse = (1+e) * v_rel / (1/m1 + 1/m2)
-				// We use e=0 for non-bouncy "pushing" feel
-				float k = 1.2f; // Push strength constant (tuning: > 1.0 makes it feel more responsive)
-
-				// Scale k based on whether it's a dynamic collision or an overlap resolution
-				if (nearest_dtime < 0) k *= 2.0f;
+			if (v_rel < -0.01f || (nearest_dtime < 0 && v_rel < 0.1f)) {
+				float k = 1.2f; // Push strength
+				if (nearest_dtime < 0) k = 0.5f; // Keep it mild for overlap to avoid explosions
 
 				float impulse = (v_rel * k) / (1.0f / m1 + 1.0f / m2);
 
+				// If overlapping, apply an extra separation impulse
+				if (nearest_dtime < 0)
+					impulse -= 0.2f / (1.0f / m1 + 1.0f / m2);
 				v3f impulse_vec = normal * impulse;
 
 				// Adjust velocity of both objects
-				// If we are much lighter than the other object, we take most of the velocity change
 				*speed_f -= impulse_vec / m1;
-
-				// Only push the other object if it's not "locked" (simulated by adding velocity)
 				nearest_info.obj->addVelocity(impulse_vec / m2);
 
-				// Position correction to prevent overlap (sinking)
-				// We move self out of the other object proportionally to mass ratio.
-				// This prevents "locking" by ensuring objects actually separate.
-				float separation = 0.02f * BS;
-				if (nearest_dtime < 0) separation = 0.05f * BS; // More aggressive if already overlapping
+				// Position correction: Move BOTH objects apart
+				// Only if overlapping
+				if (nearest_dtime < 0) {
+					float separation = 0.05f * BS;
 
-				*pos_f += normal * (separation * (m2 / (m1 + m2)));
+					// Self moves back
+					*pos_f += normal * (separation * (m2 / (m1 + m2)));
 
-				// We can't easily move the other object's position here without
-				// potentially causing other issues, but adding velocity helps.
-				// For Y axis, still set touching_ground if applicable (normal.Y > 0 means hitting top of object)
+					// Other object moves forward
+					v3f other_pos = nearest_info.obj->getPosition();
+					other_pos -= normal * (separation * (m1 / (m1 + m2)));
+					nearest_info.obj->setPosition(other_pos);
+				}
+
 				if (nearest_collided == COLLISION_AXIS_Y && normal.Y > 0.0f) {
 					result.touching_ground = true;
 					result.standing_on_object = true;
 				}
+
+				// Mark as pushed so we don't process it multiple times in one step
+				nearest_info.is_pushed = true;
 			}
 		} else if (nearest_collided == COLLISION_AXIS_X) {
 			if (bounce < -1e-4 && fabsf(speed_f->X) > BS * 3) {

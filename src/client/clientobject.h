@@ -38,6 +38,7 @@ public:
 	virtual bool getSelectionBox(aabb3f *toset) const override { return false; }
 	virtual bool collideWithObjects() const override { return false; }
 	virtual const v3f getPosition() const { return v3f(0.0f); } // in BS-space
+	virtual void setPosition(v3f pos) override {}
 	virtual const v3f getVelocity() const override { return v3f(0.0f); } // in BS-space
 	virtual scene::ISceneNode *getSceneNode() const
 	{ return NULL; }

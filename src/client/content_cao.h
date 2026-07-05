@@ -182,6 +182,7 @@ public:
 	virtual bool getSelectionBox(aabb3f *toset) const override;
 
 	const v3f getPosition() const override final;
+	void setPosition(v3f pos) override { m_position = pos; }
 
 	v3f getBoneWorldPos(const std::string &bone_name);
 
@@ -227,6 +228,7 @@ public:
 
 	float getMass() const override { return m_prop.mass; }
 	bool isPushable() const override { return m_prop.pushable; }
+	bool isPlayer() const override { return m_is_player; }
 
 	inline bool isLocalPlayer() const override
 	{

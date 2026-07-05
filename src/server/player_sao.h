@@ -173,6 +173,7 @@ public:
 
 	const v3f getVelocity() const override;
 	void addVelocity(v3f velocity) override;
+	bool isPlayer() const override { return true; }
 
 	void finalize(RemotePlayer *player, const std::set<std::string> &privs);
 

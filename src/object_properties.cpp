@@ -154,10 +154,10 @@ bool ObjectProperties::validate()
 	// Automatic mass calculation if mass is 0 or negative (defaulting to 1.0)
 	// We want larger models to be heavier.
 	if (mass <= 0.0f) {
-		v3f size = collisionbox.getExtent();
-		float volume = size.X * size.Y * size.Z;
-		// A standard player box is roughly 0.6x1.75x0.6 = 0.63 units
-		// We normalize mass such that a standard player is ~1.0
+		v3f size = (collisionbox.MaxEdge - collisionbox.MinEdge);
+		float volume = size.X * size.Y * size.Z; // Volume in BS^3
+		// A standard player box is roughly 0.6x1.75x0.6 = 0.63 units (relative to BS=1)
+		// If BS is changed, the relative volume stays the same.
 		mass = volume / 0.63f;
 		if (mass < 0.1f) mass = 0.1f; // Minimum mass
 	}

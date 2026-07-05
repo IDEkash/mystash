@@ -202,9 +202,12 @@ public:
 
 	virtual const v3f getVelocity() const { return v3f(0, 0, 0); }
 	virtual void addVelocity(v3f velocity) {}
+	virtual const v3f getPosition() const { return v3f(0, 0, 0); }
+	virtual void setPosition(v3f pos) {}
 
 	virtual float getMass() const { return 1.0f; }
 	virtual bool isPushable() const { return false; }
+	virtual bool isPlayer() const { return false; }
 
 
 	virtual void setAttachment(object_t parent_id, const std::string &bone, v3f position,
