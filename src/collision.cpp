@@ -305,11 +305,15 @@ static void add_object_boxes(Environment *env,
 		const v3f pos_f, const v3f speed_f, ActiveObject *self,
 		std::vector<NearbyCollisionInfo> &cinfo)
 {
-	auto process_object = [&cinfo] (ActiveObject *object) {
+	static thread_local std::vector<aabb3f> boxes_cache;
+
+	auto process_object = [&cinfo](ActiveObject *object) {
 		if (object && object->collideWithObjects()) {
-			aabb3f box{{0.0f, 0.0f, 0.0f}};
-			if (object->getCollisionBox(&box))
-				cinfo.emplace_back(object, 0, box);
+			boxes_cache.clear();
+			if (object->getCollisionBoxes(&boxes_cache)) {
+				for (const auto &box : boxes_cache)
+					cinfo.emplace_back(object, 0, box);
+			}
 		}
 	};
 
@@ -590,6 +594,25 @@ collisionMoveResult collisionMoveSimple(Environment *env, IGameDef *gamedef,
 			info.old_speed = old_speed_f;
 			info.new_speed = *speed_f;
 			result.collisions.push_back(info);
+
+			// Pushable objects logic: If we collide with another object on X or Z axis,
+			// apply a small displacement to simulate "soft" collisions like Roblox.
+			if (nearest_info.isObject() && (nearest_collided == COLLISION_AXIS_X || nearest_collided == COLLISION_AXIS_Z)) {
+				v3f dir = *pos_f - nearest_info.obj->getPosition();
+				dir.Y = 0;
+				if (dir.getLengthSQ() > 0.001f) {
+					dir.normalize();
+					// Soft push displacement
+					float push_strength = 0.05f * BS;
+					*pos_f += dir * push_strength;
+
+					// Adjust speed slightly to reflect the "soft" bounce/push
+					if (nearest_collided == COLLISION_AXIS_X)
+						speed_f->X += dir.X * push_strength / dtime;
+					if (nearest_collided == COLLISION_AXIS_Z)
+						speed_f->Z += dir.Z * push_strength / dtime;
+				}
+			}
 		}
 
 		if (dtime < BS * 1e-10f)

@@ -282,12 +282,13 @@ void push_item_definition_full(lua_State *L, const ItemDefinition &i)
 }
 
 /******************************************************************************/
-const std::array<const char *, 38> object_property_keys = {
+const std::array<const char *, 39> object_property_keys = {
 	"hp_max",
 	"breath_max",
 	"physical",
 	"collide_with_objects",
 	"collisionbox",
+	"collisionboxes",
 	"selectionbox",
 	"pointable",
 	"visual",
@@ -534,6 +535,26 @@ void read_object_properties(lua_State *L, int index,
 
 	getstringfield(L, -1, "damage_texture_modifier", prop->damage_texture_modifier);
 
+	lua_getfield(L, -1, "collisionboxes");
+	if (lua_istable(L, -1)) {
+		prop->collisionboxes.clear();
+		int table = lua_gettop(L);
+		lua_pushnil(L);
+		while (lua_next(L, table) != 0) {
+			if (lua_istable(L, -1)) {
+				AdvancedCollisionBox cbox;
+				cbox.box = read_aabb3f(L, -1, 1.0);
+				lua_getfield(L, -1, "bone");
+				if (lua_isstring(L, -1))
+					cbox.bone = lua_tostring(L, -1);
+				lua_pop(L, 1);
+				prop->collisionboxes.push_back(cbox);
+			}
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+
 	// Remember to update object_property_keys above
 	// when adding a new property
 }
@@ -648,6 +669,20 @@ void push_object_properties(lua_State *L, const ObjectProperties *prop)
 	lua_setfield(L, -2, "damage_texture_modifier");
 	lua_pushboolean(L, prop->show_on_minimap);
 	lua_setfield(L, -2, "show_on_minimap");
+
+	lua_createtable(L, prop->collisionboxes.size(), 0);
+	i = 1;
+	for (const auto &cbox : prop->collisionboxes) {
+		lua_newtable(L);
+		push_v3f(L, cbox.box.MinEdge);
+		lua_rawseti(L, -2, 1);
+		push_v3f(L, cbox.box.MaxEdge);
+		lua_rawseti(L, -2, 2);
+		lua_pushstring(L, cbox.bone.c_str());
+		lua_setfield(L, -2, "bone");
+		lua_rawseti(L, -2, i++);
+	}
+	lua_setfield(L, -2, "collisionboxes");
 
 	// Remember to update object_property_keys above
 	// when adding a new property

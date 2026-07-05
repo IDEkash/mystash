@@ -168,6 +168,7 @@ public:
 	inline bool isNewPlayer()  { return m_is_new_player; }
 
 	bool getCollisionBox(aabb3f *toset) const override;
+	bool getCollisionBoxes(std::vector<aabb3f> *toset) const override;
 	bool getSelectionBox(aabb3f *toset) const override;
 	bool collideWithObjects() const override { return true; }
 

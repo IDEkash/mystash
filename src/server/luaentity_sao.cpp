@@ -569,6 +569,33 @@ bool LuaEntitySAO::getCollisionBox(aabb3f *toset) const
 	return false;
 }
 
+bool LuaEntitySAO::getCollisionBoxes(std::vector<aabb3f> *toset) const
+{
+	if (!m_prop.physical)
+		return false;
+
+	if (m_prop.collisionboxes.empty())
+		return getCollisionBox(&((*toset).emplace_back()));
+
+	for (const auto &cbox : m_prop.collisionboxes) {
+		aabb3f box = cbox.box;
+		box.MinEdge *= BS;
+		box.MaxEdge *= BS;
+
+		v3f offset;
+		auto it = m_bone_override.find(cbox.bone);
+		if (it != m_bone_override.end()) {
+			offset = it->second.getPosition(v3f(0, 0, 0));
+		}
+
+		box.MinEdge += getBasePosition() + offset;
+		box.MaxEdge += getBasePosition() + offset;
+		toset->push_back(box);
+	}
+
+	return true;
+}
+
 bool LuaEntitySAO::getSelectionBox(aabb3f *toset) const
 {
 	if (!m_prop.is_visible) {

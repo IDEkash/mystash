@@ -187,6 +187,23 @@ public:
 	 */
 	virtual bool getCollisionBox(aabb3f *toset) const = 0;
 
+	/*!
+	 * Returns all collision boxes of the object.
+	 * These boxes are translated by the object's
+	 * location.
+	 * The boxes' coordinates are world coordinates.
+	 * @returns true if the object has collision boxes.
+	 */
+	virtual bool getCollisionBoxes(std::vector<aabb3f> *toset) const
+	{
+		aabb3f box;
+		if (getCollisionBox(&box)) {
+			toset->push_back(box);
+			return true;
+		}
+		return false;
+	}
+
 
 	/*!
 	 * Returns the selection box of the object.

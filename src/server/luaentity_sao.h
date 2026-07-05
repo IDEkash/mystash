@@ -59,6 +59,7 @@ public:
 			bool select_horiz_by_yawpitch);
 	std::string getName();
 	bool getCollisionBox(aabb3f *toset) const;
+	bool getCollisionBoxes(std::vector<aabb3f> *toset) const override;
 	bool getSelectionBox(aabb3f *toset) const;
 	bool collideWithObjects() const;
 

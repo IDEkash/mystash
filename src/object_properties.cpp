@@ -45,6 +45,11 @@ std::string ObjectProperties::dump() const
 	os << ", physical=" << physical;
 	os << ", collideWithObjects=" << collideWithObjects;
 	os << ", collisionbox=" << collisionbox.MinEdge << "," << collisionbox.MaxEdge;
+	os << ", collisionboxes=[";
+	for (const auto &cbox : collisionboxes) {
+		os << "(" << cbox.box.MinEdge << "," << cbox.box.MaxEdge << "," << cbox.bone << ") ";
+	}
+	os << "]";
 	os << ", visual=" << enum_to_string(es_ObjectVisual, visual);
 	os << ", mesh=" << mesh;
 	os << ", visual_size=" << visual_size;
@@ -100,7 +105,7 @@ static inline auto tie(const ObjectProperties &o)
 {
 	// Make sure to add new members to this list!
 	return std::tie(
-	o.textures, o.colors, o.collisionbox, o.selectionbox, o.visual, o.mesh,
+	o.textures, o.colors, o.collisionboxes, o.collisionbox, o.selectionbox, o.visual, o.mesh,
 	o.damage_texture_modifier, o.nametag, o.infotext, o.wield_item, o.visual_size,
 	o.nametag_color, o.nametag_bgcolor, o.nametag_fontsize, o.spritediv,
 	o.initial_sprite_basepos,
@@ -227,6 +232,14 @@ void ObjectProperties::serialize(std::ostream &os) const
 
 	// Add stuff only at the bottom.
 	// Never remove anything, because we don't want new versions of this!
+
+	writeU16(os, collisionboxes.size());
+	for (const auto &cbox : collisionboxes) {
+		writeV3F32(os, cbox.box.MinEdge);
+		writeV3F32(os, cbox.box.MaxEdge);
+		os << serializeString16(cbox.bone);
+	}
+	// Never remove anything, because we don't want new versions of this!
 }
 
 void ObjectProperties::deSerialize(std::istream &is)
@@ -334,6 +347,19 @@ void ObjectProperties::deSerialize(std::istream &is)
 	model_unit_scale = readV3F32(is);
 	auto_normalize = readU8(is);
 	target_height = readF32(is);
+
+	if (!canRead(is))
+		return;
+
+	collisionboxes.clear();
+	u32 collisionbox_count = readU16(is);
+	for (u32 i = 0; i < collisionbox_count; i++) {
+		AdvancedCollisionBox cbox;
+		cbox.box.MinEdge = readV3F32(is);
+		cbox.box.MaxEdge = readV3F32(is);
+		cbox.bone = deSerializeString16(is);
+		collisionboxes.push_back(cbox);
+	}
 
 	//if (!canRead(is))
 	//	return;

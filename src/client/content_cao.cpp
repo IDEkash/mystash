@@ -279,6 +279,33 @@ bool GenericCAO::getCollisionBox(aabb3f *toset) const
 	return false;
 }
 
+bool GenericCAO::getCollisionBoxes(std::vector<aabb3f> *toset) const
+{
+	if (!m_prop.physical)
+		return false;
+
+	if (m_prop.collisionboxes.empty())
+		return getCollisionBox(&((*toset).emplace_back()));
+
+	for (const auto &cbox : m_prop.collisionboxes) {
+		aabb3f box = cbox.box;
+		box.MinEdge *= BS;
+		box.MaxEdge *= BS;
+
+		if (!cbox.bone.empty()) {
+			v3f bone_pos = const_cast<GenericCAO*>(this)->getBoneWorldPos(cbox.bone);
+			box.MinEdge += bone_pos;
+			box.MaxEdge += bone_pos;
+		} else {
+			box.MinEdge += m_position;
+			box.MaxEdge += m_position;
+		}
+		toset->push_back(box);
+	}
+
+	return true;
+}
+
 bool GenericCAO::collideWithObjects() const
 {
 	return m_prop.collideWithObjects;

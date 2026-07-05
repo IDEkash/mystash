@@ -177,6 +177,8 @@ public:
 
 	bool getCollisionBox(aabb3f *toset) const override;
 
+	bool getCollisionBoxes(std::vector<aabb3f> *toset) const override;
+
 	bool collideWithObjects() const override;
 
 	virtual bool getSelectionBox(aabb3f *toset) const override;
