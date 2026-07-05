@@ -179,7 +179,7 @@ public:
 
 	bool collideWithObjects() const override;
 
-	virtual bool getSelectionBox(aabb3f *toset) const override;
+	bool getSelectionBox(aabb3f *toset) const override;
 
 	const v3f getPosition() const override final;
 	void setPosition(v3f pos) override { m_position = pos; }
@@ -235,10 +235,6 @@ public:
 		return m_is_local_player;
 	}
 
-	inline bool isPlayer() const
-	{
-		return m_is_player;
-	}
 
 	inline bool isVisible() const
 	{
