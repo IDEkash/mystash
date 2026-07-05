@@ -354,11 +354,10 @@ void ObjectProperties::deSerialize(std::istream &is)
 	collisionboxes.clear();
 	u32 collisionbox_count = readU16(is);
 	for (u32 i = 0; i < collisionbox_count; i++) {
-		AdvancedCollisionBox cbox;
-		cbox.box.MinEdge = readV3F32(is);
-		cbox.box.MaxEdge = readV3F32(is);
-		cbox.bone = deSerializeString16(is);
-		collisionboxes.push_back(cbox);
+		v3f min = readV3F32(is);
+		v3f max = readV3F32(is);
+		std::string bone = deSerializeString16(is);
+		collisionboxes.emplace_back(aabb3f(min, max), bone);
 	}
 
 	//if (!canRead(is))

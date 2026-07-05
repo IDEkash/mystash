@@ -542,13 +542,13 @@ void read_object_properties(lua_State *L, int index,
 		lua_pushnil(L);
 		while (lua_next(L, table) != 0) {
 			if (lua_istable(L, -1)) {
-				AdvancedCollisionBox cbox;
-				cbox.box = read_aabb3f(L, -1, 1.0);
+				aabb3f box = read_aabb3f(L, -1, 1.0);
+				std::string bone;
 				lua_getfield(L, -1, "bone");
 				if (lua_isstring(L, -1))
-					cbox.bone = lua_tostring(L, -1);
+					bone = lua_tostring(L, -1);
 				lua_pop(L, 1);
-				prop->collisionboxes.push_back(cbox);
+				prop->collisionboxes.emplace_back(box, bone);
 			}
 			lua_pop(L, 1);
 		}

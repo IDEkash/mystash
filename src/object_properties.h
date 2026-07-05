@@ -29,6 +29,8 @@ extern const EnumString es_ObjectVisual[];
 
 
 struct AdvancedCollisionBox {
+	AdvancedCollisionBox(const aabb3f &box, const std::string &bone) :
+		box(box), bone(bone) {}
 	aabb3f box;
 	std::string bone;
 
