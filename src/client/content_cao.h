@@ -182,12 +182,12 @@ public:
 	bool getSelectionBox(aabb3f *toset) const override;
 
 	const v3f getPosition() const override final;
-	void setPosition(v3f pos) override { m_position = pos; }
+	void setPosition(v3f pos) override;
 
 	v3f getBoneWorldPos(const std::string &bone_name);
 
-	const v3f getVelocity() const override final { return m_velocity; }
-	void addVelocity(v3f velocity) override { m_velocity += velocity; }
+	const v3f getVelocity() const override final;
+	void addVelocity(v3f velocity) override;
 
 	inline const v3f &getRotation() const { return m_rotation; }
 

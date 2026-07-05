@@ -372,8 +372,37 @@ void GenericCAO::updateParentChain() const
 		(*it)->updateAbsolutePosition();
 }
 
+void GenericCAO::setPosition(v3f pos)
+{
+	if (m_is_local_player) {
+		m_env->getLocalPlayer()->setPosition(pos);
+		return;
+	}
+	m_position = pos;
+	pos_translator.val_current = pos;
+}
+
+const v3f GenericCAO::getVelocity() const
+{
+	if (m_is_local_player)
+		return m_env->getLocalPlayer()->getSpeed();
+	return m_velocity;
+}
+
+void GenericCAO::addVelocity(v3f velocity)
+{
+	if (m_is_local_player) {
+		m_env->getLocalPlayer()->addVelocity(velocity);
+		return;
+	}
+	m_velocity += velocity;
+}
+
 const v3f GenericCAO::getPosition() const
 {
+	if (m_is_local_player)
+		return m_env->getLocalPlayer()->getPosition();
+
 	if (!getParent())
 		return pos_translator.val_current;
 

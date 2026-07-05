@@ -393,7 +393,7 @@ collisionMoveResult collisionMoveSimple(Environment *env, IGameDef *gamedef,
 	collisionMoveResult result;
 
 	// Assume no collisions when no velocity and no acceleration
-	if (*speed_f == v3f() && accel_f == v3f())
+	if (*speed_f == v3f() && accel_f == v3f() && !collide_with_objects)
 		return result;
 
 	/*
@@ -471,12 +471,32 @@ collisionMoveResult collisionMoveSimple(Environment *env, IGameDef *gamedef,
 		f32 nearest_dtime = dtime;
 		int nearest_boxindex = -1;
 
-		// Go through every nodebox, find nearest collision
+		// Go through every box, find nearest collision or current overlap
 		for (u32 boxindex = 0; boxindex < cinfo.size(); boxindex++) {
 			const NearbyCollisionInfo &box_info = cinfo[boxindex];
 			// Ignore if already stepped up this nodebox or already pushed this object.
 			if (box_info.is_step_up || (box_info.isObject() && box_info.is_pushed))
 				continue;
+
+			// Special case: current overlap with an object
+			if (box_info.isObject() && box_info.box.intersectsWithBox(movingbox)) {
+				nearest_dtime = -1.0f; // Mark as immediate overlap
+				nearest_boxindex = boxindex;
+
+				// Find axis of least penetration for the collision normal
+				v3f dist1 = movingbox.MaxEdge - box_info.box.MinEdge;
+				v3f dist2 = box_info.box.MaxEdge - movingbox.MinEdge;
+				v3f p;
+				p.X = std::min(dist1.X, dist2.X);
+				p.Y = std::min(dist1.Y, dist2.Y);
+				p.Z = std::min(dist1.Z, dist2.Z);
+
+				if (p.X < p.Y && p.X < p.Z) nearest_collided = COLLISION_AXIS_X;
+				else if (p.Y < p.Z) nearest_collided = COLLISION_AXIS_Y;
+				else nearest_collided = COLLISION_AXIS_Z;
+
+				break; // Resolve immediate overlaps first
+			}
 
 			// Find nearest collision of the two boxes (raytracing-like)
 			f32 dtime_tmp = nearest_dtime;
@@ -558,31 +578,34 @@ collisionMoveResult collisionMoveSimple(Environment *env, IGameDef *gamedef,
 			nearest_info.is_step_up = true;
 		} else if (nearest_info.isObject() && nearest_info.pushable) {
 			// Object-object collision with pushable object
+			const v3f pos1 = *pos_f;
+			const v3f pos2 = nearest_info.obj->getPosition();
+
 			v3f normal(0, 0, 0);
-			if (nearest_collided == COLLISION_AXIS_X) normal.X = (speed_f->X > 0) ? -1 : 1;
-			else if (nearest_collided == COLLISION_AXIS_Y) normal.Y = (speed_f->Y > 0) ? -1 : 1;
-			else if (nearest_collided == COLLISION_AXIS_Z) normal.Z = (speed_f->Z > 0) ? -1 : 1;
+			if (nearest_collided == COLLISION_AXIS_X) normal.X = (pos1.X > pos2.X) ? 1 : -1;
+			else if (nearest_collided == COLLISION_AXIS_Y) normal.Y = (pos1.Y > pos2.Y) ? 1 : -1;
+			else if (nearest_collided == COLLISION_AXIS_Z) normal.Z = (pos1.Z > pos2.Z) ? 1 : -1;
 
 			v3f vel1 = *speed_f;
 			v3f vel2 = nearest_info.obj->getVelocity();
 			float m1 = self ? self->getMass() : 1.0f;
 			float m2 = nearest_info.mass;
 
-			// If movingbox is a player, give it a "pushing bonus" to make it feel powerful
-			if (self && self->isPlayer()) m1 *= 5.0f;
+			// If movingbox is a player, give it a massive "pushing bonus" (Roblox feel)
+			if (self && self->isPlayer()) m1 *= 50.0f;
+			if (nearest_info.isPlayer()) m2 *= 50.0f;
 
 			float v_rel = (vel1 - vel2).dotProduct(normal);
 
 			// Resolve if they are moving towards each other OR if they are overlapping
-			if (v_rel < -0.01f || (nearest_dtime < 0 && v_rel < 0.1f)) {
-				float k = 1.2f; // Push strength
-				if (nearest_dtime < 0) k = 0.5f; // Keep it mild for overlap to avoid explosions
+			if (v_rel < 0.1f || nearest_dtime < 0) {
+				float k = 2.0f;
+				float impulse = (v_rel < 0) ? (v_rel * k) : 0;
 
-				float impulse = (v_rel * k) / (1.0f / m1 + 1.0f / m2);
+				// Constant separation force to prevent "sticking"
+				impulse -= 2.0f;
+				impulse /= (1.0f / m1 + 1.0f / m2);
 
-				// If overlapping, apply an extra separation impulse
-				if (nearest_dtime < 0)
-					impulse -= 0.2f / (1.0f / m1 + 1.0f / m2);
 				v3f impulse_vec = normal * impulse;
 
 				// Adjust velocity of both objects
@@ -590,17 +613,24 @@ collisionMoveResult collisionMoveSimple(Environment *env, IGameDef *gamedef,
 				nearest_info.obj->addVelocity(impulse_vec / m2);
 
 				// Position correction: Move BOTH objects apart
-				// Only if overlapping
-				if (nearest_dtime < 0) {
-					float separation = 0.05f * BS;
+				float penetration = 0.0f;
+				const aabb3f &box1 = movingbox;
+				const aabb3f &box2 = nearest_info.box;
+				if (nearest_collided == COLLISION_AXIS_X) penetration = std::min(box1.MaxEdge.X - box2.MinEdge.X, box2.MaxEdge.X - box1.MinEdge.X);
+				else if (nearest_collided == COLLISION_AXIS_Y) penetration = std::min(box1.MaxEdge.Y - box2.MinEdge.Y, box2.MaxEdge.Y - box1.MinEdge.Y);
+				else if (nearest_collided == COLLISION_AXIS_Z) penetration = std::min(box1.MaxEdge.Z - box2.MinEdge.Z, box2.MaxEdge.Z - box1.MinEdge.Z);
 
-					// Self moves back
-					*pos_f += normal * (separation * (m2 / (m1 + m2)));
+				float correction = std::max(penetration, 0.1f * BS);
+				*pos_f += normal * (correction * (m2 / (m1 + m2)));
+				v3f other_pos = pos2 - normal * (correction * (m1 / (m1 + m2)));
+				nearest_info.obj->setPosition(other_pos);
 
-					// Other object moves forward
-					v3f other_pos = nearest_info.obj->getPosition();
-					other_pos -= normal * (separation * (m1 / (m1 + m2)));
-					nearest_info.obj->setPosition(other_pos);
+				// Update NearbyCollisionInfo boxes for all entries referring to this object
+				for (auto &info : cinfo) {
+					if (info.obj == nearest_info.obj) {
+						info.box.MinEdge -= normal * (correction * (m1 / (m1 + m2)));
+						info.box.MaxEdge -= normal * (correction * (m1 / (m1 + m2)));
+					}
 				}
 
 				if (nearest_collided == COLLISION_AXIS_Y && normal.Y > 0.0f) {
