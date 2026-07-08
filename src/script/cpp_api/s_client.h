@@ -42,6 +42,7 @@ public:
 
 	bool on_inventory_open(Inventory *inventory);
 
+	void on_independent_visual_event(u16 id, u16 visual_index, const std::string &name);
 	void on_animation_event(u16 id, const std::string &name);
 	void on_animation_cycle(u16 id);
 

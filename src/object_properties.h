@@ -28,10 +28,56 @@ enum ObjectVisual : u8 {
 extern const EnumString es_ObjectVisual[];
 
 
+struct IndependentVisual
+{
+	IndependentVisual();
+
+	ObjectVisual visual = OBJECTVISUAL_SPRITE;
+	std::string mesh;
+	std::vector<std::string> textures;
+	std::vector<video::SColor> colors;
+	v3f visual_size = v3f(1, 1, 1);
+	v3f model_unit_scale = v3f(1, 1, 1);
+	bool auto_normalize = false;
+	float target_height = 0.0f;
+	std::string wield_item;
+	MapNode node = MapNode(CONTENT_IGNORE);
+	bool use_texture_alpha = false;
+	bool backface_culling = true;
+	bool shaded = true;
+	s8 glow = 0;
+
+	// Visibility
+	std::vector<std::string> perspectives;
+	std::string viewers = "";
+	std::string render_layer = "world"; // "world" or "foreground"
+
+	// Attachment
+	std::string attachment_bone = "";
+	v3f attachment_offset = v3f(0, 0, 0);
+	v3f attachment_rotation = v3f(0, 0, 0);
+
+	// Animation overrides
+	v2f animation_range = v2f(0, 0);
+	float animation_speed = 0.0f;
+	bool animation_loop = true;
+	float animation_blend = 0.0f;
+	std::string animation_clip = "";
+
+	// Event properties
+	std::vector<std::string> forward_events;
+	std::string event_properties = "";
+
+	bool operator==(const IndependentVisual &other) const;
+	void serialize(std::ostream &os) const;
+	void deSerialize(std::istream &is);
+};
+
 struct ObjectProperties
 {
 	/* member variables ordered roughly by size */
 
+	std::vector<IndependentVisual> independent_visuals;
 	std::vector<std::string> textures;
 	std::vector<video::SColor> colors; // Currently unused
 	// Values are BS=1

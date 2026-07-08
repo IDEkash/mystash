@@ -882,7 +882,15 @@ void GenericCAO::addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr)
 	updateAnimation();
 	updateAttachments();
 	setNodeLight(m_last_light);
-	updateMeshCulling();
+
+	for (size_t i = 0; i < m_prop.independent_visuals.size(); i++) {
+		const auto &iv_prop = m_prop.independent_visuals[i];
+		CAOIndependentVisual iv;
+		addVisualNode(iv, iv_prop, m_client->tsrc(), m_smgr, i);
+		m_independent_visuals.push_back(iv);
+	}
+
+	updateIndependentVisuals();
 
 	if (m_animated_meshnode) {
 		u32 mat_count = m_animated_meshnode->getMaterialCount();
@@ -1569,6 +1577,7 @@ bool GenericCAO::visualExpiryRequired(const ObjectProperties &new_) const
 		old.target_height != new_.target_height ||
 		old.wield_item != new_.wield_item ||
 		old.colors != new_.colors ||
+		old.independent_visuals != new_.independent_visuals ||
 		(uses_legacy_texture && old.textures != new_.textures);
 }
 
@@ -2026,3 +2035,380 @@ void GenericCAO::updateMeshCulling()
 
 // Prototype
 static GenericCAO proto_GenericCAO(nullptr, nullptr);
+void CAOIndependentVisual::removeFromScene()
+{
+	if (meshnode) {
+		meshnode->remove();
+		meshnode->drop();
+		meshnode = nullptr;
+	} else if (animated_meshnode) {
+		animated_meshnode->setOnEventCallback(nullptr);
+		animated_meshnode->setOnCycleCallback(nullptr);
+		animated_meshnode->setOnAnimateCallback(nullptr);
+		animated_meshnode->remove();
+		animated_meshnode->drop();
+		animated_meshnode = nullptr;
+	} else if (wield_meshnode) {
+		wield_meshnode->remove();
+		wield_meshnode->drop();
+		wield_meshnode = nullptr;
+	} else if (spritenode) {
+		spritenode->remove();
+		spritenode->drop();
+		spritenode = nullptr;
+	}
+	meshnode_animation.clear();
+}
+
+void GenericCAO::addVisualNode(CAOIndependentVisual &iv, const IndependentVisual &prop, ITextureSource *tsrc, scene::ISceneManager *smgr, u16 visual_index)
+{
+	m_smgr = smgr;
+
+	if (!prop.is_visible)
+		return;
+
+	infostream << "GenericCAO::addVisualNode(): " <<
+		enum_to_string(es_ObjectVisual, prop.visual)<< std::endl;
+
+	auto updateMaterialType = [&](bool hw_skin) {
+		if (prop.visual != OBJECTVISUAL_NODE &&
+				prop.visual != OBJECTVISUAL_WIELDITEM &&
+				prop.visual != OBJECTVISUAL_ITEM)
+		{
+			IShaderSource *shader_source = m_client->getShaderSource();
+			MaterialType material_type;
+
+			if (prop.shaded && prop.glow == 0)
+				material_type = (prop.use_texture_alpha) ?
+					TILE_MATERIAL_ALPHA : TILE_MATERIAL_BASIC;
+			else
+				material_type = (prop.use_texture_alpha) ?
+					TILE_MATERIAL_PLAIN_ALPHA : TILE_MATERIAL_PLAIN;
+
+			u32 shader_id = shader_source->getShader("object_shader", material_type, NDT_NORMAL,
+				false, hw_skin);
+			m_material_type = shader_source->getShaderInfo(shader_id).material;
+		} else {
+			m_material_type = video::EMT_INVALID;
+		}
+	};
+
+	auto setMaterial = [this](video::SMaterial &mat) {
+		if (m_material_type != video::EMT_INVALID)
+			mat.MaterialType = m_material_type;
+		mat.FogEnable = true;
+		mat.forEachTexture([] (auto &tex) {
+			tex.MinFilter = video::ETMINF_NEAREST_MIPMAP_NEAREST;
+			tex.MagFilter = video::ETMAGF_NEAREST;
+		});
+	};
+
+	auto setSceneNodeMaterials = [&] (scene::ISceneNode *node, bool hw_skin = false) {
+		updateMaterialType(hw_skin);
+		node->forEachMaterial(setMaterial);
+	};
+
+	switch(prop.visual) {
+	case OBJECTVISUAL_UPRIGHT_SPRITE: {
+		updateMaterialType(false);
+
+		auto mesh = make_irr<scene::SMesh>();
+		f32 dx = BS * prop.visual_size.X * prop.model_unit_scale.X / 2;
+		f32 dy = BS * prop.visual_size.Y * prop.model_unit_scale.Y / 2;
+		video::SColor c(0xFFFFFFFF);
+
+		video::S3DVertex vertices[4] = {
+			video::S3DVertex(-dx, -dy, 0, 0,0,1, c, 1,1),
+			video::S3DVertex( dx, -dy, 0, 0,0,1, c, 0,1),
+			video::S3DVertex( dx,  dy, 0, 0,0,1, c, 0,0),
+			video::S3DVertex(-dx,  dy, 0, 0,0,1, c, 1,0),
+		};
+		if (m_is_player) {
+			// Move minimal Y position to 0 (feet position)
+			for (auto &vertex : vertices)
+				vertex.Pos.Y += dy;
+		}
+		const u16 indices[] = {0,1,2,2,3,0};
+
+		for (int face : {0, 1}) {
+			auto buf = make_irr<scene::SMeshBuffer>();
+			// Front (0) or Back (1)
+			if (face == 1) {
+				for (auto &v : vertices)
+					v.Normal *= -1;
+				for (int i : {0, 2})
+					std::swap(vertices[i].Pos, vertices[i+1].Pos);
+			}
+			buf->append(vertices, 4, indices, 6);
+
+			// Set material
+			setMaterial(buf->getMaterial());
+			buf->getMaterial().ColorParam = c;
+
+			// Add to mesh
+			mesh->addMeshBuffer(buf.get());
+		}
+
+		mesh->recalculateBoundingBox();
+		iv.meshnode = m_smgr->addMeshSceneNode(mesh.get(), m_matrixnode);
+		iv.meshnode->grab();
+		break;
+	} case OBJECTVISUAL_CUBE: {
+		scene::IMesh *mesh = createCubeMesh(v3f(BS,BS,BS));
+		iv.meshnode = m_smgr->addMeshSceneNode(mesh, m_matrixnode);
+		iv.meshnode->grab();
+		mesh->drop();
+
+		iv.meshnode->setScale(prop.visual_size * prop.model_unit_scale);
+
+		setSceneNodeMaterials(iv.meshnode);
+
+		iv.meshnode->forEachMaterial([&] (auto &mat) {
+			mat.BackfaceCulling = prop.backface_culling;
+		});
+		break;
+	} case OBJECTVISUAL_MESH: {
+		scene::IAnimatedMesh *mesh = m_client->getMesh(prop.mesh, true);
+		if (mesh) {
+			if (!checkMeshNormals(mesh)) {
+				infostream << "GenericCAO: recalculating normals for mesh "
+					<< prop.mesh << std::endl;
+				m_smgr->getMeshManipulator()->
+						recalculateNormals(mesh, true, false);
+			}
+
+			iv.animated_meshnode = m_smgr->addAnimatedMeshSceneNode(mesh, m_matrixnode);
+			iv.animated_meshnode->grab();
+			mesh->drop(); // The scene node took hold of it
+
+			v3f final_scale = prop.visual_size;
+			if (prop.auto_normalize || prop.target_height > 0.0f) {
+				const core::aabbox3d<f32> &box = mesh->getBoundingBox();
+				float model_height = box.MaxEdge.Y - box.MinEdge.Y;
+				if (prop.target_height > 0.0f && model_height > 0.001f) {
+					float s = (prop.target_height * BS) / model_height;
+					final_scale = v3f(s, s, s);
+				} else if (prop.auto_normalize) {
+					final_scale = v3f(BS, BS, BS);
+				}
+			}
+			iv.animated_meshnode->setScale(final_scale * prop.model_unit_scale);
+
+			// set vertex colors to ensure alpha is set
+			setMeshColor(iv.animated_meshnode->getMesh(), video::SColor(0xFFFFFFFF));
+
+			setSceneNodeMaterials(iv.animated_meshnode, mesh->needsHwSkinning());
+
+			iv.animated_meshnode->forEachMaterial([&] (auto &mat) {
+				mat.BackfaceCulling = prop.backface_culling;
+			});
+
+			iv.animated_meshnode->setOnEventCallback([this, visual_index, prop](const std::string &name) {
+				if (m_client && m_client->modsLoaded()) {
+					m_client->getScript()->on_independent_visual_event(m_id, visual_index, name);
+					for (const auto &forward : prop.forward_events) {
+						if (forward == name) {
+							NetworkPacket pkt(TOSERVER_INDEPENDENT_VISUAL_EVENT, 0);
+							pkt << m_id << visual_index << name;
+							m_client->Send(&pkt);
+							break;
+						}
+					}
+				}
+			});
+
+			iv.animated_meshnode->setOnCycleCallback([this]() {
+				// if (m_client && m_client->modsLoaded())
+				//	m_client->getScript()->on_animation_cycle(m_id);
+			});
+		} else
+			errorstream<<"GenericCAO::addVisualNode(): Could not load mesh "<<prop.mesh<<std::endl;
+		break;
+	}
+	case OBJECTVISUAL_WIELDITEM:
+	case OBJECTVISUAL_ITEM: {
+		ItemStack item;
+		if (prop.wield_item.empty()) {
+			// Old format, only textures are specified.
+			infostream << "textures: " << prop.textures.size() << std::endl;
+			if (!prop.textures.empty()) {
+				infostream << "textures[0]: " << prop.textures[0]
+					<< std::endl;
+				IItemDefManager *idef = m_client->idef();
+				item = ItemStack(prop.textures[0], 1, 0, idef);
+			}
+		} else {
+			infostream << "serialized form: " << prop.wield_item << std::endl;
+			item.deSerialize(prop.wield_item, m_client->idef());
+		}
+		iv.wield_meshnode = new WieldMeshSceneNode(m_smgr, -1);
+		iv.wield_meshnode->setItem(item, m_client,
+			(prop.visual == OBJECTVISUAL_WIELDITEM));
+
+		iv.wield_meshnode->setScale(prop.visual_size * prop.model_unit_scale / 2.0f);
+		break;
+	} case OBJECTVISUAL_NODE: {
+		auto *mesh = generateNodeMesh(m_client, prop.node, iv.meshnode_animation);
+		assert(mesh);
+
+		iv.meshnode = m_smgr->addMeshSceneNode(mesh, m_matrixnode);
+		iv.meshnode->setSharedMaterials(true);
+		iv.meshnode->grab();
+		mesh->drop();
+
+		iv.meshnode->setScale(prop.visual_size * prop.model_unit_scale);
+
+		setSceneNodeMaterials(iv.meshnode);
+		break;
+	} default:
+		iv.spritenode = m_smgr->addBillboardSceneNode(m_matrixnode);
+		iv.spritenode->grab();
+
+		setSceneNodeMaterials(iv.spritenode);
+
+		iv.spritenode->setSize(v2f(prop.visual_size.X * prop.model_unit_scale.X,
+				prop.visual_size.Y * prop.model_unit_scale.Y) * BS);
+		setBillboardTextureMatrix(iv.spritenode, 1, 1, 0, 0);
+
+		// This also serves as fallback for unknown visual types
+		if (prop.visual != OBJECTVISUAL_SPRITE) {
+			iv.spritenode->getMaterial(0).setTexture(0,
+				tsrc->getTextureForMesh("unknown_object.png"));
+		}
+		break;
+	}
+
+	scene::ISceneNode *node = nullptr;
+	if (iv.meshnode) node = iv.meshnode;
+	else if (iv.animated_meshnode) node = iv.animated_meshnode;
+	else if (iv.wield_meshnode) node = iv.wield_meshnode;
+	else if (iv.spritenode) node = iv.spritenode;
+
+	if (node) {
+		node->setParent(m_matrixnode);
+		if (auto shadow = RenderingEngine::get_shadow_renderer())
+			shadow->addNodeToShadowList(node);
+
+		// Update textures
+		for (u32 i = 0; i < node->getMaterialCount(); ++i) {
+			video::SMaterial &material = node->getMaterial(i);
+			std::string texturestring = "no_texture.png";
+			u32 texture_idx = i;
+			if (iv.animated_meshnode)
+				texture_idx = iv.animated_meshnode->getMesh()->getTextureSlot(i);
+
+			if (texture_idx < prop.textures.size()) {
+				texturestring = prop.textures[texture_idx];
+			} else if (!prop.textures.empty()) {
+				texturestring = prop.textures[0];
+			}
+			if (texturestring.empty()) continue;
+			setMaterialTextureAndFilters(material, texturestring, tsrc);
+		}
+
+		// Initial animation
+		if (iv.animated_meshnode && (prop.animation_range.X != 0 || prop.animation_range.Y != 0 || !prop.animation_clip.empty())) {
+			v2f range = prop.animation_range;
+			if (auto *skinned = dynamic_cast<scene::SkinnedMesh *>(iv.animated_meshnode->getMesh())) {
+				const scene::SkinnedMesh::AnimationClip *clip = nullptr;
+				if (!prop.animation_clip.empty())
+					clip = skinned->getAnimationClipByName(prop.animation_clip);
+				if (clip) {
+					if (range.X == 0 && range.Y == 0) {
+						range.X = clip->start;
+						range.Y = clip->end;
+					} else {
+						range.X = clip->start + range.X;
+						range.Y = std::min(clip->start + range.Y, clip->end);
+					}
+				}
+			}
+			iv.animated_meshnode->setAnimation(range.X, range.Y, prop.animation_speed, prop.animation_loop, prop.animation_blend);
+		}
+	}
+}
+
+void GenericCAO::updateIndependentVisuals()
+{
+	if (!m_client) return;
+	Camera *cam = m_client->getCamera();
+	if (!cam) return;
+
+	const bool is_first_person = (cam->getCameraMode() == CAMERA_MODE_FIRST);
+	const std::string &perspective_name = cam->getPerspectiveName();
+	LocalPlayer *local_player = m_env->getLocalPlayer();
+	const std::string local_player_name = local_player ? local_player->getName() : "";
+
+	// Main visual node
+	updateMeshCulling();
+
+	// Independent visuals
+	for (size_t i = 0; i < m_independent_visuals.size(); i++) {
+		if (i >= m_prop.independent_visuals.size()) break;
+		const auto &prop = m_prop.independent_visuals[i];
+		auto &iv = m_independent_visuals[i];
+
+		scene::ISceneNode *node = nullptr;
+		if (iv.meshnode) node = iv.meshnode;
+		else if (iv.animated_meshnode) node = iv.animated_meshnode;
+		else if (iv.wield_meshnode) node = iv.wield_meshnode;
+		else if (iv.spritenode) node = iv.spritenode;
+
+		if (!node) continue;
+
+		bool visible = false;
+		if (prop.perspectives.empty()) {
+			visible = true;
+		} else {
+			for (const auto &p : prop.perspectives) {
+				if (p == "all") { visible = true; break; }
+				if (is_first_person && p == "first") { visible = true; break; }
+				if (!is_first_person && p == "third") { visible = true; break; }
+				if (p == perspective_name) { visible = true; break; }
+			}
+		}
+
+		if (visible && !prop.viewers.empty()) {
+			std::vector<std::string> viewers = str_split(prop.viewers, ',');
+			bool found = false;
+			bool is_self = (m_is_player && m_is_local_player);
+			for (const auto &v : viewers) {
+				std::string trimmed = trim(v);
+				if (trimmed == "all") { found = true; break; }
+				if (trimmed == "self" && is_self) { found = true; break; }
+				if (trimmed == "!self" && !is_self) { found = true; break; }
+				if (trimmed == local_player_name) { found = true; break; }
+			}
+			if (!found)
+				visible = false;
+		}
+
+		node->setVisible(visible && m_is_visible);
+
+		if (visible && m_is_visible) {
+			scene::ISceneNode *wanted_parent = m_matrixnode;
+			if (prop.render_layer == "foreground") {
+				wanted_parent = cam->getWieldSceneManager()->getRootSceneNode();
+			} else if (!prop.attachment_bone.empty() && m_animated_meshnode) {
+				wanted_parent = m_animated_meshnode->getJointNode(prop.attachment_bone.c_str());
+			}
+
+			if (node->getParent() != wanted_parent && wanted_parent != nullptr) {
+				node->setParent(wanted_parent);
+			}
+
+			if (node->getParent() == wanted_parent) {
+				v3f pos = prop.attachment_offset;
+				if (prop.render_layer == "foreground") {
+					f32 bob_anim = cam->getViewBobbingAnim();
+					float dummy;
+					f32 bobfrac = std::modf(bob_anim, &dummy);
+					pos.X -= std::sin(bobfrac * M_PI * 2.0) * 3.0;
+					pos.Y += std::sin(std::modf(bobfrac * 2.0, &dummy) * M_PI) * 3.0;
+				}
+				node->setPosition(pos);
+				node->setRotation(prop.attachment_rotation);
+			}
+		}
+	}
+}

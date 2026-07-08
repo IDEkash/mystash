@@ -1855,3 +1855,17 @@ void Server::handleCommand_UpdateClientInfo(NetworkPacket *pkt)
 	RemoteClient *client = getClient(peer_id, CS_Invalid);
 	client->setDynamicInfo(info);
 }
+
+void Server::handleCommand_IndependentVisualEvent(NetworkPacket *pkt)
+{
+	u16 cao_id;
+	u16 visual_index;
+	std::string event_name;
+
+	*pkt >> cao_id >> visual_index >> event_name;
+
+	PlayerSAO *player = getPlayerSAO(pkt->getPeerId());
+	if (player) {
+		m_script->on_independent_visual_event(player, cao_id, visual_index, event_name);
+	}
+}

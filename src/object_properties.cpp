@@ -14,6 +14,156 @@
 
 static const video::SColor NULL_BGCOLOR{0, 1, 1, 1};
 
+IndependentVisual::IndependentVisual()
+{
+}
+
+bool IndependentVisual::operator==(const IndependentVisual &other) const
+{
+	return visual == other.visual &&
+		mesh == other.mesh &&
+		textures == other.textures &&
+		colors == other.colors &&
+		visual_size == other.visual_size &&
+		model_unit_scale == other.model_unit_scale &&
+		auto_normalize == other.auto_normalize &&
+		target_height == other.target_height &&
+		wield_item == other.wield_item &&
+		node == other.node &&
+		use_texture_alpha == other.use_texture_alpha &&
+		backface_culling == other.backface_culling &&
+		shaded == other.shaded &&
+		glow == other.glow &&
+		perspectives == other.perspectives &&
+		viewers == other.viewers &&
+		render_layer == other.render_layer &&
+		attachment_bone == other.attachment_bone &&
+		attachment_offset == other.attachment_offset &&
+		attachment_rotation == other.attachment_rotation &&
+		animation_range == other.animation_range &&
+		animation_speed == other.animation_speed &&
+		animation_loop == other.animation_loop &&
+		animation_blend == other.animation_blend &&
+		animation_clip == other.animation_clip &&
+		forward_events == other.forward_events &&
+		event_properties == other.event_properties;
+}
+
+void IndependentVisual::serialize(std::ostream &os) const
+{
+	writeU8(os, 3); // version
+	writeU8(os, visual);
+	os << serializeString16(mesh);
+	writeU16(os, textures.size());
+	for (const std::string &texture : textures)
+		os << serializeString16(texture);
+	writeU16(os, colors.size());
+	for (video::SColor color : colors)
+		writeARGB8(os, color);
+	writeV3F32(os, visual_size);
+	writeV3F32(os, model_unit_scale);
+	writeU8(os, auto_normalize);
+	writeF32(os, target_height);
+	os << serializeString16(wield_item);
+	writeU16(os, node.getContent());
+	writeU8(os, node.getParam1());
+	writeU8(os, node.getParam2());
+	writeU8(os, use_texture_alpha);
+	writeU8(os, backface_culling);
+	writeU8(os, shaded);
+	writeS8(os, glow);
+
+	writeU16(os, perspectives.size());
+	for (const auto &p : perspectives)
+		os << serializeString16(p);
+	os << serializeString16(viewers);
+	os << serializeString16(render_layer);
+
+	os << serializeString16(attachment_bone);
+	writeV3F32(os, attachment_offset);
+	writeV3F32(os, attachment_rotation);
+
+	writeV2F32(os, animation_range);
+	writeF32(os, animation_speed);
+	writeU8(os, animation_loop);
+	writeF32(os, animation_blend);
+	os << serializeString16(animation_clip);
+
+	writeU16(os, forward_events.size());
+	for (const auto &e : forward_events)
+		os << serializeString16(e);
+	os << serializeString16(event_properties);
+}
+
+void IndependentVisual::deSerialize(std::istream &is)
+{
+	int version = readU8(is);
+	if (version < 1 || version > 3)
+		throw SerializationError("unsupported IndependentVisual version");
+
+	visual = (ObjectVisual)readU8(is);
+	mesh = deSerializeString16(is);
+	textures.clear();
+	u16 texture_count = readU16(is);
+	for (u16 i = 0; i < texture_count; i++)
+		textures.push_back(deSerializeString16(is));
+	colors.clear();
+	u16 color_count = readU16(is);
+	for (u16 i = 0; i < color_count; i++)
+		colors.push_back(readARGB8(is));
+	visual_size = readV3F32(is);
+	model_unit_scale = readV3F32(is);
+	auto_normalize = readU8(is);
+	target_height = readF32(is);
+	wield_item = deSerializeString16(is);
+	node.param0 = readU16(is);
+	node.param1 = readU8(is);
+	node.param2 = readU8(is);
+	use_texture_alpha = readU8(is);
+	backface_culling = readU8(is);
+	shaded = readU8(is);
+	glow = readS8(is);
+
+	if (version == 1) {
+		bool fp = readU8(is);
+		bool tp = readU8(is);
+		if (fp) perspectives.push_back("first");
+		if (tp) perspectives.push_back("third");
+	} else {
+		u16 p_count = readU16(is);
+		for (u16 i = 0; i < p_count; i++)
+			perspectives.push_back(deSerializeString16(is));
+	}
+
+	viewers = deSerializeString16(is);
+
+	if (version == 2) {
+		bool is_wi = readU8(is);
+		render_layer = is_wi ? "foreground" : "world";
+	} else if (version >= 3) {
+		render_layer = deSerializeString16(is);
+	}
+
+	if (version >= 3) {
+		attachment_bone = deSerializeString16(is);
+		attachment_offset = readV3F32(is);
+		attachment_rotation = readV3F32(is);
+	}
+
+	animation_range = readV2F32(is);
+	animation_speed = readF32(is);
+	animation_loop = readU8(is);
+	animation_blend = readF32(is);
+	animation_clip = deSerializeString16(is);
+
+	if (version >= 2) {
+		u16 e_count = readU16(is);
+		for (u16 i = 0; i < e_count; i++)
+			forward_events.push_back(deSerializeString16(is));
+	}
+	event_properties = deSerializeString16(is);
+}
+
 const struct EnumString es_ObjectVisual[] =
 {
 	{OBJECTVISUAL_UNKNOWN, "unknown"},
@@ -100,6 +250,7 @@ static inline auto tie(const ObjectProperties &o)
 {
 	// Make sure to add new members to this list!
 	return std::tie(
+	o.independent_visuals,
 	o.textures, o.colors, o.collisionbox, o.selectionbox, o.visual, o.mesh,
 	o.damage_texture_modifier, o.nametag, o.infotext, o.wield_item, o.visual_size,
 	o.nametag_color, o.nametag_bgcolor, o.nametag_fontsize, o.spritediv,
@@ -154,7 +305,7 @@ bool ObjectProperties::validate()
 
 void ObjectProperties::serialize(std::ostream &os) const
 {
-	writeU8(os, 4); // PROTOCOL_VERSION >= 37
+	writeU8(os, 5); // PROTOCOL_VERSION >= 53 (custom)
 	writeU16(os, hp_max);
 	writeU8(os, physical);
 	writeF32(os, 0.f); // Removed property (weight)
@@ -225,6 +376,10 @@ void ObjectProperties::serialize(std::ostream &os) const
 	writeU8(os, auto_normalize);
 	writeF32(os, target_height);
 
+	writeU16(os, independent_visuals.size());
+	for (const auto &iv : independent_visuals)
+		iv.serialize(os);
+
 	// Add stuff only at the bottom.
 	// Never remove anything, because we don't want new versions of this!
 }
@@ -232,7 +387,7 @@ void ObjectProperties::serialize(std::ostream &os) const
 void ObjectProperties::deSerialize(std::istream &is)
 {
 	int version = readU8(is);
-	if (version != 4)
+	if (version < 4 || version > 5)
 		throw SerializationError("unsupported ObjectProperties version");
 
 	hp_max = readU16(is);
@@ -334,6 +489,18 @@ void ObjectProperties::deSerialize(std::istream &is)
 	model_unit_scale = readV3F32(is);
 	auto_normalize = readU8(is);
 	target_height = readF32(is);
+
+	if (version >= 5) {
+		if (canRead(is)) {
+			u16 iv_count = readU16(is);
+			independent_visuals.clear();
+			for (u16 i = 0; i < iv_count; i++) {
+				IndependentVisual iv;
+				iv.deSerialize(is);
+				independent_visuals.push_back(iv);
+			}
+		}
+	}
 
 	//if (!canRead(is))
 	//	return;

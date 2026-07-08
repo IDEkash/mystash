@@ -39,6 +39,23 @@ void ScriptApiPlayer::on_dieplayer(ServerActiveObject *player, const PlayerHPCha
 	runCallbacks(2, RUN_CALLBACKS_MODE_FIRST);
 }
 
+void ScriptApiPlayer::on_independent_visual_event(ServerActiveObject *player, u16 id, u16 visual_index, const std::string &event_name)
+{
+	SCRIPTAPI_PRECHECKHEADER
+
+	// Get core.registered_on_independent_visual_events
+	lua_getglobal(L, "core");
+	lua_getfield(L, -1, "registered_on_independent_visual_events");
+
+	// Call callbacks
+	objectrefGetOrCreate(L, player);
+	lua_pushinteger(L, id);
+	lua_pushinteger(L, visual_index);
+	lua_pushstring(L, event_name.c_str());
+
+	runCallbacks(4, RUN_CALLBACKS_MODE_FIRST);
+}
+
 bool ScriptApiPlayer::on_punchplayer(ServerActiveObject *player,
 		ServerActiveObject *hitter,
 		float time_from_last_punch,

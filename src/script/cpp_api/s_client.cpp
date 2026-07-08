@@ -232,6 +232,24 @@ bool ScriptApiClient::on_inventory_open(Inventory *inventory)
 	return readParam<bool>(L, -1);
 }
 
+void ScriptApiClient::on_independent_visual_event(u16 id, u16 visual_index, const std::string &name)
+{
+	SCRIPTAPI_PRECHECKHEADER
+
+	lua_getglobal(L, "core");
+	lua_getfield(L, -1, "registered_on_independent_visual_events");
+
+	push_objectRef(L, id);
+	lua_pushinteger(L, visual_index);
+	lua_pushstring(L, name.c_str());
+
+	try {
+		runCallbacks(3, RUN_CALLBACKS_MODE_FIRST);
+	} catch (LuaError &e) {
+		getClient()->setFatalError(e);
+	}
+}
+
 void ScriptApiClient::on_animation_event(u16 id, const std::string &name)
 {
 	SCRIPTAPI_PRECHECKHEADER

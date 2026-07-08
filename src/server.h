@@ -245,6 +245,7 @@ public:
 	void handleCommand_SrpBytesM(NetworkPacket* pkt);
 	void handleCommand_HaveMedia(NetworkPacket *pkt);
 	void handleCommand_UpdateClientInfo(NetworkPacket *pkt);
+	void handleCommand_IndependentVisualEvent(NetworkPacket *pkt);
 
 	void ProcessData(NetworkPacket *pkt);
 

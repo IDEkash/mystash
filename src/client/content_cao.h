@@ -67,6 +67,16 @@ struct MeshAnimationInfo {
 	TileLayer tile;
 };
 
+struct CAOIndependentVisual {
+	scene::IMeshSceneNode *meshnode = nullptr;
+	scene::AnimatedMeshSceneNode *animated_meshnode = nullptr;
+	WieldMeshSceneNode *wield_meshnode = nullptr;
+	scene::IBillboardSceneNode *spritenode = nullptr;
+	std::vector<MeshAnimationInfo> meshnode_animation;
+
+	void removeFromScene();
+};
+
 /*
 	GenericCAO
 */
@@ -94,6 +104,7 @@ private:
 	scene::IDummyTransformationSceneNode *m_matrixnode = nullptr;
 	Nametag *m_nametag = nullptr;
 	MinimapMarker *m_marker = nullptr;
+	std::vector<CAOIndependentVisual> m_independent_visuals;
 	bool m_visuals_expired = false;
 	video::SColor m_last_light = video::SColor(0xFFFFFFFF);
 	u16 m_last_light_raw = 0;
@@ -260,6 +271,11 @@ public:
 	void removeFromScene(bool permanent) override;
 
 	void addToScene(ITextureSource *tsrc, scene::ISceneManager *smgr) override;
+
+	void addVisualNode(CAOIndependentVisual &iv, const IndependentVisual &prop,
+		ITextureSource *tsrc, scene::ISceneManager *smgr, u16 visual_index);
+
+	void updateIndependentVisuals();
 
 	inline void expireVisuals()
 	{

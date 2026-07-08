@@ -61,7 +61,7 @@ int LuaCamera::l_set_camera_mode(lua_State *L)
 
 	camera->setCameraMode((CameraMode)mode_int);
 	// Make the player visible depending on camera mode.
-	playercao->updateMeshCulling();
+	playercao->updateIndependentVisuals();
 	playercao->setChildrenVisible(camera->getCameraMode() > CAMERA_MODE_FIRST);
 	return 0;
 }
@@ -162,6 +162,34 @@ int LuaCamera::l_get_aspect_ratio(lua_State *L)
 	return 1;
 }
 
+// set_perspective(self, name)
+int LuaCamera::l_set_perspective(lua_State *L)
+{
+	Camera *camera = getobject(L, 1);
+	if (!camera)
+		return 0;
+
+	const char *name = luaL_checkstring(L, 2);
+	camera->setPerspectiveName(name);
+
+	LocalPlayer *player = getClient(L)->getEnv().getLocalPlayer();
+	if (player && player->getCAO())
+		player->getCAO()->updateIndependentVisuals();
+
+	return 0;
+}
+
+// get_perspective(self)
+int LuaCamera::l_get_perspective(lua_State *L)
+{
+	Camera *camera = getobject(L, 1);
+	if (!camera)
+		return 0;
+
+	lua_pushstring(L, camera->getPerspectiveName().c_str());
+	return 1;
+}
+
 Camera *LuaCamera::getobject(LuaCamera *ref)
 {
 	return ref->m_camera;
@@ -201,6 +229,8 @@ const luaL_Reg LuaCamera::methods[] = {
 	luamethod(LuaCamera, get_look_vertical),
 	luamethod(LuaCamera, get_look_horizontal),
 	luamethod(LuaCamera, get_aspect_ratio),
+	luamethod(LuaCamera, set_perspective),
+	luamethod(LuaCamera, get_perspective),
 
 	{0, 0}
 };

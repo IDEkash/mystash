@@ -173,6 +173,21 @@ public:
 		return m_camera_mode;
 	}
 
+	inline void setPerspectiveName(const std::string &name)
+	{
+		m_perspective_name = name;
+	}
+
+	inline scene::ISceneManager *getWieldSceneManager()
+	{
+		return m_wieldmgr;
+	}
+
+	inline const std::string &getPerspectiveName() const
+	{
+		return m_perspective_name;
+	}
+
 	Nametag *addNametag(const Nametag &params);
 
 	void removeNametag(Nametag *nametag);
@@ -251,6 +266,7 @@ private:
 	ItemStack m_wield_item_next;
 
 	CameraMode m_camera_mode;
+	std::string m_perspective_name = "";
 
 	f32 m_cache_view_bobbing_amount;
 	bool m_arm_inertia;

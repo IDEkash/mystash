@@ -933,7 +933,14 @@ enum ToServerCommand : u16
 		v2f32 max_fs_info
 	*/
 
-	TOSERVER_NUM_MSG_TYPES = 0x54,
+	TOSERVER_INDEPENDENT_VISUAL_EVENT = 0x54,
+	/*
+		u16 cao_id
+		u16 visual_index
+		string event_name
+	*/
+
+	TOSERVER_NUM_MSG_TYPES = 0x55,
 };
 
 enum AuthMechanism

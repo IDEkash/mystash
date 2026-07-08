@@ -282,7 +282,7 @@ void push_item_definition_full(lua_State *L, const ItemDefinition &i)
 }
 
 /******************************************************************************/
-const std::array<const char *, 38> object_property_keys = {
+const std::array<const char *, 39> object_property_keys = {
 	"hp_max",
 	"breath_max",
 	"physical",
@@ -322,7 +322,227 @@ const std::array<const char *, 38> object_property_keys = {
 	"model_unit_scale",
 	"auto_normalize",
 	"target_height",
+	"independent_visuals",
 };
+
+/******************************************************************************/
+static void read_independent_visual(lua_State *L, int index, IndependentVisual &iv, IItemDefManager *idef)
+{
+	if (index < 0)
+		index = lua_gettop(L) + 1 + index;
+
+	std::string visual;
+	if (getstringfield(L, index, "visual", visual)) {
+		string_to_enum(es_ObjectVisual, iv.visual, visual);
+	}
+
+	getstringfield(L, index, "mesh", iv.mesh);
+
+	lua_getfield(L, index, "textures");
+	if (lua_istable(L, -1)) {
+		iv.textures.clear();
+		int table = lua_gettop(L);
+		lua_pushnil(L);
+		while (lua_next(L, table) != 0) {
+			if (lua_isstring(L, -1))
+				iv.textures.emplace_back(lua_tostring(L, -1));
+			else
+				iv.textures.emplace_back("");
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, index, "colors");
+	if (lua_istable(L, -1)) {
+		int table = lua_gettop(L);
+		iv.colors.clear();
+		for (lua_pushnil(L); lua_next(L, table); lua_pop(L, 1)) {
+			video::SColor color(255, 255, 255, 255);
+			read_color(L, -1, &color);
+			iv.colors.push_back(color);
+		}
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, index, "visual_size");
+	if (lua_istable(L, -1)) {
+		v2f scale_xy = read_v2f(L, -1);
+		f32 scale_z = scale_xy.X;
+		lua_getfield(L, -1, "z");
+		if (lua_isnumber(L, -1))
+			scale_z = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+		iv.visual_size = v3f(scale_xy.X, scale_xy.Y, scale_z);
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, index, "model_unit_scale");
+	if (lua_istable(L, -1)) {
+		iv.model_unit_scale = read_v3f(L, -1);
+	} else if (lua_isnumber(L, -1)) {
+		float s = lua_tonumber(L, -1);
+		iv.model_unit_scale = v3f(s, s, s);
+	}
+	lua_pop(L, 1);
+
+	getboolfield(L, index, "auto_normalize", iv.auto_normalize);
+	getfloatfield(L, index, "target_height", iv.target_height);
+
+	lua_getfield(L, index, "wield_item");
+	if (!lua_isnil(L, -1))
+		iv.wield_item = read_item(L, -1, idef).getItemString();
+	lua_pop(L, 1);
+
+	lua_getfield(L, index, "node");
+	if (lua_istable(L, -1)) {
+		iv.node = readnode(L, -1);
+	}
+	lua_pop(L, 1);
+
+	getboolfield(L, index, "use_texture_alpha", iv.use_texture_alpha);
+	getboolfield(L, index, "backface_culling", iv.backface_culling);
+	getboolfield(L, index, "shaded", iv.shaded);
+	getintfield(L, index, "glow", iv.glow);
+
+	lua_getfield(L, index, "perspectives");
+	if (lua_istable(L, -1)) {
+		iv.perspectives.clear();
+		int table = lua_gettop(L);
+		lua_pushnil(L);
+		while (lua_next(L, table) != 0) {
+			if (lua_isstring(L, -1))
+				iv.perspectives.emplace_back(lua_tostring(L, -1));
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+
+	getstringfield(L, index, "viewers", iv.viewers);
+	getstringfield(L, index, "render_layer", iv.render_layer);
+
+	getstringfield(L, index, "attachment_bone", iv.attachment_bone);
+	lua_getfield(L, index, "attachment_offset");
+	if (lua_istable(L, -1)) iv.attachment_offset = read_v3f(L, -1);
+	lua_pop(L, 1);
+	lua_getfield(L, index, "attachment_rotation");
+	if (lua_istable(L, -1)) iv.attachment_rotation = read_v3f(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, index, "animation");
+	if (lua_istable(L, -1)) {
+		lua_getfield(L, -1, "range");
+		if (lua_istable(L, -1))
+			iv.animation_range = read_v2f(L, -1);
+		lua_pop(L, 1);
+		getfloatfield(L, -1, "speed", iv.animation_speed);
+		getboolfield(L, -1, "loop", iv.animation_loop);
+		getfloatfield(L, -1, "blend", iv.animation_blend);
+		getstringfield(L, -1, "clip", iv.animation_clip);
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, index, "forward_events");
+	if (lua_istable(L, -1)) {
+		iv.forward_events.clear();
+		int table = lua_gettop(L);
+		lua_pushnil(L);
+		while (lua_next(L, table) != 0) {
+			if (lua_isstring(L, -1))
+				iv.forward_events.emplace_back(lua_tostring(L, -1));
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+
+	getstringfield(L, index, "event_properties", iv.event_properties);
+}
+
+static void push_independent_visual(lua_State *L, const IndependentVisual &iv)
+{
+	lua_newtable(L);
+	lua_pushstring(L, enum_to_string(es_ObjectVisual, iv.visual));
+	lua_setfield(L, -2, "visual");
+	lua_pushstring(L, iv.mesh.c_str());
+	lua_setfield(L, -2, "mesh");
+
+	lua_createtable(L, iv.textures.size(), 0);
+	for (u32 i = 0; i < iv.textures.size(); i++) {
+		lua_pushstring(L, iv.textures[i].c_str());
+		lua_rawseti(L, -2, i + 1);
+	}
+	lua_setfield(L, -2, "textures");
+
+	lua_createtable(L, iv.colors.size(), 0);
+	for (u32 i = 0; i < iv.colors.size(); i++) {
+		push_ARGB8(L, iv.colors[i]);
+		lua_rawseti(L, -2, i + 1);
+	}
+	lua_setfield(L, -2, "colors");
+
+	push_v3f(L, iv.visual_size);
+	lua_setfield(L, -2, "visual_size");
+	push_v3f(L, iv.model_unit_scale);
+	lua_setfield(L, -2, "model_unit_scale");
+	lua_pushboolean(L, iv.auto_normalize);
+	lua_setfield(L, -2, "auto_normalize");
+	lua_pushnumber(L, iv.target_height);
+	lua_setfield(L, -2, "target_height");
+	lua_pushstring(L, iv.wield_item.c_str());
+	lua_setfield(L, -2, "wield_item");
+	pushnode(L, iv.node);
+	lua_setfield(L, -2, "node");
+	lua_pushboolean(L, iv.use_texture_alpha);
+	lua_setfield(L, -2, "use_texture_alpha");
+	lua_pushboolean(L, iv.backface_culling);
+	lua_setfield(L, -2, "backface_culling");
+	lua_pushboolean(L, iv.shaded);
+	lua_setfield(L, -2, "shaded");
+	lua_pushnumber(L, iv.glow);
+	lua_setfield(L, -2, "glow");
+
+	lua_createtable(L, iv.perspectives.size(), 0);
+	for (u32 i = 0; i < iv.perspectives.size(); i++) {
+		lua_pushstring(L, iv.perspectives[i].c_str());
+		lua_rawseti(L, -2, i + 1);
+	}
+	lua_setfield(L, -2, "perspectives");
+
+	lua_pushstring(L, iv.viewers.c_str());
+	lua_setfield(L, -2, "viewers");
+	lua_pushstring(L, iv.render_layer.c_str());
+	lua_setfield(L, -2, "render_layer");
+
+	lua_pushstring(L, iv.attachment_bone.c_str());
+	lua_setfield(L, -2, "attachment_bone");
+	push_v3f(L, iv.attachment_offset);
+	lua_setfield(L, -2, "attachment_offset");
+	push_v3f(L, iv.attachment_rotation);
+	lua_setfield(L, -2, "attachment_rotation");
+
+	lua_newtable(L);
+	push_v2f(L, iv.animation_range);
+	lua_setfield(L, -2, "range");
+	lua_pushnumber(L, iv.animation_speed);
+	lua_setfield(L, -2, "speed");
+	lua_pushboolean(L, iv.animation_loop);
+	lua_setfield(L, -2, "loop");
+	lua_pushnumber(L, iv.animation_blend);
+	lua_setfield(L, -2, "blend");
+	lua_pushstring(L, iv.animation_clip.c_str());
+	lua_setfield(L, -2, "clip");
+	lua_setfield(L, -2, "animation");
+
+	lua_createtable(L, iv.forward_events.size(), 0);
+	for (u32 i = 0; i < iv.forward_events.size(); i++) {
+		lua_pushstring(L, iv.forward_events[i].c_str());
+		lua_rawseti(L, -2, i + 1);
+	}
+	lua_setfield(L, -2, "forward_events");
+
+	lua_pushstring(L, iv.event_properties.c_str());
+	lua_setfield(L, -2, "event_properties");
+}
 
 /******************************************************************************/
 void read_object_properties(lua_State *L, int index,
@@ -519,6 +739,22 @@ void read_object_properties(lua_State *L, int index,
 	getboolfield(L, -1, "auto_normalize", prop->auto_normalize);
 	getfloatfield(L, -1, "target_height", prop->target_height);
 
+	lua_getfield(L, -1, "independent_visuals");
+	if (lua_istable(L, -1)) {
+		prop->independent_visuals.clear();
+		int table = lua_gettop(L);
+		lua_pushnil(L);
+		while (lua_next(L, table) != 0) {
+			if (lua_istable(L, -1)) {
+				IndependentVisual iv;
+				read_independent_visual(L, -1, iv, idef);
+				prop->independent_visuals.push_back(iv);
+			}
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+
 	getstringfield(L, -1, "infotext", prop->infotext);
 	getboolfield(L, -1, "static_save", prop->static_save);
 
@@ -631,6 +867,13 @@ void push_object_properties(lua_State *L, const ObjectProperties *prop)
 	lua_setfield(L, -2, "auto_normalize");
 	lua_pushnumber(L, prop->target_height);
 	lua_setfield(L, -2, "target_height");
+
+	lua_createtable(L, prop->independent_visuals.size(), 0);
+	for (u16 i = 0; i < prop->independent_visuals.size(); i++) {
+		push_independent_visual(L, prop->independent_visuals[i]);
+		lua_rawseti(L, -2, i + 1);
+	}
+	lua_setfield(L, -2, "independent_visuals");
 
 	lua_pushlstring(L, prop->infotext.c_str(), prop->infotext.size());
 	lua_setfield(L, -2, "infotext");

@@ -32,6 +32,7 @@ public:
 	bool on_punchplayer(ServerActiveObject *player, ServerActiveObject *hitter,
 			float time_from_last_punch, const ToolCapabilities &toolcap,
 			v3f dir, s32 damage);
+	void on_independent_visual_event(ServerActiveObject *player, u16 id, u16 visual_index, const std::string &event_name);
 	void on_rightclickplayer(ServerActiveObject *player, ServerActiveObject *clicker);
 	void on_jump(ServerActiveObject *player);
 	void on_land(ServerActiveObject *player);
