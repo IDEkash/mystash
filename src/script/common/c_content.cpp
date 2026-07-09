@@ -322,6 +322,7 @@ const std::array<const char *, 38> object_property_keys = {
 	"model_unit_scale",
 	"auto_normalize",
 	"target_height",
+	"visibility",
 };
 
 /******************************************************************************/
@@ -519,6 +520,14 @@ void read_object_properties(lua_State *L, int index,
 	getboolfield(L, -1, "auto_normalize", prop->auto_normalize);
 	getfloatfield(L, -1, "target_height", prop->target_height);
 
+	std::string visibility;
+	if (getstringfield(L, -1, "visibility", visibility)) {
+		if (!string_to_enum(es_VisibilityPerspective, prop->visibility, visibility)) {
+			script_log_unique(L, "Unsupported VisibilityPerspective: " + visibility, warningstream);
+			prop->visibility = VIEW_VISIBILITY_ALL;
+		}
+	}
+
 	getstringfield(L, -1, "infotext", prop->infotext);
 	getboolfield(L, -1, "static_save", prop->static_save);
 
@@ -631,6 +640,9 @@ void push_object_properties(lua_State *L, const ObjectProperties *prop)
 	lua_setfield(L, -2, "auto_normalize");
 	lua_pushnumber(L, prop->target_height);
 	lua_setfield(L, -2, "target_height");
+
+	lua_pushstring(L, enum_to_string(es_VisibilityPerspective, prop->visibility));
+	lua_setfield(L, -2, "visibility");
 
 	lua_pushlstring(L, prop->infotext.c_str(), prop->infotext.size());
 	lua_setfield(L, -2, "infotext");

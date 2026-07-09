@@ -1,3 +1,3 @@
-## 2025-01-24 - [Consistency and Safety in Confirmation Dialogs]
-**Learning:** When updating legacy UI elements to follow modern UX patterns (e.g., swapping "Cancel" and "Confirm" positions), it's crucial to mitigate muscle memory errors.
-**Action:** Always set the default focus to the safest action (usually "Cancel") when reordering destructive action buttons. This prevents accidental confirmation from users who are used to the old layout or are pressing "Enter" quickly.
+## 2025-01-24 - [Visibility Perspective System]
+**Learning:** When implementing visibility logic for objects that can have attachments, it's critical to separate the visibility of the root scene node (which must often remain "visible" in the engine to update and render children) from the visibility of the actual mesh data.
+**Action:** Use `updateMeshCulling` (or similar per-material culling) to hide the local player's body in first-person while keeping the CAO node active so that attachments (like viewmodels) can still be rendered and positioned correctly.

@@ -9598,6 +9598,16 @@ Player properties need to be saved manually.
     stepheight = 0,
     -- If positive number, object will climb upwards when it moves
     -- horizontally against a `walkable` node, if the height difference
+
+    visibility = "all",
+    -- Controls object visibility based on the player's perspective.
+    -- "all": Default behavior. Visible to others. Hidden from the local player
+    --        in first-person mode if the object is the player or attached to them.
+    -- "first_person": Only visible to the local player in first-person mode.
+    --                 The object must be the player or attached to them.
+    --                 Invisible to other players.
+    -- "third_person": Visible to everyone in third-person modes.
+    --                 Hidden from the local player in first-person mode.
     -- is within `stepheight` and if the object current max Y in the world
     -- is greater or equal than the node min Y.
 
