@@ -442,7 +442,17 @@ void GenericCAO::updateVisibility()
 {
 	Camera *cam = m_client->getCamera();
 	bool is_first_person = cam && cam->getCameraMode() == CAMERA_MODE_FIRST;
-	updateVisibility(is_first_person, m_attached_to_local || m_is_local_player);
+
+	bool in_local_chain = m_is_local_player;
+	ClientActiveObject *p = getParent();
+	while (p && !in_local_chain) {
+		if (p->isLocalPlayer())
+			in_local_chain = true;
+		else
+			p = p->getParent();
+	}
+
+	updateVisibility(is_first_person, in_local_chain);
 }
 
 void GenericCAO::updateVisibility(bool is_first_person, bool in_local_chain)

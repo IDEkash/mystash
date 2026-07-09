@@ -244,6 +244,8 @@ public:
 		m_is_visible = toset;
 	}
 
+	void updateVisibility();
+	void updateVisibility(bool is_first_person, bool in_local_chain);
 	void setChildrenVisible(bool toset, u16 depth = 0);
 	void setAttachment(object_t parent_id, const std::string &bone, v3f position,
 			v3f rotation, bool force_visible) override;
