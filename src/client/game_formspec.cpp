@@ -398,12 +398,12 @@ void GameFormSpec::showPauseMenu()
 
 	os << "formspec_version[10]size[12.5,7.5]";
 
-	// Background card boxes
-	os << "box[" << info_x << ",0.5;" << info_w << ",6.5;#00000060]";
+	// Background card boxes with rounded corners
+	os << "background9[" << info_x << ",0.5;" << info_w << ",6.5;menu_round_card_trans.png;false;24]";
 	if (show_controls) {
-		os << "box[" << controls_x << ",0.5;" << controls_w << ",6.5;#00000060]";
+		os << "background9[" << controls_x << ",0.5;" << controls_w << ",6.5;menu_round_card_trans.png;false;24]";
 	}
-	os << "box[" << actions_x << ",0.5;" << actions_w << ",6.5;#00000060]";
+	os << "background9[" << actions_x << ",0.5;" << actions_w << ",6.5;menu_round_card_trans.png;false;24]";
 
 	// Header labels with styled colorization
 	os << "label[" << (info_x + 0.35f) << ",0.9;\x1b(c@#467832)" << PROJECT_NAME_C << " \x1b(c@#ffffff)" << VERSION_STRING << "]";
@@ -484,6 +484,9 @@ void GameFormSpec::showPauseMenu()
 #endif
 	menu_buttons.push_back({"btn_exit_menu", strgettext("Exit to Menu")});
 	menu_buttons.push_back({"btn_exit_os", strgettext("Exit to OS")});
+
+	// Apply global button styling for modern rounded corners
+	os << "style_type[button,button_exit;bgimg=menu_round_button.png;bgimg_middle=12;border=false]";
 
 	// Action button styling
 	os << "style[btn_continue;bgcolor=#467832;textcolor=white;font=bold]"

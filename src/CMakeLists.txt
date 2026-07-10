@@ -1,5 +1,8 @@
 project(luanti)
 
+# Ensure tiniergltf header is globally accessible to all targets (including server)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../lib/tiniergltf)
+
 INCLUDE(CheckTypeSize)
 INCLUDE(CheckIncludeFiles)
 INCLUDE(CheckLibraryExists)
@@ -799,7 +802,6 @@ if(BUILD_SERVER)
 	target_link_libraries(
 		${PROJECT_NAME}server
 		${ZLIB_LIBRARIES}
-		tiniergltf::tiniergltf
 		${ZSTD_LIBRARY}
 		${SQLITE3_LIBRARY}
 		${JSON_LIBRARY}

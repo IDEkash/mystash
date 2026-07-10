@@ -159,11 +159,12 @@ local function get_formspec(tabview, name, tabdata)
 
 		local button_y = H * 2/3 - 0.6
 		return table.concat({
+			"style_type[button,button_exit;bgimg=menu_round_button.png;bgimg_middle=12;border=false]",
 			"hypertext[0.375,0;", W - 2*0.375, ",", button_y, ";ht;", core.formspec_escape(hypertext), "]",
 			"button[5.25,", button_y, ";5,1.2;game_open_cdb;", fgettext("Install a game"), "]"})
 	end
 
-	local retval = ""
+	local retval = "style_type[button,button_exit;bgimg=menu_round_button.png;bgimg_middle=12;border=false]"
 
 	local index = core.get_textlist_index("sp_worlds") or filterlist.get_current_index(menudata.worldlist,
 				tonumber(core.settings:get("mainmenu_last_selected_world"))) or 0
@@ -181,9 +182,9 @@ local function get_formspec(tabview, name, tabdata)
 
 	local creative, damage, host = "", "", ""
 
-	-- Card backgrounds (Surface Level 2)
-	retval = retval .. "box[0.375,0.375;4.5,6.35;#25282c]"
-	retval = retval .. "box[5.25,0.375;9.875,6.35;#25282c]"
+	-- Card backgrounds (Surface Level 2) with rounded corners
+	retval = retval .. "background9[0.375,0.375;4.5,6.35;menu_round_card_gray.png;false;24]"
+	retval = retval .. "background9[5.25,0.375;9.875,6.35;menu_round_card_gray.png;false;24]"
 
 	-- Header labels with styled colorization
 	retval = retval .. "label[0.725,0.725;" .. fgettext("SETTINGS") .. "]"

@@ -83,8 +83,8 @@ local function get_formspec(self)
 
 	local formspec = (prepend or "")
 	formspec = formspec .. "bgcolor[;neither]"
-	-- Draw content background area (absolute positive coordinates)
-	formspec = formspec .. string.format("box[0,%f;%f,%f;#1a1c1e]", TABHEADER_H, orig_tsize.width, orig_tsize.height)
+	-- Draw content background area (absolute positive coordinates) with rounded corners
+	formspec = formspec .. string.format("background9[0,%f;%f,%f;menu_round_card_dark.png;false;24]", TABHEADER_H, orig_tsize.width, orig_tsize.height)
 	-- Draw custom Segmented Pill tab header at absolute positive coordinates above content box
 	formspec = formspec .. self:tab_header(tab_header_size)
 	-- Open container for the content
@@ -166,8 +166,8 @@ local function tab_header(self, size)
 	local toadd = ""
 	local track_w = size.width
 
-	-- Draw modern track background box (absolute positive coordinates)
-	toadd = toadd .. string.format("box[0,0.05;%f,0.7;#121416]", track_w)
+	-- Draw modern track background box (absolute positive coordinates) with rounded corners
+	toadd = toadd .. string.format("background9[0,0.05;%f,0.7;menu_round_card_track.png;false;16]", track_w)
 
 	local btn_w = (track_w - 0.1) / N
 	for i = 1, N do
@@ -179,11 +179,11 @@ local function tab_header(self, size)
 		end
 
 		if i == self.last_tab_index then
-			toadd = toadd .. string.format("style[%s;bgcolor=#467832;textcolor=white;font=bold;border=false]", btn_name)
+			toadd = toadd .. string.format("style[%s;bgcolor=#467832;textcolor=white;font=bold;border=false;bgimg=menu_round_button.png;bgimg_middle=12]", btn_name)
 		else
-			toadd = toadd .. string.format("style[%s;bgcolor=#25282c;textcolor=#aaaaaa;border=false]", btn_name)
-			toadd = toadd .. string.format("style[%s:hovered;bgcolor=#2e3137;textcolor=white]", btn_name)
-			toadd = toadd .. string.format("style[%s:pressed;bgcolor=#1e2024;textcolor=white]", btn_name)
+			toadd = toadd .. string.format("style[%s;bgcolor=#25282c;textcolor=#aaaaaa;border=false;bgimg=menu_round_button.png;bgimg_middle=12]", btn_name)
+			toadd = toadd .. string.format("style[%s:hovered;bgcolor=#2e3137;textcolor=white;bgimg=menu_round_button.png;bgimg_middle=12;border=false]", btn_name)
+			toadd = toadd .. string.format("style[%s:pressed;bgcolor=#1e2024;textcolor=white;bgimg=menu_round_button.png;bgimg_middle=12;border=false]", btn_name)
 		end
 		toadd = toadd .. string.format("button[%f,0.1;%f,0.6;%s;%s]", btn_x, btn_w - 0.05, btn_name, core.formspec_escape(caption))
 	end
