@@ -457,7 +457,9 @@ void GenericCAO::updateVisibility()
 
 void GenericCAO::updateVisibility(bool is_first_person, bool in_local_chain)
 {
-	if (m_is_local_player) {
+	if (!m_prop.is_visible) {
+		m_is_visible = false;
+	} else if (m_is_local_player) {
 		m_is_visible = true;
 	} else if (m_force_visible) {
 		m_is_visible = true;

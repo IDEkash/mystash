@@ -86,7 +86,9 @@ return {
 			"style[label_button;border=false]" ..
 			"button[0.1,3.4;5.3,0.5;label_button;" ..
 			core.formspec_escape(version.project .. " " .. version.string) .. "]" ..
+			"tooltip[label_button;" .. fgettext("Installed version of the engine") .. "]" ..
 			"button_url[1.5,4.1;2.5,0.8;homepage;luanti.org;https://www.luanti.org/]" ..
+			"tooltip[homepage;" .. fgettext("Visit the official website") .. "]" ..
 			"hypertext[5.5,0.25;9.75,6.6;credits;" .. core.formspec_escape(hypertext) .. "]"
 
 		local active_renderer_info = fgettext("Active renderer:") .. "\n" ..
@@ -96,7 +98,8 @@ return {
 			"tooltip[label_button2;" .. active_renderer_info .. "]"
 
 		if PLATFORM == "Android" then
-			fs = fs .. "button[0.5,5.1;4.5,0.8;share_debug;" .. fgettext("Share debug log") .. "]"
+			fs = fs .. "button[0.5,5.1;4.5,0.8;share_debug;" .. fgettext("Share debug log") .. "]" ..
+				"tooltip[share_debug;" .. fgettext("Share the debug log for troubleshooting") .. "]"
 		else
 			fs = fs .. "tooltip[userdata;" ..
 					fgettext("Opens the directory that contains user-provided worlds, games, mods,\n" ..

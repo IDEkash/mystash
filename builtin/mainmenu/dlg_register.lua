@@ -33,7 +33,9 @@ local function register_formspec(dialogdata)
 	table.insert_all(retval, {
 		"container[0.375,", tostring(buttons_y), "]",
 		"button[0,0;2.5,0.8;dlg_register_confirm;", fgettext("Register"), "]",
+		"tooltip[dlg_register_confirm;", fgettext("Register and join the server"), "]",
 		"button[4.75,0;2.5,0.8;dlg_register_cancel;", fgettext("Cancel"), "]",
+		"tooltip[dlg_register_cancel;", fgettext("Back to the server list"), "]",
 		"container_end[]",
 	})
 

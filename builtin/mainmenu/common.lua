@@ -270,9 +270,14 @@ function menu_worldmt_legacy(selected)
 end
 
 function confirmation_formspec(message, confirm_id, confirm_label, cancel_id, cancel_label)
-	return "size[10,2.5,true]" ..
+	return "formspec_version[10]" ..
+			"size[10,3.1]" ..
+			"style_type[label;font=bold]" ..
 			"label[0.5,0.5;" .. message .. "]" ..
 			"style[" .. confirm_id .. ";bgcolor=red]" ..
-			"button[0.5,1.5;2.5,0.5;" .. confirm_id .. ";" .. confirm_label .. "]" ..
-			"button[7.0,1.5;2.5,0.5;" .. cancel_id .. ";" .. cancel_label .. "]"
+			"button[0.5,1.8;3,0.8;" .. cancel_id .. ";" .. cancel_label .. "]" ..
+			"tooltip[" .. cancel_id .. ";" .. core.formspec_escape(fgettext("Back to the previous menu")) .. "]" ..
+			"button[6.5,1.8;3,0.8;" .. confirm_id .. ";" .. confirm_label .. "]" ..
+			"tooltip[" .. confirm_id .. ";" .. core.formspec_escape(fgettext("This action cannot be undone.")) .. "]" ..
+			"set_focus[" .. cancel_id .. "]"
 end

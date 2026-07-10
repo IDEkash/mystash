@@ -195,21 +195,26 @@ local function get_formspec(data)
 	retval = retval ..
 		"button[3.25,7;2.5,0.5;btn_config_world_save;" ..
 		fgettext("Save") .. "]" ..
+		"tooltip[btn_config_world_save;" .. fgettext("Save the current mod configuration") .. "]" ..
 		"button[5.75,7;2.5,0.5;btn_config_world_cancel;" ..
 		fgettext("Cancel") .. "]" ..
+		"tooltip[btn_config_world_cancel;" .. fgettext("Discard changes and go back") .. "]" ..
 		"button[9,7;2.5,0.5;btn_config_world_cdb;" ..
-		fgettext("Find More Mods") .. "]"
+		fgettext("Find More Mods") .. "]" ..
+		"tooltip[btn_config_world_cdb;" .. fgettext("Install more mods from ContentDB") .. "]"
 
 	if mod.name ~= "" and not mod.always_on then
 		if mod.is_modpack then
 			if pkgmgr.is_modpack_entirely_enabled(data.list:get_raw_list(), mod) then
 				retval = retval ..
 					"button[5.5,0.125;3,0.5;btn_mp_disable;" ..
-					fgettext("Disable modpack") .. "]"
+					fgettext("Disable modpack") .. "]" ..
+					"tooltip[btn_mp_disable;" .. fgettext("Disable all mods in this modpack") .. "]"
 			else
 				retval = retval ..
 					"button[5.5,0.125;3,0.5;btn_mp_enable;" ..
-					fgettext("Enable modpack") .. "]"
+					fgettext("Enable modpack") .. "]" ..
+					"tooltip[btn_mp_enable;" .. fgettext("Enable all mods in this modpack") .. "]"
 			end
 		else
 			retval = retval ..
@@ -220,11 +225,13 @@ local function get_formspec(data)
 	if enabled_all then
 		retval = retval ..
 			"button[8.95,0.125;2.5,0.5;btn_disable_all_mods;" ..
-			fgettext("Disable all") .. "]"
+			fgettext("Disable all") .. "]" ..
+			"tooltip[btn_disable_all_mods;" .. fgettext("Disable all mods in this world") .. "]"
 	else
 		retval = retval ..
 			"button[8.95,0.125;2.5,0.5;btn_enable_all_mods;" ..
-			fgettext("Enable all") .. "]"
+			fgettext("Enable all") .. "]" ..
+			"tooltip[btn_enable_all_mods;" .. fgettext("Enable all mods in this world") .. "]"
 	end
 
 	local use_technical_names = core.settings:get_bool("show_technical_names")

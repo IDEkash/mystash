@@ -13,8 +13,10 @@ local function exit_dialog_formspec()
 		"label[0.5,0.5;" .. fgettext("Are you sure you want to quit?") .. "]" ..
 		"checkbox[0.5,1.4;cb_show_dialog;" .. fgettext("Always show this dialog.") .. ";" .. tostring(show_dialog) .. "]" ..
 		"button[0.5,2.3;3,0.8;btn_quit_confirm_cancel;" .. fgettext("Cancel") .. "]" ..
+		"tooltip[btn_quit_confirm_cancel;" .. fgettext("Return to the game") .. "]" ..
 		"button[6.5,2.3;3,0.8;btn_quit_confirm_yes;" .. fgettext("Quit") .. "]" ..
-		"set_focus[btn_quit_confirm_yes]"
+		"tooltip[btn_quit_confirm_yes;" .. fgettext("Exit to the main menu") .. "]" ..
+		"set_focus[btn_quit_confirm_cancel]"
 	}
 	return table.concat(formspec, "")
 end

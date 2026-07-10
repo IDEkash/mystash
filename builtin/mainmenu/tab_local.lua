@@ -190,28 +190,35 @@ local function get_formspec(tabview, name, tabdata)
 	if world then
 		if disabled_settings["creative_mode"] == nil then
 			creative = "checkbox[0,"..y..";cb_creative_mode;".. fgettext("Creative Mode") .. ";" ..
-				dump(core.settings:get_bool("creative_mode")) .. "]"
+				dump(core.settings:get_bool("creative_mode")) .. "]" ..
+				"tooltip[cb_creative_mode;" .. fgettext("Items have no cost, and you can break blocks instantly.") .. "]"
 			y = y + yo
 		end
 		if disabled_settings["enable_damage"] == nil then
 			damage = "checkbox[0,"..y..";cb_enable_damage;".. fgettext("Enable Damage") .. ";" ..
-				dump(core.settings:get_bool("enable_damage")) .. "]"
+				dump(core.settings:get_bool("enable_damage")) .. "]" ..
+				"tooltip[cb_enable_damage;" .. fgettext("Players can take damage from monsters, falls, and other hazards.") .. "]"
 			y = y + yo
 		end
 		if disabled_settings["enable_server"] == nil then
 			host = "checkbox[0,"..y..";cb_server;".. fgettext("Host Server") ..";" ..
-				dump(core.settings:get_bool("enable_server")) .. "]"
+				dump(core.settings:get_bool("enable_server")) .. "]" ..
+				"tooltip[cb_server;" .. fgettext("Allow other players to join your game over the network.") .. "]"
 			y = y + yo
 		end
 	end
 
 	retval = retval ..
 			"container[5.25,4.875]" ..
-			"button[6.65,0;3.225,0.8;world_create;".. fgettext("New") .. "]"
+			"button[6.65,0;3.225,0.8;world_create;".. fgettext("New") .. "]" ..
+			"tooltip[world_create;" .. fgettext("Create a new world") .. "]"
 	if world then
 		retval = retval ..
+				"style[world_delete;bgcolor=red]" ..
 				"button[0,0;3.225,0.8;world_delete;".. fgettext("Delete") .. "]" ..
-				"button[3.325,0;3.225,0.8;world_configure;".. fgettext("Select Mods") .. "]"
+				"tooltip[world_delete;" .. fgettext("Delete the selected world") .. "]" ..
+				"button[3.325,0;3.225,0.8;world_configure;".. fgettext("Select Mods") .. "]" ..
+				"tooltip[world_configure;" .. fgettext("Enable or disable mods for this world") .. "]"
 	end
 	retval = retval ..
 			"container_end[]" ..
@@ -230,9 +237,11 @@ local function get_formspec(tabview, name, tabdata)
 	if core.settings:get_bool("enable_server") and disabled_settings["enable_server"] == nil then
 		retval = retval ..
 				"button[10.1875,5.925;4.9375,0.8;play;".. fgettext("Host Game") .. "]" ..
+				"tooltip[play;" .. fgettext("Start the game and allow others to join") .. "]" ..
 				"container[0.375,0.375]" ..
 				"checkbox[0,"..y..";cb_server_announce;" .. fgettext("Announce Server") .. ";" ..
-				dump(core.settings:get_bool("server_announce")) .. "]"
+				dump(core.settings:get_bool("server_announce")) .. "]" ..
+				"tooltip[cb_server_announce;" .. fgettext("List your server on the public server list.") .. "]"
 
 		-- Reset y so that the text fields always start at the same position,
 		-- regardless of whether some of the checkboxes are hidden.
@@ -264,7 +273,8 @@ local function get_formspec(tabview, name, tabdata)
 		retval = retval .. "container_end[]"
 	elseif world then
 		retval = retval ..
-				"button[10.1875,5.925;4.9375,0.8;play;" .. fgettext("Play Game") .. "]"
+				"button[10.1875,5.925;4.9375,0.8;play;" .. fgettext("Play Game") .. "]" ..
+				"tooltip[play;" .. fgettext("Start the game in singleplayer mode") .. "]"
 	end
 
 	return retval
