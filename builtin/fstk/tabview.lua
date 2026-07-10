@@ -82,9 +82,14 @@ local function get_formspec(self)
 	end
 
 	local formspec = (prepend or "")
-	formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#1a1c1e]"):format(
-			TABHEADER_H, orig_tsize.width, orig_tsize.height)
-	formspec = formspec .. self:tab_header(tab_header_size) .. content
+	formspec = formspec .. "bgcolor[;neither]"
+	-- Draw content background area (absolute positive coordinates)
+	formspec = formspec .. string.format("box[0,%f;%f,%f;#1a1c1e]", TABHEADER_H, orig_tsize.width, orig_tsize.height)
+	-- Draw custom Segmented Pill tab header at absolute positive coordinates above content box
+	formspec = formspec .. self:tab_header(tab_header_size)
+	-- Open container for the content
+	formspec = formspec .. string.format("container[0,%f]", TABHEADER_H)
+	formspec = formspec .. content
 
 	if self.end_button then
 		formspec = formspec ..
@@ -161,8 +166,8 @@ local function tab_header(self, size)
 	local toadd = ""
 	local track_w = size.width
 
-	-- Draw modern track background box
-	toadd = toadd .. string.format("box[0,-0.85;%f,0.7;#121416]", track_w)
+	-- Draw modern track background box (absolute positive coordinates)
+	toadd = toadd .. string.format("box[0,0.05;%f,0.7;#121416]", track_w)
 
 	local btn_w = (track_w - 0.1) / N
 	for i = 1, N do
@@ -180,7 +185,7 @@ local function tab_header(self, size)
 			toadd = toadd .. string.format("style[%s:hovered;bgcolor=#2e3137;textcolor=white]", btn_name)
 			toadd = toadd .. string.format("style[%s:pressed;bgcolor=#1e2024;textcolor=white]", btn_name)
 		end
-		toadd = toadd .. string.format("button[%f,-0.8;%f,0.6;%s;%s]", btn_x, btn_w - 0.05, btn_name, core.formspec_escape(caption))
+		toadd = toadd .. string.format("button[%f,0.1;%f,0.6;%s;%s]", btn_x, btn_w - 0.05, btn_name, core.formspec_escape(caption))
 	end
 
 	return toadd

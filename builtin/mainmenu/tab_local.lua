@@ -186,8 +186,8 @@ local function get_formspec(tabview, name, tabdata)
 	retval = retval .. "box[5.25,0.375;9.875,6.35;#25282c]"
 
 	-- Header labels with styled colorization
-	retval = retval .. "label[0.725,0.725;\\x1b(c@#467832)SETTINGS\\x1b(c@#ffffff)]"
-	retval = retval .. "label[5.6,0.725;\\x1b(c@#467832)SELECT WORLD\\x1b(c@#ffffff)]"
+	retval = retval .. "label[0.725,0.725;" .. fgettext("SETTINGS") .. "]"
+	retval = retval .. "label[5.6,0.725;" .. fgettext("SELECT WORLD") .. "]"
 
 	-- Y offsets for settings checkboxes
 	local y = 1.1
@@ -219,23 +219,23 @@ local function get_formspec(tabview, name, tabdata)
 
 	-- List secondary actions (horizontal row)
 	local btn_w = (9.375 - 0.4) / 3
-	retval = retval .. "style[world_create;bgcolor=#43464b;textcolor=white;border=false]"
+	retval = retval .. "style[world_create;bgcolor=#43464b;textcolor=white]"
 	retval = retval .. "style[world_create:hovered;bgcolor=#50545c]"
 	retval = retval .. "button[5.5,4.75;" .. btn_w .. ",0.7;world_create;" .. fgettext("New World") .. "]"
 
 	if world then
-		retval = retval .. "style[world_configure;bgcolor=#43464b;textcolor=white;border=false]"
+		retval = retval .. "style[world_configure;bgcolor=#43464b;textcolor=white]"
 		retval = retval .. "style[world_configure:hovered;bgcolor=#50545c]"
 		retval = retval .. "button[" .. (5.5 + btn_w + 0.2) .. ",4.75;" .. btn_w .. ",0.7;world_configure;" .. fgettext("Select Mods") .. "]"
 
-		retval = retval .. "style[world_delete;bgcolor=#9b2c2c;textcolor=white;border=false]"
+		retval = retval .. "style[world_delete;bgcolor=#9b2c2c;textcolor=white]"
 		retval = retval .. "style[world_delete:hovered;bgcolor=#b93535]"
 		retval = retval .. "button[" .. (5.5 + btn_w * 2 + 0.4) .. ",4.75;" .. btn_w .. ",0.7;world_delete;" .. fgettext("Delete") .. "]"
 	end
 
 	-- Server host details or Play/Host Game
 	if core.settings:get_bool("enable_server") and disabled_settings["enable_server"] == nil then
-		retval = retval .. "style[play;bgcolor=#467832;textcolor=white;font=bold;border=false]"
+		retval = retval .. "style[play;bgcolor=#467832;textcolor=white;font=bold]"
 		retval = retval .. "style[play:hovered;bgcolor=#55913f]"
 		retval = retval .. "button[5.5,5.6;9.375,0.8;play;" .. fgettext("Host Game") .. "]"
 
@@ -264,7 +264,7 @@ local function get_formspec(tabview, name, tabdata)
 				core.formspec_escape(current_port) .. "]"
 		end
 	elseif world then
-		retval = retval .. "style[play;bgcolor=#467832;textcolor=white;font=bold;border=false]"
+		retval = retval .. "style[play;bgcolor=#467832;textcolor=white;font=bold]"
 		retval = retval .. "style[play:hovered;bgcolor=#55913f]"
 		retval = retval .. "button[5.5,5.6;9.375,0.8;play;" .. fgettext("Play Game") .. "]"
 	end
