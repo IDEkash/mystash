@@ -113,14 +113,16 @@ local function get_formspec(data)
 	local bottom_buttons_y = H - 0.8
 
 	local formspec = {
-		"formspec_version[7]",
+		"formspec_version[10]",
 		"size[", size.x, ",",  size.y, "]",
 		"padding[0,0]",
 		"bgcolor[;true]",
 
 		"container[", window_padding.x, ",", window_padding.y, "]",
 
+		"style[back;bgcolor=#43464b;textcolor=white]",
 		"button[0,", bottom_buttons_y, ";2,0.8;back;", fgettext("Back"), "]",
+		"style[open_contentdb;bgcolor=#43464b;textcolor=white]",
 		"button[", W - 3, ",", bottom_buttons_y, ";3,0.8;open_contentdb;", fgettext("ContentDB page"), "]",
 
 		"style_type[label;font_size=+24;font=bold]",
@@ -148,7 +150,7 @@ local function get_formspec(data)
 		-- TRANSLATORS: $1 = download size
 		local label = info and fgettext("Install [$1]", info.download_size) or
 			fgettext("Install")
-		formspec[#formspec + 1] = "style[install;bgcolor=green]"
+		formspec[#formspec + 1] = "style[install;bgcolor=#467832;textcolor=white;font=bold]"
 		formspec[#formspec + 1] = "button["
 		formspec[#formspec + 1] = right_button_rect
 		formspec[#formspec + 1] =";install;"
@@ -157,7 +159,7 @@ local function get_formspec(data)
 	else
 		if package.installed_release < package.release then
 			-- The install_ action also handles updating
-			formspec[#formspec + 1] = "style[install;bgcolor=#28ccdf]"
+			formspec[#formspec + 1] = "style[install;bgcolor=#467832;textcolor=white;font=bold]"
 			formspec[#formspec + 1] = "button["
 			formspec[#formspec + 1] = left_button_rect
 			formspec[#formspec + 1] = ";install;"
@@ -165,7 +167,7 @@ local function get_formspec(data)
 			formspec[#formspec + 1] = "]"
 		end
 
-		formspec[#formspec + 1] = "style[uninstall;bgcolor=#a93b3b]"
+		formspec[#formspec + 1] = "style[uninstall;bgcolor=red;textcolor=white]"
 		formspec[#formspec + 1] = "button["
 		formspec[#formspec + 1] = right_button_rect
 		formspec[#formspec + 1] = ";uninstall;"

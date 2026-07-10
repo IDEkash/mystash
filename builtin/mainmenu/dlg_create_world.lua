@@ -271,53 +271,61 @@ local function create_world_formspec(dialogdata)
 		label_spflags = "label[0,"..y_start..";" .. fgettext("Mapgen-specific flags") .. "]"
 	end
 
-	local retval =
-		"size[12.25,7.4,true]" ..
+	local MARGIN = 0.5
+	local COL_W = 5.5
+	local RIGHT_X = MARGIN + COL_W + 0.5
 
-		-- Left side
-		"container[0,0]"..
-		"field[0.3,0.6;6,0.5;te_world_name;" ..
-		fgettext("World name") ..
-		";" .. core.formspec_escape(dialogdata.worldname) .. "]" ..
+	local retval =
+		"formspec_version[10]" ..
+		"size[12.5,8.5]" ..
+
+		-- Left side: Basic Info
+		"container[" .. MARGIN .. "," .. MARGIN .. "]"..
+		"label[0,0.2;" .. fgettext("World Creation") .. "]" ..
+		"field[0,0.8;" .. COL_W .. ",0.8;te_world_name;" .. fgettext("World name") .. ";" .. core.formspec_escape(dialogdata.worldname) .. "]" ..
 		"set_focus[te_world_name;false]"
 
 	if not disallowed_mapgen_settings["seed"] then
-
-		retval = retval .. "field[0.3,1.7;6,0.5;te_seed;" ..
-				-- TRANSLATORS: Value for randomness
-				fgettext("Seed") ..
-				";".. core.formspec_escape(dialogdata.seed) .. "]"
-
+		retval = retval .. "field[0,2;" .. COL_W .. ",0.8;te_seed;" .. fgettext("Seed") .. ";" .. core.formspec_escape(dialogdata.seed) .. "]"
 	end
 
 	retval = retval ..
-		"label[0,2;" .. fgettext("Mapgen") .. "]"..
-		"dropdown[0,2.5;6.3;dd_mapgen;" .. mglist .. ";" .. selindex .. "]"
+		"label[0,3.2;" .. fgettext("Map Generator") .. "]"..
+		"dropdown[0,3.6;" .. COL_W .. ",0.8;dd_mapgen;" .. mglist .. ";" .. selindex .. "]"
 
 	-- Warning when making a devtest world
 	if game.id == "devtest" then
 		retval = retval ..
-			"container[0,3.5]" ..
-			"box[0,0;5.8,1.7;#ff8800]" ..
-			"textarea[0.4,0.1;6,1.8;;;"..
-			fgettext("Development Test is meant for developers.") .. "]" ..
-			"button[1,1;4,0.5;world_create_open_cdb;" .. fgettext("Install another game") .. "]" ..
+			"container[0,4.8]" ..
+			"box[0,0;" .. COL_W .. ",2;#ff880040]" ..
+			"textarea[0.1,0.1;" .. (COL_W-0.2) .. ",1.8;;;" .. fgettext("Development Test is meant for developers.") .. "]" ..
+			"style[world_create_open_cdb;bgcolor=#43464b;textcolor=white]" ..
+			"button[0.5,1.2;" .. (COL_W-1) .. ",0.6;world_create_open_cdb;" .. fgettext("Install another game") .. "]" ..
 			"container_end[]"
 	end
 
 	retval = retval ..
 		"container_end[]" ..
 
-		-- Right side
-		"container[6.2,0]"..
+		-- Right side: Mapgen Flags
+		"container[" .. RIGHT_X .. "," .. MARGIN .. "]"..
+		"box[0,0;" .. COL_W .. ",6.8;#00000040]" ..
+		"container[0.2,0.2]" ..
 		label_flags .. str_flags ..
+		"container[0," .. (y - 0.3 + 0.5) .. "]" ..
 		label_spflags .. str_spflags ..
+		"container_end[]" ..
+		"container_end[]" ..
 		"container_end[]"..
 
-		-- Menu buttons
-		"container[0,6.9]"..
-		"button[3.25,0;3,0.5;world_create_confirm;" .. fgettext("Create") .. "]" ..
-		"button[6.25,0;3,0.5;world_create_cancel;" .. fgettext("Cancel") .. "]" ..
+		-- Bottom Actions
+		"container[" .. MARGIN .. ",7.5]"..
+		"style[world_create_cancel;bgcolor=#43464b;textcolor=white]" ..
+		"button[" .. (12.5 - MARGIN*2 - 6.2) .. ",0;3,0.8;world_create_cancel;" .. fgettext("Cancel") .. "]" ..
+		"tooltip[world_create_cancel;" .. fgettext("Back to the world list") .. "]" ..
+		"style[world_create_confirm;bgcolor=#467832;textcolor=white;font=bold]" ..
+		"button[" .. (12.5 - MARGIN*2 - 3) .. ",0;3,0.8;world_create_confirm;" .. fgettext("Create") .. "]" ..
+		"tooltip[world_create_confirm;" .. fgettext("Create the world with these settings") .. "]" ..
 		"container_end[]"
 
 	return retval

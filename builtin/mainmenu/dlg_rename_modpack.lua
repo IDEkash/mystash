@@ -6,9 +6,12 @@
 
 local function rename_modpack_formspec(dialogdata)
 	local retval =
+		"formspec_version[10]" ..
 		"size[11.5,4.5,true]" ..
+		"style[dlg_rename_modpack_confirm;bgcolor=#467832;textcolor=white;font=bold]" ..
 		"button[3.25,3.5;2.5,0.5;dlg_rename_modpack_confirm;"..
 				fgettext("Accept") .. "]" ..
+		"style[dlg_rename_modpack_cancel;bgcolor=#43464b;textcolor=white]" ..
 		"button[5.75,3.5;2.5,0.5;dlg_rename_modpack_cancel;"..
 				fgettext("Cancel") .. "]"
 

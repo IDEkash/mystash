@@ -27,6 +27,13 @@ enum ObjectVisual : u8 {
 
 extern const EnumString es_ObjectVisual[];
 
+enum VisibilityPerspective : u8 {
+	VIEW_VISIBILITY_ALL,
+	VIEW_VISIBILITY_FIRST_PERSON,
+	VIEW_VISIBILITY_THIRD_PERSON,
+};
+
+extern const EnumString es_VisibilityPerspective[];
 
 struct ObjectProperties
 {
@@ -58,6 +65,7 @@ struct ObjectProperties
 	float eye_height = 1.625f;
 	float zoom_fov = 0.0f;
 	float target_height = 0.0f;
+	VisibilityPerspective visibility = VIEW_VISIBILITY_ALL;
 	std::optional<u32> nametag_fontsize;
 	MapNode node = MapNode(CONTENT_IGNORE);
 	u16 hp_max = 1;

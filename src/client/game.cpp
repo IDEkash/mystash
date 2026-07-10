@@ -2801,7 +2801,7 @@ void Game::updateCameraMode()
 	if (playercao) {
 		// Make the player visible depending on camera mode.
 		playercao->updateMeshCulling();
-		playercao->setChildrenVisible(camera->getCameraMode() > CAMERA_MODE_FIRST);
+		playercao->updateVisibility();
 	}
 }
 

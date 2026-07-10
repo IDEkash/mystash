@@ -116,6 +116,7 @@ local function init_globals()
 	tv_main:set_end_button({
 		icon = defaulttexturedir .. "settings_btn.png",
 		label = fgettext("Settings"),
+		tooltip = fgettext("Change engine settings"),
 		name = "open_settings",
 		on_click = function(tabview)
 			local dlg = create_settings_dlg()
