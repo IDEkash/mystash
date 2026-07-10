@@ -83,10 +83,10 @@ return {
 		hypertext = table.concat(hypertext):sub(1, -2)
 
 		local fs = "image[1.5,0.6;2.5,2.5;" .. core.formspec_escape(logofile) .. "]" ..
-			"style[label_button;border=false]" ..
-			"button[0.1,3.4;5.3,0.5;label_button;" ..
-			core.formspec_escape(version.project .. " " .. version.string) .. "]" ..
-			"tooltip[label_button;" .. fgettext("Installed version of the engine") .. "]" ..
+			"style[label_button;border=false;font=bold;content_offset=0]" ..
+			"label[1.2,3.5;" .. core.formspec_escape(version.project .. " " .. version.string) .. "]" ..
+			"tooltip[1.2,3.3;3.0,0.4;" .. fgettext("Installed version of the engine") .. "]" ..
+			"style[homepage;bgcolor=#43464b;textcolor=white]" ..
 			"button_url[1.5,4.1;2.5,0.8;homepage;luanti.org;https://www.luanti.org/]" ..
 			"tooltip[homepage;" .. fgettext("Visit the official website") .. "]" ..
 			"hypertext[5.5,0.25;9.75,6.6;credits;" .. core.formspec_escape(hypertext) .. "]"

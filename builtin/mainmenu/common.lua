@@ -274,7 +274,8 @@ function confirmation_formspec(message, confirm_id, confirm_label, cancel_id, ca
 			"size[10,3.1]" ..
 			"style_type[label;font=bold]" ..
 			"label[0.5,0.5;" .. message .. "]" ..
-			"style[" .. confirm_id .. ";bgcolor=red]" ..
+			"style[" .. confirm_id .. ";bgcolor=red;textcolor=white]" ..
+			"style[" .. cancel_id .. ";bgcolor=#43464b;textcolor=white]" ..
 			"button[0.5,1.8;3,0.8;" .. cancel_id .. ";" .. cancel_label .. "]" ..
 			"tooltip[" .. cancel_id .. ";" .. core.formspec_escape(fgettext("Back to the previous menu")) .. "]" ..
 			"button[6.5,1.8;3,0.8;" .. confirm_id .. ";" .. confirm_label .. "]" ..

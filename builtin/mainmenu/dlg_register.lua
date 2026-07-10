@@ -13,7 +13,7 @@ local function register_formspec(dialogdata)
 	end
 
 	local retval = {
-		"formspec_version[4]",
+		"formspec_version[10]",
 		"size[8,", tostring(buttons_y + 1.175), "]",
 		"set_focus[", (dialogdata.name ~= "" and "password" or "name"), "]",
 		"label[0.375,0.8;", title, "]",
@@ -32,8 +32,10 @@ local function register_formspec(dialogdata)
 
 	table.insert_all(retval, {
 		"container[0.375,", tostring(buttons_y), "]",
+		"style[dlg_register_confirm;bgcolor=#467832;textcolor=white;font=bold]",
 		"button[0,0;2.5,0.8;dlg_register_confirm;", fgettext("Register"), "]",
 		"tooltip[dlg_register_confirm;", fgettext("Register and join the server"), "]",
+		"style[dlg_register_cancel;bgcolor=#43464b;textcolor=white]",
 		"button[4.75,0;2.5,0.8;dlg_register_cancel;", fgettext("Cancel"), "]",
 		"tooltip[dlg_register_cancel;", fgettext("Back to the server list"), "]",
 		"container_end[]",

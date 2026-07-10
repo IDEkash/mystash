@@ -160,6 +160,7 @@ local function get_formspec(tabview, name, tabdata)
 		local button_y = H * 2/3 - 0.6
 		return table.concat({
 			"hypertext[0.375,0;", W - 2*0.375, ",", button_y, ";ht;", core.formspec_escape(hypertext), "]",
+			"style[game_open_cdb;bgcolor=#467832;textcolor=white;font=bold]",
 			"button[5.25,", button_y, ";5,1.2;game_open_cdb;", fgettext("Install a game"), "]"})
 	end
 
@@ -210,13 +211,15 @@ local function get_formspec(tabview, name, tabdata)
 
 	retval = retval ..
 			"container[5.25,4.875]" ..
-			"button[6.65,0;3.225,0.8;world_create;".. fgettext("New") .. "]" ..
+			"style[world_create;bgcolor=#43464b;textcolor=white]" ..
+			"button[6.65,0;3.225,0.8;world_create;".. fgettext("New World") .. "]" ..
 			"tooltip[world_create;" .. fgettext("Create a new world") .. "]"
 	if world then
 		retval = retval ..
-				"style[world_delete;bgcolor=red]" ..
+				"style[world_delete;bgcolor=red;textcolor=white]" ..
 				"button[0,0;3.225,0.8;world_delete;".. fgettext("Delete") .. "]" ..
 				"tooltip[world_delete;" .. fgettext("Delete the selected world") .. "]" ..
+				"style[world_configure;bgcolor=#43464b;textcolor=white]" ..
 				"button[3.325,0;3.225,0.8;world_configure;".. fgettext("Select Mods") .. "]" ..
 				"tooltip[world_configure;" .. fgettext("Enable or disable mods for this world") .. "]"
 	end
@@ -236,6 +239,7 @@ local function get_formspec(tabview, name, tabdata)
 
 	if core.settings:get_bool("enable_server") and disabled_settings["enable_server"] == nil then
 		retval = retval ..
+				"style[play;bgcolor=#467832;textcolor=white;font=bold]" ..
 				"button[10.1875,5.925;4.9375,0.8;play;".. fgettext("Host Game") .. "]" ..
 				"tooltip[play;" .. fgettext("Start the game and allow others to join") .. "]" ..
 				"container[0.375,0.375]" ..
@@ -273,6 +277,7 @@ local function get_formspec(tabview, name, tabdata)
 		retval = retval .. "container_end[]"
 	elseif world then
 		retval = retval ..
+				"style[play;bgcolor=#467832;textcolor=white;font=bold]" ..
 				"button[10.1875,5.925;4.9375,0.8;play;" .. fgettext("Play Game") .. "]" ..
 				"tooltip[play;" .. fgettext("Start the game in singleplayer mode") .. "]"
 	end

@@ -29,7 +29,7 @@ local function add_tab(self,tab)
 		event_handler = tab.cbf_events,
 		get_formspec = tab.cbf_formspec,
 		tabsize = tab.tabsize,
-		formspec_version = tab.formspec_version or 6,
+		formspec_version = tab.formspec_version or 10,
 		on_change = tab.on_change,
 		tabdata = {},
 	}

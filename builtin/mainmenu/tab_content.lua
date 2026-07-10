@@ -76,6 +76,7 @@ local function get_formspec(tabview, name, tabdata)
 		pkgmgr.render_packagelist(packages, use_technical_names, update_icons),
 		";", tabdata.selected_pkg, "]",
 
+		"style[btn_contentdb;bgcolor=#467832;textcolor=white;font=bold]",
 		"button[0.4,5.8;6.3,0.9;btn_contentdb;", contentdb_label, "]",
 		"tooltip[btn_contentdb;", fgettext("Download mods, games, and texture packs from ContentDB"), "]"
 	}
@@ -130,6 +131,7 @@ local function get_formspec(tabview, name, tabdata)
 			desc_height = 2.1
 
 			table.insert_all(retval, {
+				"style[btn_mod_mgr_rename_modpack;bgcolor=#43464b;textcolor=white]",
 				"button[7.1,4.7;8,0.9;btn_mod_mgr_rename_modpack;",
 				fgettext("Rename"), "]",
 				"tooltip[btn_mod_mgr_rename_modpack;", fgettext("Rename this modpack"), "]"
@@ -159,11 +161,13 @@ local function get_formspec(tabview, name, tabdata)
 
 			if selected_pkg.enabled then
 				table.insert_all(retval, {
+					"style[btn_mod_mgr_disable_txp;bgcolor=#43464b;textcolor=white]",
 					"button[7.1,4.7;8,0.9;btn_mod_mgr_disable_txp;",
 					fgettext("Disable Texture Pack"), "]"
 				})
 			else
 				table.insert_all(retval, {
+					"style[btn_mod_mgr_use_txp;bgcolor=#467832;textcolor=white]",
 					"button[7.1,4.7;8,0.9;btn_mod_mgr_use_txp;",
 					fgettext("Use Texture Pack"), "]"
 				})
@@ -179,7 +183,7 @@ local function get_formspec(tabview, name, tabdata)
 
 		if core.may_modify_path(selected_pkg.path) then
 			table.insert_all(retval, {
-				"style[btn_mod_mgr_delete_mod;bgcolor=red]",
+				"style[btn_mod_mgr_delete_mod;bgcolor=red;textcolor=white]",
 				"button[7.1,5.8;4,0.9;btn_mod_mgr_delete_mod;",
 				fgettext("Uninstall"), "]",
 				"tooltip[btn_mod_mgr_delete_mod;", fgettext("Uninstall this package"), "]"
@@ -188,6 +192,7 @@ local function get_formspec(tabview, name, tabdata)
 
 		if update_icons[selected_pkg.virtual_path or selected_pkg.path] then
 			table.insert_all(retval, {
+				"style[btn_mod_mgr_update;bgcolor=#467832;textcolor=white]",
 				"button[11.1,5.8;4,0.9;btn_mod_mgr_update;",
 				fgettext("Update"), "]",
 				"tooltip[btn_mod_mgr_update;", fgettext("Update this package to the latest version"), "]"

@@ -35,15 +35,18 @@ local function version_info_formspec(data)
 			cur_ver.string, data.new_version or "", data.url or "")
 
 	local fs = {
-		"formspec_version[3]",
+		"formspec_version[10]",
 		"size[12.8,7]",
 		"style_type[label;textcolor=#0E0]",
 		"label[0.5,0.8;", title, "]",
 		"textarea[0.4,1.6;12,3.4;;;", message, "]",
 		"container[0.4,5.8]",
+		"style[version_check_visit;bgcolor=#467832;textcolor=white;font=bold]",
 		"button[0.0,0;4.0,0.8;version_check_visit;", fgettext("Visit website"), "]",
+		"style[version_check_remind;bgcolor=#43464b;textcolor=white]",
 		"button[4.5,0;3.5,0.8;version_check_remind;", fgettext("Later"), "]",
-		"button[8.5.5,0;3.5,0.8;version_check_never;", fgettext("Never"), "]",
+		"style[version_check_never;bgcolor=#43464b;textcolor=white]",
+		"button[8.5,0;3.5,0.8;version_check_never;", fgettext("Never"), "]",
 		"container_end[]",
 	}
 

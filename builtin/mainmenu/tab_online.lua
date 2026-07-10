@@ -143,12 +143,15 @@ local function get_formspec(tabview, name, tabdata)
 
 		-- Connect
 		-- TRANSLATORS: Login to server
+		"style[btn_mp_login;bgcolor=#467832;textcolor=white;font=bold]" ..
 		"button[3,6;2.5,0.75;btn_mp_login;" .. fgettext("Login") .. "]" ..
 		"tooltip[btn_mp_login;" .. fgettext("Connect to the selected server") .. "]"
 
 	if core.settings:get_bool("enable_split_login_register") then
 		-- TRANSLATORS: Register an account on a server
-		retval = retval .. "button[0.25,6;2.5,0.75;btn_mp_register;" .. fgettext("Register") .. "]" ..
+		retval = retval ..
+			"style[btn_mp_register;bgcolor=#43464b;textcolor=white]" ..
+			"button[0.25,6;2.5,0.75;btn_mp_register;" .. fgettext("Register") .. "]" ..
 			"tooltip[btn_mp_register;" .. fgettext("Register a new account on the selected server") .. "]"
 	end
 

@@ -272,6 +272,7 @@ local function create_world_formspec(dialogdata)
 	end
 
 	local retval =
+		"formspec_version[10]" ..
 		"size[12.25,7.4,true]" ..
 
 		-- Left side
@@ -316,8 +317,10 @@ local function create_world_formspec(dialogdata)
 
 		-- Menu buttons
 		"container[0,6.9]"..
+		"style[world_create_confirm;bgcolor=#467832;textcolor=white;font=bold]" ..
 		"button[3.25,0;3,0.5;world_create_confirm;" .. fgettext("Create") .. "]" ..
 		"tooltip[world_create_confirm;" .. fgettext("Create the world with these settings") .. "]" ..
+		"style[world_create_cancel;bgcolor=#43464b;textcolor=white]" ..
 		"button[6.25,0;3,0.5;world_create_cancel;" .. fgettext("Cancel") .. "]" ..
 		"tooltip[world_create_cancel;" .. fgettext("Back to the world list") .. "]" ..
 		"container_end[]"

@@ -97,6 +97,7 @@ local function get_formspec(data)
 	local mod = all_mods[data.selected_mod] or {name = ""}
 
 	local retval =
+		"formspec_version[10]" ..
 		"size[11.5,7.5,true]" ..
 		"label[0.5,0;" .. fgettext("World:") .. "]" ..
 		"label[1.75,0;" .. core.formspec_escape(data.worldspec.name) .. "]"
@@ -193,9 +194,11 @@ local function get_formspec(data)
 	end
 
 	retval = retval ..
+		"style[btn_config_world_save;bgcolor=#467832;textcolor=white;font=bold]" ..
 		"button[3.25,7;2.5,0.5;btn_config_world_save;" ..
 		fgettext("Save") .. "]" ..
 		"tooltip[btn_config_world_save;" .. fgettext("Save the current mod configuration") .. "]" ..
+		"style[btn_config_world_cancel;bgcolor=#43464b;textcolor=white]" ..
 		"button[5.75,7;2.5,0.5;btn_config_world_cancel;" ..
 		fgettext("Cancel") .. "]" ..
 		"tooltip[btn_config_world_cancel;" .. fgettext("Discard changes and go back") .. "]" ..

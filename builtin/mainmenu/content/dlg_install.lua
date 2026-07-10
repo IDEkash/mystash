@@ -109,7 +109,7 @@ local function get_formspec(data)
 	local button_pad = button_w / 2
 
 	local formspec = {
-		"formspec_version[3]",
+		"formspec_version[10]",
 		"size[", w, ",9.05]",
 		TOUCH_GUI and "padding[0.01,0.01]" or "position[0.5,0.55]",
 		"style[title;border=false]",
@@ -137,7 +137,9 @@ local function get_formspec(data)
 		"textarea[0.375,6.1;", padded_w, ",1.6;;;", message, "]",
 
 		"container[", 0.375 + button_pad, ",8.05]",
+		"style[install_all;bgcolor=#467832;textcolor=white;font=bold]",
 		"button[0,0;", button_w, ",0.8;install_all;", fgettext("Install"), "]",
+		"style[cancel;bgcolor=#43464b;textcolor=white]",
 		"button[", 0.25 + button_w, ",0;", button_w, ",0.8;cancel;", fgettext("Cancel"), "]",
 		"container_end[]",
 	}
