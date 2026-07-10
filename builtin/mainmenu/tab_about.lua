@@ -82,30 +82,36 @@ return {
 
 		hypertext = table.concat(hypertext):sub(1, -2)
 
-		local fs = "image[1.5,0.6;2.5,2.5;" .. core.formspec_escape(logofile) .. "]" ..
-			"style[label_button;border=false;font=bold;content_offset=0]" ..
-			"label[1.2,3.5;" .. core.formspec_escape(version.project .. " " .. version.string) .. "]" ..
-			"tooltip[1.2,3.3;3.0,0.4;" .. fgettext("Installed version of the engine") .. "]" ..
-			"style[homepage;bgcolor=#43464b;textcolor=white]" ..
-			"button_url[1.5,4.1;2.5,0.8;homepage;luanti.org;https://www.luanti.org/]" ..
-			"tooltip[homepage;" .. fgettext("Visit the official website") .. "]" ..
-			"hypertext[5.5,0.25;9.75,6.6;credits;" .. core.formspec_escape(hypertext) .. "]"
+		local MARGIN = 0.5
+		local LEFT_W = 5
+		local RIGHT_X = MARGIN + LEFT_W + 0.5
+		local RIGHT_W = tabview.width - RIGHT_X - MARGIN
 
-		local active_renderer_info = fgettext("Active renderer:") .. "\n" ..
-			core.formspec_escape(get_renderer_info())
-		fs = fs .. "style[label_button2;border=false]" ..
-			"button[0.1,6;5.3,1;label_button2;" .. active_renderer_info .. "]"..
-			"tooltip[label_button2;" .. active_renderer_info .. "]"
+		local fs = "container[" .. MARGIN .. "," .. MARGIN .. "]" ..
+			"image[1,0.5;3,3;" .. core.formspec_escape(logofile) .. "]" ..
+			"label[0,4.2;" .. core.colorize("#fff", core.formspec_escape(version.project .. " " .. version.string)) .. "]" ..
+			"style[homepage;bgcolor=#43464b;textcolor=white]" ..
+			"button_url[0,4.8;5,0.8;homepage;www.luanti.org;https://www.luanti.org/]" ..
+			"tooltip[homepage;" .. fgettext("Visit the official website") .. "]"
+
+		local active_renderer_info = fgettext("Active renderer:") .. " " .. core.formspec_escape(get_renderer_info())
+		fs = fs .. "label[0,6;" .. core.colorize("#aaa", active_renderer_info) .. "]"
 
 		if PLATFORM == "Android" then
-			fs = fs .. "button[0.5,5.1;4.5,0.8;share_debug;" .. fgettext("Share debug log") .. "]" ..
+			fs = fs .. "style[share_debug;bgcolor=#43464b;textcolor=white]" ..
+				"button[0,6.5;5,0.8;share_debug;" .. fgettext("Share debug log") .. "]" ..
 				"tooltip[share_debug;" .. fgettext("Share the debug log for troubleshooting") .. "]"
 		else
-			fs = fs .. "tooltip[userdata;" ..
-					fgettext("Opens the directory that contains user-provided worlds, games, mods,\n" ..
-							"and texture packs in a file manager / explorer.") .. "]"
-			fs = fs .. "button[0.5,5.1;4.5,0.8;userdata;" .. fgettext("Open User Data Directory") .. "]"
+			fs = fs .. "style[userdata;bgcolor=#43464b;textcolor=white]" ..
+				"button[0,6.5;5,0.8;userdata;" .. fgettext("Open User Data Directory") .. "]" ..
+				"tooltip[userdata;" .. fgettext("Open folder in file manager") .. "]"
 		end
+		fs = fs .. "container_end[]"
+
+		fs = fs .. "container[" .. RIGHT_X .. "," .. MARGIN .. "]" ..
+			"box[0,0;" .. RIGHT_W .. ",6.6;#00000040]" ..
+			"hypertext[0.1,0.1;" .. (RIGHT_W-0.2) .. ",6.4;credits;" .. core.formspec_escape(hypertext) .. "]" ..
+			"container_end[]"
 
 		return fs
 	end,

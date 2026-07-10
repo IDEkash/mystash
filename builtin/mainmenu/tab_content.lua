@@ -52,33 +52,33 @@ local function get_formspec(tabview, name, tabdata)
 		tabdata.selected_pkg = 1
 	end
 
-	local use_technical_names = core.settings:get_bool("show_technical_names")
+	local MARGIN = 0.5
+	local LIST_W = 6.5
+	local DETAILS_X = MARGIN + LIST_W + 0.5
+	local DETAILS_W = tabview.width - DETAILS_X - MARGIN
 
+	local use_technical_names = core.settings:get_bool("show_technical_names")
 	local packages_with_updates = update_detector.get_all()
 	local update_icons = get_content_icons(packages_with_updates)
 	local update_count = #packages_with_updates
-	local contentdb_label
-	if update_count == 0 then
-		contentdb_label = fgettext("Browse online content")
-	else
-		-- TRANSLATORS: $1 = number of available updates
-		contentdb_label = fgettext("Browse online content [$1]", update_count)
-	end
+	local contentdb_label = update_count == 0 and fgettext("Browse online content") or fgettext("Browse online content [$1]", update_count)
 
 	local retval = {
-		"label[0.4,0.4;", fgettext("Installed Packages:"), "]",
+		"container[" .. MARGIN .. "," .. MARGIN .. "]",
+		"label[0,0.1;", fgettext("Installed Packages:"), "]",
 		"tablecolumns[color;tree;image,align=inline,width=1.5",
 			",tooltip=", fgettext("Update available?"),
 			",0=", core.formspec_escape(defaulttexturedir .. "blank.png"),
 			",4=", core.formspec_escape(defaulttexturedir .. "cdb_update_cropped.png"),
 			";text]",
-		"table[0.4,0.8;6.3,4.8;pkglist;",
+		"table[0,0.5;" .. LIST_W .. ",5;pkglist;",
 		pkgmgr.render_packagelist(packages, use_technical_names, update_icons),
 		";", tabdata.selected_pkg, "]",
 
 		"style[btn_contentdb;bgcolor=#467832;textcolor=white;font=bold]",
-		"button[0.4,5.8;6.3,0.9;btn_contentdb;", contentdb_label, "]",
-		"tooltip[btn_contentdb;", fgettext("Download mods, games, and texture packs from ContentDB"), "]"
+		"button[0,5.7;" .. LIST_W .. ",0.9;btn_contentdb;", contentdb_label, "]",
+		"tooltip[btn_contentdb;" .. fgettext("Download mods, games, and texture packs from ContentDB") .. "]",
+		"container_end[]"
 	}
 
 	local selected_pkg
@@ -88,13 +88,11 @@ local function get_formspec(tabview, name, tabdata)
 
 	if selected_pkg then
 		local valid_screenshots = {
-			-- See also contentdb/app/tasks/importtasks.py, def import_repo_screenshot
 			selected_pkg.path .. DIR_DELIM .. "screenshot.png",
 			selected_pkg.path .. DIR_DELIM .. "screenshot.jpg",
 			selected_pkg.path .. DIR_DELIM .. "screenshot.jpeg",
 		}
 
-		-- Check for screenshot being available
 		local modscreenshot
 		for _, screenshotfilename in ipairs(valid_screenshots) do
 			local screenshotfile, err = io.open(screenshotfilename, "r")
@@ -104,100 +102,57 @@ local function get_formspec(tabview, name, tabdata)
 				break
 			end
 		end
+		modscreenshot = modscreenshot or (defaulttexturedir .. "no_screenshot.png")
 
-		-- Fallback to no_screenshot if no screenshot is avaliable
-		if not modscreenshot then
-			modscreenshot = defaulttexturedir .. "no_screenshot.png"
-		end
-
-		local desc = fgettext("No package description available")
-		if selected_pkg.description and selected_pkg.description:trim() ~= "" then
-			desc = core.formspec_escape(selected_pkg.description)
-		end
-
+		local desc = (selected_pkg.description and selected_pkg.description:trim() ~= "") and core.formspec_escape(selected_pkg.description) or fgettext("No package description available")
 		local info = core.get_content_info(selected_pkg.path)
 
-		local title_and_name
-		if selected_pkg.type == "game" then
-			title_and_name = selected_pkg.title or selected_pkg.name
-		else
-			title_and_name = (selected_pkg.title or selected_pkg.name) .. "\n" ..
-				core.colorize("#BFBFBF", selected_pkg.name)
-		end
-
-		local desc_height = 3.2
-
-		if selected_pkg.is_modpack then
-			desc_height = 2.1
-
-			table.insert_all(retval, {
-				"style[btn_mod_mgr_rename_modpack;bgcolor=#43464b;textcolor=white]",
-				"button[7.1,4.7;8,0.9;btn_mod_mgr_rename_modpack;",
-				fgettext("Rename"), "]",
-				"tooltip[btn_mod_mgr_rename_modpack;", fgettext("Rename this modpack"), "]"
-			})
-		elseif selected_pkg.type == "mod" then
-			-- Show dependencies for mods
-			desc = desc .. "\n\n"
-			local toadd_hard = table.concat(info.depends or {}, "\n")
-			local toadd_soft = table.concat(info.optional_depends or {}, "\n")
-			if toadd_hard == "" and toadd_soft == "" then
-				desc = desc .. fgettext("No dependencies.")
-			else
-				if toadd_hard ~= "" then
-					desc = desc ..fgettext("Dependencies:") ..
-						"\n" .. toadd_hard
-				end
-				if toadd_soft ~= "" then
-					if toadd_hard ~= "" then
-						desc = desc .. "\n\n"
-					end
-					desc = desc .. fgettext("Optional dependencies:") ..
-						"\n" .. toadd_soft
-				end
-			end
-		elseif selected_pkg.type == "txp" then
-			desc_height = 2.1
-
-			if selected_pkg.enabled then
-				table.insert_all(retval, {
-					"style[btn_mod_mgr_disable_txp;bgcolor=#43464b;textcolor=white]",
-					"button[7.1,4.7;8,0.9;btn_mod_mgr_disable_txp;",
-					fgettext("Disable Texture Pack"), "]"
-				})
-			else
-				table.insert_all(retval, {
-					"style[btn_mod_mgr_use_txp;bgcolor=#467832;textcolor=white]",
-					"button[7.1,4.7;8,0.9;btn_mod_mgr_use_txp;",
-					fgettext("Use Texture Pack"), "]"
-				})
-			end
-		end
+		local title_and_name = selected_pkg.type == "game" and (selected_pkg.title or selected_pkg.name) or
+			((selected_pkg.title or selected_pkg.name) .. "\n" .. core.colorize("#BFBFBF", selected_pkg.name))
 
 		table.insert_all(retval, {
-			"image[7.1,0.2;3,2;", core.formspec_escape(modscreenshot), "]",
-			"label[10.5,1;", core.formspec_escape(title_and_name), "]",
-			"box[7.1,2.4;8,", tostring(desc_height), ";#000]",
-			"textarea[7.1,2.4;8,", tostring(desc_height), ";;;", desc, "]",
+			"container[" .. DETAILS_X .. "," .. MARGIN .. "]",
+			"image[0,0;3,2;" .. core.formspec_escape(modscreenshot) .. "]",
+			"label[3.2,0.5;" .. core.formspec_escape(title_and_name) .. "]",
+			"box[0,2.2;" .. DETAILS_W .. ",3.4;#00000080]",
+			"textarea[0.1,2.3;" .. (DETAILS_W-0.2) .. ",3.2;;;" .. desc .. "]"
 		})
+
+		local btn_y = 5.7
+		local btn_w = (DETAILS_W - 0.1) / 2
+
+		if selected_pkg.is_modpack then
+			table.insert_all(retval, {
+				"style[btn_mod_mgr_rename_modpack;bgcolor=#43464b;textcolor=white]",
+				"button[0,2.2;" .. DETAILS_W .. ",0.5;btn_mod_mgr_rename_modpack;" .. fgettext("Rename") .. "]",
+				"tooltip[btn_mod_mgr_rename_modpack;" .. fgettext("Rename this modpack") .. "]"
+			})
+		elseif selected_pkg.type == "txp" then
+			local txp_label = selected_pkg.enabled and fgettext("Disable Texture Pack") or fgettext("Use Texture Pack")
+			local txp_style = selected_pkg.enabled and "bgcolor=#43464b;textcolor=white" or "bgcolor=#467832;textcolor=white"
+			table.insert_all(retval, {
+				"style[btn_mod_mgr_txp;" .. txp_style .. "]",
+				"button[0,2.2;" .. DETAILS_W .. ",0.5;" .. (selected_pkg.enabled and "btn_mod_mgr_disable_txp" or "btn_mod_mgr_use_txp") .. ";" .. txp_label .. "]"
+			})
+		end
 
 		if core.may_modify_path(selected_pkg.path) then
 			table.insert_all(retval, {
 				"style[btn_mod_mgr_delete_mod;bgcolor=red;textcolor=white]",
-				"button[7.1,5.8;4,0.9;btn_mod_mgr_delete_mod;",
-				fgettext("Uninstall"), "]",
-				"tooltip[btn_mod_mgr_delete_mod;", fgettext("Uninstall this package"), "]"
+				"button[0," .. btn_y .. ";" .. btn_w .. ",0.9;btn_mod_mgr_delete_mod;" .. fgettext("Uninstall") .. "]",
+				"tooltip[btn_mod_mgr_delete_mod;" .. fgettext("Uninstall this package") .. "]"
 			})
 		end
 
 		if update_icons[selected_pkg.virtual_path or selected_pkg.path] then
 			table.insert_all(retval, {
 				"style[btn_mod_mgr_update;bgcolor=#467832;textcolor=white]",
-				"button[11.1,5.8;4,0.9;btn_mod_mgr_update;",
-				fgettext("Update"), "]",
-				"tooltip[btn_mod_mgr_update;", fgettext("Update this package to the latest version"), "]"
+				"button[" .. (DETAILS_W - btn_w) .. "," .. btn_y .. ";" .. btn_w .. ",0.9;btn_mod_mgr_update;" .. fgettext("Update") .. "]",
+				"tooltip[btn_mod_mgr_update;" .. fgettext("Update this package") .. "]"
 			})
 		end
+
+		table.insert(retval, "container_end[]")
 	end
 
 	return table.concat(retval)

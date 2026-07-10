@@ -95,52 +95,40 @@ local function get_formspec(data)
 	local with_error, enabled_mods_by_name = check_mod_configuration(data.worldspec.path, all_mods)
 
 	local mod = all_mods[data.selected_mod] or {name = ""}
+	local MARGIN = 0.5
+	local LEFT_W = 5.5
+	local RIGHT_X = MARGIN + LEFT_W + 0.5
+	local RIGHT_W = 12.5 - RIGHT_X - MARGIN
 
 	local retval =
 		"formspec_version[10]" ..
-		"size[11.5,7.5,true]" ..
-		"label[0.5,0;" .. fgettext("World:") .. "]" ..
-		"label[1.75,0;" .. core.formspec_escape(data.worldspec.name) .. "]"
+		"size[12.5,8.5]" ..
+		"container[" .. MARGIN .. "," .. MARGIN .. "]" ..
+		"label[0,0.1;" .. fgettext("Configure World:") .. "]" ..
+		"label[2.5,0.1;" .. core.colorize("#fff", core.formspec_escape(data.worldspec.name)) .. "]"
 
 	if mod.is_modpack or mod.type == "game" then
-		local info = core.formspec_escape(
-			core.get_content_info(mod.path).description)
+		local info = core.formspec_escape(core.get_content_info(mod.path).description)
 		if info == "" then
-			if mod.is_modpack then
-				info = fgettext("No modpack description provided.")
-			else
-				info = fgettext("No game description provided.")
-			end
+			info = mod.is_modpack and fgettext("No modpack description provided.") or fgettext("No game description provided.")
 		end
-		retval = retval ..
-			"textarea[0.25,0.7;5.75,7.2;;" .. info .. ";]"
+		retval = retval .. "box[0,0.6;" .. LEFT_W .. ",6.4;#00000080]" ..
+				"textarea[0.1,0.7;" .. (LEFT_W-0.2) .. ",6.2;;;" .. info .. "]"
 	elseif mod.type == "worldmods" then
-		retval = retval ..
-			"textarea[0.25,0.7;5.75,7.2;;" ..
-			fgettext("Mods located inside the world folder.") .. ";]"
+		retval = retval .. "box[0,0.6;" .. LEFT_W .. ",6.4;#00000080]" ..
+				"textarea[0.1,0.7;" .. (LEFT_W-0.2) .. ",6.2;;;" .. fgettext("Mods located inside the world folder.") .. "]"
 	else
 		local hard_deps, soft_deps = pkgmgr.get_dependencies(mod.path)
-
-		-- Add error messages to dep lists
 		if mod.enabled or mod.always_on then
 			for i, dep_name in ipairs(hard_deps) do
 				local dep = enabled_mods_by_name[dep_name]
-				if not dep then
-					-- TRANSLATORS: Displayed when a mod dependency is unsatisfied
-					hard_deps[i] = mt_color_red .. dep_name .. " " .. fgettext("(Unsatisfied)")
-				elseif with_error[dep.virtual_path] then
-					-- TRANSLATORS: Message in the mod list when a mod is enabled with error
-					hard_deps[i] = mt_color_orange .. dep_name .. " " .. fgettext("(Enabled, has error)")
-				else
-					hard_deps[i] = mt_color_green .. dep_name
-				end
+				hard_deps[i] = not dep and (mt_color_red .. dep_name .. " " .. fgettext("(Unsatisfied)")) or
+						(with_error[dep.virtual_path] and (mt_color_orange .. dep_name .. " " .. fgettext("(Error)")) or (mt_color_green .. dep_name))
 			end
 			for i, dep_name in ipairs(soft_deps) do
 				local dep = enabled_mods_by_name[dep_name]
-				if dep and with_error[dep.virtual_path] then
-					soft_deps[i] = mt_color_orange .. dep_name .. " " .. fgettext("(Enabled, has error)")
-				elseif dep then
-					soft_deps[i] = mt_color_green .. dep_name
+				if dep then
+					soft_deps[i] = with_error[dep.virtual_path] and (mt_color_orange .. dep_name .. " " .. fgettext("(Error)")) or (mt_color_green .. dep_name)
 				end
 			end
 		end
@@ -148,104 +136,62 @@ local function get_formspec(data)
 		local hard_deps_str = table.concat(hard_deps, ",")
 		local soft_deps_str = table.concat(soft_deps, ",")
 
-		retval = retval ..
-			"label[0,0.7;" .. fgettext("Mod:") .. "]" ..
-			"label[0.75,0.7;" .. mod.name .. "]"
+		retval = retval .. "label[0,0.7;" .. fgettext("Mod:") .. "]" ..
+				"label[0.75,0.7;" .. core.colorize("#fff", mod.name) .. "]"
 
-		if hard_deps_str == "" then
-			if soft_deps_str == "" then
-				retval = retval ..
-					"label[0,1.25;" ..
-					-- TRANSLATORS: About mod dependencies
-					fgettext("No (optional) dependencies") .. "]"
-			else
-				retval = retval ..
-					-- TRANSLATORS: About mod dependencies
-					"label[0,1.25;" .. fgettext("No hard dependencies") ..
-					"]" ..
-					-- TRANSLATORS: About mod dependencies
-					"label[0,1.75;" .. fgettext("Optional dependencies:") ..
-					"]" ..
-					"textlist[0,2.25;5,4;world_config_optdepends;" ..
-					soft_deps_str .. ";0]"
-			end
+		if hard_deps_str == "" and soft_deps_str == "" then
+			retval = retval .. "label[0,1.4;" .. fgettext("No dependencies") .. "]"
 		else
-			if soft_deps_str == "" then
-				retval = retval ..
-					-- TRANSLATORS: About mod dependencies
-					"label[0,1.25;" .. fgettext("Dependencies:") .. "]" ..
-					"textlist[0,1.75;5,4;world_config_depends;" ..
-					hard_deps_str .. ";0]" ..
-					-- TRANSLATORS: About mod dependencies
-					"label[0,6;" .. fgettext("No optional dependencies") .. "]"
-			else
-				retval = retval ..
-					-- TRANSLATORS: About mod dependencies
-					"label[0,1.25;" .. fgettext("Dependencies:") .. "]" ..
-					"textlist[0,1.75;5,2.125;world_config_depends;" ..
-					hard_deps_str .. ";0]" ..
-					-- TRANSLATORS: About mod dependencies
-					"label[0,3.9;" .. fgettext("Optional dependencies:") ..
-					"]" ..
-					"textlist[0,4.375;5,1.8;world_config_optdepends;" ..
-					soft_deps_str .. ";0]"
+			if hard_deps_str ~= "" then
+				retval = retval .. "label[0,1.4;" .. fgettext("Dependencies:") .. "]" ..
+						"textlist[0,1.9;" .. LEFT_W .. ",2;world_config_depends;" .. hard_deps_str .. ";0]"
+			end
+			if soft_deps_str ~= "" then
+				local sy = hard_deps_str ~= "" and 4.2 or 1.4
+				retval = retval .. "label[0," .. sy .. ";" .. fgettext("Optional dependencies:") .. "]" ..
+						"textlist[0," .. (sy+0.5) .. ";" .. LEFT_W .. ",2.5;world_config_optdepends;" .. soft_deps_str .. ";0]"
 			end
 		end
 	end
+	retval = retval .. "container_end[]"
 
-	retval = retval ..
-		"style[btn_config_world_save;bgcolor=#467832;textcolor=white;font=bold]" ..
-		"button[3.25,7;2.5,0.5;btn_config_world_save;" ..
-		fgettext("Save") .. "]" ..
-		"tooltip[btn_config_world_save;" .. fgettext("Save the current mod configuration") .. "]" ..
-		"style[btn_config_world_cancel;bgcolor=#43464b;textcolor=white]" ..
-		"button[5.75,7;2.5,0.5;btn_config_world_cancel;" ..
-		fgettext("Cancel") .. "]" ..
-		"tooltip[btn_config_world_cancel;" .. fgettext("Discard changes and go back") .. "]" ..
-		"button[9,7;2.5,0.5;btn_config_world_cdb;" ..
-		fgettext("Find More Mods") .. "]" ..
-		"tooltip[btn_config_world_cdb;" .. fgettext("Install more mods from ContentDB") .. "]"
-
-	if mod.name ~= "" and not mod.always_on then
-		if mod.is_modpack then
-			if pkgmgr.is_modpack_entirely_enabled(data.list:get_raw_list(), mod) then
-				retval = retval ..
-					"button[5.5,0.125;3,0.5;btn_mp_disable;" ..
-					fgettext("Disable modpack") .. "]" ..
-					"tooltip[btn_mp_disable;" .. fgettext("Disable all mods in this modpack") .. "]"
-			else
-				retval = retval ..
-					"button[5.5,0.125;3,0.5;btn_mp_enable;" ..
-					fgettext("Enable modpack") .. "]" ..
-					"tooltip[btn_mp_enable;" .. fgettext("Enable all mods in this modpack") .. "]"
-			end
-		else
-			retval = retval ..
-				"checkbox[5.5,-0.125;cb_mod_enable;" .. fgettext("enabled") ..
-				";" .. tostring(mod.enabled) .. "]"
-		end
-	end
-	if enabled_all then
-		retval = retval ..
-			"button[8.95,0.125;2.5,0.5;btn_disable_all_mods;" ..
-			fgettext("Disable all") .. "]" ..
-			"tooltip[btn_disable_all_mods;" .. fgettext("Disable all mods in this world") .. "]"
-	else
-		retval = retval ..
-			"button[8.95,0.125;2.5,0.5;btn_enable_all_mods;" ..
-			fgettext("Enable all") .. "]" ..
-			"tooltip[btn_enable_all_mods;" .. fgettext("Enable all mods in this world") .. "]"
-	end
-
-	local use_technical_names = core.settings:get_bool("show_technical_names")
-
-	return retval ..
+	-- Right Column: Mod List
+	retval = retval .. "container[" .. RIGHT_X .. "," .. MARGIN .. "]" ..
 		"tablecolumns[color;tree;image,align=inline,width=1.5,0=" .. core.formspec_escape(defaulttexturedir .. "blank.png") ..
 			",1=" .. core.formspec_escape(defaulttexturedir .. "checkbox_16.png") ..
 			",2=" .. core.formspec_escape(defaulttexturedir .. "error_icon_orange.png") ..
 			",3=" .. core.formspec_escape(defaulttexturedir .. "error_icon_red.png") .. ";text]" ..
-		"table[5.5,0.75;5.75,6;world_config_modlist;" ..
-		pkgmgr.render_packagelist(data.list, use_technical_names, with_error) .. ";" .. data.selected_mod .."]"
+		"table[0,0.6;" .. RIGHT_W .. ",5.8;world_config_modlist;" ..
+		pkgmgr.render_packagelist(data.list, core.settings:get_bool("show_technical_names"), with_error) .. ";" .. data.selected_mod .."]"
+
+	-- Mod Actions
+	if mod.name ~= "" and not mod.always_on then
+		if mod.is_modpack then
+			local is_enabled = pkgmgr.is_modpack_entirely_enabled(data.list:get_raw_list(), mod)
+			local btn_label = is_enabled and fgettext("Disable modpack") or fgettext("Enable modpack")
+			retval = retval .. "style[btn_mp_toggle;bgcolor=#43464b;textcolor=white]" ..
+				"button[0,0;" .. (RIGHT_W/2-0.1) .. ",0.5;" .. (is_enabled and "btn_mp_disable" or "btn_mp_enable") .. ";" .. btn_label .. "]"
+		else
+			retval = retval .. "checkbox[0,0.1;cb_mod_enable;" .. fgettext("Enabled") .. ";" .. tostring(mod.enabled) .. "]"
+		end
+	end
+
+	local btn_all_label = enabled_all and fgettext("Disable all") or fgettext("Enable all")
+	retval = retval .. "style[btn_all;bgcolor=#43464b;textcolor=white]" ..
+		"button[" .. (RIGHT_W/2+0.1) .. ",0;" .. (RIGHT_W/2-0.1) .. ",0.5;" .. (enabled_all and "btn_disable_all_mods" or "btn_enable_all_mods") .. ";" .. btn_all_label .. "]"
+
+	retval = retval .. "container_end[]"
+
+	-- Bottom Actions
+	retval = retval .. "container[" .. MARGIN .. ",7.5]" ..
+		"style[btn_config_world_cancel;bgcolor=#43464b;textcolor=white]" ..
+		"button[" .. (12.5 - MARGIN*2 - 6.2) .. ",0;3,0.8;btn_config_world_cancel;" .. fgettext("Cancel") .. "]" ..
+		"style[btn_config_world_save;bgcolor=#467832;textcolor=white;font=bold]" ..
+		"button[" .. (12.5 - MARGIN*2 - 3) .. ",0;3,0.8;btn_config_world_save;" .. fgettext("Save") .. "]" ..
+		"button[0,0;3,0.8;btn_config_world_cdb;" .. fgettext("Find Mods") .. "]" ..
+		"container_end[]"
+
+	return retval
 end
 
 local function handle_buttons(this, fields)
