@@ -484,18 +484,30 @@ void GameFormSpec::showPauseMenu()
 #endif
 
 	// Action button styling
-	os << "style[btn_continue;bgcolor=#467832;textcolor=white;font=bold]";
+	os << "style[btn_continue;bgcolor=#467832;textcolor=white;font=bold;border=false]"
+	   << "style[btn_continue:hovered;bgcolor=#55913f]"
+	   << "style[btn_continue:pressed;bgcolor=#365e25]";
 	if (!simple_singleplayer_mode) {
-		os << "style[btn_change_password;bgcolor=#43464b;textcolor=white]";
+		os << "style[btn_change_password;bgcolor=#43464b;textcolor=white;border=false]"
+		   << "style[btn_change_password:hovered;bgcolor=#50545c]"
+		   << "style[btn_change_password:pressed;bgcolor=#323438]";
 	}
-	os << "style[btn_settings;bgcolor=#43464b;textcolor=white]";
+	os << "style[btn_settings;bgcolor=#43464b;textcolor=white;border=false]"
+	   << "style[btn_settings:hovered;bgcolor=#50545c]"
+	   << "style[btn_settings:pressed;bgcolor=#323438]";
 #ifndef __ANDROID__
 #if USE_SOUND
-	os << "style[btn_sound;bgcolor=#43464b;textcolor=white]";
+	os << "style[btn_sound;bgcolor=#43464b;textcolor=white;border=false]"
+	   << "style[btn_sound:hovered;bgcolor=#50545c]"
+	   << "style[btn_sound:pressed;bgcolor=#323438]";
 #endif
 #endif
-	os << "style[btn_exit_menu;bgcolor=#9b2c2c;textcolor=white]"
-	   << "style[btn_exit_os;bgcolor=#5c1d1d;textcolor=white]";
+	os << "style[btn_exit_menu;bgcolor=#9b2c2c;textcolor=white;border=false]"
+	   << "style[btn_exit_menu:hovered;bgcolor=#b93535]"
+	   << "style[btn_exit_menu:pressed;bgcolor=#7a2222]"
+	   << "style[btn_exit_os;bgcolor=#5c1d1d;textcolor=white;border=false]"
+	   << "style[btn_exit_os:hovered;bgcolor=#752525]"
+	   << "style[btn_exit_os:pressed;bgcolor=#461616]";
 
 	// Stack buttons
 	float by = 1.4f;

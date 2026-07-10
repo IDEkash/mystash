@@ -82,7 +82,7 @@ local function get_formspec(self)
 	end
 
 	local formspec = (prepend or "")
-	formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#0000008C]"):format(
+	formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#1a1c1e]"):format(
 			TABHEADER_H, orig_tsize.width, orig_tsize.height)
 	formspec = formspec .. self:tab_header(tab_header_size) .. content
 
@@ -155,22 +155,35 @@ end
 
 --------------------------------------------------------------------------------
 local function tab_header(self, size)
+	local N = #self.tablist
+	if N == 0 then return "" end
+
 	local toadd = ""
+	local track_w = size.width
 
-	for i = 1, #self.tablist do
-		if toadd ~= "" then
-			toadd = toadd .. ","
-		end
+	-- Draw modern track background box
+	toadd = toadd .. string.format("box[0,-0.85;%f,0.7;#121416]", track_w)
 
+	local btn_w = (track_w - 0.1) / N
+	for i = 1, N do
+		local btn_name = self.name .. "_btn_" .. i
+		local btn_x = 0.05 + (i - 1) * btn_w
 		local caption = self.tablist[i].caption
 		if type(caption) == "function" then
 			caption = caption(self)
 		end
 
-		toadd = toadd .. caption
+		if i == self.last_tab_index then
+			toadd = toadd .. string.format("style[%s;bgcolor=#467832;textcolor=white;font=bold;border=false]", btn_name)
+		else
+			toadd = toadd .. string.format("style[%s;bgcolor=#25282c;textcolor=#aaaaaa;border=false]", btn_name)
+			toadd = toadd .. string.format("style[%s:hovered;bgcolor=#2e3137;textcolor=white]", btn_name)
+			toadd = toadd .. string.format("style[%s:pressed;bgcolor=#1e2024;textcolor=white]", btn_name)
+		end
+		toadd = toadd .. string.format("button[%f,-0.8;%f,0.6;%s;%s]", btn_x, btn_w - 0.05, btn_name, core.formspec_escape(caption))
 	end
-	return string.format("tabheader[%f,%f;%f,%f;%s;%s;%i;true;false]",
-			self.header_x, self.header_y, size.width, size.height, self.name, toadd, self.last_tab_index)
+
+	return toadd
 end
 
 --------------------------------------------------------------------------------
@@ -199,6 +212,15 @@ end
 
 --------------------------------------------------------------------------------
 local function handle_tab_buttons(self,fields)
+	-- check custom buttons first
+	for i = 1, #self.tablist do
+		local btn_name = self.name .. "_btn_" .. i
+		if fields[btn_name] then
+			switch_to_tab(self, i)
+			return true
+		end
+	end
+
 	--save tab selection to config file
 	if fields[self.name] then
 		local index = tonumber(fields[self.name])
