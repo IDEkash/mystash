@@ -10,4 +10,5 @@ class ScriptApiPauseMenu : virtual public ScriptApiBase
 {
 public:
 	void open_settings();
+	bool show_pause_menu();
 };

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Luanti Modern Pause Menu</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Specific overrides for centered pause card experience */
+    body {
+      background-color: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      width: 100vw;
+    }
+    .pause-card {
+      background-color: var(--bg-darker);
+      border: 1px solid var(--border-strong);
+      border-radius: 20px;
+      padding: 40px;
+      width: 440px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      animation: zoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes zoomIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .pause-header {
+      text-align: center;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 20px;
+    }
+    .pause-title {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+    .pause-subtitle {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 6px;
+    }
+    .pause-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .pause-info {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+    .info-label {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .info-value {
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="pause-card">
+    <div class="pause-header">
+      <h1 class="pause-title">PAUSED</h1>
+      <div class="pause-subtitle" id="pause-game-info">MINETEST • SINGLEPLAYER</div>
+    </div>
+
+    <div class="pause-info">
+      <div class="info-row">
+        <span class="info-label">Mode:</span>
+        <span class="info-value" id="game-mode">Singleplayer</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">World / Server:</span>
+        <span class="info-value" id="game-target">devtest</span>
+      </div>
+    </div>
+
+    <div class="pause-actions">
+      <button id="btn-continue" class="btn btn-accent btn-large">CONTINUE</button>
+      <button id="btn-settings" class="btn btn-secondary">SETTINGS</button>
+      <button id="btn-exit-menu" class="btn btn-primary">EXIT TO MAIN MENU</button>
+      <button id="btn-exit-os" class="btn btn-danger">EXIT TO DESKTOP</button>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const $ = (id) => document.getElementById(id);
+
+      function sendLua(payload) {
+        if (window.luanti && luanti.send) {
+          luanti.send(JSON.stringify(payload));
+        } else {
+          console.log('Sending pause menu action:', payload);
+        }
+      }
+
+      $('btn-continue').addEventListener('click', () => sendLua({ action: 'continue' }));
+      $('btn-settings').addEventListener('click', () => sendLua({ action: 'settings' }));
+      $('btn-exit-menu').addEventListener('click', () => sendLua({ action: 'exit_menu' }));
+      $('btn-exit-os').addEventListener('click', () => sendLua({ action: 'exit_os' }));
+
+      // Listen to init state
+      if (window.luanti && luanti.on_message) {
+        luanti.on_message((msg) => {
+          try {
+            const data = JSON.parse(msg);
+            if (data.type === 'init_data') {
+              if (data.mode) $('game-mode').textContent = data.mode;
+              if (data.target) $('game-target').textContent = data.target;
+              if (data.info_label) $('pause-game-info').textContent = data.info_label;
+            }
+          } catch(e) {}
+        });
+      }
+
+      // Query info on mount
+      sendLua({ action: 'request_init_data' });
+    });
+  </script>
+</body>
+</html>

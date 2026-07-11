@@ -357,6 +357,10 @@ void GameFormSpec::showPlayerInventory(const std::string *fs_override)
 
 void GameFormSpec::showPauseMenu()
 {
+	if (m_pause_script && m_pause_script->show_pause_menu()) {
+		return;
+	}
+
 	std::string control_text;
 
 	if (g_touchcontrols) {
@@ -377,81 +381,157 @@ void GameFormSpec::showPauseMenu()
 
 	auto simple_singleplayer_mode = m_client->m_simple_singleplayer_mode;
 
-	float ypos = simple_singleplayer_mode ? 0.7f : 0.1f;
 	std::ostringstream os;
 
-	os << "formspec_version[1]" << SIZE_TAG
-		<< "button_exit[4," << (ypos++) << ";3,0.5;btn_continue;"
-		// TRANSLATORS: Pause menu button, try to keep the translation short
-		<< strgettext("Continue") << "]";
+	bool show_controls = !control_text.empty();
 
-	if (!simple_singleplayer_mode) {
-		os << "button[4," << (ypos++) << ";3,0.5;btn_change_password;"
-			// TRANSLATORS: Pause menu button, try to keep the translation short
-			<< strgettext("Change Password") << "]";
+	float info_w = 5.5f;
+	float actions_w = 5.5f;
+	float info_x = 0.5f;
+	float actions_x = 6.5f;
+	float controls_x = 0.0f;
+	float controls_w = 0.0f;
+
+	if (show_controls) {
+		info_w = 3.5f;
+		controls_x = 4.25f;
+		controls_w = 4.0f;
+		actions_x = 8.5f;
+		actions_w = 3.5f;
+	}
+
+	os << "formspec_version[10]size[12.5,7.5]";
+
+	// Background card boxes with rounded corners
+	os << "background9[" << info_x << ",0.5;" << info_w << ",6.5;menu_round_card_trans.png;false;24]";
+	if (show_controls) {
+		os << "background9[" << controls_x << ",0.5;" << controls_w << ",6.5;menu_round_card_trans.png;false;24]";
+	}
+	os << "background9[" << actions_x << ",0.5;" << actions_w << ",6.5;menu_round_card_trans.png;false;24]";
+
+	// Header labels with styled colorization
+	os << "label[" << (info_x + 0.35f) << ",0.9;\x1b(c@#467832)" << PROJECT_NAME_C << " \x1b(c@#ffffff)" << VERSION_STRING << "]";
+	if (show_controls) {
+		os << "label[" << (controls_x + 0.35f) << ",0.9;\x1b(c@#467832)" << strgettext("Controls") << "\x1b(c@#ffffff)]";
+	}
+	if (simple_singleplayer_mode) {
+		os << "label[" << (actions_x + 0.35f) << ",0.9;\x1b(c@#467832)" << strgettext("Game Paused") << "\x1b(c@#ffffff)]";
 	} else {
-		os << "field[4.95,0;5,1.5;;" << strgettext("Game paused") << ";]";
+		os << "label[" << (actions_x + 0.35f) << ",0.9;\x1b(c@#467832)" << strgettext("Game Menu") << "\x1b(c@#ffffff)]";
 	}
 
-	os	<< "button[4," << (ypos++) << ";3,0.5;btn_settings;"
-		// TRANSLATORS: Try to keep the translation short
-		<< strgettext("Settings") << "]";
+	// Game Info Rows
+	std::vector<std::pair<std::string, std::string>> info_rows;
 
-#ifndef __ANDROID__
-#if USE_SOUND
-	os << "button[4," << (ypos++) << ";3,0.5;btn_sound;"
-		// TRANSLATORS: Pause menu button, try to keep the translation short
-		<< strgettext("Sound Volume") << "]";
-#endif
-#endif
-
-	os		<< "button_exit[4," << (ypos++) << ";3,0.5;btn_exit_menu;"
-		// TRANSLATORS: Pause menu button, try to keep the translation short
-		<< strgettext("Exit to Menu") << "]";
-	os		<< "button_exit[4," << (ypos++) << ";3,0.5;btn_exit_os;"
-		// TRANSLATORS: Pause menu button, try to keep the translation short (OS = Operating System)
-		<< strgettext("Exit to OS")   << "]";
-	if (!control_text.empty()) {
-	os		<< "textarea[7.5,0.25;3.9,6.25;;" << control_text << ";]";
-	}
-	os		<< "textarea[0.4,0.25;3.9,6.25;;" << PROJECT_NAME_C " " VERSION_STRING "\n"
-		<< "\n"
-		<<  strgettext("Game info:") << "\n";
+	// Mode row
+	std::string mode_val;
 	const std::string &address = m_client->getAddressName();
-	// TRANSLATORS: Game mode (server or singleplayer)
-	os << strgettext("- Mode: ");
 	if (!simple_singleplayer_mode) {
 		if (address.empty())
-			os << strgettext("Hosting server");
+			mode_val = strgettext("Hosting server");
 		else
-			os << strgettext("Remote server");
+			mode_val = strgettext("Remote server");
 	} else {
-		os << strgettext("Singleplayer");
+		mode_val = strgettext("Singleplayer");
 	}
-	os << "\n";
+	info_rows.push_back({strgettext("Mode:"), mode_val});
+
+	// Network / Server Settings if applicable
 	if (simple_singleplayer_mode || address.empty()) {
 		static const std::string on = strgettext("On");
 		static const std::string off = strgettext("Off");
-		// Note: Status of enable_damage and creative_mode settings is intentionally
-		// NOT shown here because the game might roll its own damage system and/or do
-		// a per-player Creative Mode, in which case writing it here would mislead.
 		bool damage = g_settings->getBool("enable_damage");
 		const std::string &announced = g_settings->getBool("server_announce") ? on : off;
+
 		if (!simple_singleplayer_mode) {
 			if (damage) {
 				const std::string &pvp = g_settings->getBool("enable_pvp") ? on : off;
-				// TRANSLATORS: PvP = Player versus Player
-				os << strgettext("- PvP: ") << pvp << "\n";
+				info_rows.push_back({strgettext("PvP:"), pvp});
 			}
-			os << strgettext("- Public: ") << announced << "\n";
+			info_rows.push_back({strgettext("Public:"), announced});
 			std::string server_name = g_settings->get("server_name");
 			str_formspec_escape(server_name);
-			if (announced == on && !server_name.empty())
-				os << strgettext("- Server Name: ") << server_name;
-
+			if (announced == on && !server_name.empty()) {
+				info_rows.push_back({strgettext("Server Name:"), server_name});
+			}
 		}
+	} else {
+		// Remote server
+		std::string escaped_address = address;
+		str_formspec_escape(escaped_address);
+		info_rows.push_back({strgettext("Address:"), escaped_address});
 	}
-	os << ";]";
+
+	float ly = 1.6f;
+	float dy = 0.5f;
+	for (const auto &row : info_rows) {
+		os << "label[" << (info_x + 0.35f) << "," << ly << ";\x1b(c@#aaaaaa)" << row.first << " \x1b(c@#ffffff)" << row.second << "]";
+		ly += dy;
+	}
+
+	// Touch Controls description
+	if (show_controls) {
+		os << "textarea[" << (controls_x + 0.2f) << ",1.3;" << (controls_w - 0.4f) << ",5.3;;;" << control_text << "]";
+	}
+
+	// Actions Buttons
+	std::vector<std::pair<std::string, std::string>> menu_buttons;
+	menu_buttons.push_back({"btn_continue", strgettext("Continue")});
+	if (!simple_singleplayer_mode) {
+		menu_buttons.push_back({"btn_change_password", strgettext("Change Password")});
+	}
+	menu_buttons.push_back({"btn_settings", strgettext("Settings")});
+#ifndef __ANDROID__
+#if USE_SOUND
+	menu_buttons.push_back({"btn_sound", strgettext("Sound Volume")});
+#endif
+#endif
+	menu_buttons.push_back({"btn_exit_menu", strgettext("Exit to Menu")});
+	menu_buttons.push_back({"btn_exit_os", strgettext("Exit to OS")});
+
+	// Apply global button styling for modern rounded corners
+	os << "style_type[button,button_exit;bgimg=menu_round_button.png;bgimg_middle=12;border=false]";
+
+	// Action button styling
+	os << "style[btn_continue;bgcolor=#467832;textcolor=white;font=bold]"
+	   << "style[btn_continue:hovered;bgcolor=#55913f]"
+	   << "style[btn_continue:pressed;bgcolor=#365e25]";
+	if (!simple_singleplayer_mode) {
+		os << "style[btn_change_password;bgcolor=#43464b;textcolor=white]"
+		   << "style[btn_change_password:hovered;bgcolor=#50545c]"
+		   << "style[btn_change_password:pressed;bgcolor=#323438]";
+	}
+	os << "style[btn_settings;bgcolor=#43464b;textcolor=white]"
+	   << "style[btn_settings:hovered;bgcolor=#50545c]"
+	   << "style[btn_settings:pressed;bgcolor=#323438]";
+#ifndef __ANDROID__
+#if USE_SOUND
+	os << "style[btn_sound;bgcolor=#43464b;textcolor=white]"
+	   << "style[btn_sound:hovered;bgcolor=#50545c]"
+	   << "style[btn_sound:pressed;bgcolor=#323438]";
+#endif
+#endif
+	os << "style[btn_exit_menu;bgcolor=#9b2c2c;textcolor=white]"
+	   << "style[btn_exit_menu:hovered;bgcolor=#b93535]"
+	   << "style[btn_exit_menu:pressed;bgcolor=#7a2222]"
+	   << "style[btn_exit_os;bgcolor=#5c1d1d;textcolor=white]"
+	   << "style[btn_exit_os:hovered;bgcolor=#752525]"
+	   << "style[btn_exit_os:pressed;bgcolor=#461616]";
+
+	// Stack buttons vertically
+	float by = 1.3f;
+	float b_step = 0.8f;
+	float bw = actions_w - 0.6f;
+
+	for (size_t i = 0; i < menu_buttons.size(); ++i) {
+		const auto &btn = menu_buttons[i];
+		if (btn.first == "btn_continue" || btn.first == "btn_exit_menu" || btn.first == "btn_exit_os") {
+			os << "button_exit[" << (actions_x + 0.3f) << "," << by << ";" << bw << ",0.6;" << btn.first << ";" << btn.second << "]";
+		} else {
+			os << "button[" << (actions_x + 0.3f) << "," << by << ";" << bw << ",0.6;" << btn.first << ";" << btn.second << "]";
+		}
+		by += b_step;
+	}
 
 	/* Create menu */
 	/* Note: FormspecFormSource and LocalFormspecHandler  *

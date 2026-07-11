@@ -18,3 +18,23 @@ void ScriptApiPauseMenu::open_settings()
 
 	lua_pop(L, 2); // Pop core, error handler
 }
+
+bool ScriptApiPauseMenu::show_pause_menu()
+{
+	SCRIPTAPI_PRECHECKHEADER
+
+	int error_handler = PUSH_ERROR_HANDLER(L);
+
+	lua_getglobal(L, "core");
+	lua_getfield(L, -1, "show_pause_menu");
+	if (lua_isnil(L, -1)) {
+		lua_pop(L, 3); // Pop nil, core, error handler
+		return false;
+	}
+
+	PCALL_RES(lua_pcall(L, 0, 1, error_handler));
+
+	bool handled = lua_toboolean(L, -1);
+	lua_pop(L, 3); // Pop return value, core, error handler
+	return handled;
+}

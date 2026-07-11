@@ -154,23 +154,22 @@ local function get_formspec(tabview, name, tabdata)
 
 		local hypertext = "<global valign=middle halign=center size=18>" ..
 				fgettext_ne("Luanti is a game-creation platform that allows you to play many different games.") .. "\n" ..
-				fgettext_ne("Luanti doesn't come with a game by default.") .. " " ..
+				fgettext_ne("Luanti doesn\'t come with a game by default.") .. " " ..
 				fgettext_ne("You need to install a game before you can create a world.")
 
 		local button_y = H * 2/3 - 0.6
 		return table.concat({
+			"style_type[button,button_exit;bgimg=menu_round_button.png;bgimg_middle=12;border=false]",
 			"hypertext[0.375,0;", W - 2*0.375, ",", button_y, ";ht;", core.formspec_escape(hypertext), "]",
 			"button[5.25,", button_y, ";5,1.2;game_open_cdb;", fgettext("Install a game"), "]"})
 	end
 
-	local retval = ""
+	local retval = "style_type[button,button_exit;bgimg=menu_round_button.png;bgimg_middle=12;border=false]"
 
 	local index = core.get_textlist_index("sp_worlds") or filterlist.get_current_index(menudata.worldlist,
 				tonumber(core.settings:get("mainmenu_last_selected_world"))) or 0
 
 	local list = menudata.worldlist:get_list()
-	-- When changing tabs to a world list with fewer entries, the last index is selected (visually).
-	-- However, the formspec fields lag behind, thus 'index > #list' can be a valid choice.
 	local world = list and list[math.min(index, #list)]
 	local game
 
@@ -183,88 +182,92 @@ local function get_formspec(tabview, name, tabdata)
 
 	local creative, damage, host = "", "", ""
 
-	-- Y offsets for game settings checkboxes
-	local y = 0.2
-	local yo = 0.5625
+	-- Card backgrounds (Surface Level 2) with rounded corners
+	retval = retval .. "background9[0.375,0.375;4.5,6.35;menu_round_card_gray.png;false;24]"
+	retval = retval .. "background9[5.25,0.375;9.875,6.35;menu_round_card_gray.png;false;24]"
+
+	-- Header labels with styled colorization
+	retval = retval .. "label[0.725,0.725;" .. fgettext("SETTINGS") .. "]"
+	retval = retval .. "label[5.6,0.725;" .. fgettext("SELECT WORLD") .. "]"
+
+	-- Y offsets for settings checkboxes
+	local y = 1.1
+	local yo = 0.55
 
 	if world then
 		if disabled_settings["creative_mode"] == nil then
-			creative = "checkbox[0,"..y..";cb_creative_mode;".. fgettext("Creative Mode") .. ";" ..
+			creative = "checkbox[0.625,"..y..";cb_creative_mode;".. fgettext("Creative Mode") .. ";" ..
 				dump(core.settings:get_bool("creative_mode")) .. "]"
 			y = y + yo
 		end
 		if disabled_settings["enable_damage"] == nil then
-			damage = "checkbox[0,"..y..";cb_enable_damage;".. fgettext("Enable Damage") .. ";" ..
+			damage = "checkbox[0.625,"..y..";cb_enable_damage;".. fgettext("Enable Damage") .. ";" ..
 				dump(core.settings:get_bool("enable_damage")) .. "]"
 			y = y + yo
 		end
 		if disabled_settings["enable_server"] == nil then
-			host = "checkbox[0,"..y..";cb_server;".. fgettext("Host Server") ..";" ..
+			host = "checkbox[0.625,"..y..";cb_server;".. fgettext("Host Server") ..";" ..
 				dump(core.settings:get_bool("enable_server")) .. "]"
 			y = y + yo
 		end
 	end
 
-	retval = retval ..
-			"container[5.25,4.875]" ..
-			"button[6.65,0;3.225,0.8;world_create;".. fgettext("New") .. "]"
-	if world then
-		retval = retval ..
-				"button[0,0;3.225,0.8;world_delete;".. fgettext("Delete") .. "]" ..
-				"button[3.325,0;3.225,0.8;world_configure;".. fgettext("Select Mods") .. "]"
-	end
-	retval = retval ..
-			"container_end[]" ..
-			"container[0.375,0.375]" ..
-			creative ..
-			damage ..
-			host ..
-			"container_end[]" ..
-			"container[5.25,0.375]" ..
-			"label[0,0.2;".. fgettext("Select World:") .. "]"..
-			"textlist[0,0.5;9.875,3.9;sp_worlds;" ..
-			menu_render_worldlist() ..
-			";" .. index .. "]" ..
-			"container_end[]"
+	retval = retval .. creative .. damage .. host
 
+	-- Recessed world list
+	retval = retval .. "style[sp_worlds;bgcolor=#121416;textcolor=white;border=false]"
+	retval = retval .. "textlist[5.5,1.1;9.375,3.5;sp_worlds;" .. menu_render_worldlist() .. ";" .. index .. "]"
+
+	-- List secondary actions (horizontal row)
+	local btn_w = (9.375 - 0.4) / 3
+	retval = retval .. "style[world_create;bgcolor=#43464b;textcolor=white]"
+	retval = retval .. "style[world_create:hovered;bgcolor=#50545c]"
+	retval = retval .. "button[5.5,4.75;" .. btn_w .. ",0.7;world_create;" .. fgettext("New World") .. "]"
+
+	if world then
+		retval = retval .. "style[world_configure;bgcolor=#43464b;textcolor=white]"
+		retval = retval .. "style[world_configure:hovered;bgcolor=#50545c]"
+		retval = retval .. "button[" .. (5.5 + btn_w + 0.2) .. ",4.75;" .. btn_w .. ",0.7;world_configure;" .. fgettext("Select Mods") .. "]"
+
+		retval = retval .. "style[world_delete;bgcolor=#9b2c2c;textcolor=white]"
+		retval = retval .. "style[world_delete:hovered;bgcolor=#b93535]"
+		retval = retval .. "button[" .. (5.5 + btn_w * 2 + 0.4) .. ",4.75;" .. btn_w .. ",0.7;world_delete;" .. fgettext("Delete") .. "]"
+	end
+
+	-- Server host details or Play/Host Game
 	if core.settings:get_bool("enable_server") and disabled_settings["enable_server"] == nil then
-		retval = retval ..
-				"button[10.1875,5.925;4.9375,0.8;play;".. fgettext("Host Game") .. "]" ..
-				"container[0.375,0.375]" ..
-				"checkbox[0,"..y..";cb_server_announce;" .. fgettext("Announce Server") .. ";" ..
+		retval = retval .. "style[play;bgcolor=#467832;textcolor=white;font=bold]"
+		retval = retval .. "style[play:hovered;bgcolor=#55913f]"
+		retval = retval .. "button[5.5,5.6;9.375,0.8;play;" .. fgettext("Host Game") .. "]"
+
+		retval = retval .. "checkbox[0.625," .. y .. ";cb_server_announce;" .. fgettext("Announce Server") .. ";" ..
 				dump(core.settings:get_bool("server_announce")) .. "]"
 
-		-- Reset y so that the text fields always start at the same position,
-		-- regardless of whether some of the checkboxes are hidden.
-		y = 0.2 + 4 * yo + 0.35
+		y = 0.2 + 4 * yo + 0.35 + 0.3
 
-		retval = retval .. "field[0," .. y .. ";4.5,0.75;te_playername;" .. fgettext("Name") .. ";" ..
+		retval = retval .. "field[0.625," .. y .. ";4.0,0.55;te_playername;" .. fgettext("Name") .. ";" ..
 				core.formspec_escape(current_name) .. "]"
 
-		y = y + 1.15 + 0.25
+		y = y + 0.85
+		retval = retval .. "pwdfield[0.625," .. y .. ";4.0,0.55;te_passwd;" .. fgettext("Password") .. "]"
 
-		retval = retval .. "pwdfield[0," .. y .. ";4.5,0.75;te_passwd;" .. fgettext("Password") .. "]"
-
-		y = y + 1.15 + 0.25
-
+		y = y + 0.85
 		local bind_addr = core.settings:get("bind_address")
 		if bind_addr ~= nil and bind_addr ~= "" then
 			retval = retval ..
-				"field[0," .. y .. ";3,0.75;te_serveraddr;" .. fgettext("Bind Address") .. ";" ..
+				"field[0.625," .. y .. ";2.5,0.55;te_serveraddr;" .. fgettext("Bind Address") .. ";" ..
 				core.formspec_escape(core.settings:get("bind_address")) .. "]" ..
-				-- TRANSLATORS: Network port
-				"field[3.25," .. y .. ";1.25,0.75;te_serverport;" .. fgettext("Port") .. ";" ..
+				"field[3.225," .. y .. ";1.4,0.55;te_serverport;" .. fgettext("Port") .. ";" ..
 				core.formspec_escape(current_port) .. "]"
 		else
 			retval = retval ..
-				"field[0," .. y .. ";4.5,0.75;te_serverport;" .. fgettext("Server Port") .. ";" ..
+				"field[0.625," .. y .. ";4.0,0.55;te_serverport;" .. fgettext("Server Port") .. ";" ..
 				core.formspec_escape(current_port) .. "]"
 		end
-
-		retval = retval .. "container_end[]"
 	elseif world then
-		retval = retval ..
-				"button[10.1875,5.925;4.9375,0.8;play;" .. fgettext("Play Game") .. "]"
+		retval = retval .. "style[play;bgcolor=#467832;textcolor=white;font=bold]"
+		retval = retval .. "style[play:hovered;bgcolor=#55913f]"
+		retval = retval .. "button[5.5,5.6;9.375,0.8;play;" .. fgettext("Play Game") .. "]"
 	end
 
 	return retval
@@ -472,5 +475,6 @@ return {
 	caption = fgettext("Start Game"),
 	cbf_formspec = get_formspec,
 	cbf_button_handler = main_button_handler,
-	on_change = on_change
+	on_change = on_change,
+	formspec_version = 10
 }

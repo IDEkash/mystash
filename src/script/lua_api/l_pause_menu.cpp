@@ -23,8 +23,32 @@ int ModApiPauseMenu::l_is_internal_server(lua_State *L)
 }
 
 
+int ModApiPauseMenu::l_open_settings(lua_State *L)
+{
+	g_gamecallback->openSettings();
+	return 0;
+}
+
+
+int ModApiPauseMenu::l_disconnect(lua_State *L)
+{
+	g_gamecallback->disconnect();
+	return 0;
+}
+
+
+int ModApiPauseMenu::l_exit_to_os(lua_State *L)
+{
+	g_gamecallback->exitToOS();
+	return 0;
+}
+
+
 void ModApiPauseMenu::Initialize(lua_State *L, int top)
 {
 	API_FCT(show_touchscreen_layout);
 	API_FCT(is_internal_server);
+	API_FCT(open_settings);
+	API_FCT(disconnect);
+	API_FCT(exit_to_os);
 }

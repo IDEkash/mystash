@@ -1,5 +1,8 @@
 project(luanti)
 
+# Ensure tiniergltf header is globally accessible to all targets (including server)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../lib/tiniergltf)
+
 INCLUDE(CheckTypeSize)
 INCLUDE(CheckIncludeFiles)
 INCLUDE(CheckLibraryExists)

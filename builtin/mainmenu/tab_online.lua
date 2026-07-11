@@ -96,7 +96,7 @@ local function get_formspec(tabview, name, tabdata)
 		tabdata.search_for = ""
 	end
 
-	local retval =
+	local retval = "style_type[button,button_exit;bgimg=menu_round_button.png;bgimg_middle=12;border=false]" ..
 		-- Search
 		"field[0.25,0.25;7,0.75;te_search;;" .. core.formspec_escape(tabdata.search_for) .. "]" ..
 		"tooltip[te_search;" .. table.concat({
@@ -118,7 +118,7 @@ local function get_formspec(tabview, name, tabdata)
 		"container_end[]" ..
 
 		"container[9.75,0]" ..
-		"box[0,0;5.75,7.1;#666666]" ..
+		"background9[0,0;5.75,7.1;menu_round_card_gray.png;false;24]" ..
 
 		-- TRANSLATORS: Network address
 		"label[0.25,0.35;" .. fgettext("Address") .. "]" ..
@@ -131,7 +131,7 @@ local function get_formspec(tabview, name, tabdata)
 
 		-- Description Background
 		"label[0.25,1.6;" .. fgettext("Server Description") .. "]" ..
-		"box[0.25,1.85;5.25,2.7;#999999]"..
+		"background9[0.25,1.85;5.25,2.7;menu_round_card_dark.png;false;24]"..
 
 		-- Name / Password
 		"container[0,4.8]" ..
@@ -143,11 +143,17 @@ local function get_formspec(tabview, name, tabdata)
 
 		-- Connect
 		-- TRANSLATORS: Login to server
+		"style[btn_mp_login;bgcolor=#467832;textcolor=white;font=bold;border=false]" ..
+		"style[btn_mp_login:hovered;bgcolor=#55913f]" ..
+		"style[btn_mp_login:pressed;bgcolor=#365e25]" ..
 		"button[3,6;2.5,0.75;btn_mp_login;" .. fgettext("Login") .. "]"
 
 	if core.settings:get_bool("enable_split_login_register") then
 		-- TRANSLATORS: Register an account on a server
-		retval = retval .. "button[0.25,6;2.5,0.75;btn_mp_register;" .. fgettext("Register") .. "]"
+		retval = retval .. "style[btn_mp_register;bgcolor=#43464b;textcolor=white;border=false]" ..
+				"style[btn_mp_register:hovered;bgcolor=#50545c]" ..
+				"style[btn_mp_register:pressed;bgcolor=#323438]" ..
+				"button[0.25,6;2.5,0.75;btn_mp_register;" .. fgettext("Register") .. "]"
 	end
 
 	local selected_server = find_selected_server()

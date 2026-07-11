@@ -528,21 +528,23 @@ local function get_formspec(dialogdata)
 		-- HACK: this is needed to allow resubmitting the same formspec
 		formspec_show_hack and " " or "",
 
-		"box[0,0;", tostring(tabsize.width), ",", tostring(tabsize.height), ";#0000008C]",
+		"style_type[button,button_exit;bgimg=menu_round_button.png;bgimg_middle=12;border=false]",
+
+		"background9[0,0;", tostring(tabsize.width), ",", tostring(tabsize.height), ";menu_round_card_trans.png;false;24]",
 
 		("button[0,%f;%f,0.8;back;%s]"):format(
 				tabsize.height + 0.2, back_w,
 				-- TRANSLATORS: Button text to go back
 				fgettext("Back")),
 
-		("box[%f,%f;%f,0.8;#0000008C]"):format(
+		("background9[%f,%f;%f,0.8;menu_round_card_trans.png;false;24]"):format(
 			back_w + 0.2, tabsize.height + 0.2, checkbox_w),
 		("checkbox[%f,%f;show_technical_names;%s;%s]"):format(
 			back_w + 2*0.2, tabsize.height + 0.6,
 			-- TRANSLATORS: Checkbox that toggles displaying the technical setting names
 			fgettext("Show technical names"), tostring(show_technical_names)),
 
-		("box[%f,%f;%f,0.8;#0000008C]"):format(
+		("background9[%f,%f;%f,0.8;menu_round_card_trans.png;false;24]"):format(
 			back_w + 2*0.2 + checkbox_w, tabsize.height + 0.2, checkbox_w),
 		("checkbox[%f,%f;show_advanced;%s;%s]"):format(
 			back_w + 3*0.2 + checkbox_w, tabsize.height + 0.6,
@@ -574,8 +576,10 @@ local function get_formspec(dialogdata)
 			last_section = other_page.section
 			y = y + 0.82
 		end
-		fs[#fs + 1] = ("box[0,%f;%f,0.8;%s]"):format(
-			y, left_pane_width-left_pane_padding, other_page.id == page_id and "#467832FF" or "#3339")
+		fs[#fs + 1] = ("background9[0,%f;%f,0.8;%s;false;%d]"):format(
+			y, left_pane_width-left_pane_padding,
+			other_page.id == page_id and "menu_round_button.png^[colorize:#467832:255" or "menu_round_card_gray.png",
+			other_page.id == page_id and 12 or 24)
 		fs[#fs + 1] = ("button[0,%f;%f,0.8;page_%s;%s]")
 			:format(y, left_pane_width-left_pane_padding, other_page.id, fgettext(other_page.title))
 		y = y + 0.82
