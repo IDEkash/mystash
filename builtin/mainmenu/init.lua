@@ -96,6 +96,11 @@ local function init_globals()
 	mm_game_theme.init()
 	mm_game_theme.set_engine() -- This is just a fallback.
 
+	if htmlview and htmlview.is_supported and htmlview.is_supported() then
+		dofile(core.get_mainmenu_path() .. DIR_DELIM .. "html_mainmenu.lua")
+		return
+	end
+
 	-- Create main tabview
 	local tv_main = tabview_create("maintab", {x = MAIN_TAB_W, y = MAIN_TAB_H}, {x = 0, y = 0})
 

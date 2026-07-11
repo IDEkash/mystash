@@ -11,6 +11,7 @@
 #include "lua_api/l_pause_menu.h"
 #include "lua_api/l_settings.h"
 #include "lua_api/l_util.h"
+#include "lua_api/l_htmlview.h"
 
 PauseMenuScripting::PauseMenuScripting(Client *client):
 		ScriptApiBase(ScriptingType::PauseMenu)
@@ -45,6 +46,7 @@ void PauseMenuScripting::initializeModApi(lua_State *L, int top)
 	ModApiMenuCommon::Initialize(L, top);
 	ModApiClientCommon::Initialize(L, top);
 	ModApiUtil::Initialize(L, top);
+	ModApiHTMLView::Initialize(L, top);
 }
 
 void PauseMenuScripting::loadBuiltin()

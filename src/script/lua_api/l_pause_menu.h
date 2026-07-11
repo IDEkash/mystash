@@ -11,6 +11,9 @@ class ModApiPauseMenu: public ModApiBase
 private:
 	static int l_show_touchscreen_layout(lua_State *L);
 	static int l_is_internal_server(lua_State *L);
+	static int l_open_settings(lua_State *L);
+	static int l_disconnect(lua_State *L);
+	static int l_exit_to_os(lua_State *L);
 
 public:
 	static void Initialize(lua_State *L, int top);

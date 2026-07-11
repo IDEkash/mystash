@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Luanti Modern Main Menu</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="dark-theme">
+  <div class="app-container">
+    <!-- Top Header / Navigation -->
+    <header class="app-header">
+      <div class="logo-area">
+        <span class="logo-text">LUANTI</span>
+        <span class="logo-version" id="engine-version">5.16.0-dev</span>
+      </div>
+      <nav class="pill-nav">
+        <button class="nav-btn active" data-target="tab-singleplayer">Singleplayer</button>
+        <button class="nav-btn" data-target="tab-multiplayer">Multiplayer</button>
+        <button class="nav-btn" data-target="tab-settings">Settings</button>
+        <button class="nav-btn" data-target="tab-about">About</button>
+      </nav>
+      <div class="exit-area">
+        <button id="btn-quit" class="btn btn-secondary btn-icon-only" title="Quit Game">&#x2715;</button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Tab: Singleplayer -->
+      <section id="tab-singleplayer" class="tab-pane active">
+        <div class="split-layout">
+          <div class="left-panel">
+            <h2 class="panel-title">Your Worlds</h2>
+            <div class="world-list-container">
+              <div class="world-list" id="world-list-items">
+                <!-- Dynamically loaded -->
+                <div class="world-card empty-state">No worlds found. Create one to begin!</div>
+              </div>
+            </div>
+            <div class="panel-actions">
+              <button id="btn-create-world" class="btn btn-primary">Create New World</button>
+              <button id="btn-delete-world" class="btn btn-danger" disabled>Delete Selected</button>
+            </div>
+          </div>
+          <div class="right-panel info-panel" id="world-detail-panel">
+            <h2 class="panel-title">World Settings</h2>
+            <div class="panel-body">
+              <div class="form-group">
+                <label>Select Game ID</label>
+                <select id="select-game-id" class="input-select">
+                  <option value="devtest">Development Test</option>
+                  <option value="minetest">Minetest Game</option>
+                </select>
+              </div>
+              <div class="toggle-group">
+                <div class="toggle-item">
+                  <span class="toggle-label">Creative Mode</span>
+                  <label class="switch">
+                    <input type="checkbox" id="chk-creative">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div class="toggle-item">
+                  <span class="toggle-label">Enable Damage</span>
+                  <label class="switch">
+                    <input type="checkbox" id="chk-damage" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+              </div>
+              <div class="panel-bottom">
+                <button id="btn-play-world" class="btn btn-accent btn-large" disabled>PLAY WORLD</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: Multiplayer -->
+      <section id="tab-multiplayer" class="tab-pane">
+        <div class="split-layout">
+          <div class="left-panel">
+            <h2 class="panel-title">Direct Connect</h2>
+            <div class="panel-body card-layout">
+              <div class="form-group">
+                <label for="server-address">Server Address</label>
+                <input type="text" id="server-address" class="input-text" placeholder="e.g. server.luanti.org" value="localhost" />
+              </div>
+              <div class="form-group">
+                <label for="server-port">Port</label>
+                <input type="text" id="server-port" class="input-text" placeholder="30000" value="30000" />
+              </div>
+              <div class="form-group">
+                <label for="player-name">Player Name</label>
+                <input type="text" id="player-name" class="input-text" placeholder="Your username" value="singleplayer" />
+              </div>
+              <div class="form-group">
+                <label for="player-password">Password</label>
+                <input type="password" id="player-password" class="input-text" placeholder="••••••••" />
+              </div>
+            </div>
+            <div class="panel-actions">
+              <button id="btn-connect" class="btn btn-accent">Connect to Server</button>
+            </div>
+          </div>
+          <div class="right-panel">
+            <h2 class="panel-title">Server Registry</h2>
+            <div class="server-list-container">
+              <div class="server-list" id="server-list-items">
+                <!-- List dynamically -->
+                <div class="server-card empty-state">Loading server list...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: Settings -->
+      <section id="tab-settings" class="tab-pane">
+        <div class="split-layout">
+          <div class="left-panel">
+            <h2 class="panel-title">Graphics Settings</h2>
+            <div class="panel-body card-layout">
+              <div class="toggle-item">
+                <span class="toggle-label">Smooth Lighting</span>
+                <label class="switch">
+                  <input type="checkbox" id="chk-smooth-lighting" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="toggle-item">
+                <span class="toggle-label">Enable Shaders</span>
+                <label class="switch">
+                  <input type="checkbox" id="chk-enable-shaders" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="toggle-item">
+                <span class="toggle-label">Mipmapping</span>
+                <label class="switch">
+                  <input type="checkbox" id="chk-mipmapping">
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="form-group">
+                <label for="range-viewing-range">Viewing Range (Blocks)</label>
+                <input type="range" id="range-viewing-range" min="20" max="500" value="100" class="input-range">
+                <span class="range-val" id="range-val-viewing-range">100</span>
+              </div>
+            </div>
+          </div>
+          <div class="right-panel">
+            <h2 class="panel-title">Audio & Settings</h2>
+            <div class="panel-body card-layout">
+              <div class="toggle-item">
+                <span class="toggle-label">Enable Sound</span>
+                <label class="switch">
+                  <input type="checkbox" id="chk-enable-sound" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="form-group">
+                <label for="range-sound-volume">Sound Volume</label>
+                <input type="range" id="range-sound-volume" min="0" max="100" value="80" class="input-range">
+                <span class="range-val" id="range-val-sound-volume">80%</span>
+              </div>
+              <div class="toggle-item">
+                <span class="toggle-label">Node Highlighting</span>
+                <label class="switch">
+                  <input type="checkbox" id="chk-node-highlighting" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: About -->
+      <section id="tab-about" class="tab-pane">
+        <div class="about-container">
+          <div class="about-card">
+            <h2>About Luanti</h2>
+            <p>Luanti is an open-source voxel game engine. Programmed in C++, and highly extendable via the Lua API, it runs efficiently on low-end hardware as well as top-tier machines.</p>
+            <p>This UI has been completely modernized using high-performance CSS and HTMLView technologies, resulting in a responsive, low-latency client experience.</p>
+            <div class="divider"></div>
+            <h3>Engine Credits</h3>
+            <div class="credits-grid">
+              <div>Perttu Ahola (celeron55)</div>
+              <div>Core Developers & Contributors</div>
+              <div>The Open-Source Community</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Create World Dialog overlay -->
+  <div class="dialog-overlay" id="dlg-create-world-overlay">
+    <div class="dialog-box">
+      <h3 class="dialog-title">Create New World</h3>
+      <div class="dialog-body">
+        <div class="form-group">
+          <label for="new-world-name">World Name</label>
+          <input type="text" id="new-world-name" class="input-text" placeholder="My New World" />
+        </div>
+        <div class="form-group">
+          <label>Game Type</label>
+          <select id="new-world-game" class="input-select">
+            <option value="devtest">Development Test</option>
+            <option value="minetest">Minetest Game</option>
+          </select>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button id="btn-cancel-create" class="btn btn-secondary">Cancel</button>
+        <button id="btn-submit-create" class="btn btn-accent">Create World</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
