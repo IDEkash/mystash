@@ -270,8 +270,8 @@ bool GenericCAO::getCollisionBox(aabb3f *toset) const
 		toset->MinEdge = m_prop.collisionbox.MinEdge * BS;
 		toset->MaxEdge = m_prop.collisionbox.MaxEdge * BS;
 
-		toset->MinEdge += m_position;
-		toset->MaxEdge += m_position;
+		toset->MinEdge += getPosition();
+		toset->MaxEdge += getPosition();
 
 		return true;
 	}
@@ -1176,7 +1176,7 @@ void GenericCAO::step(float dtime, ClientEnvironment *env)
 		rot_translator.translate(dtime);
 		v3f lastpos = pos_translator.val_current;
 
-		if(m_prop.physical)
+		if(m_prop.physical && !m_prop.interpolate_position)
 		{
 			aabb3f box = m_prop.collisionbox;
 			box.MinEdge *= BS;
@@ -1658,7 +1658,7 @@ void GenericCAO::processMessage(const std::string &data)
 
 		if(do_interpolate)
 		{
-			if(!m_prop.physical)
+			if(!m_prop.physical || m_prop.interpolate_position)
 				pos_translator.update(m_position, is_end_position, update_interval);
 		} else {
 			pos_translator.init(m_position);

@@ -282,10 +282,11 @@ void push_item_definition_full(lua_State *L, const ItemDefinition &i)
 }
 
 /******************************************************************************/
-const std::array<const char *, 38> object_property_keys = {
+const std::array<const char *, 39> object_property_keys = {
 	"hp_max",
 	"breath_max",
 	"physical",
+	"interpolate_position",
 	"collide_with_objects",
 	"collisionbox",
 	"selectionbox",
@@ -357,6 +358,7 @@ void read_object_properties(lua_State *L, int index,
 		}
 	}
 	getboolfield(L, -1, "physical", prop->physical);
+	getboolfield(L, -1, "interpolate_position", prop->interpolate_position);
 	getboolfield(L, -1, "collide_with_objects", prop->collideWithObjects);
 
 	lua_getfield(L, -1, "collisionbox");
@@ -548,6 +550,8 @@ void push_object_properties(lua_State *L, const ObjectProperties *prop)
 	lua_setfield(L, -2, "breath_max");
 	lua_pushboolean(L, prop->physical);
 	lua_setfield(L, -2, "physical");
+	lua_pushboolean(L, prop->interpolate_position);
+	lua_setfield(L, -2, "interpolate_position");
 	lua_pushboolean(L, prop->collideWithObjects);
 	lua_setfield(L, -2, "collide_with_objects");
 	push_aabb3f(L, prop->collisionbox);

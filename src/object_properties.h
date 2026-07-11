@@ -66,6 +66,7 @@ struct ObjectProperties
 	PointabilityType pointable = PointabilityType::POINTABLE;
 	// In a future protocol these could be a flag field.
 	bool physical = false;
+	bool interpolate_position = false;
 	bool collideWithObjects = true;
 	bool rotate_selectionbox = false;
 	bool is_visible = true;

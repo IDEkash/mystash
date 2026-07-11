@@ -43,6 +43,7 @@ std::string ObjectProperties::dump() const
 	os << "hp_max=" << hp_max;
 	os << ", breath_max=" << breath_max;
 	os << ", physical=" << physical;
+	os << ", interpolate_position=" << interpolate_position;
 	os << ", collideWithObjects=" << collideWithObjects;
 	os << ", collisionbox=" << collisionbox.MinEdge << "," << collisionbox.MaxEdge;
 	os << ", visual=" << enum_to_string(es_ObjectVisual, visual);
@@ -108,6 +109,7 @@ static inline auto tie(const ObjectProperties &o)
 	o.automatic_face_movement_max_rotation_per_sec, o.eye_height, o.zoom_fov,
 	o.model_unit_scale, o.auto_normalize, o.target_height,
 	o.node, o.hp_max, o.breath_max, o.glow, o.pointable, o.physical,
+	o.interpolate_position,
 	o.collideWithObjects, o.rotate_selectionbox, o.is_visible, o.makes_footstep_sound,
 	o.automatic_face_movement_dir, o.backface_culling, o.static_save, o.use_texture_alpha,
 	o.shaded, o.show_on_minimap, o.nametag_scale_z
@@ -224,6 +226,7 @@ void ObjectProperties::serialize(std::ostream &os) const
 	writeV3F32(os, model_unit_scale);
 	writeU8(os, auto_normalize);
 	writeF32(os, target_height);
+	writeU8(os, interpolate_position);
 
 	// Add stuff only at the bottom.
 	// Never remove anything, because we don't want new versions of this!
@@ -334,6 +337,10 @@ void ObjectProperties::deSerialize(std::istream &is)
 	model_unit_scale = readV3F32(is);
 	auto_normalize = readU8(is);
 	target_height = readF32(is);
+
+	if (!canRead(is))
+		return;
+	interpolate_position = readU8(is);
 
 	//if (!canRead(is))
 	//	return;
