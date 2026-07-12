@@ -520,7 +520,7 @@ local function get_formspec(dialogdata)
 	formspec_show_hack = not formspec_show_hack
 
 	local fs = {
-		"formspec_version[6]",
+		"formspec_version[10]",
 		"size[", tostring(tabsize.width), ",", tostring(tabsize.height + extra_h), "]",
 		core.settings:get_bool("touch_gui") and "padding[0.01,0.01]" or "",
 		"bgcolor[#0000]",
@@ -528,25 +528,34 @@ local function get_formspec(dialogdata)
 		-- HACK: this is needed to allow resubmitting the same formspec
 		formspec_show_hack and " " or "",
 
-		"box[0,0;", tostring(tabsize.width), ",", tostring(tabsize.height), ";#0000008C]",
+		"style_type[box;colors=#1a1a1edf,#1a1a1edf,#111115df,#111115df;bordercolors=#ffffff1a;borderwidths=-1]",
+		"style_type[button,button_exit;border=false;content_offset=0]",
+		"style_type[button:hovered;bgcolor=#43464b]",
+		"style_type[button:focused;bgcolor=#467832]",
 
+		"box[0,0;", tostring(tabsize.width), ",", tostring(tabsize.height), ";]",
+
+		"style[back;bgcolor=#43464b;textcolor=white]",
 		("button[0,%f;%f,0.8;back;%s]"):format(
 				tabsize.height + 0.2, back_w,
 				-- TRANSLATORS: Button text to go back
 				fgettext("Back")),
+		("tooltip[back;%s]"):format(fgettext("Return to the previous menu")),
 
-		("box[%f,%f;%f,0.8;#0000008C]"):format(
+		("box[%f,%f;%f,0.8;]"):format(
 			back_w + 0.2, tabsize.height + 0.2, checkbox_w),
 		("checkbox[%f,%f;show_technical_names;%s;%s]"):format(
 			back_w + 2*0.2, tabsize.height + 0.6,
 			-- TRANSLATORS: Checkbox that toggles displaying the technical setting names
 			fgettext("Show technical names"), tostring(show_technical_names)),
+		("tooltip[show_technical_names;%s]"):format(fgettext("Show the internal/technical names of settings")),
 
-		("box[%f,%f;%f,0.8;#0000008C]"):format(
+		("box[%f,%f;%f,0.8;]"):format(
 			back_w + 2*0.2 + checkbox_w, tabsize.height + 0.2, checkbox_w),
 		("checkbox[%f,%f;show_advanced;%s;%s]"):format(
 			back_w + 3*0.2 + checkbox_w, tabsize.height + 0.6,
 			fgettext("Show advanced settings"), tostring(show_advanced)),
+		("tooltip[show_advanced;%s]"):format(fgettext("Show developer and advanced engine settings")),
 
 		"field[0.25,0.25;", tostring(search_width), ",0.75;search_query;;",
 			core.formspec_escape(dialogdata.query or ""), "]",
@@ -561,8 +570,6 @@ local function get_formspec(dialogdata)
 		"container_end[]",
 		("scroll_container[0.25,1.25;%f,%f;leftscroll;vertical;0.1;0]"):format(
 			left_pane_width, tabsize.height - 1.5),
-		"style_type[button;border=false;bgcolor=#3333]",
-		"style_type[button:hover;border=false;bgcolor=#6663]",
 	}
 
 	local y = 0

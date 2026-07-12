@@ -396,14 +396,18 @@ void GameFormSpec::showPauseMenu()
 		actions_w = 3.5f;
 	}
 
-	os << "formspec_version[10]size[12.5,7.5]";
+	os << "formspec_version[10]size[12.5,7.5]"
+	   << "bgcolor[#141416eb;true;#141416eb]"
+	   << "style_type[box;colors=#1a1a20ef,#1a1a20ef,#111115ef,#111115ef;bordercolors=#ffffff1a;borderwidths=-1]"
+	   << "style_type[button,button_exit;border=false;content_offset=0;font=bold;font_size=+1]"
+	   << "style_type[textarea;border=false;textcolor=#e4e4e7]";
 
 	// Background card boxes
-	os << "box[" << info_x << ",0.5;" << info_w << ",6.5;#00000060]";
+	os << "box[" << info_x << ",0.5;" << info_w << ",6.5;]";
 	if (show_controls) {
-		os << "box[" << controls_x << ",0.5;" << controls_w << ",6.5;#00000060]";
+		os << "box[" << controls_x << ",0.5;" << controls_w << ",6.5;]";
 	}
-	os << "box[" << actions_x << ",0.5;" << actions_w << ",6.5;#00000060]";
+	os << "box[" << actions_x << ",0.5;" << actions_w << ",6.5;]";
 
 	// Header labels with styled colorization
 	os << "label[" << (info_x + 0.35f) << ",0.9;\x1b(c@#467832)" << PROJECT_NAME_C << " \x1b(c@#ffffff)" << VERSION_STRING << "]";
@@ -484,18 +488,44 @@ void GameFormSpec::showPauseMenu()
 #endif
 
 	// Action button styling
-	os << "style[btn_continue;bgcolor=#467832;textcolor=white;font=bold]";
+	os << "style[btn_continue;bgcolor=#467832;textcolor=white;font=bold]"
+	   << "style[btn_continue:hovered;bgcolor=#55913d;textcolor=white]"
+	   << "style[btn_continue:pressed;bgcolor=#365e28;textcolor=white]";
 	if (!simple_singleplayer_mode) {
-		os << "style[btn_change_password;bgcolor=#43464b;textcolor=white]";
+		os << "style[btn_change_password;bgcolor=#43464b;textcolor=white]"
+		   << "style[btn_change_password:hovered;bgcolor=#55595f;textcolor=white]"
+		   << "style[btn_change_password:pressed;bgcolor=#33363a;textcolor=white]";
 	}
-	os << "style[btn_settings;bgcolor=#43464b;textcolor=white]";
+	os << "style[btn_settings;bgcolor=#43464b;textcolor=white]"
+	   << "style[btn_settings:hovered;bgcolor=#55595f;textcolor=white]"
+	   << "style[btn_settings:pressed;bgcolor=#33363a;textcolor=white]";
 #ifndef __ANDROID__
 #if USE_SOUND
-	os << "style[btn_sound;bgcolor=#43464b;textcolor=white]";
+	os << "style[btn_sound;bgcolor=#43464b;textcolor=white]"
+	   << "style[btn_sound:hovered;bgcolor=#55595f;textcolor=white]"
+	   << "style[btn_sound:pressed;bgcolor=#33363a;textcolor=white]";
 #endif
 #endif
 	os << "style[btn_exit_menu;bgcolor=#9b2c2c;textcolor=white]"
-	   << "style[btn_exit_os;bgcolor=#5c1d1d;textcolor=white]";
+	   << "style[btn_exit_menu:hovered;bgcolor=#b83c3c;textcolor=white]"
+	   << "style[btn_exit_menu:pressed;bgcolor=#7a2020;textcolor=white]"
+	   << "style[btn_exit_os;bgcolor=#5c1d1d;textcolor=white]"
+	   << "style[btn_exit_os:hovered;bgcolor=#7d2828;textcolor=white]"
+	   << "style[btn_exit_os:pressed;bgcolor=#401313;textcolor=white]";
+
+	// Tooltips for all action buttons
+	os << "tooltip[btn_continue;" << strgettext("Return to the game") << "]";
+	if (!simple_singleplayer_mode) {
+		os << "tooltip[btn_change_password;" << strgettext("Change your account password") << "]";
+	}
+	os << "tooltip[btn_settings;" << strgettext("Configure game settings, controls, and graphics") << "]";
+#ifndef __ANDROID__
+#if USE_SOUND
+	os << "tooltip[btn_sound;" << strgettext("Adjust audio and sound volume") << "]";
+#endif
+#endif
+	os << "tooltip[btn_exit_menu;" << strgettext("Save progress and return to the main menu") << "]";
+	os << "tooltip[btn_exit_os;" << strgettext("Close the game and exit to desktop") << "]";
 
 	// Stack buttons
 	float by = 1.4f;
