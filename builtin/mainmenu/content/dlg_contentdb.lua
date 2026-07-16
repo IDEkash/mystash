@@ -203,20 +203,18 @@ local function get_formspec(dlgdata)
 	local number_category_buttons = 4
 	local max_button_w = (W - 0.375 - 0.25 - 7) / number_category_buttons
 	local category_button_w = math.min(max_button_w, 3)
-	local function make_category_button(name, label, selected)
-		category_x = category_x + 1
+	local function make_category_button(name, label, selected, idx)
 		local bg_color = selected and "#467832" or "#43464b"
 		local text_color = "white"
 		local font_style = selected and "bold" or "normal"
-		return ("style[%s;bgcolor=%s;textcolor=%s;border=false;font=%s]button[%f,0;%f,0.8;%s;%s]"):format(name, bg_color, text_color, font_style,
-				(category_x - 1) * category_button_w, category_button_w, name, label)
+		return ("style[%s;bgcolor=%s;textcolor=%s;border=false;font=%s]button[0,%f;3.0,0.8;%s;%s]"):format(name, bg_color, text_color, font_style,
+				(idx - 1) * 0.95, name, label)
 	end
 
 
 	local selected_type = filter_type
 
-	local search_box_width = W - 0.375 - 0.25 - 2*0.8
-			- number_category_buttons * category_button_w
+	local search_box_width = W - 3.3 - 2*0.8
 	local formspec = {
 		"formspec_version[7]",
 		"size[", size.x, ",", size.y, "]",
@@ -225,14 +223,17 @@ local function get_formspec(dlgdata)
 
 		"container[", window_padding.x, ",", window_padding.y, "]",
 
-		-- Top-left: categories
-		make_category_button("type_all", fgettext("All"), selected_type == nil),
-		make_category_button("type_game", fgettext("Games"), selected_type == "game"),
-		make_category_button("type_mod", fgettext("Mods"), selected_type == "mod"),
-		make_category_button("type_txp", fgettext("Texture Packs"), selected_type == "txp"),
+		-- Left panel box for vertical tabs
+		"box[-0.15,-0.1;3.3,4.0;#00000060]",
 
-		-- Top-right: Search
-		"container[", W - search_box_width - 0.8*2, ",0]",
+		-- Left column: vertical category tabs
+		make_category_button("type_all", fgettext("All"), selected_type == nil, 1),
+		make_category_button("type_game", fgettext("Games"), selected_type == "game", 2),
+		make_category_button("type_mod", fgettext("Mods"), selected_type == "mod", 3),
+		make_category_button("type_txp", fgettext("Texture Packs"), selected_type == "txp", 4),
+
+		-- Right: Search
+		"container[3.3,0]",
 		"field[0,0;", search_box_width, ",0.8;search_string;;", core.formspec_escape(search_string), "]",
 		"field_enter_after_edit[search_string;true]",
 		"image_button[", search_box_width, ",0;0.8,0.8;",
@@ -307,11 +308,11 @@ local function get_formspec(dlgdata)
 	-- TRANSLATORS: A download is queued
 	formspec[#formspec + 1] = "tooltip[queued;" .. fgettext("Queued") .. tooltip_colors
 
-	formspec[#formspec + 1] = ("box[0,1.2;%f,%f;#00000060]"):format(W, H - 2.225)
-	formspec[#formspec + 1] = "container[0,1.425]"
+	formspec[#formspec + 1] = ("box[3.3,1.2;%f,%f;#00000060]"):format(W - 3.3, H - 2.225)
+	formspec[#formspec + 1] = "container[3.3,1.425]"
 
 	local cell_spacing, columns, cell_w, cell_h = fit_cells(num_per_page, {
-		x = W,
+		x = W - 3.3,
 		y = H - 1.425 - 0.25 - 0.8
 	})
 	local img_w = cell_h * 3 / 2
