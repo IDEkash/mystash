@@ -163,7 +163,15 @@ local function get_formspec(tabview, name, tabdata)
 			"button[5.25,", button_y, ";5,1.2;game_open_cdb;", fgettext("Install a game"), "]"})
 	end
 
-	local retval = ""
+	local retval = "style[play;bgcolor=#467832;textcolor=white;font=bold]" ..
+			"style[world_create;bgcolor=#43464b;textcolor=white]" ..
+			"style[world_configure;bgcolor=#43464b;textcolor=white]" ..
+			"style[world_delete;bgcolor=#9b2c2c;textcolor=white]"
+
+	-- Background card boxes representing two tables with borders
+	retval = retval ..
+			"box[0.15,0.15;4.8,6.8;#00000060]" ..
+			"box[5.05,0.15;10.3,6.8;#00000060]"
 
 	local index = core.get_textlist_index("sp_worlds") or filterlist.get_current_index(menudata.worldlist,
 				tonumber(core.settings:get("mainmenu_last_selected_world"))) or 0
@@ -229,7 +237,7 @@ local function get_formspec(tabview, name, tabdata)
 
 	if core.settings:get_bool("enable_server") and disabled_settings["enable_server"] == nil then
 		retval = retval ..
-				"button[10.1875,5.925;4.9375,0.8;play;".. fgettext("Host Game") .. "]" ..
+				"button[5.25,5.925;9.875,0.8;play;".. fgettext("Host Game") .. "]" ..
 				"container[0.375,0.375]" ..
 				"checkbox[0,"..y..";cb_server_announce;" .. fgettext("Announce Server") .. ";" ..
 				dump(core.settings:get_bool("server_announce")) .. "]"
@@ -264,7 +272,7 @@ local function get_formspec(tabview, name, tabdata)
 		retval = retval .. "container_end[]"
 	elseif world then
 		retval = retval ..
-				"button[10.1875,5.925;4.9375,0.8;play;" .. fgettext("Play Game") .. "]"
+				"button[5.25,5.925;9.875,0.8;play;" .. fgettext("Play Game") .. "]"
 	end
 
 	return retval

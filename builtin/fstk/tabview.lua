@@ -82,7 +82,7 @@ local function get_formspec(self)
 	end
 
 	local formspec = (prepend or "")
-	formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#0000008C]"):format(
+	formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#00000040]"):format(
 			TABHEADER_H, orig_tsize.width, orig_tsize.height)
 	formspec = formspec .. self:tab_header(tab_header_size) .. content
 
@@ -155,22 +155,28 @@ end
 
 --------------------------------------------------------------------------------
 local function tab_header(self, size)
-	local toadd = ""
-
+	local fs = {}
+	local col_width = size.width / #self.tablist
 	for i = 1, #self.tablist do
-		if toadd ~= "" then
-			toadd = toadd .. ","
-		end
-
 		local caption = self.tablist[i].caption
 		if type(caption) == "function" then
 			caption = caption(self)
 		end
-
-		toadd = toadd .. caption
+		local btn_name = self.name .. "_tab_" .. i
+		local bg = (i == self.last_tab_index) and "#467832" or "#00000060"
+		local tc = (i == self.last_tab_index) and "#ffffff" or "#aaaaaa"
+		fs[#fs + 1] = ("style[%s;bgcolor=%s;textcolor=%s;border=false;content_offset=0;font=%s]"):format(
+			btn_name, bg, tc, (i == self.last_tab_index) and "bold" or "normal")
+		fs[#fs + 1] = ("button[%f,%f;%f,%f;%s;%s]"):format(
+			self.header_x + (i - 1) * col_width,
+			self.header_y - size.height,
+			col_width,
+			size.height,
+			btn_name,
+			core.formspec_escape(caption)
+		)
 	end
-	return string.format("tabheader[%f,%f;%f,%f;%s;%s;%i;true;false]",
-			self.header_x, self.header_y, size.width, size.height, self.name, toadd, self.last_tab_index)
+	return table.concat(fs, "")
 end
 
 --------------------------------------------------------------------------------
@@ -204,6 +210,14 @@ local function handle_tab_buttons(self,fields)
 		local index = tonumber(fields[self.name])
 		switch_to_tab(self, index)
 		return true
+	end
+
+	for i = 1, #self.tablist do
+		local btn_name = self.name .. "_tab_" .. i
+		if fields[btn_name] then
+			switch_to_tab(self, i)
+			return true
+		end
 	end
 
 	return false

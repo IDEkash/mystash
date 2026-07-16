@@ -512,11 +512,10 @@ void GameFormSpec::showPauseMenu()
 		by += b_step;
 	}
 
-	// Exit buttons at bottom side-by-side
-	float exit_y = 5.9f;
-	float exit_w = (actions_w - 0.8f) / 2.0f;
-	os << "button_exit[" << (actions_x + 0.3f) << "," << exit_y << ";" << exit_w << ",0.7;btn_exit_menu;" << strgettext("Exit to Menu") << "]"
-	   << "button_exit[" << (actions_x + 0.3f + exit_w + 0.2f) << "," << exit_y << ";" << exit_w << ",0.7;btn_exit_os;" << strgettext("Exit to OS") << "]";
+	// Exit buttons stacked vertically similar to top buttons
+	os << "button_exit[" << (actions_x + 0.3f) << "," << by << ";" << bw << ",0.7;btn_exit_menu;" << strgettext("Exit to Menu") << "]";
+	by += b_step;
+	os << "button_exit[" << (actions_x + 0.3f) << "," << by << ";" << bw << ",0.7;btn_exit_os;" << strgettext("Exit to OS") << "]";
 
 	/* Create menu */
 	/* Note: FormspecFormSource and LocalFormspecHandler  *

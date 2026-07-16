@@ -512,6 +512,8 @@ local function get_formspec(dialogdata)
 	local left_pane_padding = 0.25
 	local search_width = left_pane_width + scrollbar_w - (0.75 * 2)
 
+	local right_pane_width = tabsize.width - left_pane_width - 0.375 - 2*scrollbar_w - 0.25
+
 	local back_w = 3
 	local checkbox_w = (tabsize.width - back_w - 2*0.2) / 2
 	local show_technical_names = core.settings:get_bool("show_technical_names")
@@ -528,21 +530,27 @@ local function get_formspec(dialogdata)
 		-- HACK: this is needed to allow resubmitting the same formspec
 		formspec_show_hack and " " or "",
 
-		"box[0,0;", tostring(tabsize.width), ",", tostring(tabsize.height), ";#0000008C]",
+		"style[back;bgcolor=#9b2c2c;textcolor=white]",
+
+		-- 2 tables (panels) with borders, similar to style of paused menu
+		("box[%f,%f;%f,%f;#00000060]"):format(
+			0.125, 0.125, left_pane_width + 0.4, tabsize.height - 0.25),
+		("box[%f,%f;%f,%f;#00000060]"):format(
+			tabsize.width - right_pane_width - scrollbar_w - 0.15, 0.125, right_pane_width + 0.25, tabsize.height - 0.25),
 
 		("button[0,%f;%f,0.8;back;%s]"):format(
 				tabsize.height + 0.2, back_w,
 				-- TRANSLATORS: Button text to go back
 				fgettext("Back")),
 
-		("box[%f,%f;%f,0.8;#0000008C]"):format(
+		("box[%f,%f;%f,0.8;#00000060]"):format(
 			back_w + 0.2, tabsize.height + 0.2, checkbox_w),
 		("checkbox[%f,%f;show_technical_names;%s;%s]"):format(
 			back_w + 2*0.2, tabsize.height + 0.6,
 			-- TRANSLATORS: Checkbox that toggles displaying the technical setting names
 			fgettext("Show technical names"), tostring(show_technical_names)),
 
-		("box[%f,%f;%f,0.8;#0000008C]"):format(
+		("box[%f,%f;%f,0.8;#00000060]"):format(
 			back_w + 2*0.2 + checkbox_w, tabsize.height + 0.2, checkbox_w),
 		("checkbox[%f,%f;show_advanced;%s;%s]"):format(
 			back_w + 3*0.2 + checkbox_w, tabsize.height + 0.6,
@@ -601,7 +609,7 @@ local function get_formspec(dialogdata)
 		dialogdata.components = page and build_page_components(page) or {}
 	end
 
-	local right_pane_width = tabsize.width - left_pane_width - 0.375 - 2*scrollbar_w - 0.25
+	right_pane_width = tabsize.width - left_pane_width - 0.375 - 2*scrollbar_w - 0.25
 	fs[#fs + 1] = ("scroll_container[%f,0;%f,%f;rightscroll;vertical;0.1;0.25]"):format(
 			tabsize.width - right_pane_width - scrollbar_w, right_pane_width, tabsize.height)
 

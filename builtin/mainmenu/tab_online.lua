@@ -97,6 +97,10 @@ local function get_formspec(tabview, name, tabdata)
 	end
 
 	local retval =
+		"style[btn_mp_login;bgcolor=#467832;textcolor=white;font=bold]" ..
+		"style[btn_mp_register;bgcolor=#43464b;textcolor=white]" ..
+		"box[0.15,0.15;9.45,6.8;#00000060]" ..
+
 		-- Search
 		"field[0.25,0.25;7,0.75;te_search;;" .. core.formspec_escape(tabdata.search_for) .. "]" ..
 		"tooltip[te_search;" .. table.concat({
@@ -118,7 +122,7 @@ local function get_formspec(tabview, name, tabdata)
 		"container_end[]" ..
 
 		"container[9.75,0]" ..
-		"box[0,0;5.75,7.1;#666666]" ..
+		"box[0,0;5.75,7.1;#00000060]" ..
 
 		-- TRANSLATORS: Network address
 		"label[0.25,0.35;" .. fgettext("Address") .. "]" ..
@@ -131,7 +135,7 @@ local function get_formspec(tabview, name, tabdata)
 
 		-- Description Background
 		"label[0.25,1.6;" .. fgettext("Server Description") .. "]" ..
-		"box[0.25,1.85;5.25,2.7;#999999]"..
+		"box[0.25,1.85;5.25,2.7;#00000040]"..
 
 		-- Name / Password
 		"container[0,4.8]" ..
