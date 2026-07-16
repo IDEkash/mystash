@@ -205,8 +205,10 @@ local function get_formspec(dlgdata)
 	local category_button_w = math.min(max_button_w, 3)
 	local function make_category_button(name, label, selected)
 		category_x = category_x + 1
-		local color = selected and mt_color_green or ""
-		return ("style[%s;bgcolor=%s]button[%f,0;%f,0.8;%s;%s]"):format(name, color,
+		local bg_color = selected and "#467832" or "#43464b"
+		local text_color = "white"
+		local font_style = selected and "bold" or "normal"
+		return ("style[%s;bgcolor=%s;textcolor=%s;border=false;font=%s]button[%f,0;%f,0.8;%s;%s]"):format(name, bg_color, text_color, font_style,
 				(category_x - 1) * category_button_w, category_button_w, name, label)
 	end
 
@@ -241,6 +243,7 @@ local function get_formspec(dlgdata)
 
 		-- Bottom strip start
 		"container[0,", H - 0.8, "]",
+		"style[back;bgcolor=#9b2c2c;textcolor=white]",
 		"button[0,0;2,0.8;back;", fgettext("Back"), "]",
 
 		-- Bottom-center: Page nav buttons
@@ -304,6 +307,7 @@ local function get_formspec(dlgdata)
 	-- TRANSLATORS: A download is queued
 	formspec[#formspec + 1] = "tooltip[queued;" .. fgettext("Queued") .. tooltip_colors
 
+	formspec[#formspec + 1] = ("box[0,1.2;%f,%f;#00000060]"):format(W, H - 2.225)
 	formspec[#formspec + 1] = "container[0,1.425]"
 
 	local cell_spacing, columns, cell_w, cell_h = fit_cells(num_per_page, {
@@ -331,7 +335,7 @@ local function get_formspec(dlgdata)
 			(cell_h + cell_spacing) * math.floor((i - start_idx) / columns),
 			"]",
 
-			"box[0,0;", cell_w, ",", cell_h, ";#ffffff11]",
+			"box[0,0;", cell_w, ",", cell_h, ";#00000040]",
 
 			-- image,
 			"image[0,0;", img_w, ",", cell_h, ";",

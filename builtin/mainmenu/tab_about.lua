@@ -82,7 +82,12 @@ return {
 
 		hypertext = table.concat(hypertext):sub(1, -2)
 
-		local fs = "image[1.5,0.6;2.5,2.5;" .. core.formspec_escape(logofile) .. "]" ..
+		local fs = "style[homepage;bgcolor=#467832;textcolor=white;font=bold]" ..
+			"style[userdata;bgcolor=#43464b;textcolor=white]" ..
+			"style[share_debug;bgcolor=#43464b;textcolor=white]" ..
+			"box[0.15,0.15;5.2,6.8;#00000060]" ..
+			"box[5.45,0.15;9.9,6.8;#00000060]" ..
+			"image[1.5,0.6;2.5,2.5;" .. core.formspec_escape(logofile) .. "]" ..
 			"style[label_button;border=false]" ..
 			"button[0.1,3.4;5.3,0.5;label_button;" ..
 			core.formspec_escape(version.project .. " " .. version.string) .. "]" ..

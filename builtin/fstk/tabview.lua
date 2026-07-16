@@ -163,7 +163,7 @@ local function tab_header(self, size)
 			caption = caption(self)
 		end
 		local btn_name = self.name .. "_tab_" .. i
-		local bg = (i == self.last_tab_index) and "#467832" or "#00000060"
+		local bg = (i == self.last_tab_index) and "#467832E0" or "#1A1A1AE0"
 		local tc = (i == self.last_tab_index) and "#ffffff" or "#aaaaaa"
 		fs[#fs + 1] = ("style[%s;bgcolor=%s;textcolor=%s;border=false;content_offset=0;font=%s]"):format(
 			btn_name, bg, tc, (i == self.last_tab_index) and "bold" or "normal")

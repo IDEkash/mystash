@@ -66,6 +66,16 @@ local function get_formspec(tabview, name, tabdata)
 	end
 
 	local retval = {
+		"style[btn_contentdb;bgcolor=#467832;textcolor=white;font=bold]",
+		"style[btn_mod_mgr_update;bgcolor=#467832;textcolor=white;font=bold]",
+		"style[btn_mod_mgr_delete_mod;bgcolor=#9b2c2c;textcolor=white;font=bold]",
+		"style[btn_mod_mgr_rename_modpack;bgcolor=#43464b;textcolor=white]",
+		"style[btn_mod_mgr_disable_txp;bgcolor=#43464b;textcolor=white]",
+		"style[btn_mod_mgr_use_txp;bgcolor=#43464b;textcolor=white]",
+
+		"box[0.15,0.15;6.8,6.8;#00000060]",
+		"box[7.0,0.15;8.35,6.8;#00000060]",
+
 		"label[0.4,0.4;", fgettext("Installed Packages:"), "]",
 		"tablecolumns[color;tree;image,align=inline,width=1.5",
 			",tooltip=", fgettext("Update available?"),
@@ -171,7 +181,7 @@ local function get_formspec(tabview, name, tabdata)
 		table.insert_all(retval, {
 			"image[7.1,0.2;3,2;", core.formspec_escape(modscreenshot), "]",
 			"label[10.5,1;", core.formspec_escape(title_and_name), "]",
-			"box[7.1,2.4;8,", tostring(desc_height), ";#000]",
+			"box[7.1,2.4;8,", tostring(desc_height), ";#00000040]",
 			"textarea[7.1,2.4;8,", tostring(desc_height), ";;;", desc, "]",
 		})
 
