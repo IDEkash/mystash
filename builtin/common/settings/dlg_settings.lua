@@ -532,6 +532,9 @@ local function get_formspec(dialogdata)
 
 		"style[back;bgcolor=#9b2c2c;textcolor=white]",
 
+		-- Solid background frame box (not transparent)
+		"box[0,0;", tostring(tabsize.width), ",", tostring(tabsize.height), ";#000000B0]",
+
 		-- 2 tables (panels) with borders, similar to style of paused menu
 		("box[%f,%f;%f,%f;#00000060]"):format(
 			0.125, 0.125, left_pane_width + 0.4, tabsize.height - 0.25),

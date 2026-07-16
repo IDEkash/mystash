@@ -82,7 +82,7 @@ local function get_formspec(self)
 	end
 
 	local formspec = (prepend or "")
-	formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#00000000]"):format(
+	formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#000000B0]"):format(
 			TABHEADER_H, orig_tsize.width, orig_tsize.height)
 	formspec = formspec .. self:tab_header(tab_header_size) .. content
 

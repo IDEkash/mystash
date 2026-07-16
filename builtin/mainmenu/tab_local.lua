@@ -256,7 +256,8 @@ local function get_formspec(tabview, name, tabdata)
 	-- Title on bottom left side of the left pane
 	if not tabdata.games_expanded then
 		local ver_str = core.get_version().string
-		retval = retval .. ("label[0.35,6.3;\\x1b(c@#467832)Luanti \\x1b(c@#ffffff)%s]"):format(core.formspec_escape(ver_str))
+		local colored_text = core.colorize("#467832", "Luanti ") .. core.colorize("#ffffff", core.formspec_escape(ver_str))
+		retval = retval .. "label[0.35,6.3;" .. colored_text .. "]"
 	end
 
 	return retval
