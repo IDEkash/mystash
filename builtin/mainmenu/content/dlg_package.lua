@@ -118,20 +118,28 @@ local function get_formspec(data)
 		"padding[0,0]",
 		"bgcolor[;true]",
 
+		-- Solid dark premium background backdrop (Layer 1)
+		"box[-0.5,-0.5;", size.x + 1, ",", size.y + 1, ";#0c0c0cf8]",
+
 		"container[", window_padding.x, ",", window_padding.y, "]",
 
+		-- Translucent Header Card Panel (Layer 2)
+		"box[-0.15,-0.15;", W + 0.3, ",2.45;#00000060]",
+
+		"style[back;bgcolor=#9b2c2c;textcolor=white]",
 		"button[0,", bottom_buttons_y, ";2,0.8;back;", fgettext("Back"), "]",
-		"button[", W - 3, ",", bottom_buttons_y, ";3,0.8;open_contentdb;", fgettext("ContentDB page"), "]",
+		"style[open_contentdb;bgcolor=#43464b;textcolor=white]",
+		"button[", W - 3.5, ",", bottom_buttons_y, ";3.5,0.8;open_contentdb;", fgettext("ContentDB page"), "]",
 
 		"style_type[label;font_size=+24;font=bold]",
-		"label[0,0.4;", core.formspec_escape(package.title), "]",
+		"label[0.2,0.4;", core.formspec_escape(package.title), "]",
 		"style_type[label;font_size=;font=]",
 
-		"label[0,1.2;", core.formspec_escape(info_line), "]",
+		"label[0.2,1.2;", core.formspec_escape(info_line), "]",
 	}
 
 	table.insert_all(formspec, {
-		"container[", W - 6, ",0]"
+		"container[", W - 6.2, ",0.4]"
 	})
 
 	local left_button_rect = "0,0;2.875,1"
@@ -148,7 +156,8 @@ local function get_formspec(data)
 		-- TRANSLATORS: $1 = download size
 		local label = info and fgettext("Install [$1]", info.download_size) or
 			fgettext("Install")
-		formspec[#formspec + 1] = "style[install;bgcolor=green]"
+		-- Golden-yellow/orange CTA highlight highlight background (#ff9f1c)
+		formspec[#formspec + 1] = "style[install;bgcolor=#ff9f1c;textcolor=black;font=bold]"
 		formspec[#formspec + 1] = "button["
 		formspec[#formspec + 1] = right_button_rect
 		formspec[#formspec + 1] =";install;"
@@ -157,7 +166,7 @@ local function get_formspec(data)
 	else
 		if package.installed_release < package.release then
 			-- The install_ action also handles updating
-			formspec[#formspec + 1] = "style[install;bgcolor=#28ccdf]"
+			formspec[#formspec + 1] = "style[install;bgcolor=#28ccdf;textcolor=white]"
 			formspec[#formspec + 1] = "button["
 			formspec[#formspec + 1] = left_button_rect
 			formspec[#formspec + 1] = ";install;"
@@ -165,7 +174,7 @@ local function get_formspec(data)
 			formspec[#formspec + 1] = "]"
 		end
 
-		formspec[#formspec + 1] = "style[uninstall;bgcolor=#a93b3b]"
+		formspec[#formspec + 1] = "style[uninstall;bgcolor=#a93b3b;textcolor=white]"
 		formspec[#formspec + 1] = "button["
 		formspec[#formspec + 1] = right_button_rect
 		formspec[#formspec + 1] = ";uninstall;"
@@ -183,23 +192,37 @@ local function get_formspec(data)
 		table.insert(tab_titles, fgettext("Reviews") .. core.formspec_escape(" [" .. review_count .. "]"))
 	end
 
-	local tab_body_height = bottom_buttons_y - 2.8
+	local tab_body_height = bottom_buttons_y - 3.4
 
 	table.insert_all(formspec, {
 		"container_end[]",
 
-		"box[0,2.55;", W, ",", tab_body_height, ";#ffffff11]",
+		-- Translucent Content Card Panel (Layer 2)
+		"box[-0.15,3.35;", W + 0.3, ",", tab_body_height + 0.15, ";#00000060]",
 
-		"tabheader[0,2.55;", W, ",0.8;tabs;",
-		table.concat(tab_titles, ","), ";", current_tab, ";true;true]",
+		"container[0,2.55]",
+	})
 
-		"container[0,2.8]",
+	-- Horizontal Connected Styled Tab Header Row
+	local tab_w = W / #tab_titles
+	for idx, title in ipairs(tab_titles) do
+		local bg_col = (idx == current_tab) and "#467832E0" or "#1E1E1EE5"
+		local text_col = (idx == current_tab) and "#ffffff" or "#aaaaaa"
+		local font_style = (idx == current_tab) and "bold" or "normal"
+		formspec[#formspec + 1] = ("style[cust_pkg_tab_%d;bgcolor=%s;textcolor=%s;border=false;font=%s]button[%f,0;%f,0.8;cust_pkg_tab_%d;%s]"):format(
+			idx, bg_col, text_col, font_style, (idx - 1) * tab_w, tab_w, idx, title
+		)
+	end
+
+	table.insert_all(formspec, {
+		"container_end[]",
+		"container[0,3.5]",
 	})
 
 	if current_tab == 1 then
 		local hypertext = get_description_hypertext(package, info, data.loading_error)
 		table.insert_all(formspec, {
-			"hypertext[0,0;", W, ",", tab_body_height - 0.375,
+			"hypertext[0,0;", W, ",", tab_body_height - 0.3,
 			";desc;", core.formspec_escape(hypertext), "]",
 		})
 
@@ -207,7 +230,7 @@ local function get_formspec(data)
 		assert(info)
 		local hypertext = info.info_hypertext.head .. info.info_hypertext.body
 		table.insert_all(formspec, {
-			"hypertext[0,0;", W, ",", tab_body_height - 0.375,
+			"hypertext[0,0;", W, ",", tab_body_height - 0.3,
 			";info;", core.formspec_escape(hypertext), "]",
 		})
 	elseif current_tab == 3 then
@@ -236,7 +259,7 @@ local function get_formspec(data)
 			hypertext = hypertext:gsub("<neutral>",
 					"<img name=\"" .. core.hypertext_escape(defaulttexturedir) .. "contentdb_neutral.png\" width=24>")
 			table.insert_all(formspec, {
-				"hypertext[0,0;", W, ",", tab_body_height - 0.375,
+				"hypertext[0,0;", W, ",", tab_body_height - 0.3,
 				";reviews;", core.formspec_escape(hypertext), "]",
 			})
 		elseif data.reviews_error then
@@ -318,6 +341,14 @@ local function handle_submit(this, fields)
 		this:hide()
 		dlg:show()
 		return true
+	end
+
+	-- Handle custom styled tab header clicks
+	for idx = 1, 3 do
+		if fields["cust_pkg_tab_" .. idx] then
+			this.data.current_tab = idx
+			return true
+		end
 	end
 
 	-- The events handled below are only valid if the package info has finished

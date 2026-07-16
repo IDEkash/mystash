@@ -204,8 +204,8 @@ local function get_formspec(dlgdata)
 	local max_button_w = (W - 0.375 - 0.25 - 7) / number_category_buttons
 	local category_button_w = math.min(max_button_w, 3)
 	local function make_category_button(name, label, selected, idx)
-		local bg_color = selected and "#467832" or "#43464b"
-		local text_color = "white"
+		local bg_color = selected and "#ff9f1c" or "#1E1E1EE5"
+		local text_color = selected and "black" or "white"
 		local font_style = selected and "bold" or "normal"
 		return ("style[%s;bgcolor=%s;textcolor=%s;border=false;font=%s]button[0,%f;3.0,0.8;%s;%s]"):format(name, bg_color, text_color, font_style,
 				(idx - 1) * 0.95, name, label)
@@ -220,6 +220,9 @@ local function get_formspec(dlgdata)
 		"size[", size.x, ",", size.y, "]",
 		"padding[0,0]",
 		"bgcolor[;true]",
+
+		-- Solid dark premium background backdrop (Layer 1)
+		"box[-0.5,-0.5;", size.x + 1, ",", size.y + 1, ";#0c0c0cf8]",
 
 		"container[", window_padding.x, ",", window_padding.y, "]",
 
