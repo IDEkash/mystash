@@ -122,7 +122,7 @@ local function get_formspec(tabview, name, tabdata)
 		"container_end[]" ..
 
 		"container[9.75,0]" ..
-		"box[0,0;5.75,7.1;#00000060]" ..
+		"box[0,0.15;5.6,6.8;#00000060]" ..
 
 		-- TRANSLATORS: Network address
 		"label[0.25,0.35;" .. fgettext("Address") .. "]" ..

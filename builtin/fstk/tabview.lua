@@ -82,7 +82,7 @@ local function get_formspec(self)
 	end
 
 	local formspec = (prepend or "")
-	formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#00000040]"):format(
+	formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#00000000]"):format(
 			TABHEADER_H, orig_tsize.width, orig_tsize.height)
 	formspec = formspec .. self:tab_header(tab_header_size) .. content
 
@@ -157,13 +157,19 @@ end
 local function tab_header(self, size)
 	local fs = {}
 	local col_width = size.width / #self.tablist
+	fs[#fs + 1] = ("box[%f,%f;%f,%f;#1E1E1EE5]"):format(
+		self.header_x,
+		self.header_y - size.height,
+		size.width,
+		size.height
+	)
 	for i = 1, #self.tablist do
 		local caption = self.tablist[i].caption
 		if type(caption) == "function" then
 			caption = caption(self)
 		end
 		local btn_name = self.name .. "_tab_" .. i
-		local bg = (i == self.last_tab_index) and "#467832E0" or "#1A1A1AE0"
+		local bg = (i == self.last_tab_index) and "#467832E0" or "#1E1E1EE5"
 		local tc = (i == self.last_tab_index) and "#ffffff" or "#aaaaaa"
 		fs[#fs + 1] = ("style[%s;bgcolor=%s;textcolor=%s;border=false;content_offset=0;font=%s]"):format(
 			btn_name, bg, tc, (i == self.last_tab_index) and "bold" or "normal")
