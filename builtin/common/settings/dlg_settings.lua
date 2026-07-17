@@ -502,18 +502,16 @@ local function get_formspec(dialogdata)
 
 	local extra_h = 1 -- not included in tabsize.height
 	local tabsize = {
-		width = core.settings:get_bool("touch_gui") and 16.5 or 15.5,
-		height = core.settings:get_bool("touch_gui") and (10 - extra_h) or 12,
+		width = core.settings:get_bool("touch_gui") and 16.5 or 16.0,
+		height = core.settings:get_bool("touch_gui") and (10.5 - extra_h) or 11.5,
 	}
 
 	local scrollbar_w = core.settings:get_bool("touch_gui") and 0.6 or 0.4
 
-	local left_pane_width = core.settings:get_bool("touch_gui") and 4.5 or 4.25
+	local left_pane_width = core.settings:get_bool("touch_gui") and 4.8 or 4.6
 	local left_pane_padding = 0.25
-	local search_width = left_pane_width + scrollbar_w - (0.75 * 2)
+	local search_width = 4.8
 
-	local back_w = 3
-	local checkbox_w = (tabsize.width - back_w - 2*0.2) / 2
 	local show_technical_names = core.settings:get_bool("show_technical_names")
 	local show_advanced = core.settings:get_bool("show_advanced")
 
@@ -528,41 +526,41 @@ local function get_formspec(dialogdata)
 		-- HACK: this is needed to allow resubmitting the same formspec
 		formspec_show_hack and " " or "",
 
-		"box[0,0;", tostring(tabsize.width), ",", tostring(tabsize.height), ";#0000008C]",
+		-- Under-dialog premium gradient background!
+		"style_type[box;colors=#0f172a,#1e293b,#1e293b,#0f172a]",
+		"box[0,0;", tostring(tabsize.width), ",", tostring(tabsize.height + extra_h), ";]",
 
-		("button[0,%f;%f,0.8;back;%s]"):format(
-				tabsize.height + 0.2, back_w,
+		-- Top Header Area
+		"style[title_lbl;font=bold;font_size=+16;textcolor=#38bdf8]",
+		"label[0.4,0.4;title_lbl;", fgettext("SETTINGS"), "]",
+
+		-- Back button (placed in top right)
+		"style[back;bgcolor=#9b2c2c;textcolor=white;font=bold;border=false]",
+		"style[back:hovered;bgcolor=#b91c1c]",
+		"style[back:pressed;bgcolor=#7f1d1d]",
+		("button[%f,0.3;2.5,0.8;back;%s]"):format(
+				tabsize.width - 2.8,
 				-- TRANSLATORS: Button text to go back
 				fgettext("Back")),
 
-		("box[%f,%f;%f,0.8;#0000008C]"):format(
-			back_w + 0.2, tabsize.height + 0.2, checkbox_w),
-		("checkbox[%f,%f;show_technical_names;%s;%s]"):format(
-			back_w + 2*0.2, tabsize.height + 0.6,
-			-- TRANSLATORS: Checkbox that toggles displaying the technical setting names
-			fgettext("Show technical names"), tostring(show_technical_names)),
-
-		("box[%f,%f;%f,0.8;#0000008C]"):format(
-			back_w + 2*0.2 + checkbox_w, tabsize.height + 0.2, checkbox_w),
-		("checkbox[%f,%f;show_advanced;%s;%s]"):format(
-			back_w + 3*0.2 + checkbox_w, tabsize.height + 0.6,
-			fgettext("Show advanced settings"), tostring(show_advanced)),
-
-		"field[0.25,0.25;", tostring(search_width), ",0.75;search_query;;",
-			core.formspec_escape(dialogdata.query or ""), "]",
+		-- Search bar in top center
+		"field[4.5,0.35;5.0,0.75;search_query;;", core.formspec_escape(dialogdata.query or ""), "]",
 		"field_enter_after_edit[search_query;true]",
 		"field_close_on_enter[search_query;false]", -- for pause menu env
-		"container[", tostring(search_width + 0.25), ", 0.25]",
+		"container[9.6,0.35]",
 			"image_button[0,0;0.75,0.75;", core.formspec_escape(defaulttexturedir .. "search.png"), ";search;]",
 			"image_button[0.75,0;0.75,0.75;", core.formspec_escape(defaulttexturedir .. "clear.png"), ";search_clear;]",
 			"tooltip[search;", fgettext("Search"), "]",
 			-- TRANSLATORS: Tooltip of a button that clears input
 			"tooltip[search_clear;", fgettext("Clear"), "]",
 		"container_end[]",
-		("scroll_container[0.25,1.25;%f,%f;leftscroll;vertical;0.1;0]"):format(
-			left_pane_width, tabsize.height - 1.5),
-		"style_type[button;border=false;bgcolor=#3333]",
-		"style_type[button:hover;border=false;bgcolor=#6663]",
+
+		-- Solid Layer 2 Card Background for Left Navigation Pane
+		("box[0.3,1.4;%f,%f;#1e293bB0]"):format(
+			left_pane_width + 0.05, tabsize.height - 2.1),
+
+		("scroll_container[0.4,1.55;%f,%f;leftscroll;vertical;0.1;0]"):format(
+			left_pane_width - left_pane_padding, tabsize.height - 2.4),
 	}
 
 	local y = 0
@@ -574,10 +572,16 @@ local function get_formspec(dialogdata)
 			last_section = other_page.section
 			y = y + 0.82
 		end
-		fs[#fs + 1] = ("box[0,%f;%f,0.8;%s]"):format(
-			y, left_pane_width-left_pane_padding, other_page.id == page_id and "#467832FF" or "#3339")
+		-- Styled category buttons with active highlight and touch hover states
+		if other_page.id == page_id then
+			fs[#fs + 1] = ("style[page_%s;bgcolor=#0284c7;textcolor=white;font=bold;border=false]"):format(other_page.id)
+		else
+			fs[#fs + 1] = ("style[page_%s;bgcolor=#334155;textcolor=#cbd5e1;border=false]"):format(other_page.id)
+			fs[#fs + 1] = ("style[page_%s:hovered;bgcolor=#475569;textcolor=white]"):format(other_page.id)
+			fs[#fs + 1] = ("style[page_%s:pressed;bgcolor=#1e293b]"):format(other_page.id)
+		end
 		fs[#fs + 1] = ("button[0,%f;%f,0.8;page_%s;%s]")
-			:format(y, left_pane_width-left_pane_padding, other_page.id, fgettext(other_page.title))
+			:format(y, left_pane_width - left_pane_padding - 0.1, other_page.id, fgettext(other_page.title))
 		y = y + 0.82
 	end
 
@@ -590,24 +594,26 @@ local function get_formspec(dialogdata)
 
 	fs[#fs + 1] = "scroll_container_end[]"
 
-	if y >= tabsize.height - 1.25 then
-		fs[#fs + 1] = ("scrollbar[%f,1.25;%f,%f;vertical;leftscroll;%f]"):format(
-				left_pane_width + 0.25, scrollbar_w, tabsize.height - 1.5, dialogdata.leftscroll or 0)
+	if y >= (tabsize.height - 2.4) then
+		fs[#fs + 1] = ("scrollbar[%f,1.55;%f,%f;vertical;leftscroll;%f]"):format(
+				left_pane_width + 0.1, scrollbar_w, tabsize.height - 2.4, dialogdata.leftscroll or 0)
 	end
 
-	fs[#fs + 1] = "style_type[button;border=;bgcolor=]"
+	-- Solid Layer 2 Card Background for Right Settings Pane
+	fs[#fs + 1] = ("box[%f,1.4;%f,%f;#1e293bB0]"):format(
+		left_pane_width + 0.5, tabsize.width - left_pane_width - 0.8, tabsize.height - 2.1)
 
 	if not dialogdata.components then
 		dialogdata.components = page and build_page_components(page) or {}
 	end
 
-	local right_pane_width = tabsize.width - left_pane_width - 0.375 - 2*scrollbar_w - 0.25
-	fs[#fs + 1] = ("scroll_container[%f,0;%f,%f;rightscroll;vertical;0.1;0.25]"):format(
-			tabsize.width - right_pane_width - scrollbar_w, right_pane_width, tabsize.height)
+	local right_pane_width = tabsize.width - left_pane_width - 1.1 - 2*scrollbar_w
+	fs[#fs + 1] = ("scroll_container[%f,1.55;%f,%f;rightscroll;vertical;0.1;0.25]"):format(
+			left_pane_width + 0.8, right_pane_width, tabsize.height - 2.4)
 
-	y = 0.25
+	local cy = 0.25
 	for i, comp in ipairs(dialogdata.components) do
-		fs[#fs + 1] = ("container[0,%f]"):format(y)
+		fs[#fs + 1] = ("container[0,%f]"):format(cy)
 
 		local avail_w = right_pane_width - 0.25
 		if not comp.full_width then
@@ -681,16 +687,26 @@ local function get_formspec(dialogdata)
 				spacing = next_comp.spacing
 			end
 
-			y = y + used_h + spacing
+			cy = cy + used_h + spacing
 		end
 	end
 
 	fs[#fs + 1] = "scroll_container_end[]"
 
-	if y >= tabsize.height then
-		fs[#fs + 1] = ("scrollbar[%f,0;%f,%f;vertical;rightscroll;%f]"):format(
-				tabsize.width - scrollbar_w, scrollbar_w, tabsize.height, dialogdata.rightscroll or 0)
+	if cy >= (tabsize.height - 2.4) then
+		fs[#fs + 1] = ("scrollbar[%f,1.55;%f,%f;vertical;rightscroll;%f]"):format(
+				tabsize.width - 0.3 - scrollbar_w, scrollbar_w, tabsize.height - 2.4, dialogdata.rightscroll or 0)
 	end
+
+	-- Footer Row for Options with plenty of spacing to prevent overlap
+	fs[#fs + 1] = ("checkbox[0.4,%f;show_technical_names;%s;%s]"):format(
+		tabsize.height - 0.4,
+		-- TRANSLATORS: Checkbox that toggles displaying the technical setting names
+		fgettext("Show technical names"), tostring(show_technical_names))
+
+	fs[#fs + 1] = ("checkbox[7.0,%f;show_advanced;%s;%s]"):format(
+		tabsize.height - 0.4,
+		fgettext("Show advanced settings"), tostring(show_advanced))
 
 	return table.concat(fs, "")
 end
