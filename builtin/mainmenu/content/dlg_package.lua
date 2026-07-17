@@ -311,14 +311,11 @@ local function get_formspec(data)
 			"style[det_hdr;font=bold;font_size=+12]",
 			"label[0.2,0.3;det_hdr;" .. fgettext("Details") .. "]",
 
-			"label[0.2,0.8;" .. fgettext("Luanti Compatibility:") .. "]",
-			"label[0.2,1.2;" .. fgettext("All Versions / Backwards Compatible") .. "]",
+			"label[0.2,0.8;" .. fgettext("Related Mods:") .. "]",
+			"label[0.2,1.2;" .. fgettext("Provides dependency integration") .. "]",
 
-			"label[0.2,1.8;" .. fgettext("Release Date:") .. "]",
-			"label[0.2,2.2;" .. fgettext("Active Rolling Release") .. "]",
-
-			"label[0.2,2.8;" .. fgettext("Developer:") .. "]",
-			"label[0.2,3.2;" .. core.formspec_escape(package.author) .. "]",
+			"label[0.2,1.8;" .. fgettext("Developer:") .. "]",
+			"label[0.2,2.2;" .. core.formspec_escape(package.author) .. "]",
 
 			-- Right Column: Ratings Card
 			"box[" .. (sub_card_w + 0.4) .. ",0;" .. sub_card_w .. "," .. pane_h .. ";#33415560]",
