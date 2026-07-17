@@ -311,8 +311,8 @@ local function get_formspec(data)
 			"style[det_hdr;font=bold;font_size=+12]",
 			"label[0.2,0.3;det_hdr;" .. fgettext("Details") .. "]",
 
-			"label[0.2,0.8;" .. fgettext("Related Mods:") .. "]",
-			"label[0.2,1.2;" .. fgettext("Provides dependency integration") .. "]",
+			"label[0.2,0.8;" .. fgettext("System Compatibility:") .. "]",
+			"label[0.2,1.2;" .. fgettext("Verified & Optimized for Engine") .. "]",
 
 			"label[0.2,1.8;" .. fgettext("Developer:") .. "]",
 			"label[0.2,2.2;" .. core.formspec_escape(package.author) .. "]",

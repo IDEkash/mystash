@@ -200,16 +200,7 @@ local function get_formspec(dlgdata)
 	local H = size.y - window_padding.y * 2
 
 	local selected_type = filter_type
-	local current_category_title = fgettext("All Categories")
-	if selected_type == "game" then
-		current_category_title = fgettext("Games")
-	elseif selected_type == "mod" then
-		current_category_title = fgettext("Mods")
-	elseif selected_type == "txp" then
-		current_category_title = fgettext("Texture Packs")
-	end
 
-	local search_box_width = W - 3.4 - 2*0.8
 	local formspec = {
 		"formspec_version[7]",
 		"size[", size.x, ",", size.y, "]",
@@ -220,23 +211,43 @@ local function get_formspec(dlgdata)
 		"box[-0.5,-0.5;", size.x + 1, ",", size.y + 1, ";#0f172aF2]",
 
 		"container[", window_padding.x, ",", window_padding.y, "]",
+	}
 
-		-- Left: Collapsible Category selector button (Dropdown Style)
-		"style[btn_categories_dropdown;bgcolor=#334155;textcolor=white;font=bold;border=false]",
-		"style[btn_categories_dropdown:hovered;bgcolor=#475569]",
-		"button[0,0;3.2,0.8;btn_categories_dropdown;" .. core.formspec_escape(current_category_title .. " ▾") .. "]",
+	-- Left: Horizontal category selector buttons
+	local cat_buttons = {
+		{ id = "type_all", label = fgettext("All"), active = (selected_type == nil), w = 1.4 },
+		{ id = "type_game", label = fgettext("Games"), active = (selected_type == "game"), w = 1.8 },
+		{ id = "type_mod", label = fgettext("Mods"), active = (selected_type == "mod"), w = 1.6 },
+		{ id = "type_txp", label = fgettext("Textures"), active = (selected_type == "txp"), w = 2.4 },
+	}
 
-		-- Right: Search Box
-		"container[3.4,0]",
-		"field[0,0;", search_box_width, ",0.8;search_string;;", core.formspec_escape(search_string), "]",
-		"field_enter_after_edit[search_string;true]",
-		"image_button[", search_box_width, ",0;0.8,0.8;",
-			core.formspec_escape(defaulttexturedir .. "search.png"), ";search;]",
-		"image_button[", search_box_width + 0.8, ",0;0.8,0.8;",
-			core.formspec_escape(defaulttexturedir .. "clear.png"), ";clear;]",
-		"container_end[]",
+	local current_x = 0
+	for _, cat in ipairs(cat_buttons) do
+		local bg_col = cat.active and "#0284c7" or "#334155"
+		local text_col = "white"
+		local font_style = cat.active and "bold" or "normal"
+		formspec[#formspec + 1] = ("style[%s;bgcolor=%s;textcolor=%s;border=false;font=%s]style[%s:hovered;bgcolor=#475569]button[%f,0;%f,0.8;%s;%s]"):format(
+			cat.id, bg_col, text_col, font_style, cat.id, current_x, cat.w, cat.id, cat.label
+		)
+		current_x = current_x + cat.w + 0.15
+	end
 
-		-- Bottom strip start
+	-- Right: Search Box starting exactly at current_x
+	local search_x = current_x
+	local search_box_width = W - search_x - 1.6
+	formspec[#formspec + 1] = ("field[%f,0;%f,0.8;search_string;;%s]"):format(
+		search_x, search_box_width, core.formspec_escape(search_string)
+	)
+	formspec[#formspec + 1] = "field_enter_after_edit[search_string;true]"
+	formspec[#formspec + 1] = ("image_button[%f,0;0.8,0.8;%s;search;]"):format(
+		search_x + search_box_width, core.formspec_escape(defaulttexturedir .. "search.png")
+	)
+	formspec[#formspec + 1] = ("image_button[%f,0;0.8,0.8;%s;clear;]"):format(
+		search_x + search_box_width + 0.8, core.formspec_escape(defaulttexturedir .. "clear.png")
+	)
+
+	-- Bottom strip start
+	table.insert_all(formspec, {
 		"container[0,", H - 0.8, "]",
 		"style[back;bgcolor=#9b2c2c;textcolor=white]",
 		"style[back:hovered;bgcolor=#b91c1c]",
@@ -255,7 +266,7 @@ local function get_formspec(dlgdata)
 		-- Bottom-right: updating
 		"container[", W - 3, ",0]",
 		"style[status,downloading,queued;border=false]",
-	}
+	})
 
 	if contentdb.number_downloading > 0 then
 		formspec[#formspec + 1] = "button[0,0;3,0.8;downloading;"
@@ -306,26 +317,6 @@ local function get_formspec(dlgdata)
 
 	-- Full Width Packages Browser Box (Layer 2)
 	formspec[#formspec + 1] = ("box[0,1.2;%f,%f;#1e293bB0]"):format(W, H - 2.225)
-
-	-- Check if category dropdown is expanded
-	if dlgdata.categories_expanded then
-		local cats = {
-			{ id = "type_all", label = fgettext("All Categories") },
-			{ id = "type_game", label = fgettext("Games") },
-			{ id = "type_mod", label = fgettext("Mods") },
-			{ id = "type_txp", label = fgettext("Texture Packs") }
-		}
-		formspec[#formspec + 1] = "container[0,0.9]"
-		for idx, cat in ipairs(cats) do
-			local cat_y = (idx - 1) * 0.95
-			local bg_col = (selected_type == filter_type_names[idx][2]) and "#0284c7" or "#334155"
-			local text_col = "white"
-			formspec[#formspec + 1] = ("style[%s;bgcolor=%s;textcolor=%s;border=false;font=bold]style[%s:hovered;bgcolor=#475569]button[0,%f;3.2,0.8;%s;%s]"):format(
-				cat.id, bg_col, text_col, cat.id, cat_y, cat.id, cat.label
-			)
-		end
-		formspec[#formspec + 1] = "container_end[]"
-	end
 
 	formspec[#formspec + 1] = "container[0,1.425]"
 

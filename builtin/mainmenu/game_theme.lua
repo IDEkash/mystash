@@ -6,7 +6,7 @@ mm_game_theme = {}
 
 local COLORS = {
 	dark = { clouds = "#0f172a", sky = "#0f172a" },
-	light = { clouds = "#f0f0ff", sky = "#8cbafa" },
+	light = { clouds = "#0f172a", sky = "#0f172a" },
 }
 
 --------------------------------------------------------------------------------

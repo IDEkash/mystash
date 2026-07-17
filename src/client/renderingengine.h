@@ -159,8 +159,8 @@ public:
 		return s_singleton->m_receiver->getLastPointerType();
 	}
 
-	video::SColor m_menu_sky_color = video::SColor(255, 140, 186, 250);
-	video::SColor m_menu_clouds_color = video::SColor(255, 240, 240, 255);
+	video::SColor m_menu_sky_color = video::SColor(255, 15, 23, 42);
+	video::SColor m_menu_clouds_color = video::SColor(255, 15, 23, 42);
 
 private:
 	static void settingChangedCallback(const std::string &name, void *data);

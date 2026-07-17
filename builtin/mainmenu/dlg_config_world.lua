@@ -96,10 +96,23 @@ local function get_formspec(data)
 
 	local mod = all_mods[data.selected_mod] or {name = ""}
 
+	-- Core premium greyish blue Slate container setup
 	local retval =
-		"size[11.5,7.5,true]" ..
-		"label[0.5,0;" .. fgettext("World:") .. "]" ..
-		"label[1.75,0;" .. core.formspec_escape(data.worldspec.name) .. "]"
+		"formspec_version[7]" ..
+		"size[11.5,8.2]" ..
+		"padding[0.2,0.2]" ..
+		"bgcolor[;true]" ..
+		"box[-0.5,-0.5;12.5,9.2;#0f172aF2]" .. -- Solid Layer 1
+
+		-- Title Header Area
+		"style[title_lbl;font=bold;font_size=+12;textcolor=white]" ..
+		"label[0.3,0.3;title_lbl;" .. fgettext("Configure Mods for:") .. "]" ..
+		"style[world_lbl;font=bold;font_size=+12;textcolor=#38bdf8]" ..
+		"label[4.2,0.3;world_lbl;" .. core.formspec_escape(data.worldspec.name) .. "]" ..
+
+		-- Left Pane Card (Layer 2)
+		"box[0.2,0.8;5.3,6.4;#1e293bB0]" ..
+		"container[0.4,1.0]"
 
 	if mod.is_modpack or mod.type == "game" then
 		local info = core.formspec_escape(
@@ -112,10 +125,10 @@ local function get_formspec(data)
 			end
 		end
 		retval = retval ..
-			"textarea[0.25,0.7;5.75,7.2;;" .. info .. ";]"
+			"textarea[0,0;4.9,6.0;;" .. info .. ";]"
 	elseif mod.type == "worldmods" then
 		retval = retval ..
-			"textarea[0.25,0.7;5.75,7.2;;" ..
+			"textarea[0,0;4.9,6.0;;" ..
 			fgettext("Mods located inside the world folder.") .. ";]"
 	else
 		local hard_deps, soft_deps = pkgmgr.get_dependencies(mod.path)
@@ -148,94 +161,116 @@ local function get_formspec(data)
 		local soft_deps_str = table.concat(soft_deps, ",")
 
 		retval = retval ..
-			"label[0,0.7;" .. fgettext("Mod:") .. "]" ..
-			"label[0.75,0.7;" .. mod.name .. "]"
+			"style[mod_lbl;font=bold;font_size=+12;textcolor=white]" ..
+			"label[0,0;mod_lbl;" .. fgettext("Mod:") .. "]" ..
+			"style[mod_val;font=bold;font_size=+12;textcolor=#38bdf8]" ..
+			"label[1.0,0;mod_val;" .. mod.name .. "]"
 
 		if hard_deps_str == "" then
 			if soft_deps_str == "" then
 				retval = retval ..
-					"label[0,1.25;" ..
+					"label[0,0.85;" ..
 					-- TRANSLATORS: About mod dependencies
 					fgettext("No (optional) dependencies") .. "]"
 			else
 				retval = retval ..
 					-- TRANSLATORS: About mod dependencies
-					"label[0,1.25;" .. fgettext("No hard dependencies") ..
+					"label[0,0.85;" .. fgettext("No hard dependencies") ..
 					"]" ..
 					-- TRANSLATORS: About mod dependencies
-					"label[0,1.75;" .. fgettext("Optional dependencies:") ..
+					"label[0,1.35;" .. fgettext("Optional dependencies:") ..
 					"]" ..
-					"textlist[0,2.25;5,4;world_config_optdepends;" ..
+					"textlist[0,1.85;4.9,3.8;world_config_optdepends;" ..
 					soft_deps_str .. ";0]"
 			end
 		else
 			if soft_deps_str == "" then
 				retval = retval ..
 					-- TRANSLATORS: About mod dependencies
-					"label[0,1.25;" .. fgettext("Dependencies:") .. "]" ..
-					"textlist[0,1.75;5,4;world_config_depends;" ..
+					"label[0,0.85;" .. fgettext("Dependencies:") .. "]" ..
+					"textlist[0,1.35;4.9,4.3;world_config_depends;" ..
 					hard_deps_str .. ";0]" ..
 					-- TRANSLATORS: About mod dependencies
-					"label[0,6;" .. fgettext("No optional dependencies") .. "]"
+					"label[0,5.8;" .. fgettext("No optional dependencies") .. "]"
 			else
 				retval = retval ..
 					-- TRANSLATORS: About mod dependencies
-					"label[0,1.25;" .. fgettext("Dependencies:") .. "]" ..
-					"textlist[0,1.75;5,2.125;world_config_depends;" ..
+					"label[0,0.85;" .. fgettext("Dependencies:") .. "]" ..
+					"textlist[0,1.35;4.9,2.1;world_config_depends;" ..
 					hard_deps_str .. ";0]" ..
 					-- TRANSLATORS: About mod dependencies
-					"label[0,3.9;" .. fgettext("Optional dependencies:") ..
+					"label[0,3.6;" .. fgettext("Optional dependencies:") ..
 					"]" ..
-					"textlist[0,4.375;5,1.8;world_config_optdepends;" ..
+					"textlist[0,4.1;4.9,1.8;world_config_optdepends;" ..
 					soft_deps_str .. ";0]"
 			end
 		end
 	end
 
 	retval = retval ..
-		"button[3.25,7;2.5,0.5;btn_config_world_save;" ..
-		fgettext("Save") .. "]" ..
-		"button[5.75,7;2.5,0.5;btn_config_world_cancel;" ..
-		fgettext("Cancel") .. "]" ..
-		"button[9,7;2.5,0.5;btn_config_world_cdb;" ..
-		fgettext("Find More Mods") .. "]"
+		"container_end[]" .. -- Left Pane container end
+
+		-- Right Pane Card (Layer 2)
+		"box[5.7,0.8;5.6,6.4;#1e293bB0]" ..
+		"container[5.9,1.0]"
 
 	if mod.name ~= "" and not mod.always_on then
 		if mod.is_modpack then
 			if pkgmgr.is_modpack_entirely_enabled(data.list:get_raw_list(), mod) then
 				retval = retval ..
-					"button[5.5,0.125;3,0.5;btn_mp_disable;" ..
-					fgettext("Disable modpack") .. "]"
+					"style[btn_mp_disable;bgcolor=#9b2c2c;textcolor=white;border=false]" ..
+					"style[btn_mp_disable:hovered;bgcolor=#b91c1c]" ..
+					"button[0,0;2.4,0.6;btn_mp_disable;" .. fgettext("Disable modpack") .. "]"
 			else
 				retval = retval ..
-					"button[5.5,0.125;3,0.5;btn_mp_enable;" ..
-					fgettext("Enable modpack") .. "]"
+					"style[btn_mp_enable;bgcolor=#0284c7;textcolor=white;border=false]" ..
+					"style[btn_mp_enable:hovered;bgcolor=#0369a1]" ..
+					"button[0,0;2.4,0.6;btn_mp_enable;" .. fgettext("Enable modpack") .. "]"
 			end
 		else
 			retval = retval ..
-				"checkbox[5.5,-0.125;cb_mod_enable;" .. fgettext("enabled") ..
+				"checkbox[0,-0.125;cb_mod_enable;" .. fgettext("enabled") ..
 				";" .. tostring(mod.enabled) .. "]"
 		end
 	end
 	if enabled_all then
 		retval = retval ..
-			"button[8.95,0.125;2.5,0.5;btn_disable_all_mods;" ..
-			fgettext("Disable all") .. "]"
+			"style[btn_disable_all_mods;bgcolor=#475569;textcolor=white;border=false]" ..
+			"style[btn_disable_all_mods:hovered;bgcolor=#64748b]" ..
+			"button[2.6,0;2.6,0.6;btn_disable_all_mods;" .. fgettext("Disable all") .. "]"
 	else
 		retval = retval ..
-			"button[8.95,0.125;2.5,0.5;btn_enable_all_mods;" ..
-			fgettext("Enable all") .. "]"
+			"style[btn_enable_all_mods;bgcolor=#334155;textcolor=white;border=false]" ..
+			"style[btn_enable_all_mods:hovered;bgcolor=#475569]" ..
+			"button[2.6,0;2.6,0.6;btn_enable_all_mods;" .. fgettext("Enable all") .. "]"
 	end
 
 	local use_technical_names = core.settings:get_bool("show_technical_names")
 
-	return retval ..
+	retval = retval ..
 		"tablecolumns[color;tree;image,align=inline,width=1.5,0=" .. core.formspec_escape(defaulttexturedir .. "blank.png") ..
 			",1=" .. core.formspec_escape(defaulttexturedir .. "checkbox_16.png") ..
 			",2=" .. core.formspec_escape(defaulttexturedir .. "error_icon_orange.png") ..
 			",3=" .. core.formspec_escape(defaulttexturedir .. "error_icon_red.png") .. ";text]" ..
-		"table[5.5,0.75;5.75,6;world_config_modlist;" ..
-		pkgmgr.render_packagelist(data.list, use_technical_names, with_error) .. ";" .. data.selected_mod .."]"
+		"table[0,0.8;5.2,5.2;world_config_modlist;" ..
+		pkgmgr.render_packagelist(data.list, use_technical_names, with_error) .. ";" .. data.selected_mod .."]" ..
+		"container_end[]" -- Right Pane container end
+
+	-- Action buttons at bottom strip
+	retval = retval ..
+		"style[btn_config_world_save;bgcolor=#0284c7;textcolor=white;font=bold;border=false]" ..
+		"style[btn_config_world_save:hovered;bgcolor=#0369a1]" ..
+		"button[0.2,7.4;3.5,0.6;btn_config_world_save;" .. fgettext("Save") .. "]" ..
+
+		"style[btn_config_world_cancel;bgcolor=#9b2c2c;textcolor=white;border=false]" ..
+		"style[btn_config_world_cancel:hovered;bgcolor=#b91c1c]" ..
+		"button[4.0,7.4;3.5,0.6;btn_config_world_cancel;" .. fgettext("Cancel") .. "]" ..
+
+		"style[btn_config_world_cdb;bgcolor=#334155;textcolor=white;border=false]" ..
+		"style[btn_config_world_cdb:hovered;bgcolor=#475569]" ..
+		"button[7.8,7.4;3.5,0.6;btn_config_world_cdb;" .. fgettext("Find More Mods") .. "]"
+
+	return retval
 end
 
 local function handle_buttons(this, fields)
