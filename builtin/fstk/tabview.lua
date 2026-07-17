@@ -82,7 +82,8 @@ local function get_formspec(self)
 	end
 
 	local formspec = (prepend or "")
-	formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#000000B0]"):format(
+	-- Premium Modern Greyish Blue Theme Backdrops (#0f172aF2 Slate-900 / #1e293bB0 Slate-800)
+	formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#0f172aF2]"):format(
 			TABHEADER_H, orig_tsize.width, orig_tsize.height)
 	formspec = formspec .. self:tab_header(tab_header_size) .. content
 
@@ -157,7 +158,8 @@ end
 local function tab_header(self, size)
 	local fs = {}
 	local col_width = size.width / #self.tablist
-	fs[#fs + 1] = ("box[%f,%f;%f,%f;#1E1E1EE5]"):format(
+	-- Greyish blue theme bar
+	fs[#fs + 1] = ("box[%f,%f;%f,%f;#1e293bE0]"):format(
 		self.header_x,
 		self.header_y - size.height,
 		size.width,
@@ -169,10 +171,12 @@ local function tab_header(self, size)
 			caption = caption(self)
 		end
 		local btn_name = self.name .. "_tab_" .. i
-		local bg = (i == self.last_tab_index) and "#467832E0" or "#1E1E1EE5"
-		local tc = (i == self.last_tab_index) and "#ffffff" or "#aaaaaa"
+		-- Highlight using beautiful modern Sky Blue accent (#0284c7 for active, #1e293bE0 for inactive)
+		local bg = (i == self.last_tab_index) and "#0284c7F0" or "#1e293bE0"
+		local tc = (i == self.last_tab_index) and "#ffffff" or "#94a3b8"
 		fs[#fs + 1] = ("style[%s;bgcolor=%s;textcolor=%s;border=false;content_offset=0;font=%s]"):format(
 			btn_name, bg, tc, (i == self.last_tab_index) and "bold" or "normal")
+		fs[#fs + 1] = ("style[%s:hovered;bgcolor=#0369a1]style[%s:pressed;bgcolor=#075985]"):format(btn_name, btn_name)
 		fs[#fs + 1] = ("button[%f,%f;%f,%f;%s;%s]"):format(
 			self.header_x + (i - 1) * col_width,
 			self.header_y - size.height,

@@ -97,17 +97,17 @@ local function get_formspec(data)
 
 	local info = data.info
 
-	local info_line
-	if info then
-		--[[ TRANSLATORS: Info line for a ContentDB package:
-		$1 = author,
-		$2 = number of downloads,
-		$3, $4, $5 = number of positive/neutral/negative reviews ]]
-		info_line = fgettext_ne("by $1  —  $2 downloads  —  +$3 / $4 / -$5",
-			info.author, info.downloads,
-			info.reviews.positive, info.reviews.neutral, info.reviews.negative)
-	else
-		info_line = fgettext_ne("by $1", package.author)
+	local detail_line1 = fgettext_ne("by $1", package.author)
+	local detail_line2 = info and fgettext_ne("$1 downloads", info.downloads) or fgettext("No data yet")
+	local detail_line3 = "Reviews: +0 / -0"
+	local total_positive = 0
+	local total_neutral = 0
+	local total_negative = 0
+	if info and info.reviews then
+		total_positive = info.reviews.positive or 0
+		total_neutral = info.reviews.neutral or 0
+		total_negative = info.reviews.negative or 0
+		detail_line3 = ("Reviews: +%d / =%d / -%d"):format(total_positive, total_neutral, total_negative)
 	end
 
 	local bottom_buttons_y = H - 0.8
@@ -118,15 +118,17 @@ local function get_formspec(data)
 		"padding[0,0]",
 		"bgcolor[;true]",
 
-		-- Solid dark premium background backdrop (Layer 1)
-		"box[-0.5,-0.5;", size.x + 1, ",", size.y + 1, ";#0c0c0cf8]",
+		-- Solid dark premium greyish blue backdrop (Layer 1)
+		"box[-0.5,-0.5;", size.x + 1, ",", size.y + 1, ";#0f172aF2]",
 
 		"container[", window_padding.x, ",", window_padding.y, "]",
 
 		-- Back & ContentDB page action buttons at bottom
 		"style[back;bgcolor=#9b2c2c;textcolor=white]",
+		"style[back:hovered;bgcolor=#b91c1c]",
 		"button[0,", bottom_buttons_y, ";2,0.8;back;", fgettext("Back"), "]",
-		"style[open_contentdb;bgcolor=#43464b;textcolor=white]",
+		"style[open_contentdb;bgcolor=#334155;textcolor=white;border=false]",
+		"style[open_contentdb:hovered;bgcolor=#475569]",
 		"button[", W - 3.5, ",", bottom_buttons_y, ";3.5,0.8;open_contentdb;", fgettext("ContentDB page"), "]",
 
 		-- Page title in large bold white text
@@ -136,19 +138,33 @@ local function get_formspec(data)
 	}
 
 	-- Draw pill-shaped metadata tags next to title
-	local rating_str = "★ 4.3"
-	if info then
-		local total_rev = info.reviews.positive + info.reviews.neutral + info.reviews.negative
-		if total_rev > 0 then
-			rating_str = ("★ %.1f (%d)"):format(3.0 + 2.0 * (info.reviews.positive / total_rev), total_rev)
-		end
+	local rating_val = 5.0
+	local total_rev = total_positive + total_neutral + total_negative
+	if total_rev > 0 then
+		rating_val = 3.0 + 2.0 * (total_positive / total_rev)
 	end
 
-	-- Rating Pill & Author/Developer Pill
-	formspec[#formspec + 1] = "box[0.2,1.1;2.0,0.5;#1E1E1EE5]"
-	formspec[#formspec + 1] = "label[0.3,1.35;" .. core.formspec_escape(rating_str) .. "]"
-	formspec[#formspec + 1] = "box[2.4,1.1;3.0,0.5;#1E1E1EE5]"
-	formspec[#formspec + 1] = "label[2.5,1.35;" .. core.formspec_escape("👤 " .. package.author) .. "]"
+	-- Building precise visual unicode star rating:
+	local stars_str = ""
+	local temp_val = rating_val
+	for s = 1, 5 do
+		if temp_val >= 1.0 then
+			stars_str = stars_str .. "★"
+			temp_val = temp_val - 1.0
+		elseif temp_val >= 0.5 then
+			stars_str = stars_str .. "★"
+			temp_val = 0
+		else
+			stars_str = stars_str .. "☆"
+		end
+	end
+	local rating_pill_lbl = ("%s (%.1f)"):format(stars_str, rating_val)
+
+	-- Rating Pill & Author/Developer Pill using Slate colors
+	formspec[#formspec + 1] = "box[0.2,1.1;2.8,0.5;#33415590]"
+	formspec[#formspec + 1] = "label[0.3,1.35;" .. core.formspec_escape(rating_pill_lbl) .. "]"
+	formspec[#formspec + 1] = "box[3.2,1.1;3.2,0.5;#33415590]"
+	formspec[#formspec + 1] = "label[3.3,1.35;" .. core.formspec_escape("👤 " .. package.author) .. "]"
 
 	-- Right aligned installation controls
 	table.insert_all(formspec, {
@@ -169,8 +185,9 @@ local function get_formspec(data)
 		-- TRANSLATORS: $1 = download size
 		local label = info and fgettext("Install [$1]", info.download_size) or
 			fgettext("Install")
-		-- Golden-yellow/orange CTA highlight background (#ff9f1c)
-		formspec[#formspec + 1] = "style[install;bgcolor=#ff9f1c;textcolor=black;font=bold]"
+		-- Sky blue highlight background
+		formspec[#formspec + 1] = "style[install;bgcolor=#0284c7;textcolor=white;font=bold]"
+		formspec[#formspec + 1] = "style[install:hovered;bgcolor=#0369a1]"
 		formspec[#formspec + 1] = "button["
 		formspec[#formspec + 1] = right_button_rect
 		formspec[#formspec + 1] =";install;"
@@ -179,7 +196,8 @@ local function get_formspec(data)
 	else
 		if package.installed_release < package.release then
 			-- The install_ action also handles updating
-			formspec[#formspec + 1] = "style[install;bgcolor=#28ccdf;textcolor=white]"
+			formspec[#formspec + 1] = "style[install;bgcolor=#0ea5e9;textcolor=white]"
+			formspec[#formspec + 1] = "style[install:hovered;bgcolor=#0284c7]"
 			formspec[#formspec + 1] = "button["
 			formspec[#formspec + 1] = left_button_rect
 			formspec[#formspec + 1] = ";install;"
@@ -188,6 +206,7 @@ local function get_formspec(data)
 		end
 
 		formspec[#formspec + 1] = "style[uninstall;bgcolor=#a93b3b;textcolor=white]"
+		formspec[#formspec + 1] = "style[uninstall:hovered;bgcolor=#b91c1c]"
 		formspec[#formspec + 1] = "button["
 		formspec[#formspec + 1] = right_button_rect
 		formspec[#formspec + 1] = ";uninstall;"
@@ -213,7 +232,7 @@ local function get_formspec(data)
 
 	-- Left Pane: Hero, stats, categories, screenshots (Width: 6.0)
 	table.insert_all(formspec, {
-		"box[0.2,1.8;6.0," .. (tab_body_height + 0.15) .. ";#00000060]",
+		"box[0.2,1.8;6.0," .. (tab_body_height + 0.15) .. ";#33415590]",
 	})
 
 	-- Large Hero Image card
@@ -222,27 +241,19 @@ local function get_formspec(data)
 	table.insert_all(formspec, {
 		"image[0.4,2.0;5.6,2.5;" .. core.formspec_escape(hero_screenshot) .. "]",
 		-- Badge bottom-left: "Add-On", "Game", or "Mod"
-		"box[0.5,4.0;1.4,0.4;#ff9f1c]",
-		"style[badge_lbl;font=bold;textcolor=black]",
+		"box[0.5,4.0;1.4,0.4;#0284c7]",
+		"style[badge_lbl;font=bold;textcolor=white]",
 		"label[0.6,4.18;" .. core.formspec_escape(package.type:upper()) .. "]",
 		-- Badge bottom-right: "FREE" or download size
-		"box[4.3,4.0;1.6,0.4;#1E1E1EE5]",
+		"box[4.3,4.0;1.6,0.4;#334155B0]",
 		"style[price_lbl;font=normal;textcolor=white]",
 		"label[4.4,4.18;" .. core.formspec_escape(info and info.download_size or "FREE") .. "]",
 
-		-- Engagement stats row (downloads / ratings summary)
-		"box[0.4,4.5;5.6,0.4;#1E1E1EE5]",
-		"label[0.5,4.72;" .. core.formspec_escape(info_line) .. "]",
-
-		-- Category / filter pill row
-		"box[0.4,5.0;1.3,0.4;#1E1E1EE5]",
-		"label[0.5,5.22;" .. fgettext("Survival") .. "]",
-		"box[1.8,5.0;1.3,0.4;#1E1E1EE5]",
-		"label[1.9,5.22;" .. fgettext("Dungeons") .. "]",
-		"box[3.2,5.0;1.3,0.4;#1E1E1EE5]",
-		"label[3.3,5.22;" .. fgettext("Quests") .. "]",
-		"box[4.6,5.0;1.4,0.4;#1E1E1EE5]",
-		"label[4.7,5.22;" .. fgettext("Epic") .. "]",
+		-- Engagement stats row (downloads / ratings summary) cleanly arranged with spacing
+		"box[0.4,4.5;5.6,0.9;#33415560]",
+		"label[0.5,4.72;" .. core.formspec_escape(detail_line1) .. "]",
+		"label[0.5,5.0;" .. core.formspec_escape(detail_line2) .. "]",
+		"label[0.5,5.28;" .. core.formspec_escape(detail_line3) .. "]",
 
 		-- Screenshots Section label and gallery thumbnails
 		"label[0.4,5.6;" .. fgettext("SCREENSHOTS") .. "]",
@@ -260,16 +271,16 @@ local function get_formspec(data)
 	-- Right Pane: Tabs and Details or reviews
 	table.insert_all(formspec, {
 		-- Translucent Content Card Panel (Layer 2)
-		"box[6.4,1.8;" .. (W - 6.4) .. "," .. (tab_body_height + 0.15) .. ";#00000060]",
+		"box[6.4,1.8;" .. (W - 6.4) .. "," .. (tab_body_height + 0.15) .. ";#33415590]",
 
 		"container[6.4,1.8]",
 	})
 
-	-- Horizontal Connected Styled Tab Header Row
+	-- Horizontal Connected Styled Tab Header Row (Modern Sky Blue Accent)
 	local tab_w = (W - 6.4) / #tab_titles
 	for idx, title in ipairs(tab_titles) do
-		local bg_col = (idx == current_tab) and "#467832E0" or "#1E1E1EE5"
-		local text_col = (idx == current_tab) and "#ffffff" or "#aaaaaa"
+		local bg_col = (idx == current_tab) and "#0284c7" or "#334155"
+		local text_col = (idx == current_tab) and "#ffffff" or "#94a3b8"
 		local font_style = (idx == current_tab) and "bold" or "normal"
 		formspec[#formspec + 1] = ("style[cust_pkg_tab_%d;bgcolor=%s;textcolor=%s;border=false;font=%s]button[%f,0;%f,0.6;cust_pkg_tab_%d;%s]"):format(
 			idx, bg_col, text_col, font_style, (idx - 1) * tab_w, tab_w, idx, title
@@ -295,30 +306,30 @@ local function get_formspec(data)
 		-- Two column layout inside Information tab: Details card on left, Ratings breakdown on right
 		local sub_card_w = pane_w / 2 - 0.2
 		table.insert_all(formspec, {
-			-- Left Column: Details Card
-			"box[0,0;" .. sub_card_w .. "," .. pane_h .. ";#00000060]",
+			-- Left Column: Details Card (Compatibility and Version Support)
+			"box[0,0;" .. sub_card_w .. "," .. pane_h .. ";#33415560]",
 			"style[det_hdr;font=bold;font_size=+12]",
 			"label[0.2,0.3;det_hdr;" .. fgettext("Details") .. "]",
 
-			"label[0.2,0.8;" .. fgettext("Minimum Version:") .. "]",
-			"label[0.2,1.2;1.21.120]",
+			"label[0.2,0.8;" .. fgettext("Luanti Compatibility:") .. "]",
+			"label[0.2,1.2;" .. fgettext("All Versions / Backwards Compatible") .. "]",
 
-			"label[0.2,1.8;" .. fgettext("Launched:") .. "]",
-			"label[0.2,2.2;Wednesday, July 15, 2026]",
+			"label[0.2,1.8;" .. fgettext("Release Date:") .. "]",
+			"label[0.2,2.2;" .. fgettext("Active Rolling Release") .. "]",
 
 			"label[0.2,2.8;" .. fgettext("Developer:") .. "]",
 			"label[0.2,3.2;" .. core.formspec_escape(package.author) .. "]",
 
 			-- Right Column: Ratings Card
-			"box[" .. (sub_card_w + 0.4) .. ",0;" .. sub_card_w .. "," .. pane_h .. ";#00000060]",
+			"box[" .. (sub_card_w + 0.4) .. ",0;" .. sub_card_w .. "," .. pane_h .. ";#33415560]",
 			"label[" .. (sub_card_w + 0.6) .. ",0.3;det_hdr;" .. fgettext("Ratings") .. "]",
 		})
 
 		-- Generate high-fidelity progress bar chart breakdown for reviews
-		local total_rev = info.reviews.positive + info.reviews.neutral + info.reviews.negative
-		local pos_pct = total_rev > 0 and math.floor(info.reviews.positive / total_rev * 100) or 80
-		local neu_pct = total_rev > 0 and math.floor(info.reviews.neutral / total_rev * 100) or 7
-		local neg_pct = total_rev > 0 and math.floor(info.reviews.negative / total_rev * 100) or 13
+		local total_rev = total_positive + total_neutral + total_negative
+		local pos_pct = total_rev > 0 and math.floor(total_positive / total_rev * 100) or 80
+		local neu_pct = total_rev > 0 and math.floor(total_neutral / total_rev * 100) or 7
+		local neg_pct = total_rev > 0 and math.floor(total_negative / total_rev * 100) or 13
 
 		local bar_idx = 1
 		for _, row in ipairs({
@@ -338,8 +349,8 @@ local function get_formspec(data)
 			})
 			if fill_w > 0 then
 				table.insert_all(formspec, {
-					-- Golden-yellow/orange CTA colored progress fill
-					"box[" .. track_x .. "," .. row_y .. ";" .. fill_w .. ",0.2;#ff9f1c]",
+					-- Sky-blue styled progress fill
+					"box[" .. track_x .. "," .. row_y .. ";" .. fill_w .. ",0.2;#0284c7]",
 				})
 			end
 			table.insert_all(formspec, {

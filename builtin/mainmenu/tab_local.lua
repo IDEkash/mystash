@@ -110,15 +110,20 @@ local function get_formspec(tabview, name, tabdata)
 			"button[5.25,", button_y, ";5,1.2;game_open_cdb;", fgettext("Install a game"), "]"})
 	end
 
-	local retval = "style[play;bgcolor=#467832;textcolor=white;font=bold]" ..
-			"style[world_create;bgcolor=#43464b;textcolor=white]" ..
-			"style[world_configure;bgcolor=#43464b;textcolor=white]" ..
-			"style[world_delete;bgcolor=#9b2c2c;textcolor=white]"
+	local retval = "style[play;bgcolor=#0284c7;textcolor=white;font=bold]" ..
+			"style[play:hovered;bgcolor=#0369a1]" ..
+			"style[play:pressed;bgcolor=#075985]" ..
+			"style[world_create;bgcolor=#334155;textcolor=white]" ..
+			"style[world_create:hovered;bgcolor=#475569]" ..
+			"style[world_configure;bgcolor=#334155;textcolor=white]" ..
+			"style[world_configure:hovered;bgcolor=#475569]" ..
+			"style[world_delete;bgcolor=#9b2c2c;textcolor=white]" ..
+			"style[world_delete:hovered;bgcolor=#b91c1c]"
 
 	-- Background card boxes representing two tables with borders
 	retval = retval ..
-			"box[0.15,0.15;4.8,6.8;#00000060]" ..
-			"box[5.05,0.15;10.3,6.8;#00000060]"
+			"box[0.15,0.15;4.8,6.8;#1e293bB0]" ..
+			"box[5.05,0.15;10.3,6.8;#1e293bB0]"
 
 	local index = core.get_textlist_index("sp_worlds") or filterlist.get_current_index(menudata.worldlist,
 				tonumber(core.settings:get("mainmenu_last_selected_world"))) or 0
@@ -137,7 +142,8 @@ local function get_formspec(tabview, name, tabdata)
 	local disabled_settings = get_disabled_settings(game)
 
 	-- Header label of the current game (dropdown button)
-	retval = retval .. "style[btn_games_dropdown;bgcolor=#43464b;textcolor=white;font=bold;border=false]" ..
+	retval = retval .. "style[btn_games_dropdown;bgcolor=#334155;textcolor=white;font=bold;border=false]" ..
+			"style[btn_games_dropdown:hovered;bgcolor=#475569]" ..
 			"button[0.35,0.35;4.4,0.8;btn_games_dropdown;" .. core.formspec_escape(game.title .. " ▾") .. "]"
 
 	if tabdata.games_expanded then
@@ -149,14 +155,16 @@ local function get_formspec(tabview, name, tabdata)
 			local icon = (g.menuicon_path and g.menuicon_path ~= "") and core.formspec_escape(g.menuicon_path) or core.formspec_escape(defaulttexturedir .. "no_screenshot.png")
 			retval = retval ..
 				("image[0.1,%f;0.6,0.6;%s]"):format(item_y + 0.1, icon) ..
-				("style[game_select_%s;bgcolor=#43464b;textcolor=white;border=false]"):format(g.id) ..
+				("style[game_select_%s;bgcolor=#334155;textcolor=white;border=false]"):format(g.id, g.id) ..
+				("style[game_select_%s:hovered;bgcolor=#475569]"):format(g.id) ..
 				("button[0.8,%f;3.2,0.8;game_select_%s;%s]"):format(item_y, g.id, core.formspec_escape(g.title))
 		end
 		local plus_y = #pkgmgr.games * 0.9
 		local plus_icon = core.formspec_escape(defaulttexturedir .. "plus.png")
 		retval = retval ..
 			("image[0.1,%f;0.6,0.6;%s]"):format(plus_y + 0.1, plus_icon) ..
-			"style[game_open_cdb_dropdown;bgcolor=#467832;textcolor=white;font=bold;border=false]" ..
+			"style[game_open_cdb_dropdown;bgcolor=#0284c7;textcolor=white;font=bold;border=false]" ..
+			"style[game_open_cdb_dropdown:hovered;bgcolor=#0369a1]" ..
 			("button[0.8,%f;3.2,0.8;game_open_cdb_dropdown;%s]"):format(plus_y, fgettext("Add Game"))
 		retval = retval .. "scroll_container_end[]"
 		if total_h > scroll_h then
@@ -256,7 +264,7 @@ local function get_formspec(tabview, name, tabdata)
 	-- Title on bottom left side of the left pane
 	if not tabdata.games_expanded then
 		local ver_str = core.get_version().string
-		local colored_text = core.colorize("#467832", "Luanti ") .. core.colorize("#ffffff", core.formspec_escape(ver_str))
+		local colored_text = core.colorize("#0284c7", "Luanti ") .. core.colorize("#ffffff", core.formspec_escape(ver_str))
 		retval = retval .. "label[0.35,6.3;" .. colored_text .. "]"
 	end
 
