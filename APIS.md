@@ -828,6 +828,201 @@ core.create_world("ProgrammaticWorld", "minetest", {
     },
     creative_mode = "true" -- Arbitrary world.mt setting
 })
+
+---
+
+## Minetek Lua Animation Engine (MLAE)
+
+The Minetek Lua Animation Engine (MLAE) is a complete, format-independent animation system written entirely in Lua. It operates on named parts (the same part names used by the Part/Bone API via `set_bone_override`) rather than requiring a mesh skeleton format, and supports Players, Entities, WorldObjects, Vehicles, Machines, and more.
+
+### 1. Creating and Modifying Animations
+
+An animation is created using `core.animation.create(name)`. Each part/bone is animated using its own track.
+
+```lua
+local anim = core.animation.create("wave")
+
+-- Set length in seconds
+anim:set_length(2.5)
+
+-- Add keyframes
+anim:add_keyframe({
+    part = "RightArm",
+    time = 0.5,
+    position = {x=0, y=1, z=0},
+    rotation = {x=-90, y=0, z=0},
+    scale = {x=1, y=1, z=1},
+    visibility = true,
+    color = "#FFFFFF",
+    glow = 1.0,
+    easing = "ease_out" -- supports "ease_in", "ease_out", "bounce_out", etc.
+})
+```
+
+#### Easing Equations
+Built-in easing names:
+- `linear`, `smoothstep`
+- `sine_in`, `sine_out`, `sine_in_out`, `sine`
+- `quad_in`, `quad_out`, `quad_in_out`, `quad`
+- `cubic_in`, `cubic_out`, `cubic_in_out`, `cubic`
+- `quart_in`, `quart_out`, `quart_in_out`, `quart`
+- `quint_in`, `quint_out`, `quint_in_out`, `quint`
+- `expo_in`, `expo_out`, `expo_in_out`, `expo`
+- `circular_in`, `circular_out`, `circular_in_out`, `circular`
+- `back_in`, `back_out`, `back_in_out`, `back`
+- `bounce_in`, `bounce_out`, `bounce_in_out`, `bounce`
+- `elastic_in`, `elastic_out`, `elastic_in_out`, `elastic`
+
+Register a custom easing function globally:
+```lua
+core.animation.register_easing("custom_bounce", function(t)
+    return t * t * (2 - t)
+end)
+```
+
+#### Live Editing & Inspection
+- `anim:add_keyframe(kf)`
+- `anim:remove_keyframe(part, time)`
+- `anim:move_keyframe(part, old_time, new_time)`
+- `anim:edit_keyframe(part, time, new_data)`
+- `anim:rename_track(old_name, new_name)`
+- `anim:create_track(part_name)`
+- `anim:get_tracks() -> array`
+- `anim:get_keyframes(part) -> array`
+- `anim:get_length() -> number`
+- `anim:get_events() -> array`
+- `anim:get_markers() -> array`
+- `anim:get_layers() -> array`
+- `anim:get_memory_usage() -> number`
+- `anim:get_statistics() -> table`
+
+### 2. Animation Curves
+
+Curves animate custom float, boolean, vector, color, and custom values over time (e.g., `WeaponCharge`, `CameraShake`, `Glow`, `Transparency`, `Light`, `Fog`):
+```lua
+anim:create_curve("WeaponCharge")
+anim:add_curve_keyframe("WeaponCharge", 0.0, 0.0)
+anim:add_curve_keyframe("WeaponCharge", 1.5, 100.0, "ease_out")
+```
+
+Retrieve blended curve values at runtime:
+```lua
+local val = controller:get_curve_value("WeaponCharge")
+```
+
+### 3. Events and Markers
+
+Define trigger events or markers on the animation timeline:
+```lua
+anim:add_event(1.2, "Footstep", { foot = "left" })
+anim:add_marker(0.5, "ReloadStart")
+```
+
+Callbacks are triggered on cross-over:
+```lua
+controller:on_event(function(anim_name, event_name, data, time)
+    if event_name == "Footstep" then
+        minetest.sound_play("footstep", { pos = pos })
+    end
+end)
+```
+
+### 4. Animation Controller
+
+Creates a runtime animator instance tied to an object:
+```lua
+local controller = core.animation.create_controller(object)
+```
+
+#### Playing & Blending Animations
+- `controller:play(anim_name, opts)`
+  - `opts`:
+    - `layer`: string (e.g. `"Base"`, `"Walk"`, `"UpperBody"`, `"Face"`, `"Weapon"`, `"Additive"`)
+    - `blend_time`: duration in seconds for crossfading (defaults to `0.1`)
+    - `speed`: speed multiplier (defaults to `1.0`)
+    - `loop`: boolean (defaults to `true`)
+    - `pingpong`: boolean (defaults to `false`)
+    - `weight`: number (defaults to `1.0`)
+- `controller:stop(anim_name, blend_time?)`
+- `controller:pause(anim_name?)`
+- `controller:resume(anim_name?)`
+- `controller:seek(anim_name, time)`
+- `controller:set_speed(anim_name, speed)`
+- `controller:set_weight(anim_name, weight)`
+
+#### Animation Layers
+MLAE provides pre-populated, prioritized layers:
+1. `Base` (priority 0)
+2. `Walk` (priority 10)
+3. `UpperBody` (priority 20)
+4. `Face` (priority 30)
+5. `Weapon` (priority 40)
+6. `Additive` (priority 50, blend mode: `"additive"`)
+
+Configure a layer or apply masks to isolate parts:
+```lua
+local walk_layer = controller:get_layer("Walk")
+walk_layer.mask = { "LeftLeg", "RightLeg" } -- Walk animation will only control legs!
+```
+
+#### Animation Queue
+- `controller:enqueue(anim_name, opts)`
+- `controller:dequeue() -> item`
+- `controller:peek_queue() -> item`
+- `controller:clear_queue()`
+
+#### State Machine
+Tie state transitions with priorities and custom conditions:
+```lua
+controller:add_state("Idle", { animation = "idle_anim", loop = true })
+controller:add_state("Walk", { animation = "walk_anim", loop = true })
+
+controller:add_transition("Idle", "Walk", function(ctrl, obj)
+    local vel = obj:get_velocity()
+    return vel and (vel.x ~= 0 or vel.z ~= 0)
+end, 10) -- priority=10
+```
+
+#### Procedural Overrides
+Register procedural callback on top of animation and rest pose:
+```lua
+controller:set_procedural_override("Head", function(part_name, accum, object)
+    -- Look direction procedural override
+    accum.rot = { x = look_pitch, y = look_yaw, z = 0 }
+    return accum
+end)
+```
+
+#### Root Motion
+Enable root bone updates driving the physical object movement:
+```lua
+controller:set_root_motion_enabled(true, "Body")
+```
+
+### 5. Runtime Information API
+
+MLAE extends `ObjectRef` metatable with runtime animation engine controls:
+- `object:get_animation_state() -> string`
+- `object:get_current_animation() -> string`
+- `object:get_animation_time() -> number`
+- `object:get_animation_speed() -> number`
+- `object:get_animation_layers() -> array`
+- `object:is_animation_playing() -> boolean`
+
+### 6. Animation Serialization
+
+Animations can be saved, loaded, cloned, and merged:
+```lua
+-- JSON
+local json_str = anim:serialize("json")
+local loaded_anim = core.animation.deserialize(json_str)
+
+-- Binary
+local bin_str = anim:serialize("binary")
+
+-- Compressed Deflate
+local comp_str = anim:serialize("compressed")
+```
 ```
 
 ---
