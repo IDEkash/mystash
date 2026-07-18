@@ -1,0 +1,1 @@
+return {{acc={y=0,x=0,z=0},mass=1,mesh="cube.glb",friction=0.10000000000000001,id="25cde18d-a41d-6e94-9e9d-47f3c9374eb5",visual_size={y=1,x=1,z=1},collision_shape={size={y=1,x=1,z=1},type="box"},metadata={},textures={"blank.png"},visual="mesh",persistent=true,gravity_scale=1,bounce=0,vel={y=0,x=0,z=0},pos={y=100,x=50,z=150}}}
