@@ -831,5 +831,196 @@ core.create_world("ProgrammaticWorld", "minetest", {
 ```
 
 ---
+
+## Minetek World Object Framework (MWOF)
+
+A universal dynamic object system that complements Luanti's voxel node system, allowing games to build advanced physics, mechanics, and animations in parallel to standard entities and nodes.
+
+### Architecture
+
+```
+Engine
+├── NodeManager (stores voxel world)
+├── EntityManager (simple living actors/dynamic objects)
+├── PlayerManager (player tracking/sync)
+├── WorldObjectManager (complex, persistent, physics-enabled structural systems)
+└── HTMLViewManager
+```
+
+---
+
+### Global API (under `core`)
+
+#### Creating World Objects
+
+`core.create_world_object(def)` / `core.create_object(def)`
+- Creates and spawns a new `WorldObject` instance.
+- `def` fields:
+  - `pos`: vector
+  - `mesh`: string (e.g. `"ship.glb"`)
+  - `visual`: string (e.g. `"mesh"`, `"cube"`, `"sprite"`)
+  - `textures`: table (array of strings)
+  - `visual_size`: vector
+  - `physics`: boolean (or physics def)
+  - `collision`: boolean (or collision def)
+  - `collision_shape`: table (e.g., `{type = "box", size = {x=1, y=1, z=1}}`)
+  - `persistent`: boolean (if true, saved/restored across world reloads)
+  - `components`: array of strings (e.g. `{"animation", "inventory", "particle", "light", "audio", "html"}`)
+  - `events`: table of callbacks (`on_spawn`, `on_destroy`, `on_move`, etc.)
+
+#### Node Capturing
+
+`core.object_from_node(pos)` / `core.node_to_object(pos)`
+- Captures a single node at `pos` (stores name, param1, param2, metadata, inventories, and node timers).
+- Sets the node at `pos` to `air`.
+- Spawns and returns a `WorldObject` styled exactly like the captured node, saving its data so `obj:restore()` will place it back exactly.
+
+`core.object_from_area(minp, maxp)` / `core.capture_nodes(minp, maxp)`
+- Captures all nodes in the volume bounded by `minp` and `maxp`.
+- Replaces all captured nodes with `air`.
+- Spawns and returns a `WorldObject` at the center of the area, containing the relative coordinates and fully serialized properties of all captured nodes. Calling `obj:restore()` rebuilds the entire volume perfectly.
+
+#### Special Source Helpers
+
+`core.object_from_player(player)`
+- Creates a `WorldObject` tracking/wrapping a player.
+
+`core.object_from_entity(entity)`
+- Creates a `WorldObject` tracking/wrapping an existing entity `ObjectRef`.
+
+`core.object_from_mesh(mesh_name)`
+- Helper for creating an empty dynamic mesh object.
+
+`core.object_from_html(view)`
+- Helper for creating an interactive HTML view object.
+
+---
+
+### WorldObject Instance Methods
+
+#### Physics & Motion
+
+`obj:set_velocity(vel)` / `obj:get_velocity() -> vector`
+- Synchronizes physical velocity.
+
+`obj:set_acceleration(acc)` / `obj:get_acceleration() -> vector`
+- Synchronizes physical acceleration.
+
+`obj:set_mass(mass)` / `obj:get_mass() -> number`
+- Configures object mass.
+
+`obj:set_gravity(gravity_scale)` / `obj:get_gravity() -> number`
+- Multiplies the global gravity applied to the object.
+
+`obj:set_friction(friction)` / `obj:get_friction() -> number`
+- Linear friction / aerodynamic drag coefficient.
+
+`obj:set_bounce(bounce)` / `obj:get_bounce() -> number`
+- Elasticity coefficient of node collisions (`0` to `1`).
+
+`obj:apply_force(force_vector)`
+- Applies an external continuous force.
+
+`obj:apply_impulse(impulse_vector)`
+- Applies an instantaneous velocity impulse.
+
+`obj:set_sleeping(bool)`
+- Suspends or wakes up object simulation.
+
+#### Properties & Destruction
+
+`obj:get_id() -> string`
+- Returns a unique UUID string representing the object.
+
+`obj:get_pos() -> vector` / `obj:set_pos(pos)`
+- Returns or modifies the world-space coordinate of the object.
+
+`obj:destroy()`
+- Despawns the object and removes its underlying visual entity representation.
+
+`obj:restore()`
+- Automatically rebuilds captured single nodes or captured areas exactly as they were (including metadata, timers, and inventories) and destroys the object.
+
+---
+
+### Component Architecture
+
+WorldObjects can be extended with optional, dynamic modular components.
+
+#### Mesh Component
+- Controls model paths, visual textures, and LOD styling.
+- `obj:get_component("mesh"):set_mesh(mesh_name)`
+- `obj:get_component("mesh"):set_textures(textures)`
+- `obj:get_component("mesh"):set_visual_size(size_vector)`
+
+#### Animation Component
+- Handles keyframe animations, Tweens (smooth translation/rotation/scaling over time), and path/spline following.
+- `obj:get_component("animation"):play_animation(clip, speed, blend, loop)`
+- `obj:get_component("animation"):tween_to(target_pos, duration, easing, on_finish)`
+- `obj:get_component("animation"):follow_path(points_array, speed, loop, on_finish)`
+
+#### Inventory Component
+- Attaches a local detached inventory (32 slots default) to the object supporting full shift-clicking stack movement.
+- `obj:get_component("inventory"):get_inventory() -> InvRef`
+
+#### Health Component
+- Tracks dynamic damage, HP, max HP, and healing.
+- `obj:get_component("health"):get_hp() -> number`
+- `obj:get_component("health"):set_hp(hp)`
+- `obj:get_component("health"):damage(amount, reason)`
+
+#### Camera Component
+- Configures specialized viewport attachments or controls player cameras.
+- `obj:get_component("camera"):set_camera_target(player, mode)`
+
+#### HTML Component
+- Interfaces with Android `htmlview` rendering.
+- `obj:get_component("html"):run_html(id, html)`
+
+---
+
+### Constraint Solver
+
+Constraints can be configured between two `WorldObjects` (or a static world point):
+
+- **Fixed**: Restricts relative translation and rotation between objects.
+- **Hinge**: Constrains movement to a rotational pivot along a local axis.
+- **Slider**: Restricts movement to 1D translation along a local axis.
+- **Spring**: Simulates elastic tension and spring force attraction based on Hooke's Law.
+- **Rope / Chain**: Hard-limits maximum travel distance.
+- **Ball Socket**: Constraints translation while allowing arbitrary 3D rotation.
+
+#### API
+`core.WorldObjectManager:add_constraint(type, obj1, obj2_or_pos, params)`
+- `type`: `"Fixed"`, `"Hinge"`, `"Slider"`, `"Spring"`, `"Rope"`, `"Chain"`, `"Ball Socket"`
+- `params`: Constraint properties (e.g. `offset`, `k` spring constant, `rest_length`, `max_distance`, `damping`)
+
+`core.WorldObjectManager:remove_constraint(id)`
+
+---
+
+### Event System
+
+WorldObjects and their components can register callback listeners for the following engine events:
+
+- `on_spawn`: Triggered when spawned in the world.
+- `on_destroy`: Triggered on destruction.
+- `on_move`: Triggered whenever position changes.
+- `on_sleep`: Triggered when despawned/frozen due to streaming.
+- `on_wake`: Triggered when re-spawned/woken up.
+- `on_collision`: Triggered when colliding with a walkable node.
+- `on_damage`: Triggered when damaged or punched.
+- `on_restore`: Triggered on node restoration.
+- `on_capture`: Triggered on node capture.
+- `on_click`: Triggered when right-clicked.
+- `on_attach` / `on_detach`: Triggered on attachment changes.
+
+---
+
+### World Proximity Streaming
+
+MWOF automatically handles optimized rendering and physics virtualization. If a `WorldObject` is outside of all players' rendering scope (`sleep_distance`, default 64 blocks), it goes into a `sleep` state—despawning its underlying Luanti entity to conserve performance. When any player comes within `wake_distance` (default 48 blocks), it automatically `wakes` up, spawns the visual representation, and resumes high-fidelity engine physics.
+
+---
 - **More Soon!**
-- Latest Update: May, 30, 2026
+- Latest Update: June, 2, 2026

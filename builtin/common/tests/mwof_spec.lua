@@ -94,9 +94,9 @@ core.get_meta = function(pos)
 
 	local mock_inv = {
 		get_lists = function(self)
-			local lst = {}
-			for n, _ in pairs(meta.lists) do table.insert(lst, n) end
-			return lst
+			local dict = {}
+			for n, _ in pairs(meta.lists) do dict[n] = 32 end
+			return dict
 		end,
 		get_list = function(self, name)
 			return meta.lists[name] or {}
@@ -163,6 +163,11 @@ core.create_detached_inventory = function(name, callbacks)
 	}
 	detached_inventories[name] = inv
 	return inv
+end
+
+core.remove_detached_inventory = function(name)
+	detached_inventories[name] = nil
+	return true
 end
 
 -- Mock active players

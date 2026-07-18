@@ -92,6 +92,7 @@ function WorldObject:set_pos(pos)
 	self:trigger_event("on_move")
 end
 
+-- Force/Acceleration updates directly synchronizing gravity scale and physics updates
 function WorldObject:set_velocity(vel)
 	self.vel = vector.new(vel)
 	if self.object_ref and self.object_ref:is_valid() then
@@ -220,6 +221,12 @@ end
 
 function WorldObject:destroy()
 	self:trigger_event("on_destroy")
+	-- Destroy any active components that need cleanup
+	for name, comp in pairs(self.components) do
+		if comp.on_destroy then
+			comp:on_destroy(self)
+		end
+	end
 	if self.object_ref and self.object_ref:is_valid() then
 		self.object_ref:remove()
 		self.object_ref = nil
@@ -351,7 +358,12 @@ function WorldObjectManager:object_from_node(pos)
 	local inv = meta:get_inventory()
 	local inv_table = {}
 	if inv then
-		for _, list_name in ipairs(inv:get_lists() or {}) do
+		local lists = inv:get_lists() or {}
+		for list_name, _ in pairs(lists) do
+			-- Seamlessly handle both dictionary format and array of strings format
+			if type(list_name) == "number" and type(_) == "string" then
+				list_name = _
+			end
 			local list = inv:get_list(list_name)
 			local list_strings = {}
 			for i, stack in ipairs(list) do
@@ -414,7 +426,12 @@ function WorldObjectManager:object_from_area(minp, maxp)
 					local inv = meta:get_inventory()
 					local inv_table = {}
 					if inv then
-						for _, list_name in ipairs(inv:get_lists() or {}) do
+						local lists = inv:get_lists() or {}
+						for list_name, _ in pairs(lists) do
+							-- Seamlessly handle both dictionary format and array of strings format
+							if type(list_name) == "number" and type(_) == "string" then
+								list_name = _
+							end
 							local list = inv:get_list(list_name)
 							local list_strings = {}
 							for i, stack in ipairs(list) do
@@ -535,7 +552,7 @@ function WorldObjectManager:step(dtime)
 		end
 	end
 
-	-- 2. Synchronize / Integrate Physics for Awake Objects
+	-- 2. Synchronize / Integrate Physics & Step Animation/Script Components for Awake Objects
 	for id, obj in pairs(self.objects) do
 		if not obj.is_sleeping then
 			if obj.object_ref and obj.object_ref:is_valid() then
@@ -549,6 +566,9 @@ function WorldObjectManager:step(dtime)
 				obj.vel = vector.multiply(obj.vel, 1.0 - (obj.friction * dtime))
 				obj.pos = vector.add(obj.pos, vector.multiply(obj.vel, dtime))
 			end
+
+			-- Trigger component and user on_step callbacks (such as tween/path animations & custom scripts)
+			obj:trigger_event("on_step", dtime)
 		end
 	end
 
@@ -872,9 +892,16 @@ WorldObjectManager:register_component("inventory", {
 			allow_take = function(inv, listname, index, stack, player) return stack:get_count() end,
 		})
 		self.inventory:set_size("main", 32)
+		self.inv_id = inv_id
 	end,
 	get_inventory = function(self, obj)
 		return self.inventory
+	end,
+	on_destroy = function(self, obj)
+		-- Clean up detached inventory to prevent memory leaks in the engine
+		if core.remove_detached_inventory and self.inv_id then
+			core.remove_detached_inventory(self.inv_id)
+		end
 	end
 })
 
