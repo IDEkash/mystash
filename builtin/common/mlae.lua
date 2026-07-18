@@ -522,17 +522,27 @@ local function check_markers_crossed(instance, prev_t, cur_t, length, loop, dir,
 	end
 end
 
+-- Normalize a 3D vector to standard table with x, y, z keys
+local function normalize_vector(v)
+	if not v then return nil end
+	return {
+		x = tonumber(v.x or v[1]) or 0.0,
+		y = tonumber(v.y or v[2]) or 0.0,
+		z = tonumber(v.z or v[3]) or 0.0,
+	}
+end
+
 -- Apply bone transforms helper
 local function apply_bone_transform(object, part_name, t_data, interpolation, absolute)
 	local tbl = {}
 	if t_data.pos then
-		tbl.position = { vec = t_data.pos, absolute = absolute, interpolation = interpolation or 0 }
+		tbl.position = { vec = normalize_vector(t_data.pos), absolute = absolute, interpolation = interpolation or 0 }
 	end
 	if t_data.rot then
-		tbl.rotation = { vec = t_data.rot, absolute = absolute, interpolation = interpolation or 0, degrees = true }
+		tbl.rotation = { vec = normalize_vector(t_data.rot), absolute = absolute, interpolation = interpolation or 0, degrees = true }
 	end
 	if t_data.scale then
-		tbl.scale = { vec = t_data.scale, absolute = absolute, interpolation = interpolation or 0 }
+		tbl.scale = { vec = normalize_vector(t_data.scale), absolute = absolute, interpolation = interpolation or 0 }
 	end
 	if t_data.visible ~= nil then
 		tbl.visible = t_data.visible
