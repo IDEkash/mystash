@@ -1527,9 +1527,16 @@ if INIT == "game" and core.register_globalstep then
 end
 
 -- Monkeypatch ObjectRef with MLAE Runtime Information methods
-local ObjectRef_meta = debug.getregistry()["ObjectRef"]
+local ObjectRef_meta = nil
+if debug and type(debug.getregistry) == "function" then
+	local reg = debug.getregistry()
+	if type(reg) == "table" then
+		ObjectRef_meta = reg.ObjectRef
+	end
+end
+
 local methods = ObjectRef_meta and ObjectRef_meta.__index
-if methods then
+if type(methods) == "table" then
 	function methods:get_animation_state()
 		local ctrl = mlae.active_controllers[self]
 		return ctrl and ctrl:get_state()
