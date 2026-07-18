@@ -1017,6 +1017,26 @@ WorldObjects and their components can register callback listeners for the follow
 
 ---
 
+### Humanoid Damage & Tactical Haptic Physics
+
+By default, MWOF dynamic objects behave like rigid structural nodes/blocks (e.g. Roblox Parts) and are completely immune to punch damage. When punched, they do not lose health but instead receive a realistic physical velocity impulse in the swing direction, allowing them to fly, slide, or bounce dynamically based on player interactions.
+
+#### Humanoid Component
+
+To make a `WorldObject` damageable (e.g. representing a destructible prop, machinery, or NPC), add the `"humanoid"` component or property to its definition. This activates its health tracker and exposes it to standard combat punch damage.
+
+- `obj:add_component("humanoid")`
+
+---
+
+### Interactive Player Pushing
+
+Active, physical `WorldObjects` support tactile player-character contact dynamics. When a player runs, walks, or falls into a physical `WorldObject` (bounded by its collision shape size), the system:
+1. Calculates contact intersection overlaps and smoothly displaces the object to prevent character clipping.
+2. Performs momentum transfer from the character to the object, pushing the object smoothly in the direction of player travel, mimicking real-world haptic movement.
+
+---
+
 ### World Proximity Streaming
 
 MWOF automatically handles optimized rendering and physics virtualization. If a `WorldObject` is outside of all players' rendering scope (`sleep_distance`, default 64 blocks), it goes into a `sleep` state—despawning its underlying Luanti entity to conserve performance. When any player comes within `wake_distance` (default 48 blocks), it automatically `wakes` up, spawns the visual representation, and resumes high-fidelity engine physics.

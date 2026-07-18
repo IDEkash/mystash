@@ -61,6 +61,7 @@ function WorldObject:new(def)
 		attachments = {},
 		metadata = def.metadata or {},
 		callbacks = def.events or {},
+		humanoid = def.humanoid or false,
 		object_ref = nil, -- Underling Luanti ObjectRef
 	}
 	setmetatable(o, WorldObject)
@@ -137,7 +138,7 @@ end
 -- Component handling
 function WorldObject:add_component(name, comp_def)
 	if self.components[name] then return end
-	local comp = { name = name }
+	local comp = { name = name, object = self }
 	local global_comp = WorldObjectManager.registered_components[name]
 	if global_comp then
 		for k, v in pairs(global_comp) do
@@ -511,6 +512,14 @@ function WorldObjectManager:object_from_mesh(mesh_name)
 	})
 end
 
+function WorldObjectManager:object_from_html(view)
+	return self:create_world_object({
+		visual = "mesh",
+		components = {"html"},
+		metadata = {html_view = view}
+	})
+end
+
 -- Constraints management
 function WorldObjectManager:add_constraint(type_name, obj1, obj2_or_pos, params)
 	local constr = {
@@ -552,7 +561,49 @@ function WorldObjectManager:step(dtime)
 		end
 	end
 
-	-- 2. Synchronize / Integrate Physics & Step Animation/Script Components for Awake Objects
+	-- 2. Character pushing & physical momentum mechanics
+	for id, obj in pairs(self.objects) do
+		if not obj.is_sleeping then
+			for _, player in ipairs(players) do
+				if player and player:is_valid() then
+					local ppos = player:get_pos()
+					if ppos then
+						local dist = vector.distance(obj.pos, ppos)
+						local push_radius = 1.2
+						if obj.collision_shape and obj.collision_shape.size then
+							local sz = obj.collision_shape.size
+							push_radius = math.max(sz.x, sz.z) / 2 + 0.6
+						end
+						if dist < push_radius and dist > 0.05 then
+							local pvel = player:get_velocity() or vector.new(0, 0, 0)
+							local push_dir = vector.subtract(obj.pos, ppos)
+							push_dir.y = 0
+							local plen = vector.length(push_dir)
+							if plen > 0.01 then
+								push_dir = vector.divide(push_dir, plen)
+							else
+								push_dir = vector.new(1, 0, 0)
+							end
+
+							-- Displace object out of player boundary to prevent clipping
+							local overlap = push_radius - dist
+							obj:set_pos(vector.add(obj.pos, vector.multiply(push_dir, overlap * 0.5)))
+
+							-- Apply interactive physical momentum transfer (pushes parts like Roblox)
+							local push_coeff = 4.0
+							local transfer_vel = vector.multiply(push_dir, push_coeff)
+							if vector.length(pvel) > 0.1 then
+								transfer_vel = vector.add(transfer_vel, vector.multiply(pvel, 0.4))
+							end
+							obj:set_velocity(transfer_vel)
+						end
+					end
+				end
+			end
+		end
+	end
+
+	-- 3. Synchronize / Integrate Physics & Step Animation/Script Components for Awake Objects
 	for id, obj in pairs(self.objects) do
 		if not obj.is_sleeping then
 			if obj.object_ref and obj.object_ref:is_valid() then
@@ -569,10 +620,13 @@ function WorldObjectManager:step(dtime)
 
 			-- Trigger component and user on_step callbacks (such as tween/path animations & custom scripts)
 			obj:trigger_event("on_step", dtime)
+
+			-- Reset accumulation forces back to zero so they don't compound forever!
+			obj.acc = vector.new(0, 0, 0)
 		end
 	end
 
-	-- 3. Satisfy constraints programmatically
+	-- 4. Satisfy constraints programmatically
 	for id, c in pairs(self.constraints) do
 		local obj1 = c.obj1
 		local obj2 = c.obj2
@@ -617,7 +671,7 @@ function WorldObjectManager:step(dtime)
 		end
 	end
 
-	-- 4. Periodically auto-save persistent objects
+	-- 5. Periodically auto-save persistent objects
 	self.last_autosave = self.last_autosave + dtime
 	if self.last_autosave >= self.autosave_interval then
 		self.last_autosave = 0
@@ -649,6 +703,7 @@ function WorldObjectManager:save_persistent_data()
 				visual_size = obj.visual_size,
 				collision_shape = obj.collision_shape,
 				metadata = obj.metadata,
+				humanoid = obj.humanoid,
 			})
 		end
 	end
@@ -710,18 +765,43 @@ core.register_entity(":mwof:object", {
 	end,
 
 	on_punch = function(self, hitter, time_from_last_punch, tool_capabilities, dir)
-		if self.world_object_id then
-			local obj = WorldObjectManager.objects[self.world_object_id]
-			if obj then
-				local damage = tool_capabilities and tool_capabilities.damage_groups and tool_capabilities.damage_groups.fleshy or 1
-				obj:trigger_event("on_damage", damage, hitter)
-				if obj.components["health"] then
-					local h = obj.components["health"]
-					if h.hp then
-						h.hp = h.hp - damage
-						if h.hp <= 0 then
-							obj:destroy()
-						end
+		if not self.world_object_id then return end
+		local obj = WorldObjectManager.objects[self.world_object_id]
+		if not obj then return end
+
+		-- Safe trigger of on_punch event callback
+		obj:trigger_event("on_punch", hitter, time_from_last_punch, tool_capabilities, dir)
+
+		-- Roblox style tactile physical reaction: punch applies physical movement impulse in swing direction
+		if hitter and hitter:is_valid() then
+			local hpos = hitter:get_pos()
+			local opos = self.object:get_pos()
+			if hpos and opos then
+				local pdir = vector.subtract(opos, hpos)
+				local dlen = vector.length(pdir)
+				if dlen > 0.01 then
+					pdir = vector.divide(pdir, dlen)
+				else
+					pdir = vector.new(0, 0, 1)
+				end
+				local impulse_mag = 5.0
+				obj:apply_impulse(vector.multiply(pdir, impulse_mag))
+			end
+		end
+
+		-- Undamaged by default unless humanoid is enabled
+		if obj.humanoid or obj.components["humanoid"] then
+			local damage = 1
+			if tool_capabilities and tool_capabilities.damage_groups then
+				damage = tool_capabilities.damage_groups.fleshy or 1
+			end
+			obj:trigger_event("on_damage", damage, hitter)
+			if obj.components["health"] then
+				local h = obj.components["health"]
+				if h.hp then
+					h.hp = h.hp - damage
+					if h.hp <= 0 then
+						obj:destroy()
 					end
 				end
 			end
@@ -743,19 +823,25 @@ WorldObjectManager:register_component("mesh", {
 	on_init = function(self, obj)
 		-- mesh specific properties
 	end,
-	set_mesh = function(self, obj, mesh)
+	set_mesh = function(self, mesh, maybe_nil)
+		local obj = self.object
+		if type(mesh) == "table" and maybe_nil then obj = mesh; mesh = maybe_nil end
 		obj.mesh = mesh
 		if obj.object_ref and obj.object_ref:is_valid() then
 			obj.object_ref:set_properties({mesh = mesh, visual = "mesh"})
 		end
 	end,
-	set_textures = function(self, obj, textures)
+	set_textures = function(self, textures, maybe_nil)
+		local obj = self.object
+		if type(textures) == "table" and maybe_nil and type(maybe_nil) == "table" then obj = textures; textures = maybe_nil end
 		obj.textures = textures
 		if obj.object_ref and obj.object_ref:is_valid() then
 			obj.object_ref:set_properties({textures = textures})
 		end
 	end,
-	set_visual_size = function(self, obj, size)
+	set_visual_size = function(self, size, maybe_nil)
+		local obj = self.object
+		if type(size) == "table" and maybe_nil and type(maybe_nil) == "table" then obj = size; size = maybe_nil end
 		obj.visual_size = size
 		if obj.object_ref and obj.object_ref:is_valid() then
 			obj.object_ref:set_properties({visual_size = size})
@@ -769,11 +855,22 @@ WorldObjectManager:register_component("physics", {
 	end
 })
 
+WorldObjectManager:register_component("humanoid", {
+	on_init = function(self, obj)
+		obj.humanoid = true
+		if not obj:get_component("health") then
+			obj:add_component("health")
+		end
+	end
+})
+
 WorldObjectManager:register_component("light", {
 	on_init = function(self, obj)
 		self.light_level = 10
 	end,
-	set_light_level = function(self, obj, level)
+	set_light_level = function(self, level, maybe_nil)
+		local obj = self.object
+		if type(level) == "table" and maybe_nil then obj = level; level = maybe_nil end
 		self.light_level = level
 		if obj.object_ref and obj.object_ref:is_valid() then
 			obj.object_ref:set_properties({glow = level})
@@ -782,7 +879,9 @@ WorldObjectManager:register_component("light", {
 })
 
 WorldObjectManager:register_component("particle", {
-	emit_particles = function(self, obj, particle_def)
+	emit_particles = function(self, particle_def, maybe_nil)
+		local obj = self.object
+		if type(particle_def) == "table" and maybe_nil then obj = particle_def; particle_def = maybe_nil end
 		particle_def = particle_def or {}
 		particle_def.pos = obj.pos
 		core.add_particle(particle_def)
@@ -790,7 +889,9 @@ WorldObjectManager:register_component("particle", {
 })
 
 WorldObjectManager:register_component("audio", {
-	play_sound = function(self, obj, sound_name, sound_params)
+	play_sound = function(self, sound_name, sound_params, maybe_nil)
+		local obj = self.object
+		if type(sound_name) == "table" and maybe_nil then obj = sound_name; sound_name = sound_params; sound_params = maybe_nil end
 		sound_params = sound_params or {}
 		sound_params.pos = obj.pos
 		core.sound_play(sound_name, sound_params)
@@ -798,29 +899,32 @@ WorldObjectManager:register_component("audio", {
 })
 
 WorldObjectManager:register_component("script", {
-	set_script = function(self, obj, func)
+	set_script = function(self, func, maybe_nil)
+		local obj = self.object
+		if type(func) == "table" and maybe_nil then obj = func; func = maybe_nil end
 		self.update_func = func
 	end,
 	on_step = function(self, obj, dtime)
 		if self.update_func then
-			self.update_func(obj, dtime)
+			self.update_func(self.object, dtime)
 		end
 	end
 })
 
 WorldObjectManager:register_component("animation", {
-	play_animation = function(self, obj, clip, speed, blend, loop)
+	play_animation = function(self, clip, speed, blend, loop)
+		local obj = self.object
 		if obj.object_ref and obj.object_ref:is_valid() then
 			if obj.object_ref.set_animation_clip then
-				obj.object_ref:set_animation_clip(clip, {x=0, y=100}, speed, blend, loop)
+				obj.object_ref:set_animation_clip(clip, {x=0, y=100}, speed or 15, blend or 0.1, loop)
 			else
-				obj.object_ref:set_animation({x=0, y=100}, speed, blend, loop)
+				obj.object_ref:set_animation({x=0, y=100}, speed or 15, blend or 0.1, loop)
 			end
 		end
 	end,
-	tween_to = function(self, obj, target_pos, duration, easing, on_finish)
+	tween_to = function(self, target_pos, duration, easing, on_finish)
 		self.tween = {
-			start_pos = vector.new(obj.pos),
+			start_pos = vector.new(self.object.pos),
 			target_pos = vector.new(target_pos),
 			duration = duration,
 			elapsed = 0,
@@ -828,7 +932,7 @@ WorldObjectManager:register_component("animation", {
 			on_finish = on_finish
 		}
 	end,
-	follow_path = function(self, obj, points, speed, loop, on_finish)
+	follow_path = function(self, points, speed, loop, on_finish)
 		self.path = {
 			points = points,
 			speed = speed,
@@ -847,9 +951,9 @@ WorldObjectManager:register_component("animation", {
 				pct = pct * pct * (3 - 2 * pct)
 			end
 			local next_pos = vector.add(t.start_pos, vector.multiply(vector.subtract(t.target_pos, t.start_pos), pct))
-			obj:set_pos(next_pos)
+			self.object:set_pos(next_pos)
 			if pct >= 1.0 then
-				if t.on_finish then t.on_finish(obj) end
+				if t.on_finish then t.on_finish(self.object) end
 				self.tween = nil
 			end
 		end
@@ -859,23 +963,23 @@ WorldObjectManager:register_component("animation", {
 			local p = self.path
 			local current_target = p.points[p.current_index]
 			if current_target then
-				local dir = vector.subtract(current_target, obj.pos)
+				local dir = vector.subtract(current_target, self.object.pos)
 				local dist = vector.length(dir)
 				local move_dist = p.speed * dtime
 				if dist <= move_dist then
-					obj:set_pos(current_target)
+					self.object:set_pos(current_target)
 					p.current_index = p.current_index + 1
 					if p.current_index > #p.points then
 						if p.loop then
 							p.current_index = 1
 						else
-							if p.on_finish then p.on_finish(obj) end
+							if p.on_finish then p.on_finish(self.object) end
 							self.path = nil
 						end
 					end
 				else
 					local step = vector.multiply(vector.divide(dir, dist), move_dist)
-					obj:set_pos(vector.add(obj.pos, step))
+					self.object:set_pos(vector.add(self.object.pos, step))
 				end
 			end
 		end
@@ -910,19 +1014,29 @@ WorldObjectManager:register_component("health", {
 		self.hp = 100
 		self.max_hp = 100
 	end,
-	get_hp = function(self, obj) return self.hp end,
-	set_hp = function(self, obj, hp) self.hp = hp end,
-	damage = function(self, obj, amount, reason)
+	get_hp = function(self) return self.hp end,
+	set_hp = function(self, hp, maybe_nil)
+		local obj = self.object
+		if type(hp) == "table" and maybe_nil then obj = hp; hp = maybe_nil end
+		self.hp = hp
+	end,
+	damage = function(self, amount, reason)
 		self.hp = self.hp - amount
-		obj:trigger_event("on_damage", amount, reason)
+		self.object:trigger_event("on_damage", amount, reason)
 		if self.hp <= 0 then
-			obj:destroy()
+			self.object:destroy()
 		end
 	end
 })
 
 WorldObjectManager:register_component("camera", {
-	set_camera_target = function(self, obj, player, mode)
+	set_camera_target = function(self, player, mode, maybe_nil)
+		local obj = self.object
+		if type(player) == "table" and player.get_pos == nil and mode then
+			obj = player
+			player = mode
+			mode = maybe_nil
+		end
 		if player and player:is_valid() then
 			player:set_camera({mode = mode or "thirdpersonback"})
 		end
@@ -930,7 +1044,9 @@ WorldObjectManager:register_component("camera", {
 })
 
 WorldObjectManager:register_component("html", {
-	run_html = function(self, obj, id, html)
+	run_html = function(self, id, html, maybe_nil)
+		local obj = self.object
+		if type(id) == "table" and maybe_nil then obj = id; id = html; html = maybe_nil end
 		if htmlview and htmlview.run then
 			htmlview.run(id, html)
 		end

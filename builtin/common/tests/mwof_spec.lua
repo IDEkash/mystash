@@ -17,6 +17,9 @@ local mods_loaded_callbacks = {}
 local shutdown_callbacks = {}
 
 core.register_entity = function(name, def)
+	if name:sub(1, 1) == ":" then
+		name = name:sub(2)
+	end
 	registered_entities[name] = def
 end
 
@@ -384,6 +387,7 @@ describe("MWOF - Minetek World Object Framework", function()
 
 			-- Player joins far away (90 blocks)
 			local mock_player = {
+				is_valid = function() return true end,
 				get_pos = function() return {x = 10, y = 0, z = 0} end
 			}
 			table.insert(active_players, mock_player)
@@ -424,6 +428,73 @@ describe("MWOF - Minetek World Object Framework", function()
 			assert.is_not_nil(restored_obj)
 			assert.same({x = 50, y = 100, z = 150}, restored_obj:get_pos())
 			assert.equal("cube.glb", restored_obj.mesh)
+		end)
+	end)
+
+	describe("Roblox-Style Physics & Humanoid Damage System", function()
+		it("should make default objects damage-immune but physically reactive to punches", function()
+			local obj = core.create_world_object({
+				pos = {x = 0, y = 0, z = 0},
+				components = {"health"}
+			})
+			local health = obj:get_component("health")
+			health:set_hp(obj, 100)
+
+			-- Trigger punch from hitter
+			local mock_hitter = {
+				is_valid = function() return true end,
+				get_pos = function() return {x = 0, y = 0, z = -2} end
+			}
+			local ent = obj.object_ref:get_luaentity()
+			ent:on_punch(mock_hitter, 1.0, {damage_groups = {fleshy = 20}}, {x = 0, y = 0, z = 1})
+
+			-- Object HP should remain exactly 100 (undamaged because not humanoid)
+			assert.equal(100, health:get_hp(obj))
+
+			-- Object should have received a physical punch movement impulse / velocity transfer
+			assert.is_true(obj.vel.z > 0)
+		end)
+
+		it("should make humanoid objects damageable on punch", function()
+			local obj = core.create_world_object({
+				pos = {x = 0, y = 0, z = 0},
+				components = {"humanoid"}
+			})
+			local health = obj:get_component("health")
+			health:set_hp(obj, 100)
+
+			-- Trigger punch from hitter
+			local mock_hitter = {
+				is_valid = function() return true end,
+				get_pos = function() return {x = 0, y = 0, z = -2} end
+			}
+			local ent = obj.object_ref:get_luaentity()
+			ent:on_punch(mock_hitter, 1.0, {damage_groups = {fleshy = 20}}, {x = 0, y = 0, z = 1})
+
+			-- Object HP should be reduced because it has the humanoid component/property!
+			assert.equal(80, health:get_hp(obj))
+		end)
+
+		it("should handle interactive player collision pushing", function()
+			local obj = core.create_world_object({
+				pos = {x = 10, y = 0, z = 10},
+				collision_shape = {type = "box", size = {x = 1, y = 1, z = 1}}
+			})
+
+			-- Add a player colliding with the object (dist < push_radius)
+			local mock_player = {
+				is_valid = function() return true end,
+				get_pos = function() return {x = 9.5, y = 0, z = 10} end,
+				get_velocity = function() return {x = 2, y = 0, z = 0} end
+			}
+			table.insert(active_players, mock_player)
+
+			-- Run physics / collision pushing step
+			core.WorldObjectManager:step(0.1)
+
+			-- Object pos and velocity should be pushed to the right
+			assert.is_true(obj.pos.x > 10.0)
+			assert.is_true(obj.vel.x > 0.0)
 		end)
 	end)
 end)
