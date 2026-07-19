@@ -930,8 +930,11 @@ int ModApiMainMenu::l_get_clientmodpath(lua_State *L)
 /******************************************************************************/
 int ModApiMainMenu::l_get_gamepath(lua_State *L)
 {
-	std::string gamepath = fs::RemoveRelativePathComponents(
-		porting::path_user + DIR_DELIM + "games" + DIR_DELIM);
+	std::string path = porting::path_user + DIR_DELIM + "external-library" + DIR_DELIM;
+	if (!fs::PathExists(path)) {
+		path = porting::path_user + DIR_DELIM + "games" + DIR_DELIM;
+	}
+	std::string gamepath = fs::RemoveRelativePathComponents(path);
 	lua_pushstring(L, gamepath.c_str());
 	return 1;
 }
@@ -939,8 +942,11 @@ int ModApiMainMenu::l_get_gamepath(lua_State *L)
 /******************************************************************************/
 int ModApiMainMenu::l_get_texturepath(lua_State *L)
 {
-	std::string gamepath = fs::RemoveRelativePathComponents(
-		porting::path_user + DIR_DELIM + "textures");
+	std::string path = porting::path_user + DIR_DELIM + "assets-modified";
+	if (!fs::PathExists(path)) {
+		path = porting::path_user + DIR_DELIM + "textures";
+	}
+	std::string gamepath = fs::RemoveRelativePathComponents(path);
 	lua_pushstring(L, gamepath.c_str());
 	return 1;
 }
@@ -948,8 +954,11 @@ int ModApiMainMenu::l_get_texturepath(lua_State *L)
 /******************************************************************************/
 int ModApiMainMenu::l_get_texturepath_share(lua_State *L)
 {
-	std::string gamepath = fs::RemoveRelativePathComponents(
-		porting::path_share + DIR_DELIM + "textures");
+	std::string path = porting::path_share + DIR_DELIM + "assets-modified";
+	if (!fs::PathExists(path)) {
+		path = porting::path_share + DIR_DELIM + "textures";
+	}
+	std::string gamepath = fs::RemoveRelativePathComponents(path);
 	lua_pushstring(L, gamepath.c_str());
 	return 1;
 }

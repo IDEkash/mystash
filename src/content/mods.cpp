@@ -13,6 +13,7 @@
 #include "settings.h"
 #include "script/common/c_internal.h"
 #include "exceptions.h"
+#include "porting.h"
 
 void ModSpec::checkAndLog() const
 {
@@ -313,4 +314,93 @@ const std::vector<std::string> &ModStorage::getKeys(std::vector<std::string> *pl
 const std::string *ModStorage::getStringRaw(const std::string &name, std::string *place) const
 {
 	return m_database->getModEntry(m_mod_name, name, place) ? place : nullptr;
+}
+
+std::vector<InternalLogicSpec> loadInternalLogicPackages()
+{
+	std::vector<InternalLogicSpec> specs;
+	std::vector<std::string> search_paths;
+	search_paths.push_back(porting::path_user + DIR_DELIM + "internal-logic");
+	search_paths.push_back(porting::path_share + DIR_DELIM + "internal-logic");
+	search_paths.push_back(porting::path_user + DIR_DELIM + "Internal Logic");
+	search_paths.push_back(porting::path_share + DIR_DELIM + "Internal Logic");
+
+	for (const auto &base_path : search_paths) {
+		if (!fs::PathExists(base_path)) continue;
+		std::vector<fs::DirListNode> dirlist = fs::GetDirListing(base_path);
+		for (const auto &dln : dirlist) {
+			if (!dln.dir) continue;
+			std::string pkg_path = base_path + DIR_DELIM + dln.name;
+			std::string conf_path = pkg_path + DIR_DELIM + "internal.conf";
+			if (!fs::IsFile(conf_path)) continue;
+
+			Settings conf;
+			conf.readConfigFile(conf_path.c_str());
+
+			InternalLogicSpec spec;
+			spec.path = pkg_path;
+			spec.id = conf.exists("ID") ? conf.get("ID") : (conf.exists("id") ? conf.get("id") : dln.name);
+			spec.name = conf.exists("Name") ? conf.get("Name") : (conf.exists("name") ? conf.get("name") : spec.id);
+			spec.version = conf.exists("Version") ? conf.get("Version") : (conf.exists("version") ? conf.get("version") : "1.0");
+			spec.engine_version = conf.exists("EngineVersion") ? conf.get("EngineVersion") : (conf.exists("engine_version") ? conf.get("engine_version") : "1.0");
+			spec.description = conf.exists("Description") ? conf.get("Description") : (conf.exists("description") ? conf.get("description") : "");
+
+			// Parse Mapgen.gen
+			std::string gen_path = pkg_path + DIR_DELIM + "ServerSideService" + DIR_DELIM + "Mapgen.gen";
+			if (fs::IsFile(gen_path)) {
+				Settings gen;
+				gen.readConfigFile(gen_path.c_str());
+				spec.mapgen.name = gen.get("Name");
+				spec.mapgen.seed = gen.get("Seed");
+				spec.mapgen.chunk = gen.get("Chunk");
+				if (gen.exists("SeaLevel")) spec.mapgen.sea_level = gen.getS32("SeaLevel");
+				if (gen.exists("MinHeight")) spec.mapgen.min_height = gen.getS32("MinHeight");
+				if (gen.exists("MaxHeight")) spec.mapgen.max_height = gen.getS32("MaxHeight");
+				spec.mapgen.terrain_generator = gen.get("TerrainGenerator");
+				if (gen.exists("Biomes")) spec.mapgen.biomes = gen.getBool("Biomes");
+				if (gen.exists("Structures")) spec.mapgen.structures = gen.getBool("Structures");
+				if (gen.exists("Caves")) spec.mapgen.caves = gen.getBool("Caves");
+				if (gen.exists("Ores")) spec.mapgen.ores = gen.getBool("Ores");
+				if (gen.exists("Rivers")) spec.mapgen.rivers = gen.getBool("Rivers");
+				if (gen.exists("Lakes")) spec.mapgen.lakes = gen.getBool("Lakes");
+			}
+
+			// Parse Chunk.border
+			std::string border_path = pkg_path + DIR_DELIM + "ServerSideService" + DIR_DELIM + "Chunk.border";
+			if (fs::IsFile(border_path)) {
+				Settings bdr;
+				bdr.readConfigFile(border_path.c_str());
+				spec.chunk.name = bdr.get("Name");
+				spec.chunk.shape = bdr.get("Shape");
+				spec.chunk.size = bdr.get("Size");
+				spec.chunk.vertical = bdr.get("Vertical");
+				spec.chunk.compression = bdr.get("Compression");
+				if (bdr.exists("Streaming")) spec.chunk.streaming = bdr.getBool("Streaming");
+			}
+
+			// Parse Materials
+			std::string materials_dir = pkg_path + DIR_DELIM + "Assets" + DIR_DELIM + "Materials";
+			if (fs::PathExists(materials_dir)) {
+				std::vector<fs::DirListNode> mat_files = fs::GetDirListing(materials_dir);
+				for (const auto &mat_file : mat_files) {
+					if (!mat_file.dir && mat_file.name.size() > 9 && mat_file.name.substr(mat_file.name.size() - 9) == ".material") {
+						Settings mat;
+						mat.readConfigFile((materials_dir + DIR_DELIM + mat_file.name).c_str());
+						InternalLogicSpec::BuiltInMaterial bm;
+						bm.name = mat.exists("Name") ? mat.get("Name") : mat_file.name.substr(0, mat_file.name.size() - 9);
+						bm.footstep_sound = mat.get("FootstepSound");
+						bm.break_sound = mat.get("BreakSound");
+						bm.dig_sound = mat.get("DigSound");
+						if (mat.exists("Friction")) bm.friction = mat.getFloat("Friction");
+						if (mat.exists("Bounciness")) bm.bounciness = mat.getFloat("Bounciness");
+						if (mat.exists("Hardness")) bm.hardness = mat.getFloat("Hardness");
+						spec.materials.push_back(bm);
+					}
+				}
+			}
+
+			specs.push_back(spec);
+		}
+	}
+	return specs;
 }

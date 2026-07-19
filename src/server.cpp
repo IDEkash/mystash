@@ -545,6 +545,7 @@ void Server::init()
 	// Apply texture overrides from texturepack/override.txt
 	std::vector<std::string> paths;
 	fs::GetRecursiveDirs(paths, g_settings->get("texture_path"));
+	fs::GetRecursiveDirs(paths, m_gamespec.path + DIR_DELIM + "Assets" + DIR_DELIM + "Textures");
 	fs::GetRecursiveDirs(paths, m_gamespec.path + DIR_DELIM + "textures");
 	for (const std::string &path : paths) {
 		TextureOverrideSource override_source(path + DIR_DELIM + "override.txt");
@@ -2744,6 +2745,13 @@ void Server::fillMediaCache()
 	// ordered in descending priority
 	paths.push_back(getBuiltinLuaPath() + DIR_DELIM + "locale");
 	fs::GetRecursiveDirs(paths, porting::path_user + DIR_DELIM + "textures" + DIR_DELIM + "server");
+	fs::GetRecursiveDirs(paths, m_gamespec.path + DIR_DELIM + "Assets" + DIR_DELIM + "Textures");
+	fs::GetRecursiveDirs(paths, m_gamespec.path + DIR_DELIM + "Assets" + DIR_DELIM + "Sounds");
+	fs::GetRecursiveDirs(paths, m_gamespec.path + DIR_DELIM + "Assets" + DIR_DELIM + "Models");
+	fs::GetRecursiveDirs(paths, m_gamespec.path + DIR_DELIM + "Assets" + DIR_DELIM + "Fonts");
+	fs::GetRecursiveDirs(paths, m_gamespec.path + DIR_DELIM + "Assets" + DIR_DELIM + "Materials");
+	fs::GetRecursiveDirs(paths, m_gamespec.path + DIR_DELIM + "Assets" + DIR_DELIM + "UI");
+	fs::GetRecursiveDirs(paths, m_gamespec.path + DIR_DELIM + "Assets" + DIR_DELIM + "Videos");
 	fs::GetRecursiveDirs(paths, m_gamespec.path + DIR_DELIM + "textures");
 	m_modmgr->getModsMediaPaths(paths);
 

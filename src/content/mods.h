@@ -89,6 +89,57 @@ std::map<std::string, ModSpec> getModsInPath(const std::string &path,
 std::vector<ModSpec> flattenMods(const std::map<std::string, ModSpec> &mods,
 		bool discard_modpacks = true);
 
+struct InternalLogicSpec
+{
+	std::string id;
+	std::string name;
+	std::string version;
+	std::string engine_version;
+	std::string description;
+	std::string path;
+
+	// Parsed Mapgen Definition (.gen)
+	struct MapgenGen {
+		std::string name;
+		std::string seed;
+		std::string chunk;
+		int sea_level = 64;
+		int min_height = -64;
+		int max_height = 320;
+		std::string terrain_generator;
+		bool biomes = true;
+		bool structures = true;
+		bool caves = true;
+		bool ores = true;
+		bool rivers = true;
+		bool lakes = true;
+	} mapgen;
+
+	// Parsed Chunk Definition (.border)
+	struct ChunkBorder {
+		std::string name;
+		std::string shape;
+		std::string size;
+		std::string vertical;
+		std::string compression;
+		bool streaming = true;
+	} chunk;
+
+	// Parsed Built-in Materials (.material)
+	struct BuiltInMaterial {
+		std::string name;
+		std::string footstep_sound;
+		std::string break_sound;
+		std::string dig_sound;
+		float friction = 0.6f;
+		float bounciness = 0.1f;
+		float hardness = 3.0f;
+	};
+	std::vector<BuiltInMaterial> materials;
+};
+
+std::vector<InternalLogicSpec> loadInternalLogicPackages();
+
 
 class ModStorage : public IMetadata
 {

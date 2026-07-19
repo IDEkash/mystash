@@ -17,6 +17,13 @@
 
 ServerModManager::ServerModManager(const std::string &worldpath, SubgameSpec gamespec)
 {
+	// Load Internal Logic Packages
+	std::vector<InternalLogicSpec> internal_packages = loadInternalLogicPackages();
+	infostream << "Loaded " << internal_packages.size() << " Internal Logic packages." << std::endl;
+	for (const auto &spec : internal_packages) {
+		infostream << " - Internal Package: " << spec.name << " (" << spec.id << ")" << std::endl;
+	}
+
 	// Add all game mods and all world mods
 	configuration.addGameMods(gamespec);
 	std::string world_ext_path = worldpath + DIR_DELIM + "external-logic";
@@ -107,6 +114,14 @@ void ServerModManager::getModsMediaPaths(std::vector<std::string> &paths) const
 	const auto &mods = configuration.getMods();
 	for (auto it = mods.crbegin(); it != mods.crend(); it++) {
 		const ModSpec &spec = *it;
+		fs::GetRecursiveDirs(paths, spec.path + DIR_DELIM + "Assets" + DIR_DELIM + "Textures");
+		fs::GetRecursiveDirs(paths, spec.path + DIR_DELIM + "Assets" + DIR_DELIM + "Sounds");
+		fs::GetRecursiveDirs(paths, spec.path + DIR_DELIM + "Assets" + DIR_DELIM + "Models");
+		fs::GetRecursiveDirs(paths, spec.path + DIR_DELIM + "Assets" + DIR_DELIM + "Fonts");
+		fs::GetRecursiveDirs(paths, spec.path + DIR_DELIM + "Assets" + DIR_DELIM + "Materials");
+		fs::GetRecursiveDirs(paths, spec.path + DIR_DELIM + "Assets" + DIR_DELIM + "UI");
+		fs::GetRecursiveDirs(paths, spec.path + DIR_DELIM + "Assets" + DIR_DELIM + "Videos");
+
 		fs::GetRecursiveDirs(paths, spec.path + DIR_DELIM + "textures");
 		fs::GetRecursiveDirs(paths, spec.path + DIR_DELIM + "sounds");
 		fs::GetRecursiveDirs(paths, spec.path + DIR_DELIM + "media");
