@@ -207,13 +207,13 @@ local function get_formspec(dlgdata)
 		"padding[0,0]",
 		"bgcolor[;true]",
 
-		-- Solid dark premium greyish blue backdrop (Layer 1)
-		"box[-0.5,-0.5;", size.x + 1, ",", size.y + 1, ";#0f172aF2]",
+		-- Solid black background (page/root): #000000
+		"box[-0.5,-0.5;", size.x + 1, ",", size.y + 1, ";#000000]",
 
 		"container[", window_padding.x, ",", window_padding.y, "]",
 	}
 
-	-- Left: Horizontal category selector buttons
+	-- Left: Horizontal category selector buttons (tabs behavior, re-skinned)
 	local cat_buttons = {
 		{ id = "type_all", label = fgettext("All"), active = (selected_type == nil), w = 1.4 },
 		{ id = "type_game", label = fgettext("Games"), active = (selected_type == "game"), w = 1.8 },
@@ -223,25 +223,34 @@ local function get_formspec(dlgdata)
 
 	local current_x = 0
 	for _, cat in ipairs(cat_buttons) do
-		local bg_col = cat.active and "#0284c7" or "#334155"
-		local text_col = "white"
+		-- Inactive: bgcolor = #0d0d0f, textcolor = #8b8b92
+		-- Active: bgcolor = #16161a, textcolor = #f2f2f4, plus 2px accent-colored thin box under if active
+		local bg_col = cat.active and "#16161a" or "#0d0d0f"
+		local text_col = cat.active and "#f2f2f4" or "#8b8b92"
 		local font_style = cat.active and "bold" or "normal"
-		formspec[#formspec + 1] = ("style[%s;bgcolor=%s;textcolor=%s;border=false;font=%s]style[%s:hovered;bgcolor=#475569]button[%f,0;%f,0.8;%s;%s]"):format(
+		formspec[#formspec + 1] = ("style[%s;bgcolor=%s;textcolor=%s;border=false;font=%s]style[%s:hovered;bgcolor=#16161a;textcolor=#f2f2f4]button[%f,0;%f,0.8;%s;%s]"):format(
 			cat.id, bg_col, text_col, font_style, cat.id, current_x, cat.w, cat.id, cat.label
 		)
+		if cat.active then
+			formspec[#formspec + 1] = ("box[%f,0.74;%f,0.06;#3a7bfd]"):format(current_x, cat.w)
+		end
 		current_x = current_x + cat.w + 0.15
 	end
 
-	-- Right: Search Box starting exactly at current_x
+	-- Right: Search Box (fill #16161a, border #232326, placeholder text in #6a6a70)
 	local search_x = current_x
 	local search_box_width = W - search_x - 1.6
+	formspec[#formspec + 1] = ("style[search_string;bgcolor=#16161a;textcolor=#f2f2f4;border=true;border_color=#232326]")
 	formspec[#formspec + 1] = ("field[%f,0;%f,0.8;search_string;;%s]"):format(
 		search_x, search_box_width, core.formspec_escape(search_string)
 	)
 	formspec[#formspec + 1] = "field_enter_after_edit[search_string;true]"
+	-- Tooltip and image buttons styled to fit #6a6a70 (tertiary/faint text) / #16161a elevated
+	formspec[#formspec + 1] = ("style[search;bgcolor=#16161a;border=false]")
 	formspec[#formspec + 1] = ("image_button[%f,0;0.8,0.8;%s;search;]"):format(
 		search_x + search_box_width, core.formspec_escape(defaulttexturedir .. "search.png")
 	)
+	formspec[#formspec + 1] = ("style[clear;bgcolor=#16161a;border=false]")
 	formspec[#formspec + 1] = ("image_button[%f,0;0.8,0.8;%s;clear;]"):format(
 		search_x + search_box_width + 0.8, core.formspec_escape(defaulttexturedir .. "clear.png")
 	)
@@ -249,23 +258,26 @@ local function get_formspec(dlgdata)
 	-- Bottom strip start
 	table.insert_all(formspec, {
 		"container[0,", H - 0.8, "]",
-		"style[back;bgcolor=#9b2c2c;textcolor=white]",
-		"style[back:hovered;bgcolor=#b91c1c]",
+		-- Secondary/ghost button Cancel / Back: panel fill #0d0d0f, border #232326, textcolor #8b8b92
+		"style[back;bgcolor=#0d0d0f;textcolor=#8b8b92;border=true;border_color=#232326]",
+		"style[back:hovered;bgcolor=#16161a;textcolor=#f2f2f4]",
 		"button[0,0;2,0.8;back;", fgettext("Back"), "]",
 
-		-- Bottom-center: Page nav buttons
+		-- Bottom-center: Page nav buttons (flat design, border #232326, bgcolor #0d0d0f)
 		"container[", (W - 1*4 - 2) / 2, ",0]",
+		"style[pstart,pback,pnext,pend;bgcolor=#0d0d0f;border=true;border_color=#232326]",
+		"style[pstart:hovered,pback:hovered,pnext:hovered,pend:hovered;bgcolor=#16161a]",
 		"image_button[0,0;1,0.8;", core.formspec_escape(defaulttexturedir), "start_icon.png;pstart;]",
 		"image_button[1,0;1,0.8;", core.formspec_escape(defaulttexturedir), "prev_icon.png;pback;]",
-		"style[pagenum;border=false]",
+		"style[pagenum;border=true;border_color=#232326;bgcolor=#0d0d0f;textcolor=#8b8b92]",
 		"button[2,0;2,0.8;pagenum;", tonumber(cur_page), " / ", tonumber(dlgdata.pagemax), "]",
 		"image_button[4,0;1,0.8;", core.formspec_escape(defaulttexturedir), "next_icon.png;pnext;]",
 		"image_button[5,0;1,0.8;", core.formspec_escape(defaulttexturedir), "end_icon.png;pend;]",
 		"container_end[]", -- page nav end
 
-		-- Bottom-right: updating
+		-- Bottom-right: updating / Install actions
 		"container[", W - 3, ",0]",
-		"style[status,downloading,queued;border=false]",
+		"style[status,downloading,queued;border=true;border_color=#232326;bgcolor=#0d0d0f;textcolor=#8b8b92]",
 	})
 
 	if contentdb.number_downloading > 0 then
@@ -291,8 +303,9 @@ local function get_formspec(dlgdata)
 			formspec[#formspec + 1] = fgettext("No updates")
 			formspec[#formspec + 1] = "]"
 		else
-			formspec[#formspec + 1] = "style[update_all;bgcolor=#0284c7;textcolor=white;font=bold]"
-			formspec[#formspec + 1] = "style[update_all:hovered;bgcolor=#0369a1]"
+			-- Primary Action: bgcolor #3a7bfd, textcolor #ffffff, hover #2f68d8
+			formspec[#formspec + 1] = "style[update_all;bgcolor=#3a7bfd;textcolor=#ffffff;font=bold;border=false]"
+			formspec[#formspec + 1] = "style[update_all:hovered;bgcolor=#2f68d8]"
 			formspec[#formspec + 1] = "button[0,0;3,0.8;update_all;"
 			-- TRANSLATORS: $1 = number of available updates
 			formspec[#formspec + 1] = fgettext("Update All [$1]", num_avail_updates)
@@ -315,8 +328,9 @@ local function get_formspec(dlgdata)
 	-- TRANSLATORS: A download is queued
 	formspec[#formspec + 1] = "tooltip[queued;" .. fgettext("Queued") .. tooltip_colors
 
-	-- Full Width Packages Browser Box (Layer 2)
-	formspec[#formspec + 1] = ("box[0,1.2;%f,%f;#1e293bB0]"):format(W, H - 2.225)
+	-- Full Width Packages Browser Box (Layer 2) - Border #232326, fill #0d0d0f (or no border box if styled cells used)
+	formspec[#formspec + 1] = ("box[0,1.2;%f,%f;#0d0d0f]"):format(W, H - 2.225)
+	formspec[#formspec + 1] = ("box[0,1.2;%f,%f;#232326]"):format(W, 0.02) -- thin divider line
 
 	formspec[#formspec + 1] = "container[0,1.425]"
 
@@ -334,9 +348,10 @@ local function get_formspec(dlgdata)
 	local start_idx = (cur_page - 1) * num_per_page + 1
 	for i=start_idx, math.min(#contentdb.packages, start_idx+num_per_page-1) do
 		local package = contentdb.packages[i]
-		local text = core.colorize("#38bdf8", package.title) ..
-			core.colorize("#94a3b8", " by " .. package.author) .. "\n" ..
-			package.short_description
+		-- Title: #f2f2f4 (primary text), Author: #8b8b92 (secondary text)
+		local text = core.colorize("#f2f2f4", package.title) ..
+			core.colorize("#8b8b92", " by " .. package.author) .. "\n" ..
+			core.colorize("#8b8b92", package.short_description)
 
 		table.insert_all(formspec, {
 			"container[",
@@ -345,11 +360,15 @@ local function get_formspec(dlgdata)
 			(cell_h + cell_spacing) * math.floor((i - start_idx) / columns),
 			"]",
 
-			-- Modern greyish blue translucent card cells (#33415590) with subtle borders
-			"box[0,0;", cell_w, ",", cell_h, ";#33415590]",
+			-- Package list cards: fill #0d0d0f, 1px-equivalent border #232326
+			"box[0,0;", cell_w, ",", cell_h, ";#0d0d0f]",
+			"box[0,0;", cell_w, ",0.02;#232326]",
+			"box[0,", cell_h - 0.02, ";", cell_w, ",0.02;#232326]",
+			"box[0,0;0.02,", cell_h, ";#232326]",
+			"box[", cell_w - 0.02, ",0;0.02,", cell_h, ";#232326]",
 
 			-- image,
-			"image[0,0;", img_w, ",", cell_h, ";",
+			"image[0.02,0.02;", img_w - 0.04, ",", cell_h - 0.04, ";",
 				core.formspec_escape(get_screenshot(package, package.thumbnail, 2)), "]",
 
 			"label[", img_w + 0.25, ",0.25;", text_w, ",", text_h, ";",
@@ -361,9 +380,9 @@ local function get_formspec(dlgdata)
 				-- avoid everything being one long line.
 				core.formspec_escape(core.wrap_text(package.short_description, 80)), "]",
 
-			"style[view_", i, ";border=false]",
-			"style[view_", i, ":hovered;bgimg=", core.formspec_escape(defaulttexturedir .. "button_hover_semitrans.png"), "]",
-			"style[view_", i, ":pressed;bgimg=", core.formspec_escape(defaulttexturedir .. "button_press_semitrans.png"), "]",
+			"style[view_", i, ";border=false;bgcolor=transparent]",
+			"style[view_", i, ":hovered;bgcolor=#16161a]",
+			"style[view_", i, ":pressed;bgcolor=#16161a]",
 			"button[0,0;", cell_w, ",", cell_h, ";view_", i, ";]",
 		})
 
@@ -371,7 +390,8 @@ local function get_formspec(dlgdata)
 			table.insert_all(formspec, {
 				--[[ TRANSLATORS: A 'featured' package in ContentDB is a package that is
 				more prominently displayed than other packages ]]
-				"tooltip[0,0;0.8,0.8;", fgettext("Featured"), "]",
+				-- Gold (badges: New/Featured/Currency-adjacent labels only): #f0c04a
+				"tooltip[0,0;0.8,0.8;", fgettext("Featured"), ";#0d0d0f;#f0c04a]",
 				"image[0.2,0.2;0.4,0.4;", core.formspec_escape(defaulttexturedir .. "server_favorite.png"), "]",
 			})
 		end
@@ -380,6 +400,7 @@ local function get_formspec(dlgdata)
 			"container[", cell_w - 0.625,",", 0.125, "]",
 		})
 
+		-- "Installed" / version chip / badge (Success/green #3cb371, Free/Installed, otherwise secondary / panel elevated)
 		if package.downloading then
 			table.insert_all(formspec, {
 				"animated_image[0,0;0.5,0.5;downloading;", core.formspec_escape(defaulttexturedir .. "cdb_downloading.png"),
@@ -395,8 +416,12 @@ local function get_formspec(dlgdata)
 					"image[0,0;0.5,0.5;", core.formspec_escape(defaulttexturedir .. "cdb_update.png"), "]",
 				})
 			else
+				-- Success/green (Free/Installed): #3cb371. Pill with panel elevated fill #16161a, text secondary #8b8b92 or success text.
 				table.insert_all(formspec, {
+					"box[0.1,0.1;0.3,0.3;#16161a]",
 					"image[0.1,0.1;0.3,0.3;", core.formspec_escape(defaulttexturedir .. "checkbox_64.png"), "]",
+					-- Give success indicator
+					"tooltip[0.1,0.1;0.3,0.3;" .. fgettext("Installed") .. ";#0d0d0f;#3cb371]"
 				})
 			end
 		end

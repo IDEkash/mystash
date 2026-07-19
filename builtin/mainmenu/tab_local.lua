@@ -110,20 +110,26 @@ local function get_formspec(tabview, name, tabdata)
 			"button[5.25,", button_y, ";5,1.2;game_open_cdb;", fgettext("Install a game"), "]"})
 	end
 
-	local retval = "style[play;bgcolor=#0284c7;textcolor=white;font=bold]" ..
-			"style[play:hovered;bgcolor=#0369a1]" ..
-			"style[play:pressed;bgcolor=#075985]" ..
-			"style[world_create;bgcolor=#334155;textcolor=white]" ..
-			"style[world_create:hovered;bgcolor=#475569]" ..
-			"style[world_configure;bgcolor=#334155;textcolor=white]" ..
-			"style[world_configure:hovered;bgcolor=#475569]" ..
-			"style[world_delete;bgcolor=#9b2c2c;textcolor=white]" ..
-			"style[world_delete:hovered;bgcolor=#b91c1c]"
+	-- Re-skin to dark "marketplace" theme
+	-- - Primary buttons ("Play", "New"): bgcolor #3a7bfd, textcolor #ffffff, hover #2f68d8
+	-- - Secondary/ghost buttons ("Select Mods", "New"): transparent/panel fill #0d0d0f, border #232326, textcolor secondary #8b8b92
+	-- - Danger/sale ("Delete" / Uninstall): uses danger red #e34848 for textcolor only on ghost button
+	local retval = "style[play;bgcolor=#3a7bfd;textcolor=#ffffff;font=bold;border=false]" ..
+			"style[play:hovered;bgcolor=#2f68d8]" ..
+			"style[play:pressed;bgcolor=#2f68d8]" ..
+			"style[world_create;bgcolor=#0d0d0f;textcolor=#8b8b92;border=true;border_color=#232326]" ..
+			"style[world_create:hovered;bgcolor=#16161a;textcolor=#f2f2f4]" ..
+			"style[world_configure;bgcolor=#0d0d0f;textcolor=#8b8b92;border=true;border_color=#232326]" ..
+			"style[world_configure:hovered;bgcolor=#16161a;textcolor=#f2f2f4]" ..
+			"style[world_delete;bgcolor=#0d0d0f;textcolor=#e34848;border=true;border_color=#232326]" ..
+			"style[world_delete:hovered;bgcolor=#16161a]"
 
-	-- Background card boxes representing two tables with borders
+	-- Background card boxes representing two tables with borders: Panel/card fill #0d0d0f, border/divider #232326
 	retval = retval ..
-			"box[0.15,0.15;4.8,6.8;#1e293bB0]" ..
-			"box[5.05,0.15;10.3,6.8;#1e293bB0]"
+			"box[0.15,0.15;4.8,6.8;#0d0d0f]" ..
+			"box[0.15,0.15;4.8,6.8;#232326;true]" ..
+			"box[5.05,0.15;10.3,6.8;#0d0d0f]" ..
+			"box[5.05,0.15;10.3,6.8;#232326;true]"
 
 	local index = core.get_textlist_index("sp_worlds") or filterlist.get_current_index(menudata.worldlist,
 				tonumber(core.settings:get("mainmenu_last_selected_world"))) or 0
@@ -141,9 +147,9 @@ local function get_formspec(tabview, name, tabdata)
 	end
 	local disabled_settings = get_disabled_settings(game)
 
-	-- Header label of the current game (dropdown button)
-	retval = retval .. "style[btn_games_dropdown;bgcolor=#334155;textcolor=white;font=bold;border=false]" ..
-			"style[btn_games_dropdown:hovered;bgcolor=#475569]" ..
+	-- Header label of the current game (dropdown button) - panel elevated #16161a, primary text #f2f2f4, border #232326
+	retval = retval .. "style[btn_games_dropdown;bgcolor=#16161a;textcolor=#f2f2f4;font=bold;border=true;border_color=#232326]" ..
+			"style[btn_games_dropdown:hovered;bgcolor=#16161a]" ..
 			"button[0.35,0.35;4.4,0.8;btn_games_dropdown;" .. core.formspec_escape(game.title .. " ▾") .. "]"
 
 	if tabdata.games_expanded then
@@ -155,19 +161,20 @@ local function get_formspec(tabview, name, tabdata)
 			local icon = (g.menuicon_path and g.menuicon_path ~= "") and core.formspec_escape(g.menuicon_path) or core.formspec_escape(defaulttexturedir .. "no_screenshot.png")
 			retval = retval ..
 				("image[0.1,%f;0.6,0.6;%s]"):format(item_y + 0.1, icon) ..
-				("style[game_select_%s;bgcolor=#334155;textcolor=white;border=false]"):format(g.id, g.id) ..
-				("style[game_select_%s:hovered;bgcolor=#475569]"):format(g.id) ..
+				("style[game_select_%s;bgcolor=#0d0d0f;textcolor=#8b8b92;border=true;border_color=#232326]"):format(g.id, g.id) ..
+				("style[game_select_%s:hovered;bgcolor=#16161a;textcolor=#f2f2f4]"):format(g.id) ..
 				("button[0.8,%f;3.2,0.8;game_select_%s;%s]"):format(item_y, g.id, core.formspec_escape(g.title))
 		end
 		local plus_y = #pkgmgr.games * 0.9
 		local plus_icon = core.formspec_escape(defaulttexturedir .. "plus.png")
 		retval = retval ..
 			("image[0.1,%f;0.6,0.6;%s]"):format(plus_y + 0.1, plus_icon) ..
-			"style[game_open_cdb_dropdown;bgcolor=#0284c7;textcolor=white;font=bold;border=false]" ..
-			"style[game_open_cdb_dropdown:hovered;bgcolor=#0369a1]" ..
+			"style[game_open_cdb_dropdown;bgcolor=#3a7bfd;textcolor=#ffffff;font=bold;border=false]" ..
+			"style[game_open_cdb_dropdown:hovered;bgcolor=#2f68d8]" ..
 			("button[0.8,%f;3.2,0.8;game_open_cdb_dropdown;%s]"):format(plus_y, fgettext("Add Game"))
 		retval = retval .. "scroll_container_end[]"
 		if total_h > scroll_h then
+			-- Scrollbar in slate theme borders
 			retval = retval .. ("scrollbar[4.65,1.3;0.2,%f;vertical;games_scroll;%f]"):format(scroll_h, tabdata.games_scroll or 0)
 		end
 	end
@@ -196,6 +203,7 @@ local function get_formspec(tabview, name, tabdata)
 		end
 	end
 
+	-- Button styles match the spec (World Delete: danger red #e34848 text on ghost button #0d0d0f/border #232326)
 	retval = retval ..
 			"container[5.25,4.875]" ..
 			"button[6.65,0;3.225,0.8;world_create;".. fgettext("New") .. "]"
@@ -206,13 +214,18 @@ local function get_formspec(tabview, name, tabdata)
 	end
 	retval = retval ..
 			"container_end[]" ..
+			-- Set default text/label styling inside containers
+			"style_type[checkbox;textcolor=#8b8b92]" ..
 			"container[0.375,0.375]" ..
 			creative ..
 			damage ..
 			host ..
 			"container_end[]" ..
 			"container[5.25,0.375]" ..
-			"label[0,0.2;".. fgettext("Select World:") .. "]"..
+			"style[world_sel_lbl;textcolor=#f2f2f4;font=bold]" ..
+			"label[0,0.2;world_sel_lbl;".. fgettext("Select World:") .. "]"..
+			-- List row background: #0d0d0f, hover: #16161a, selected row gets thin indicator or slate-elevated fill
+			"style[sp_worlds;bgcolor=#0d0d0f;textcolor=#f2f2f4;border=true;border_color=#232326;highlight_bgcolor=#16161a;highlight_textcolor=#f2f2f4]" ..
 			"textlist[0,0.5;9.875,3.9;sp_worlds;" ..
 			menu_render_worldlist() ..
 			";" .. index .. "]" ..
@@ -230,6 +243,9 @@ local function get_formspec(tabview, name, tabdata)
 			-- Reset y so that the text fields always start at the same position,
 			-- regardless of whether some of the checkboxes are hidden.
 			y = 1.3 + 4 * yo + 0.35
+
+			-- Modern dark text fields (bgcolor #16161a, border #232326, text #f2f2f4)
+			retval = retval .. "style[te_playername,te_passwd,te_serveraddr,te_serverport;bgcolor=#16161a;border=true;border_color=#232326;textcolor=#f2f2f4]"
 
 			retval = retval .. "field[0," .. y .. ";4.5,0.75;te_playername;" .. fgettext("Name") .. ";" ..
 					core.formspec_escape(current_name) .. "]"
@@ -261,10 +277,10 @@ local function get_formspec(tabview, name, tabdata)
 				"button[5.25,5.925;9.875,0.8;play;" .. fgettext("Play Game") .. "]"
 	end
 
-	-- Title on bottom left side of the left pane
+	-- Title on bottom left side of the left pane (Accent #3a7bfd and primary #f2f2f4)
 	if not tabdata.games_expanded then
 		local ver_str = core.get_version().string
-		local colored_text = core.colorize("#0284c7", "Luanti ") .. core.colorize("#ffffff", core.formspec_escape(ver_str))
+		local colored_text = core.colorize("#3a7bfd", "Luanti ") .. core.colorize("#f2f2f4", core.formspec_escape(ver_str))
 		retval = retval .. "label[0.35,6.3;" .. colored_text .. "]"
 	end
 

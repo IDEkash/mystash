@@ -4,8 +4,9 @@
 
 
 local function get_description_hypertext(package, info, loading_error)
-	-- Screenshots and description
-	local hypertext = "<big><b>" .. core.hypertext_escape(package.short_description) .. "</b></big>\n"
+	-- Hypertext body background: #0d0d0f panel, body copy in secondary text color (#8b8b92), headings/short_description in primary text (#f2f2f4), bold.
+	local hypertext = "<global background=#0d0d0f color=#8b8b92 size=14>"
+	hypertext = hypertext .. "<big><b><font color=#f2f2f4>" .. core.hypertext_escape(package.short_description) .. "</font></b></big>\n"
 
 	local screenshots = info and info.screenshots or {{url = package.thumbnail}}
 
@@ -23,7 +24,7 @@ local function get_description_hypertext(package, info, loading_error)
 	end
 
 	if info then
-		hypertext = hypertext .. "\n" .. info.long_description.head
+		hypertext = hypertext .. "\n<font color=#8b8b92>" .. info.long_description.head .. "</font>"
 
 		local first = true
 		local function add_link_button(label, name)
@@ -31,7 +32,8 @@ local function get_description_hypertext(package, info, loading_error)
 				if not first then
 					hypertext = hypertext .. " | "
 				end
-				hypertext = hypertext .. "<action name=link_" .. name .. ">" .. label .. "</action>"
+				-- Link buttons: small flat pill/text links in accent blue (#3a7bfd)
+				hypertext = hypertext .. "<action name=link_" .. name .. "><font color=#3a7bfd>" .. label .. "</font></action>"
 				info.long_description.links["link_" .. name] = info[name]
 				first = false
 			end
@@ -46,12 +48,12 @@ local function get_description_hypertext(package, info, loading_error)
 		add_link_button(hgettext("Translate"), "translation_url")
 		add_link_button(hgettext("Forum Topic"), "forum_url")
 
-		hypertext = hypertext .. "\n\n" .. info.long_description.body
+		hypertext = hypertext .. "\n\n<font color=#8b8b92>" .. info.long_description.body .. "</font>"
 
 	elseif loading_error then
-		hypertext = hypertext .. "\n\n" .. hgettext("Error loading package information")
+		hypertext = hypertext .. "\n\n<font color=#e34848>" .. hgettext("Error loading package information") .. "</font>"
 	else
-		hypertext = hypertext .. "\n\n" .. hgettext("Loading...")
+		hypertext = hypertext .. "\n\n<font color=#6a6a70>" .. hgettext("Loading...") .. "</font>"
 	end
 
 	-- Fix the path to blank.png. This is needed for bullet indentation,
@@ -118,23 +120,25 @@ local function get_formspec(data)
 		"padding[0,0]",
 		"bgcolor[;true]",
 
-		-- Solid dark premium greyish blue backdrop (Layer 1)
-		"box[-0.5,-0.5;", size.x + 1, ",", size.y + 1, ";#0f172aF2]",
+		-- Root #000000 background
+		"box[-0.5,-0.5;", size.x + 1, ",", size.y + 1, ";#000000]",
 
 		"container[", window_padding.x, ",", window_padding.y, "]",
 
 		-- Back & ContentDB page action buttons at bottom
-		"style[back;bgcolor=#9b2c2c;textcolor=white]",
-		"style[back:hovered;bgcolor=#b91c1c]",
+		-- Back/Cancel: secondary/ghost transparent/panel fill #0d0d0f, border #232326, textcolor #8b8b92
+		"style[back;bgcolor=#0d0d0f;textcolor=#8b8b92;border=true;border_color=#232326]",
+		"style[back:hovered;bgcolor=#16161a;textcolor=#f2f2f4]",
 		"button[0,", bottom_buttons_y, ";2,0.8;back;", fgettext("Back"), "]",
-		"style[open_contentdb;bgcolor=#334155;textcolor=white;border=false]",
-		"style[open_contentdb:hovered;bgcolor=#475569]",
+
+		"style[open_contentdb;bgcolor=#0d0d0f;textcolor=#8b8b92;border=true;border_color=#232326]",
+		"style[open_contentdb:hovered;bgcolor=#16161a;textcolor=#f2f2f4]",
 		"button[", W - 3.5, ",", bottom_buttons_y, ";3.5,0.8;open_contentdb;", fgettext("ContentDB page"), "]",
 
-		-- Page title in large bold white text
-		"style_type[label;font_size=+24;font=bold]",
+		-- Page title in large bold white text (#f2f2f4)
+		"style_type[label;font_size=+24;font=bold;textcolor=#f2f2f4]",
 		"label[0.2,0.4;", core.formspec_escape(package.title), "]",
-		"style_type[label;font_size=;font=]",
+		"style_type[label;font_size=;font=;textcolor=]",
 	}
 
 	-- Draw pill-shaped metadata tags next to title
@@ -158,13 +162,19 @@ local function get_formspec(data)
 			stars_str = stars_str .. "☆"
 		end
 	end
+	-- Rating diamonds or stars in primary text (#f2f2f4) and tertiary/faint (#6a6a70). No gold!
 	local rating_pill_lbl = ("%s (%.1f)"):format(stars_str, rating_val)
 
-	-- Rating Pill & Author/Developer Pill using Slate colors
-	formspec[#formspec + 1] = "box[0.2,1.1;2.8,0.5;#33415590]"
-	formspec[#formspec + 1] = "label[0.3,1.35;" .. core.formspec_escape(rating_pill_lbl) .. "]"
-	formspec[#formspec + 1] = "box[3.2,1.1;3.2,0.5;#33415590]"
-	formspec[#formspec + 1] = "label[3.3,1.35;" .. core.formspec_escape("👤 " .. package.author) .. "]"
+	-- Rating Pill & Author/Developer Pill using Panel elevate #16161a, text color secondary #8b8b92
+	formspec[#formspec + 1] = "box[0.2,1.1;2.8,0.5;#16161a]"
+	formspec[#formspec + 1] = "box[0.2,1.1;2.8,0.5;#232326;true]" -- 1px equivalent border
+	formspec[#formspec + 1] = "style[rat_lbl;textcolor=#f2f2f4]"
+	formspec[#formspec + 1] = "label[0.3,1.35;rat_lbl;" .. core.formspec_escape(rating_pill_lbl) .. "]"
+
+	formspec[#formspec + 1] = "box[3.2,1.1;3.2,0.5;#16161a]"
+	formspec[#formspec + 1] = "box[3.2,1.1;3.2,0.5;#232326;true]"
+	formspec[#formspec + 1] = "style[auth_lbl;textcolor=#8b8b92]"
+	formspec[#formspec + 1] = "label[3.3,1.35;auth_lbl;" .. core.formspec_escape("👤 " .. package.author) .. "]"
 
 	-- Right aligned installation controls
 	table.insert_all(formspec, {
@@ -185,9 +195,9 @@ local function get_formspec(data)
 		-- TRANSLATORS: $1 = download size
 		local label = info and fgettext("Install [$1]", info.download_size) or
 			fgettext("Install")
-		-- Sky blue highlight background
-		formspec[#formspec + 1] = "style[install;bgcolor=#0284c7;textcolor=white;font=bold]"
-		formspec[#formspec + 1] = "style[install:hovered;bgcolor=#0369a1]"
+		-- Accent Blue specification: bgcolor #3a7bfd, textcolor #ffffff, hover #2f68d8
+		formspec[#formspec + 1] = "style[install;bgcolor=#3a7bfd;textcolor=#ffffff;font=bold;border=false]"
+		formspec[#formspec + 1] = "style[install:hovered;bgcolor=#2f68d8]"
 		formspec[#formspec + 1] = "button["
 		formspec[#formspec + 1] = right_button_rect
 		formspec[#formspec + 1] =";install;"
@@ -195,9 +205,9 @@ local function get_formspec(data)
 		formspec[#formspec + 1] = "]"
 	else
 		if package.installed_release < package.release then
-			-- The install_ action also handles updating
-			formspec[#formspec + 1] = "style[install;bgcolor=#0ea5e9;textcolor=white]"
-			formspec[#formspec + 1] = "style[install:hovered;bgcolor=#0284c7]"
+			-- The install_ action also handles updating (Primary action: accent blue)
+			formspec[#formspec + 1] = "style[install;bgcolor=#3a7bfd;textcolor=#ffffff;font=bold;border=false]"
+			formspec[#formspec + 1] = "style[install:hovered;bgcolor=#2f68d8]"
 			formspec[#formspec + 1] = "button["
 			formspec[#formspec + 1] = left_button_rect
 			formspec[#formspec + 1] = ";install;"
@@ -205,8 +215,9 @@ local function get_formspec(data)
 			formspec[#formspec + 1] = "]"
 		end
 
-		formspec[#formspec + 1] = "style[uninstall;bgcolor=#a93b3b;textcolor=white]"
-		formspec[#formspec + 1] = "style[uninstall:hovered;bgcolor=#b91c1c]"
+		-- "Uninstall" uses secondary/ghost style (transparent/panel fill #0d0d0f, border #232326) with textcolor #e34848 danger red
+		formspec[#formspec + 1] = "style[uninstall;bgcolor=#0d0d0f;textcolor=#e34848;border=true;border_color=#232326]"
+		formspec[#formspec + 1] = "style[uninstall:hovered;bgcolor=#16161a]"
 		formspec[#formspec + 1] = "button["
 		formspec[#formspec + 1] = right_button_rect
 		formspec[#formspec + 1] = ";uninstall;"
@@ -230,9 +241,10 @@ local function get_formspec(data)
 
 	local tab_body_height = bottom_buttons_y - 2.0
 
-	-- Left Pane: Hero, stats, categories, screenshots (Width: 6.0)
+	-- Left Pane: Hero, stats, categories, screenshots (Width: 6.0) - panel fill #0d0d0f, border #232326
 	table.insert_all(formspec, {
-		"box[0.2,1.8;6.0," .. (tab_body_height + 0.15) .. ";#33415590]",
+		"box[0.2,1.8;6.0," .. (tab_body_height + 0.15) .. ";#0d0d0f]",
+		"box[0.2,1.8;6.0," .. (tab_body_height + 0.15) .. ";#232326;true]", -- 1px equivalent border
 	})
 
 	-- Large Hero Image card
@@ -240,24 +252,30 @@ local function get_formspec(data)
 	local hero_screenshot = get_screenshot(package, screenshot_url, 2)
 	table.insert_all(formspec, {
 		"image[0.4,2.0;5.6,2.5;" .. core.formspec_escape(hero_screenshot) .. "]",
-		-- Badge bottom-left: "Add-On", "Game", or "Mod"
-		"box[0.5,4.0;1.4,0.4;#0284c7]",
-		"style[badge_lbl;font=bold;textcolor=white]",
-		"label[0.6,4.18;" .. core.formspec_escape(package.type:upper()) .. "]",
-		-- Badge bottom-right: "FREE" or download size
-		"box[4.3,4.0;1.6,0.4;#334155B0]",
-		"style[price_lbl;font=normal;textcolor=white]",
-		"label[4.4,4.18;" .. core.formspec_escape(info and info.download_size or "FREE") .. "]",
+		"box[0.4,2.0;5.6,2.5;#232326;true]", -- border for screenshot matching #232326
 
-		-- Engagement stats row (downloads / ratings summary) cleanly arranged with spacing
-		"box[0.4,4.5;5.6,0.9;#33415560]",
-		"label[0.5,4.72;" .. core.formspec_escape(detail_line1) .. "]",
-		"label[0.5,5.0;" .. core.formspec_escape(detail_line2) .. "]",
-		"label[0.5,5.28;" .. core.formspec_escape(detail_line3) .. "]",
+		-- Badge bottom-left: "Add-On", "Game", or "Mod" - border only (no fill), text color secondary (#8b8b92)
+		"box[0.5,4.0;1.4,0.4;#232326;true]",
+		"style[badge_lbl;font=bold;textcolor=#8b8b92]",
+		"label[0.6,4.18;badge_lbl;" .. core.formspec_escape(package.type:upper()) .. "]",
 
-		-- Screenshots Section label and gallery thumbnails
-		"label[0.4,5.6;" .. fgettext("SCREENSHOTS") .. "]",
-		"box[0.4,5.9;5.6,0.02;#ffffff22]",
+		-- Badge bottom-right: "FREE" or download size - flat border only, text secondary
+		"box[4.3,4.0;1.6,0.4;#232326;true]",
+		"style[price_lbl;font=normal;textcolor=#8b8b92]",
+		"label[4.4,4.18;price_lbl;" .. core.formspec_escape(info and info.download_size or "FREE") .. "]",
+
+		-- Engagement stats row (downloads / ratings summary) cleanly arranged with spacing - panel elevated #16161a, text secondary #8b8b92
+		"box[0.4,4.5;5.6,0.9;#16161a]",
+		"box[0.4,4.5;5.6,0.9;#232326;true]",
+		"style[stat_lbl1,stat_lbl2,stat_lbl3;textcolor=#8b8b92]",
+		"label[0.5,4.72;stat_lbl1;" .. core.formspec_escape(detail_line1) .. "]",
+		"label[0.5,5.0;stat_lbl2;" .. core.formspec_escape(detail_line2) .. "]",
+		"label[0.5,5.28;stat_lbl3;" .. core.formspec_escape(detail_line3) .. "]",
+
+		-- Screenshots Section label and gallery thumbnails (bold white title, faint divider)
+		"style[ss_lbl;font=bold;textcolor=#f2f2f4]",
+		"label[0.4,5.6;ss_lbl;" .. fgettext("SCREENSHOTS") .. "]",
+		"box[0.4,5.9;5.6,0.02;#232326]",
 	})
 
 	-- Load screenshot thumbnails if available
@@ -265,26 +283,33 @@ local function get_formspec(data)
 	local ss2_url = (info and info.screenshots and info.screenshots[2]) and info.screenshots[2].url or package.thumbnail
 	table.insert_all(formspec, {
 		"image[0.4,6.0;2.6,1.4;" .. core.formspec_escape(get_screenshot(package, ss1_url, 2)) .. "]",
+		"box[0.4,6.0;2.6,1.4;#232326;true]",
 		"image[3.2,6.0;2.8,1.4;" .. core.formspec_escape(get_screenshot(package, ss2_url, 2)) .. "]",
+		"box[3.2,6.0;2.8,1.4;#232326;true]",
 	})
 
 	-- Right Pane: Tabs and Details or reviews
 	table.insert_all(formspec, {
-		-- Translucent Content Card Panel (Layer 2)
-		"box[6.4,1.8;" .. (W - 6.4) .. "," .. (tab_body_height + 0.15) .. ";#33415590]",
+		-- Panel / card fill #0d0d0f with border #232326
+		"box[6.4,1.8;" .. (W - 6.4) .. "," .. (tab_body_height + 0.15) .. ";#0d0d0f]",
+		"box[6.4,1.8;" .. (W - 6.4) .. "," .. (tab_body_height + 0.15) .. ";#232326;true]",
 
 		"container[6.4,1.8]",
 	})
 
-	-- Horizontal Connected Styled Tab Header Row (Modern Sky Blue Accent)
+	-- Inactive tab: bgcolor = #0d0d0f, textcolor = #8b8b92
+	-- Active tab: bgcolor = #16161a, textcolor = #f2f2f4, thin indicator (#3a7bfd)
 	local tab_w = (W - 6.4) / #tab_titles
 	for idx, title in ipairs(tab_titles) do
-		local bg_col = (idx == current_tab) and "#0284c7" or "#334155"
-		local text_col = (idx == current_tab) and "#ffffff" or "#94a3b8"
+		local bg_col = (idx == current_tab) and "#16161a" or "#0d0d0f"
+		local text_col = (idx == current_tab) and "#f2f2f4" or "#8b8b92"
 		local font_style = (idx == current_tab) and "bold" or "normal"
 		formspec[#formspec + 1] = ("style[cust_pkg_tab_%d;bgcolor=%s;textcolor=%s;border=false;font=%s]button[%f,0;%f,0.6;cust_pkg_tab_%d;%s]"):format(
 			idx, bg_col, text_col, font_style, (idx - 1) * tab_w, tab_w, idx, title
 		)
+		if idx == current_tab then
+			formspec[#formspec + 1] = ("box[%f,0.54;%f,0.06;#3a7bfd]"):format((idx - 1) * tab_w, tab_w)
+		end
 	end
 
 	table.insert_all(formspec, {
@@ -306,19 +331,23 @@ local function get_formspec(data)
 		-- Two column layout inside Information tab: Details card on left, Ratings breakdown on right
 		local sub_card_w = pane_w / 2 - 0.2
 		table.insert_all(formspec, {
-			-- Left Column: Details Card (Compatibility and Version Support)
-			"box[0,0;" .. sub_card_w .. "," .. pane_h .. ";#33415560]",
-			"style[det_hdr;font=bold;font_size=+12]",
+			-- Left Column: Details Card (Compatibility and Version Support) - panel fill #0d0d0f with border #232326
+			"box[0,0;" .. sub_card_w .. "," .. pane_h .. ";#0d0d0f]",
+			"box[0,0;" .. sub_card_w .. "," .. pane_h .. ";#232326;true]",
+			"style[det_hdr;font=bold;font_size=+12;textcolor=#f2f2f4]",
 			"label[0.2,0.3;det_hdr;" .. fgettext("Details") .. "]",
 
-			"label[0.2,0.8;" .. fgettext("System Compatibility:") .. "]",
-			"label[0.2,1.2;" .. fgettext("Verified & Optimized for Engine") .. "]",
+			"style[det_sub1,det_sub3;textcolor=#8b8b92]",
+			"style[det_sub2,det_sub4;textcolor=#f2f2f4]",
+			"label[0.2,0.8;det_sub1;" .. fgettext("System Compatibility:") .. "]",
+			"label[0.2,1.2;det_sub2;" .. fgettext("Verified & Optimized for Engine") .. "]",
 
-			"label[0.2,1.8;" .. fgettext("Developer:") .. "]",
-			"label[0.2,2.2;" .. core.formspec_escape(package.author) .. "]",
+			"label[0.2,1.8;det_sub3;" .. fgettext("Developer:") .. "]",
+			"label[0.2,2.2;det_sub4;" .. core.formspec_escape(package.author) .. "]",
 
 			-- Right Column: Ratings Card
-			"box[" .. (sub_card_w + 0.4) .. ",0;" .. sub_card_w .. "," .. pane_h .. ";#33415560]",
+			"box[" .. (sub_card_w + 0.4) .. ",0;" .. sub_card_w .. "," .. pane_h .. ";#0d0d0f]",
+			"box[" .. (sub_card_w + 0.4) .. ",0;" .. sub_card_w .. "," .. pane_h .. ";#232326;true]",
 			"label[" .. (sub_card_w + 0.6) .. ",0.3;det_hdr;" .. fgettext("Ratings") .. "]",
 		})
 
@@ -340,18 +369,20 @@ local function get_formspec(data)
 			local track_x = sub_card_w + 1.2
 			local fill_w = (row.pct / 100) * 2.5
 			table.insert_all(formspec, {
-				"label[" .. (sub_card_w + 0.6) .. "," .. row_y .. ";" .. row.label .. "]",
+				"style[bar_lbl_" .. bar_idx .. ";textcolor=#8b8b92]",
+				"label[" .. (sub_card_w + 0.6) .. "," .. row_y .. ";bar_lbl_" .. bar_idx .. ";" .. row.label .. "]",
 				-- Dark progress track background
-				"box[" .. track_x .. "," .. row_y .. ";2.5,0.2;#1E1E1EE5]",
+				"box[" .. track_x .. "," .. row_y .. ";2.5,0.2;#16161a]",
+				"box[" .. track_x .. "," .. row_y .. ";2.5,0.2;#232326;true]",
 			})
 			if fill_w > 0 then
 				table.insert_all(formspec, {
-					-- Sky-blue styled progress fill
-					"box[" .. track_x .. "," .. row_y .. ";" .. fill_w .. ",0.2;#0284c7]",
+					-- Primary Action accent color #3a7bfd
+					"box[" .. track_x .. "," .. row_y .. ";" .. fill_w .. ",0.2;#3a7bfd]",
 				})
 			end
 			table.insert_all(formspec, {
-				"label[" .. (track_x + 2.6) .. "," .. row_y .. ";" .. row.pct .. "%]",
+				"label[" .. (track_x + 2.6) .. "," .. row_y .. ";bar_lbl_" .. bar_idx .. ";" .. row.pct .. "%]",
 			})
 			bar_idx = bar_idx + 1
 		end
