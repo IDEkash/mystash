@@ -136,6 +136,11 @@ endif()
 
 if(BUILD_CLIENT)
 	find_package(Freetype REQUIRED)
+	if(TARGET Freetype::Freetype)
+		set_target_properties(Freetype::Freetype PROPERTIES
+			INTERFACE_INCLUDE_DIRECTORIES "${FREETYPE_INCLUDE_DIRS}"
+		)
+	endif()
 endif()
 
 option(ENABLE_CURSES "Enable ncurses console" ${BUILD_SERVER})
