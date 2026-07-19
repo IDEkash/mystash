@@ -398,29 +398,22 @@ void GameFormSpec::showPauseMenu()
 
 	os << "formspec_version[10]size[12.5,7.5]";
 
-	// Re-skin in-game Pause/Game Menu according to dark marketplace specifications
-	// Root is #000000, Panel/card fill: #0d0d0f, Border/divider: #232326, Primary text: #f2f2f4, Secondary text: #8b8b92, Faint: #6a6a70, Accent: #3a7bfd
-	os << "bgcolor[;neither]box[-0.5,-0.5;13.5,8.5;#000000]";
-
 	// Background card boxes
-	os << "box[" << info_x << ",0.5;" << info_w << ",6.5;#0d0d0f]";
-	os << "box[" << info_x << ",0.5;" << info_w << ",6.5;#232326;true]";
+	os << "box[" << info_x << ",0.5;" << info_w << ",6.5;#00000060]";
 	if (show_controls) {
-		os << "box[" << controls_x << ",0.5;" << controls_w << ",6.5;#0d0d0f]";
-		os << "box[" << controls_x << ",0.5;" << controls_w << ",6.5;#232326;true]";
+		os << "box[" << controls_x << ",0.5;" << controls_w << ",6.5;#00000060]";
 	}
-	os << "box[" << actions_x << ",0.5;" << actions_w << ",6.5;#0d0d0f]";
-	os << "box[" << actions_x << ",0.5;" << actions_w << ",6.5;#232326;true]";
+	os << "box[" << actions_x << ",0.5;" << actions_w << ",6.5;#00000060]";
 
-	// Header labels with styled colorization: Accent (#3a7bfd) and Primary (#f2f2f4)
-	os << "label[" << (info_x + 0.35f) << ",0.9;\x1b(c@#3a7bfd)" << PROJECT_NAME_C << " \x1b(c@#f2f2f4)" << VERSION_STRING << "]";
+	// Header labels with styled colorization
+	os << "label[" << (info_x + 0.35f) << ",0.9;\x1b(c@#467832)" << PROJECT_NAME_C << " \x1b(c@#ffffff)" << VERSION_STRING << "]";
 	if (show_controls) {
-		os << "label[" << (controls_x + 0.35f) << ",0.9;\x1b(c@#f2f2f4)" << strgettext("Controls") << "]";
+		os << "label[" << (controls_x + 0.35f) << ",0.9;\x1b(c@#467832)" << strgettext("Controls") << "\x1b(c@#ffffff)]";
 	}
 	if (simple_singleplayer_mode) {
-		os << "label[" << (actions_x + 0.35f) << ",0.9;\x1b(c@#f2f2f4)" << strgettext("Game Paused") << "]";
+		os << "label[" << (actions_x + 0.35f) << ",0.9;\x1b(c@#467832)" << strgettext("Game Paused") << "\x1b(c@#ffffff)]";
 	} else {
-		os << "label[" << (actions_x + 0.35f) << ",0.9;\x1b(c@#f2f2f4)" << strgettext("Game Menu") << "]";
+		os << "label[" << (actions_x + 0.35f) << ",0.9;\x1b(c@#467832)" << strgettext("Game Menu") << "\x1b(c@#ffffff)]";
 	}
 
 	// Game Info Rows
@@ -468,8 +461,7 @@ void GameFormSpec::showPauseMenu()
 	float ly = 1.6f;
 	float dy = 0.5f;
 	for (const auto &row : info_rows) {
-		// Secondary (#8b8b92) and Primary (#f2f2f4) text colors
-		os << "label[" << (info_x + 0.35f) << "," << ly << ";\x1b(c@#8b8b92)" << row.first << " \x1b(c@#f2f2f4)" << row.second << "]";
+		os << "label[" << (info_x + 0.35f) << "," << ly << ";\x1b(c@#aaaaaa)" << row.first << " \x1b(c@#ffffff)" << row.second << "]";
 		ly += dy;
 	}
 
@@ -491,25 +483,19 @@ void GameFormSpec::showPauseMenu()
 #endif
 #endif
 
-	// Action button styling: Accent (#3a7bfd), cancel/secondary ghost (#0d0d0f / border #232326), exit/uninstall (#0d0d0f / text danger #e34848 / border #232326)
-	os << "style[btn_continue;bgcolor=#3a7bfd;textcolor=#ffffff;font=bold;border=false]";
-	os << "style[btn_continue:hovered;bgcolor=#2f68d8]";
+	// Action button styling
+	os << "style[btn_continue;bgcolor=#467832;textcolor=white;font=bold]";
 	if (!simple_singleplayer_mode) {
-		os << "style[btn_change_password;bgcolor=#0d0d0f;textcolor=#8b8b92;border=true;border_color=#232326]";
-		os << "style[btn_change_password:hovered;bgcolor=#16161a;textcolor=#f2f2f4]";
+		os << "style[btn_change_password;bgcolor=#43464b;textcolor=white]";
 	}
-	os << "style[btn_settings;bgcolor=#0d0d0f;textcolor=#8b8b92;border=true;border_color=#232326]";
-	os << "style[btn_settings:hovered;bgcolor=#16161a;textcolor=#f2f2f4]";
+	os << "style[btn_settings;bgcolor=#43464b;textcolor=white]";
 #ifndef __ANDROID__
 #if USE_SOUND
-	os << "style[btn_sound;bgcolor=#0d0d0f;textcolor=#8b8b92;border=true;border_color=#232326]";
-	os << "style[btn_sound:hovered;bgcolor=#16161a;textcolor=#f2f2f4]";
+	os << "style[btn_sound;bgcolor=#43464b;textcolor=white]";
 #endif
 #endif
-	os << "style[btn_exit_menu;bgcolor=#0d0d0f;textcolor=#e34848;border=true;border_color=#232326]";
-	os << "style[btn_exit_menu:hovered;bgcolor=#16161a]";
-	os << "style[btn_exit_os;bgcolor=#0d0d0f;textcolor=#e34848;border=true;border_color=#232326]";
-	os << "style[btn_exit_os:hovered;bgcolor=#16161a]";
+	os << "style[btn_exit_menu;bgcolor=#9b2c2c;textcolor=white]"
+	   << "style[btn_exit_os;bgcolor=#5c1d1d;textcolor=white]";
 
 	// Stack buttons
 	float by = 1.4f;
