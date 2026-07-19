@@ -7,6 +7,7 @@
 #include "util/numeric.h"
 #include "inputhandler.h"
 #include "gui/mainmenumanager.h"
+#include "client/rmlui_backend.h"
 #include "gui/touchcontrols.h"
 #include "hud_element.h"
 #include "log_internal.h"
@@ -120,6 +121,19 @@ bool MyEventReceiver::checkKeyDown(GameKeyType action) const
 
 bool MyEventReceiver::OnEvent(const SEvent &event)
 {
+	if (event.EventType == EET_MOUSE_INPUT_EVENT) {
+		RmlUiManager *rmlui = RmlUiManager::get_instance();
+		if (rmlui && rmlui->handle_mouse_event(event)) {
+			return true;
+		}
+	}
+	if (event.EventType == EET_KEY_INPUT_EVENT) {
+		RmlUiManager *rmlui = RmlUiManager::get_instance();
+		if (rmlui && rmlui->handle_key_event(event)) {
+			return true;
+		}
+	}
+
 	if (event.EventType == EET_LOG_TEXT_EVENT) {
 		static const LogLevel irr_loglev_conv[] = {
 			LL_VERBOSE, // ELL_DEBUG

@@ -23,6 +23,7 @@
 #include "lua_api/l_settings.h"
 #include "lua_api/l_client_sound.h"
 #include "lua_api/l_htmlview.h"
+#include "lua_api/l_rmlui.h"
 
 ClientScripting::ClientScripting(Client *client):
 	ScriptApiBase(ScriptingType::Client)
@@ -74,6 +75,7 @@ void ClientScripting::InitializeModApi(lua_State *L, int top)
 	ModApiParticlesLocal::Initialize(L, top);
 	ModApiClientSound::Initialize(L, top);
 	ModApiHTMLView::Initialize(L, top);
+	ModApiRmlUi::Initialize(L, top);
 }
 
 void ClientScripting::on_client_ready(LocalPlayer *localplayer)

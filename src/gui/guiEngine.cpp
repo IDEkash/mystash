@@ -7,6 +7,7 @@
 #include "client/fontengine.h"
 #include "client/guiscalingfilter.h"
 #include "client/renderingengine.h"
+#include "client/rmlui_backend.h"
 #include "clientdynamicinfo.h"
 #include "config.h"
 #include "content/content.h"
@@ -366,6 +367,13 @@ void GUIEngine::run()
 			drawFooter(driver);
 
 			m_rendering_engine->get_gui_env()->drawAll();
+
+			{
+				RmlUiManager *rmlui = RmlUiManager::get_instance();
+				if (rmlui) {
+					rmlui->update_and_render();
+				}
+			}
 
 			// The header *must* be drawn after the menu because it uses
 			// GUIFormspecMenu::getAbsoluteRect().

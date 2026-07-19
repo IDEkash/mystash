@@ -395,6 +395,9 @@ configure_file(
 )
 
 
+# Global RmlUi Include Directory
+include_directories(${CMAKE_SOURCE_DIR}/lib/RmlUi-master/Include)
+
 # Add a target that always rebuilds cmake_config_githash.h
 add_custom_target(GenerateVersion
 	COMMAND ${CMAKE_COMMAND}
@@ -414,6 +417,13 @@ add_subdirectory(network)
 add_subdirectory(script)
 add_subdirectory(util)
 add_subdirectory(server)
+
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared RmlUi libraries" FORCE)
+set(RMLUI_SAMPLES OFF CACHE BOOL "Build samples" FORCE)
+set(RMLUI_LUA_BINDINGS OFF CACHE BOOL "Build Lua bindings" FORCE)
+set(RMLUI_COMPILER_OPTIONS OFF CACHE BOOL "Build compiler options" FORCE)
+set(RMLUI_PRECOMPILED_HEADERS OFF CACHE BOOL "Enable precompiled headers" FORCE)
+add_subdirectory(${CMAKE_SOURCE_DIR}/lib/RmlUi-master ${CMAKE_BINARY_DIR}/lib/RmlUi-master)
 
 # Source files that are identical between server & client builds.
 # This means they don't use or include anything that depends on the
@@ -716,6 +726,7 @@ if(BUILD_CLIENT)
 		lstrpack
 		sha256
 		${FREETYPE_LIBRARY}
+		rmlui_core
 		${PLATFORM_LIBS}
 		# on Android, Luanti depends on SDL2 directly
 		# on other platforms, only IrrlichtMt depends on SDL2

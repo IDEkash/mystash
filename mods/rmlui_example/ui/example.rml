@@ -1,0 +1,22 @@
+<rml>
+<head>
+	<title>RmlUi Example Card</title>
+	<link type="text/rcss" href="example.rcss"/>
+</head>
+<body class="window">
+	<div id="container">
+		<div id="header">
+			<h1>RmlUi Integrated UI</h1>
+			<button id="close_btn">X</button>
+		</div>
+		<div id="content">
+			<p>This is a modern UI rendered using <strong>RmlUi</strong> natively inside the Luanti engine!</p>
+			<div class="form-group">
+				<label>Enter Name: </label>
+				<input type="text" id="name_input" value="Luanti Player"/>
+			</div>
+			<button id="submit_btn" class="primary">Submit</button>
+		</div>
+	</div>
+</body>
+</rml>

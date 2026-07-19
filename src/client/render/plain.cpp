@@ -7,6 +7,7 @@
 #include "secondstage.h"
 #include "settings.h"
 #include "client/camera.h"
+#include "client/rmlui_backend.h"
 #include "client/client.h"
 #include "client/clientmap.h"
 #include "client/hud.h"
@@ -52,6 +53,11 @@ void DrawHUD::run(PipelineContext &context)
 		context.client->getCamera()->drawNametags();
 	}
 	context.device->getGUIEnvironment()->drawAll();
+
+	RmlUiManager *rmlui = RmlUiManager::get_instance();
+	if (rmlui) {
+		rmlui->update_and_render();
+	}
 }
 
 

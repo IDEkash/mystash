@@ -20,6 +20,7 @@
 #include "porting.h"
 #include "clientmap.h"
 #include "renderingengine.h"
+#include "client/rmlui_backend.h"
 #include "render/core.h"
 #include "render/factory.h"
 #include "filesys.h"
@@ -401,6 +402,7 @@ void RenderingEngine::initialize(Client *client, Hud *hud)
 void RenderingEngine::finalize()
 {
 	core.reset();
+	RmlUiManager::destroy_instance();
 }
 
 void RenderingEngine::draw_scene(video::SColor skycolor, bool show_hud,
