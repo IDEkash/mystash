@@ -1,110 +1,316 @@
-# External Logic Architecture (Draft v0.2)
+# Luanti Unified Engine Architecture Specification
+
+This document defines the core architecture of the engine's logical separation, world foundation, and content extension ecosystem.
+
+---
+
+# Core Philosophy: Single Responsibility
+
+The engine separates all content, assets, and logic into distinct packages following a strict directory structure. Each directory has exactly **one responsibility**.
+
+| Folder | Responsibility | Details |
+| :--- | :--- | :--- |
+| **Workspace/** | Definitions | Declarative blueprints and data definitions. No logic or asset files. |
+| **Assets/** | Resources | Raw, compiled, or optimized media assets (models, textures, audio, UI layout, etc.). |
+| **ClientSideService/** | Client Logic | Client-only Lua scripts responsible for local input, UI, rendering, and audio. |
+| **ServerSideService/** | Server Logic | Server-side Lua scripts responsible for gameplay, state management, and authoritative logic. |
+| **Storage/** | Runtime Data | Runtime-generated read/write data, local/cloud cache, settings, and database storage. |
+
+Nothing must ever mix these responsibilities.
+
+---
+
+# Part I: Internal Logic Architecture (Draft v0.1)
 
 > Status: Planning
 
-External Logic is the developer-facing framework of the engine.
+**Internal Logic** is the built-in foundation of the engine. It replaces the old concept of "game files". Unlike External Logic, Internal Logic is a part of the engine itself and has deeper engine access.
 
-It contains everything created outside of the engine itself.
+Its sole purpose is to **generate and manage the world** with the minimum systems required for the engine to function. It is not intended for gameplay systems or user content packs.
 
-Examples:
-
-- Mods
-- Plugins
-- Game Systems
-- RPG Packs
-- Horror Packs
-- Vehicle Packs
-- Survival Systems
-
-Every External Logic package follows the same project structure.
+## Folder Structure
 
 ```
-MyProject/
+Internal Logic/
+│
+├── internal.conf
+│
+├── ServerSideService/
+│   ├── Mapgen.gen
+│   └── Chunk.border
+│
+└── Assets/
+    ├── Textures/
+    │   ├── Missing.png
+    │   ├── Unknown.png
+    │   └── Default.png
+    │
+    ├── Sounds/
+    │   ├── FootstepStone.ogg
+    │   ├── FootstepGrass.ogg
+    │   ├── DigStone.ogg
+    │   ├── PlaceBlock.ogg
+    │   └── BreakStone.ogg
+    │
+    └── Materials/
+        ├── Stone.material
+        ├── Wood.material
+        ├── Grass.material
+        └── Metal.material
+```
+
+## internal.conf
+
+Every Internal Logic package must contain an `internal.conf` configuration file in its root directory. This identifies the package and details its metadata before the engine loads its contents.
+
+```ini
+Name = "Default World"
+ID = "core.default"
+Version = "1.0"
+EngineVersion = "1.0"
+Description = "Default internal world system."
+```
+
+## ServerSideService
+
+Contains the definition files that describe how the engine itself should partition, generate, and organize the world.
+
+### Map Generation Definition (`.gen`)
+
+A `.gen` file defines how the world is generated. It describes terrain algorithms, height parameters, biome placement, and other structural systems.
+
+**Location:** `Internal Logic/ServerSideService/Mapgen.gen`
+
+```ini
+Name = "Default"
+Seed = Random
+Chunk = "Default"
+SeaLevel = 64
+MinHeight = -64
+MaxHeight = 320
+TerrainGenerator = "Noise"
+Biomes = true
+Structures = true
+Caves = true
+Ores = true
+Rivers = true
+Lakes = true
+```
+
+*Responsibilities:* Controls world seed, terrain generation, height limits, biomes, rivers, lakes, caves, ores, and structure placement. It must never contain gameplay logic.
+
+### Chunk Definition (`.border`)
+
+A `.border` file defines how the world is divided into chunks. It controls chunk layout and streaming but does not generate terrain.
+
+**Location:** `Internal Logic/ServerSideService/Chunk.border`
+
+```ini
+Name = "Default"
+Shape = Cube
+Size = (16,16,16)
+Vertical = Infinite
+Compression = Binary
+Streaming = true
+```
+
+*Responsibilities:* Defines chunk shape (e.g., Cube, Hexagonal, Octree, Sparse Voxel), chunk dimensions, vertical limits, streaming/loading behavior, save formats, and compression rules.
+
+### Relationship Between `.gen` and `.border`
+
+The world generator references a chunk definition directly:
+
+```
+Mapgen.gen
+    ↓ (Chunk = "Default")
+Chunk.border
+```
+- The `.gen` file decides **what** is generated.
+- The `.border` file decides **how the world is partitioned**.
+
+## Assets & Materials
+
+Internal Logic contains built-in resources used by the engine during world generation.
+
+### Built-in Materials (`.material`)
+
+Materials allow multiple blocks to share common physical and audio properties.
+
+```ini
+Name = "Stone"
+FootstepSound = "Sounds/FootstepStone"
+BreakSound = "Sounds/BreakStone"
+DigSound = "Sounds/DigStone"
+Friction = 0.6
+Bounciness = 0.1
+Hardness = 3.0
+```
+
+---
+
+# Part II: External Logic Architecture (Draft v0.3)
+
+> Status: Planning
+
+**External Logic** is the replacement for the traditional Mod system. It contains everything created outside of the engine itself (e.g., game systems, vehicle packs, weapon systems, RPG frameworks, custom worlds).
+
+External Logic behaves like modular plugins that extend the engine without modifying the core engine source code.
+
+## Folder Structure
+
+Every External Logic package follows a strict project structure.
+
+```
+MyPackage/
+│
+├── external.conf
 │
 ├── Workspace/
-├── Assets/
-├── ClientSideService/
-├── ServerSideService/
-└── Storage/
-```
-
----
-
-# Philosophy
-
-Each folder has **one responsibility only.**
-
-| Folder | Responsibility |
-|----------|----------------|
-| Workspace | Definitions |
-| Assets | Resources |
-| ClientSideService | Client Logic |
-| ServerSideService | Server Logic |
-| Storage | Runtime Data |
-
-Nothing should mix responsibilities.
-
----
-
-# Workspace
-
-Workspace is the **Definition Library**.
-
-Workspace does NOT contain models.
-
-Workspace does NOT contain textures.
-
-Workspace does NOT contain sounds.
-
-Instead, Workspace describes how objects are built and behave.
-
-Think of it as blueprints.
-
-The engine automatically scans this folder.
-
-```
-Workspace/
+│   ├── Blocks/
+│   ├── Characters/
+│   ├── Entities/
+│   ├── Items/
+│   ├── Weapons/
+│   ├── Tools/
+│   ├── Lights/
+│   ├── Effects/
+│   ├── Particles/
+│   ├── UI/
+│   ├── Materials/
+│   ├── Pathfinding/
+│   ├── Vehicles/
+│   └── Structures/
 │
-├── Blocks/
-├── Characters/
-├── Entities/
-├── Items/
-├── Weapons/
-├── Tools/
-├── Lights/
-├── Effects/
-├── Particles/
-├── UI/
-├── Materials/
-├── Pathfinding/
-├── Vehicles/
-├── Structures/
-└── ...
+├── Assets/
+│   ├── Models/
+│   ├── Textures/
+│   ├── Sounds/
+│   ├── Fonts/
+│   ├── Materials/
+│   ├── UI/
+│   └── Videos/
+│
+├── ClientSideService/
+│   ├── Camera.lua
+│   └── UI.lua
+│
+├── ServerSideService/
+│   └── ZombieAI.lua
+│
+└── Storage/
+    ├── Client/
+    └── Server/
 ```
 
-Nested folders are fully supported.
+## external.conf
+
+The `external.conf` configuration file identifies the package and manages metadata and dependency listings.
+
+```ini
+Name = "Horror Expansion"
+ID = "horror.expansion"
+Version = "1.0.0"
+Author = "Developer"
+EngineVersion = "1.0"
+Description = "Adds horror gameplay systems."
+
+Dependencies
+{
+    BaseLibrary >= 1.0
+    CombatSystem >= 2.0
+}
+```
+
+## Package Identity System & Namespaces
+
+Every package has a unique ID (e.g., `horror.expansion`, `rpg.system`, `vehicle.framework`). Objects automatically inherit the package namespace.
+
+```
+Package: horror.expansion
+Definition File: Zombie.character
+Internal ID: horror.expansion:Zombie
+```
+
+This prevents naming collisions across different packages. For instance, packages `rpg.weapon` and `fantasy.weapon` can both define a `Sword.item` without conflict, as they resolve internally to:
+- `rpg.weapon:Sword`
+- `fantasy.weapon:Sword`
+
+## Asset Resolution with Namespaces
+
+Assets also utilize namespaces to ensure correct, unambiguous asset references. Definitions never reference file extensions. The engine automatically resolves standard extensions.
+
+```
+Model = "horror.expansion:Models/Zombie"
+Texture = "horror.expansion:Textures/Zombie"
+Sound = "horror.expansion:Sounds/Explosion"
+```
+
+The engine resolves:
+- `Models/Zombie` → `Assets/Models/Zombie.glb`
+- `Textures/Zombie` → `Assets/Textures/Zombie.png`
+- `Sounds/Explosion` → `Assets/Sounds/Explosion.ogg`
+
+## Dependency System
+
+Packages declare required dependencies in their `external.conf`. The engine loads dependencies recursively before loading dependent packages.
+
+## Conflict Rules & Priority
+
+If multiple packages attempt to modify or overwrite the same object, the following authority hierarchy is enforced:
+
+```
+Internal Logic (Engine Foundation)
+        |
+        ↓
+External Logic Override (Packages/Mods)
+        |
+        ↓
+Runtime Changes (Dynamic World State)
+```
+
+External Logic packages are strictly prohibited from overwriting engine-critical systems or modifying core memory and networking layers.
+
+## Runtime Validation
+
+During initialization and world-loading, the engine performs validations. It checks for:
+- Missing assets or unresolved namespace paths.
+- Missing scripts (e.g., missing a referenced `ServerScript`).
+- Invalid definitions (malformed format or invalid property ranges).
+- Dependency errors (missing packages or version mismatches).
+
+**Example Validation Warning:**
+If `Zombie.character` references a `ServerScript = "ZombieAI"` that is missing from `ServerSideService/`:
+```
+[Warning] Object 'horror.expansion:Zombie' loaded without AI (ServerScript 'ZombieAI' not found).
+```
+
+## External Logic Permissions
+
+External Logic has strictly controlled, sandboxed access.
+
+- **Allowed Access:** Create objects, add definitions, import assets, run custom client/server scripts, modify the active world space.
+- **Restricted Access:** Cannot replace the engine renderer, cannot modify memory systems directly, and cannot access core networking interfaces.
 
 ---
 
-# Character Definition
+# Part III: Workspace Definitions (Definitions Library)
 
-```
-Workspace/
-└── Characters/
-    └── Zombie.character
-```
+Workspace is the **Definition Library** of blueprints. It describes how objects are built and behave, but contains absolutely no media resources (no models, textures, sounds, or Lua logic code).
 
-Example:
+The engine automatically scans and registers all files in these directories with zero boilerplate or manual code registration.
+
+## Character Definition (`.character`)
+
+Defines character statistics, rigging, animations, physics, and referenced scripts.
+
+**File:** `Workspace/Characters/Zombie.character`
 
 ```ini
 Name = "Zombie"
-
 DisplayName = "Zombie"
-
 Description = "Basic hostile monster."
-
+Rig = "Zombie"
 Model = "Models/Zombie"
-
 Texture = "Textures/Zombie"
 
 Animations
@@ -130,9 +336,7 @@ Gameplay
 }
 
 Pathfinding = "Monster"
-
 ServerScript = "ZombieAI"
-
 ClientScript = "ZombieClient"
 
 Tags =
@@ -142,29 +346,15 @@ Tags =
 }
 ```
 
-Notice:
+## Block Definition (`.block`)
 
-No Lua logic exists here.
+Defines voxel physical interactions, event hooks, and rendering models.
 
-Only definitions.
-
----
-
-# Block Definition
-
-```
-Workspace/
-└── Blocks/
-    └── Stone.block
-```
-
-Example:
+**File:** `Workspace/Blocks/Stone.block`
 
 ```ini
 Name = "Stone"
-
 Texture = "Textures/Stone"
-
 Model = "Models/Cube"
 
 Physics
@@ -197,19 +387,11 @@ Tags =
 }
 ```
 
-Example of a custom machine block:
-
-```
-Workspace/
-└── Blocks/
-    └── Machine.block
-```
+**File:** `Workspace/Blocks/Machine.block`
 
 ```ini
 Name = "Machine"
-
 Model = "Models/Machine"
-
 Texture = "Textures/Machine"
 
 Animations
@@ -224,7 +406,6 @@ Interaction
 }
 
 ServerScript = "Machine"
-
 ClientScript = "Machine"
 
 Tags =
@@ -233,121 +414,74 @@ Tags =
 }
 ```
 
----
+## Item Definition (`.item`)
 
-# Item Definition
+Defines inventory item properties and damage/durability parameters.
 
-```
-Workspace/
-└── Items/
-    └── Sword.item
-```
+**File:** `Workspace/Items/Sword.item`
 
 ```ini
 Name = "Iron Sword"
-
 Model = "Models/Sword"
-
 Texture = "Textures/Sword"
-
 Damage = 25
-
 Durability = 250
-
 ServerScript = "Sword"
 ```
 
----
+## Vehicle Definition (`.vehicle`)
 
-# Vehicle Definition
+Defines speed, seats, model, and logic scripts of moving vehicles.
 
-```
-Workspace/
-└── Vehicles/
-    └── Car.vehicle
-```
+**File:** `Workspace/Vehicles/Car.vehicle`
 
 ```ini
 Name = "Car"
-
 Model = "Models/Car"
-
 Seats = 4
-
 MaxSpeed = 80
-
 ServerScript = "Car"
-
 ClientScript = "Car"
 ```
 
----
+## Effect Definition (`.effect`)
 
-# Effect Definition
+Defines particle and sound timings for special effects.
 
-```
-Workspace/
-└── Effects/
-    └── Explosion.effect
-```
+**File:** `Workspace/Effects/Explosion.effect`
 
 ```ini
 Particle = "Explosion"
-
 Sound = "Explosion"
-
 Duration = 3
 ```
 
----
+## Light Definition (`.light`)
 
-# Light Definition
+Defines illumination parameters and shadow-casting capability.
 
-```
-Workspace/
-└── Lights/
-    └── Torch.light
-```
+**File:** `Workspace/Lights/Torch.light`
 
 ```ini
 Brightness = 12
-
 Color = Orange
-
 Range = 10
-
 Shadow = true
 ```
 
----
+## Pathfinding Definition (`.pathfinding`)
 
-# Pathfinding Definition
+Pathfinding profiles are highly reusable. Multiple characters can share a single navigation profile.
 
-Pathfinding is reusable.
-
-Many NPCs can share the same pathfinding profile.
-
-```
-Workspace/
-└── Pathfinding/
-    └── Monster.pathfinding
-```
-
-Example:
+**File:** `Workspace/Pathfinding/Monster.pathfinding`
 
 ```ini
 CanJump = true
-
 CanSwim = false
-
 CanClimb = false
-
 CanOpenDoors = false
-
 JumpHeight = 1.2
-
 SearchDistance = 64
-
 UpdateRate = 0.3
 
 Costs
@@ -358,417 +492,53 @@ Costs
 }
 ```
 
-Character:
-
-```
-Pathfinding = "Monster"
-```
-
 ---
 
-# Assets
+## Structure Definition (`.structure`)
 
-Assets only contain resources.
+A `.structure` file defines a pre-built voxel layout (e.g., house, dungeon, bridge) that the engine can generate, rotate, mirror, and place layer-by-layer.
 
-No gameplay logic.
+**File:** `Workspace/Structures/House.structure`
 
-```
-Assets/
-│
-├── Models/
-├── Textures/
-├── Sounds/
-├── Fonts/
-├── Materials/
-├── UI/
-└── Videos/
-```
-
-Example:
-
-```
-Assets/
-│
-├── Models/
-│   ├── Zombie.glb
-│   ├── Sword.glb
-│   ├── Car.glb
-│   └── Cube.glb
-│
-├── Textures/
-│   ├── Zombie.png
-│   ├── Stone.png
-│   ├── Machine.png
-│   └── Sword.png
-│
-├── Sounds/
-│   ├── Explosion.ogg
-│   ├── Zombie.ogg
-│   └── SwordHit.ogg
-│
-└── UI/
-    ├── Inventory.html
-    ├── Inventory.css
-    └── Inventory.js
-```
-
----
-
-# ClientSideService
-
-Contains client-only Lua scripts.
-
-Responsible for visuals.
-
-```
-ClientSideService/
-│
-├── Camera.lua
-├── UI.lua
-├── Weather.lua
-├── Lighting.lua
-├── Fog.lua
-└── Particles.lua
-```
-
-Examples:
-
-- Camera
-- HUD
-- UI
-- Fog
-- Post Processing
-- Local Animations
-- Local Audio
-- Input
-
----
-
-# ServerSideService
-
-Contains gameplay Lua scripts.
-
-```
-ServerSideService/
-│
-├── ZombieAI.lua
-├── Machine.lua
-├── Combat.lua
-├── Inventory.lua
-├── Quest.lua
-└── Economy.lua
-```
-
-Examples:
-
-- AI
-- Combat
-- Inventory
-- Quests
-- Saving
-- World Events
-- Economy
-- Multiplayer
-
----
-
-# Storage
-
-Contains runtime generated files.
-
-```
-Storage/
-│
-├── Client/
-└── Server/
-```
-
-Client
-
-```
-Storage/
-└── Client/
-    ├── Settings.json
-    ├── Cache/
-    └── Downloads/
-```
-
-Server
-
-```
-Storage/
-└── Server/
-    ├── World.db
-    ├── Players.db
-    ├── Economy.db
-    └── Logs/
-```
-
----
-
-# Asset References
-
-Definitions never reference file extensions.
-
-Correct:
-
-```
-Model = "Models/Zombie"
-
-Texture = "Textures/Zombie"
-
-Sound = "Sounds/Explosion"
-```
-
-The engine resolves:
-
-```
-Models/Zombie.glb
-
-Textures/Zombie.png
-
-Sounds/Explosion.ogg
-```
-
-automatically.
-
----
-
-# Automatic Registration
-
-The engine automatically registers every definition.
-
-```
-Workspace/
-    Characters/
-        Zombie.character
-
-↓
-
-Engine
-
-↓
-
-Character Registered
-```
-
-No registration code.
-
-No init.lua.
-
-No boilerplate.
-
----
-
-# Future Definition APIs (Planned)
-
-Every definition may support the following sections.
-
-```
-Identity
-Assets
-Animations
-Physics
-Gameplay
-Interaction
-Navigation
-Rendering
-Networking
-Components
-Scripts
-Audio
-Events
-Tags
-Properties
-Metadata
-```
-
-Examples:
-
-```
-Health
-MaxHealth
-WalkSpeed
-JumpPower
-Damage
-Defense
-CanCollide
-CanTouch
-CanInteract
-Transparency
-Visible
-Color
-Material
-CollisionGroup
-Mass
-Gravity
-Scale
-Pivot
-LOD
-Shadow
-Animator
-RigidBody
-AudioSource
-LightSource
-ParticleEmitter
-Camera
-Inventory
-HealthComponent
-```
-
----
-
-# Overall Philosophy
-
-- **Workspace** defines **what an object is**.
-- **Assets** provide **the resources it uses**.
-- **ClientSideService** controls **client-side behavior**.
-- **ServerSideService** controls **gameplay and server logic**.
-- **Storage** stores **runtime-generated data**.
-
-The goal is to eliminate manual registration and make every game object declarative, reusable, and easy to organize. Future tools and editors can understand these definitions directly, enabling features like property editing, validation, and automatic asset linking without changing the underlying gameplay code.
-
-# Structure Definition (.structure)
-
-> Status: Draft v0.1
-
-A `.structure` file defines a pre-built world structure that can be placed into the world by the engine.
-
-Examples:
-
-- House
-- Village
-- Dungeon
-- Castle
-- Tree
-- Bridge
-- Temple
-- Ruins
-
-Unlike blocks or characters, a structure stores an arrangement of blocks layer by layer.
-
-The engine can place the structure anywhere in the world while automatically handling rotation, mirroring, and generation.
-
----
-
-# Workspace
-
-```
-Workspace/
-└── Structures/
-    ├── House.structure
-    ├── Village.structure
-    ├── Castle.structure
-    ├── Tree.structure
-    └── Dungeon.structure
-```
-
----
-
-# Structure Layout
-
-A structure is divided into multiple sections.
-
-```
-Structure
-├── Metadata
-├── Palette
-├── Layers
-├── Spawn Points
-└── Settings
-```
-
----
-
-# Metadata
-
-General information.
-
-Example
-
+### 1. Metadata
 ```ini
 Name = "Village House"
-
 Author = "Developer"
-
 Version = "1.0"
-
 Category = "Village"
-
 Description = "Basic village house."
-
 Size = (7,5,7)
-
 Origin = Center
 ```
 
----
-
-# Palette
-
-Instead of storing block names thousands of times, the structure stores a palette.
-
-Example
-
+### 2. Palette
+Instead of replicating block names redundantly, a palette maps ID values to block definitions.
 ```ini
 Palette
 {
     0 = Air
-
     1 = OakPlanks
-
     2 = Cobblestone
-
     3 = Glass
-
     4 = Door
-
     5 = Torch
-
     6 = Roof
 }
 ```
 
-The engine converts numbers into real block definitions.
-
-Advantages
-
-- Smaller files
-- Faster loading
-- Easier editing
-- Better compression
-
----
-
-# Layers
-
-Blocks are stored layer-by-layer.
-
-Each layer represents one Y level.
-
-Example
-
+### 3. Layers
+Layout is parsed Y-level by Y-level, from bottom to top.
 ```
 Layer "Y0"
-```
+2 2 2 2 2 2 2
+2 2 2 2 2 2 2
+2 2 2 2 2 2 2
+2 2 2 2 2 2 2
+2 2 2 2 2 2 2
+2 2 2 2 2 2 2
+2 2 2 2 2 2 2
 
-```
-2 2 2 2 2 2 2
-2 2 2 2 2 2 2
-2 2 2 2 2 2 2
-2 2 2 2 2 2 2
-2 2 2 2 2 2 2
-2 2 2 2 2 2 2
-2 2 2 2 2 2 2
-```
-
-Next layer
-
-```
 Layer "Y1"
-```
-
-```
 1 1 1 1 1 1 1
 1 0 0 0 0 0 1
 1 0 3 0 3 0 1
@@ -776,15 +546,8 @@ Layer "Y1"
 1 0 3 0 3 0 1
 1 0 0 0 0 0 1
 1 1 1 1 1 1 1
-```
 
-Another layer
-
-```
 Layer "Y2"
-```
-
-```
 1 1 1 1 1 1 1
 1 0 0 0 0 0 1
 1 0 0 0 0 0 1
@@ -794,1601 +557,218 @@ Layer "Y2"
 1 1 1 1 1 1 1
 ```
 
-The engine stacks every layer vertically.
-
----
-
-# Spawn Points
-
-Optional.
-
-Allows entities to spawn automatically after the structure is generated.
-
-Example
-
+### 4. Spawn Points & Markers (Optional)
 ```ini
 SpawnPoints
 {
     Villager = (3,1,2)
-
     Chest = (4,1,5)
-
     Zombie = (2,1,4)
 }
-```
 
----
-
-# Markers
-
-Optional.
-
-Special positions used by gameplay.
-
-Example
-
-```ini
 Markers
 {
     FrontDoor = (3,1,0)
-
     Center = (3,1,3)
-
     Bed = (5,1,4)
 }
 ```
 
-Scripts can access these markers.
-
----
-
-# Generation Settings
-
-Optional.
-
-Controls how the engine places the structure.
-
-Example
-
+### 5. Generation Settings
 ```ini
 Settings
 {
     Rotation = Random
-
     Mirror = false
-
     AllowTerrainMerge = true
-
     ReplaceAirOnly = false
-
     Foundation = true
-
     SpawnChance = 0.25
 }
 ```
 
----
-
-# Random Variants
-
-A structure can contain multiple variants.
-
-Example
-
-```
-House.structure
-
-Variant
-├── Small
-├── Medium
-└── Large
-```
-
-The world generator can randomly choose one.
-
----
-
-# Built-in API (Future)
-
+### Built-in Structure APIs
 ```lua
 Structure:Place(position)
-
 Structure:Rotate(90)
-
 Structure:Mirror()
-
 Structure:GetMarker("Center")
-
 Structure:GetSize()
-
 Structure:Clone()
-
 Structure:Destroy()
 ```
 
 ---
 
-# Automatic Registration
+## Rig Definition (`.rig`)
 
-Every structure inside Workspace is registered automatically.
+A `.rig` file defines the internal physical assembly, skeleton, bones, hitboxes, attachments, and collision shapes of an entity. Rigs are reusable across different character definitions.
 
-Example
-
-```
-Workspace/
-
-Structures/
-
-House.structure
-```
-
-↓
-
-```
-Engine
-```
-
-↓
-
-```
-House Registered
-```
-
-No manual registration required.
-
----
-
-# File Philosophy
-
-A `.structure` file should only describe the structure.
-
-It should never contain Lua code.
-
-Gameplay logic belongs inside:
-
-- ClientSideService
-- ServerSideService
-
----
-
-# Future Optimizations
-
-Although the `.structure` file is human-readable, the engine may automatically compile it into an optimized binary format during packaging.
-
-Possible optimizations include:
-
-- Palette compression
-- Run-length encoding (RLE)
-- Chunk compression
-- Binary serialization
-- Fast streaming
-
-This allows developers to edit readable files while keeping loading times fast in released games.
-
----
-
-# Design Goals
-
-- Human-readable
-- Easy to edit
-- Compact through block palettes
-- Supports automatic registration
-- Supports random generation
-- Supports rotation and mirroring
-- Supports markers and spawn points
-- Ready for future procedural generation
-- Optimized for fast loading and world generation
-
-
----
-
-# Rig Definition
-
-A `.rig` file defines the physical body structure of an object.
-
-Unlike a `.character`, which defines gameplay properties, a `.rig` defines how an object is built internally.
-
-It is responsible for:
-
-- Model
-- Skeleton
-- Bones
-- Bone Hierarchy
-- Collision Shape
-- Hitboxes
-- Attachments
-- Default Bone Transforms
-- Body Scale
-
-A rig can be reused by multiple characters.
-
-For example:
-
-- Human.rig
-- Zombie.rig
-- Spider.rig
-
-This prevents every character from redefining the same body structure.
-
----
-
-# Workspace
-
-```
-Workspace/
-└── Rigs/
-    ├── Human.rig
-    ├── Zombie.rig
-    ├── Spider.rig
-    └── Dragon.rig
-```
-
----
-
-# Character Usage
-
-Characters reference a rig.
-
-Example
-
-```ini
-Rig = "Zombie"
-```
-
-The engine loads the rig automatically.
-
----
-
-# Example Rig
-
-```
-Workspace/
-└── Rigs/
-    └── Zombie.rig
-```
+**File:** `Workspace/Rigs/Zombie.rig`
 
 ```ini
 Name = "Zombie"
-
 Model = "Models/Zombie"
-
 CollisionShape = "Capsule"
-
 Scale = 1.0
-
 Hitbox = "Humanoid"
 
 Attachments
 {
     Head = "Head"
-
     RightHand = "RightHand"
-
     LeftHand = "LeftHand"
-
     Body = "Chest"
 }
-```
 
----
-
-# Bones
-
-The rig defines every bone used by the model.
-
-Example
-
-```ini
 Bones
 {
     Root
-
     Spine
-
     Chest
-
     Neck
-
     Head
-
     LeftShoulder
     LeftArm
     LeftHand
-
     RightShoulder
     RightArm
     RightHand
-
     LeftLeg
     LeftFoot
-
     RightLeg
     RightFoot
 }
-```
 
-These names are used by the engine animation system.
-
-Lua APIs also reference these bone names.
-
----
-
-# Default Bone Transforms
-
-Every bone can have a default transform.
-
-Example
-
-```ini
 Transforms
 {
     Head
     {
         Position = (0,0,0)
-
         Rotation = (0,0,0)
-
         Scale = (1,1,1)
     }
-
     LeftHand
     {
         Position = (0,0,0)
-
         Rotation = (0,0,0)
-
         Scale = (1,1,1)
     }
 }
-```
 
-These values are automatically restored when needed.
-
----
-
-# Collision
-
-A rig controls the object's collision.
-
-Example
-
-```ini
 Collision
 {
     Shape = Capsule
-
     Radius = 0.45
-
     Height = 1.8
 }
 ```
 
-Future versions may support:
-
-- Capsule
-- Box
-- Sphere
-- Convex Hull
-- Mesh
-
----
-
-# Attachments
-
-Attachments define named mounting points.
-
-Example
-
-```ini
-Attachments
-{
-    Head
-
-    Body
-
-    LeftHand
-
-    RightHand
-
-    LeftFoot
-
-    RightFoot
-
-    Back
-}
-```
-
-These are used for:
-
-- Weapons
-- Hats
-- Armor
-- Tools
-- Effects
-- Cameras
-- Lights
-
----
-
-# Runtime Features
-
-The engine allows scripts to modify a rig during gameplay.
-
-Supported operations include:
-
-- Change Model
-- Change Collision Shape
-- Move Bones
-- Rotate Bones
-- Scale Bones
-- Hide Bones
-- Show Bones
-- Enable Physics
-- Disable Physics
-- Replace Rig
-
----
-
-# Built-in APIs (Future)
-
+### Built-in Rig APIs
 ```lua
 Rig:SetModel()
-
 Rig:GetModel()
-
 Rig:SetCollisionShape()
-
 Rig:GetCollisionShape()
-
 Rig:SetBonePosition()
-
 Rig:SetBoneRotation()
-
 Rig:SetBoneScale()
-
 Rig:GetBone()
-
 Rig:HideBone()
-
 Rig:ShowBone()
-
 Rig:AddAttachment()
-
 Rig:RemoveAttachment()
-
 Rig:ResetBone()
-
 Rig:ResetPose()
 ```
 
 ---
 
-# Automatic Registration
+# Part IV: Package Distribution & Library Structures
 
-Every rig inside the Workspace is automatically registered.
+The engine supports grouping multiple independent External Logic packages into a unified **Library Package** for easy installation and distribution.
 
-Example
+## Library Configuration
 
-```
-Workspace/
-
-Rigs/
-
-Human.rig
-```
-
-↓
-
-```
-Engine
-```
-
-↓
-
-```
-Human Rig Registered
-```
-
-No registration code.
-
-No init.lua.
-
----
-
-# File Philosophy
-
-A `.rig` file only defines the body's physical structure.
-
-It should never contain gameplay logic.
-
-Gameplay belongs inside:
-
-- Character Definitions
-- ClientSideService
-- ServerSideService
-
-The rig acts as the reusable foundation for animation, physics, bone manipulation, attachments, and collision across all characters and entities.
-
-# Configuration Files (Draft v0.1)
-
-Every package type contains a configuration file located in its root directory.
-
-Configuration files identify the package before the engine loads its contents.
-
-They also provide metadata used by the engine, package manager, and future editors.
-
----
-
-# Internal Logic Configuration
-
-```
-Internal Logic/
-│
-├── internal.conf
-├── ServerSideService/
-└── Assets/
-```
-
-The `internal.conf` file describes an Internal Logic package.
-
-Example:
-
-```ini
-Name = "Default Internal Logic"
-
-Description = "Default built-in world generation."
-
-Version = "1.0"
-
-Author = "Engine"
-
-EngineVersion = "1.0"
-```
-
----
-
-# External Logic Configuration
-
-```
-External Logic/
-│
-├── external.conf
-├── Workspace/
-├── Assets/
-├── ClientSideService/
-├── ServerSideService/
-└── Storage/
-```
-
-The `external.conf` file describes an External Logic package.
-
-Example
-
-```ini
-Name = "Survival System"
-
-Description = "Adds survival mechanics."
-
-Version = "1.0"
-
-Author = "Developer"
-
-EngineVersion = "1.0"
-```
-
----
-
-# Library Configuration
+A library package contains a `library.conf` configuration file in its root directory and groups all packages inside a directory named `Library/`.
 
 ```
 MyLibrary/
 │
 ├── library.conf
-└── Library/
-```
-
-The `library.conf` file describes a library package.
-
-A library is a collection of External Logic packages that can be distributed together.
-
-Libraries do not directly contain gameplay.
-
-Instead, they organize multiple External Logic packages into one collection.
-
-Example
-
-```ini
-Name = "Official Library"
-
-Description = "Collection of gameplay packages."
-
-Version = "1.0"
-
-Author = "Developer"
-
-EngineVersion = "1.0"
-```
-
----
-
-# Library Structure
-
-A library always contains a folder named `Library`.
-
-```
-MyLibrary/
 │
-├── library.conf
 └── Library/
     ├── RPG/
-    ├── Vehicles/
+    │   ├── external.conf
+    │   ├── Workspace/
+    │   ├── Assets/
+    │   └── ...
+    │
     ├── Horror/
-    └── Survival/
+    │   ├── external.conf
+    │   ├── Workspace/
+    │   └── ...
+    │
+    └── Vehicles/
+        └── external.conf
 ```
 
-Each folder inside `Library` is an independent External Logic package.
-
-Example
-
-```
-Library/
-│
-├── RPG/
-│   ├── external.conf
-│   ├── Workspace/
-│   ├── Assets/
-│   ├── ClientSideService/
-│   ├── ServerSideService/
-│   └── Storage/
-│
-├── Horror/
-│   ├── external.conf
-│   ├── Workspace/
-│   ├── Assets/
-│   └── ...
-│
-└── Vehicles/
-    ├── external.conf
-    └── ...
-```
-
-Every package remains completely independent.
-
-The library simply groups them together for easier installation and distribution.
-
----
-
-# Automatic Loading
-
-The engine loads packages in the following order.
-
-```
-Load library.conf
-
-↓
-
-Open Library/
-
-↓
-
-Scan every package
-
-↓
-
-Read external.conf
-
-↓
-
-Load External Logic
-```
-
-If a package is invalid, only that package fails to load.
-
-The remaining packages continue loading normally.
-
----
-
-# Design Goals
-
-- Simple package metadata
-- Automatic package discovery
-- Independent External Logic packages
-- Easy distribution
-- Easy installation
-- Future package manager support
-- Compatible with automatic loading
-
-
-Your previous foundation is not cooked. The review actually confirms the opposite: the core separation is good. The missing parts are mostly ecosystem rules (identity, dependency, loading, conflicts), not a bad architecture.
-
-The important change you mentioned is:
-
-External Logic replaces the old Mod system
-
-Internal Logic becomes the built-in engine/game foundation
-
-They are separated because they have different levels of access.
-
-
-I would add these two documents:
-
-
----
-
-External Logic System Specification (Draft v0.3)
-
-# External Logic Architecture
-
-> Status: Planning
-
-External Logic is the replacement for the traditional Mod system.
-
-It contains everything created outside the engine.
-
-Examples:
-
-- Gameplay systems
-- Horror systems
-- RPG systems
-- Vehicle systems
-- Weapons
-- New entities
-- New blocks
-- New mechanics
-- Custom worlds
-
-External Logic behaves like plugins.
-
-It can extend the engine without modifying the engine source code.
-
----
-
-# Package Structure
-
-Every External Logic package follows this structure.
-
-MyPackage/ │ ├── external.conf │ ├── Workspace/ │ ├── Assets/ │ ├── ClientSideService/ │ ├── ServerSideService/ │ └── Storage/
-
----
-
-# external.conf
-
-The configuration file identifies the package.
-
-Example:
-
+**library.conf Example:**
 ```ini
-Name = "Horror Expansion"
-
-ID = "horror.expansion"
-
-Version = "1.0.0"
-
-Author = "Developer"
-
-EngineVersion = "1.0"
-
-Description = "Adds horror gameplay systems."
-
-
-Dependencies
-{
-    BaseLibrary >= 1.0
-}
-
-
----
-
-Package Identity System
-
-Every package has a unique ID.
-
-Example:
-
-horror.expansion
-rpg.system
-vehicle.framework
-
-Objects automatically inherit the package namespace.
-
-Example:
-
-Package:
-
-horror.expansion
-
-Definition:
-
-Zombie.character
-
-Internal ID becomes:
-
-horror.expansion:Zombie
-
-This prevents conflicts.
-
-Two packages can both have:
-
-Sword.item
-
-because internally they become:
-
-rpg.weapon:Sword
-
-fantasy.weapon:Sword
-
-
----
-
-Asset Resolution
-
-Assets also use namespaces.
-
-Example:
-
-Model =
-horror.expansion:Models/Zombie
-
-The engine resolves:
-
-External Logic Package
-
-↓
-
-Assets
-
-↓
-
-Models/Zombie.glb
-
-No ambiguity.
-
-
----
-
-Dependency System
-
-Packages can require other packages.
-
-Example:
-
-Dependencies
-{
-    CombatSystem >= 2.0
-
-    RPGLibrary >= 1.5
-}
-
-Loading order:
-
-Engine
-
-↓
-
-Internal Logic
-
-↓
-
-Libraries
-
-↓
-
-External Logic
-
-
----
-
-Conflict Rules
-
-If two packages modify the same object:
-
-Priority:
-
-Internal Logic
-        |
-        |
-External Logic Override
-        |
-        |
-Runtime Changes
-
-External Logic cannot overwrite engine-critical systems.
-
-
----
-
-Runtime Validation
-
-When loading:
-
-Engine checks:
-
-Missing assets
-
-Missing scripts
-
-Invalid definitions
-
-Dependency errors
-
-Version mismatch
-
-
-Example:
-
-Zombie.character
-
-Missing:
-
-ServerScript ZombieAI.lua
-
-Result:
-
-Warning:
-Zombie loaded without AI
-
-
----
-
-External Logic Permissions
-
-External Logic has controlled access.
-
-Allowed:
-
-Create objects
-
-Add definitions
-
-Add scripts
-
-Add assets
-
-Modify worlds
-
-
-Restricted:
-
-Replace engine renderer
-
-Modify memory systems
-
-Change core networking
-
-
-
----
-
-Goal
-
-External Logic turns the engine into a platform.
-
-Developers create content without modifying the engine.
-
----
-
-# Internal Logic Architecture Specification (Draft v0.1)
-
-```md
-# Internal Logic Architecture
-
-> Status: Planning
-
-Internal Logic is the built-in foundation of the engine.
-
-It replaces the old concept of "game files".
-
-Internal Logic defines how the world itself works.
-
-Unlike External Logic, Internal Logic has deeper engine access.
-
----
-
-# Purpose
-
-Internal Logic controls:
-
-- World generation
-- Chunk system
-- Default assets
-- Default rules
-- Engine-supported gameplay foundations
-
-Examples:
-
-- Default terrain
-- Default blocks
-- Default world rules
-- Default physics rules
-
----
-
-# Structure
-
-InternalLogic/ │ ├── internal.conf │ ├── ServerSideService/ │ └── Assets/
-
----
-
-# internal.conf
-
-Example:
-
-```ini
-Name = "Default World"
-
-ID = "core.default"
-
+Name = "Official Library"
+Description = "Collection of gameplay packages."
 Version = "1.0"
-
+Author = "Developer"
 EngineVersion = "1.0"
+```
 
-Description = "Default internal world system."
-
-
----
-
-ServerSideService
-
-Contains internal world systems.
-
-ServerSideService/
-│
-├── MapGeneration/
-│
-├── ChunkSystem/
-│
-└── WorldRules/
-
+Each folder inside the `Library/` directory is treated as a fully isolated, independent External Logic package with its own `external.conf` and strict separation rules. If a single package in a library fails validation, the engine skips only that package and successfully loads the others.
 
 ---
 
-Map Generation
+# Part V: Internal Logic vs External Logic Comparison
 
-Map generation uses:
-
-.gen
-
-files.
-
-Example:
-
-ServerSideService/
-
-MapGeneration/
-
-default.gen
-
+| Feature | Internal Logic | External Logic |
+| :--- | :--- | :--- |
+| **Engine Foundation** | Yes | No |
+| **World Generation** | Yes | Optional |
+| **Core World Rules** | Yes | No |
+| **New Gameplay Systems** | Limited | Yes |
+| **Mod System Replacement** | No | Yes |
+| **Deep Engine Access** | Yes | Limited (Sandboxed) |
+| **User/Developer Created** | Rare | Yes |
 
 ---
 
-.gen Definition
+# Part VI: Boot & Loading Sequence
 
-Controls how worlds generate.
-
-Example:
-
-WorldName = "Default"
-
-Seed = Dynamic
-
-
-Biomes
-{
-    Forest
-
-    Desert
-
-    Ocean
-
-    Mountains
-}
-
-
-Structures
-{
-    Village
-
-    Dungeon
-
-    Ruins
-}
-
-
-Noise
-{
-    TerrainHeight
-
-    Temperature
-
-    Moisture
-}
-
-
----
-
-Chunk Definition
-
-Chunk rules use:
-
-.border
-
-files.
-
-Example:
-
-ServerSideService/
-
-ChunkSystem/
-
-default.border
-
-Controls:
-
-Chunk size
-
-Shape
-
-Borders
-
-Loading behavior
-
-
-Example:
-
-Size = (16,16,16)
-
-Shape = Cube
-
-LoadDistance = 8
-
-Streaming = true
-
-
----
-
-Assets
-
-Internal assets contain default engine resources.
-
-Assets/
-
-Textures/
-
-Sounds/
-
-Materials/
-
-Examples:
-
-Textures/
-
-Stone.png
-
-Grass.png
-
-Water.png
-
-
-Sounds/
-
-WalkStone.ogg
-
-BreakStone.ogg
-
-
----
-
-Internal vs External
-
-Feature	Internal Logic	External Logic
-
-Engine foundation	Yes	No
-World generation	Yes	Optional
-Core rules	Yes	No
-New gameplay	Limited	Yes
-Mods replacement	No	Yes
-Deep access	Yes	Limited
-User created	Rare	Yes
-
-
-
----
-
-Loading Order
-
-Engine Core
-
-↓
-
-Internal Logic
-
-↓
-
-Libraries
-
-↓
-
-External Logic
-
-↓
-
-World Runtime
-
-
----
-
-Philosophy
-
-Internal Logic defines:
-
-"How the engine works."
-
-External Logic defines:
-
-"What developers create with it."
-
-Internal Logic is the foundation.
-
-External Logic is the expansion.
-
----
-
-One thing I would **not** change: your `Workspace / Assets / ClientSideService / ServerSideService` separation. That part is actually the strongest idea. The missing piece was simply adding **identity + dependency + permission boundaries** so it can survive a large ecosystem.
-
-
-# Internal Logic Architecture (Draft v0.1)
-
-> Status: Planning
-
-Internal Logic is the built-in framework of the engine.
-
-Unlike External Logic, Internal Logic is **part of the engine itself** and is responsible for generating and managing the game world.
-
-It contains only the minimum systems required for the engine to function.
-
-Future features can expand this architecture without breaking compatibility.
-
----
-
-# Philosophy
-
-Internal Logic has one purpose:
-
-**Generate and manage the world.**
-
-Unlike External Logic, it is **not intended for gameplay systems or content packs**.
-
-Its responsibility is limited to engine-level systems such as world generation, chunk layout, and built-in assets.
-
----
-
-# Folder Structure
+The engine bootstrapper discovers and loads definitions, code, and resources in a strict, sequential order to prevent loading and dependency conflicts:
 
 ```
-Internal Logic/
-│
-├── ServerSideService/
-│   ├── Mapgen.gen
-│   └── Chunk.border
-│
-└── Assets/
-    ├── Textures/
-    ├── Sounds/
-    └── Materials/
+1. Engine Core Startup
+   ↓
+2. Load Internal Logic Packages (e.g., Read internal.conf, load Chunk.border & Mapgen.gen)
+   ↓
+3. Discover & Load Library Packages (e.g., Read library.conf, scan Library/ folder)
+   ↓
+4. Discover & Load External Logic Packages (e.g., Read external.conf, resolve Dependency trees)
+   ↓
+5. Run Asset & Workspace Validation (Verify IDs, asset namespaces, scripts, and integrity)
+   ↓
+6. Initialize World Runtime & Execute Lua Services (ClientSideService & ServerSideService)
 ```
 
 ---
 
-# Responsibilities
+# Part VII: Future Definition APIs (Planned)
 
-| Folder | Responsibility |
-|----------|----------------|
-| ServerSideService | World generation definitions |
-| Assets | Built-in engine resources |
-
----
-
-# ServerSideService
-
-ServerSideService contains Internal Logic definition files.
-
-Unlike External Logic, these files describe how the engine itself should generate and organize the world.
-
-Currently there are two built-in definition types.
+Every declarative blueprint definition in the Workspace can support standardized block sections to map seamlessly to future editors and engine-level systems:
 
 ```
-Mapgen.gen
-
-Chunk.border
+Identity      Assets       Animations    Physics       Gameplay
+Interaction   Navigation   Rendering     Networking    Components
+Scripts       Audio        Events        Tags          Properties
+Metadata
 ```
 
----
-
-# Map Generation Definition (.gen)
-
-A `.gen` file defines how the world is generated.
-
-It does not define chunk layout.
-
-Instead, it describes terrain generation, biome placement, cave generation, structure placement, and other world-generation systems.
-
----
-
-# Location
-
-```
-Internal Logic/
-└── ServerSideService/
-    └── Mapgen.gen
-```
-
----
-
-# Example
-
-```ini
-Name = "Default"
-
-Seed = Random
-
-Chunk = "Default"
-
-SeaLevel = 64
-
-MinHeight = -64
-
-MaxHeight = 320
-
-TerrainGenerator = "Noise"
-
-Biomes = true
-
-Structures = true
-
-Caves = true
-
-Ores = true
-
-Rivers = true
-
-Lakes = true
-```
-
----
-
-# Responsibilities
-
-A `.gen` file may define:
-
-- World seed
-- Terrain generation
-- Height limits
-- Sea level
-- Cave generation
-- Ore generation
-- Biome generation
-- Structure generation
-- Rivers
-- Lakes
-- Terrain algorithms
-- Chunk definition to use
-
-It should never contain gameplay logic.
-
----
-
-# Chunk Definition (.border)
-
-A `.border` file defines how the world is divided into chunks.
-
-It controls chunk layout and streaming, but does not generate terrain.
-
----
-
-# Location
-
-```
-Internal Logic/
-└── ServerSideService/
-    └── Chunk.border
-```
-
----
-
-# Example
-
-```ini
-Name = "Default"
-
-Shape = Cube
-
-Size = (16,16,16)
-
-Vertical = Infinite
-
-Compression = Binary
-
-Streaming = true
-```
-
----
-
-# Responsibilities
-
-A `.border` file defines:
-
-- Chunk shape
-- Chunk size
-- Vertical limits
-- Streaming behavior
-- Save format
-- Compression
-- Chunk organization
-
-Future versions may support additional chunk layouts.
-
-Examples:
-
-- Cube
-- Hexagonal
-- Octree
-- Sparse Voxel
-
----
-
-# Relationship
-
-The world generator references a chunk definition.
-
-```
-Mapgen.gen
-
-↓
-
-Chunk = "Default"
-
-↓
-
-Chunk.border
-```
-
-The `.gen` file decides **what** is generated.
-
-The `.border` file decides **how the world is partitioned**.
-
----
-
-# Assets
-
-Internal Logic also contains built-in resources used by the engine.
-
-```
-Internal Logic/
-└── Assets/
-    ├── Textures/
-    ├── Sounds/
-    └── Materials/
-```
-
-These assets are part of the engine and are available during world generation.
-
----
-
-# Textures
-
-Contains built-in textures.
-
-Example
-
-```
-Textures/
-
-Missing.png
-
-Unknown.png
-
-Default.png
-```
-
----
-
-# Sounds
-
-Contains built-in sounds used by the engine.
-
-Examples:
-
-```
-FootstepStone.ogg
-
-FootstepGrass.ogg
-
-DigStone.ogg
-
-PlaceBlock.ogg
-
-BreakStone.ogg
-```
-
----
-
-# Materials
-
-Contains reusable material definitions.
-
-Materials allow multiple blocks to share common physical and audio properties.
-
-Example
-
-```
-Stone.material
-
-Wood.material
-
-Grass.material
-
-Metal.material
-```
-
-A material may define:
-
-- Footstep sound
-- Break sound
-- Dig sound
-- Friction
-- Bounciness
-- Hardness
-- Physical properties
-
----
-
-# Automatic Loading
-
-All Internal Logic definitions are loaded automatically during engine startup.
-
-```
-Engine Start
-
-↓
-
-Load Chunk.border
-
-↓
-
-Load Mapgen.gen
-
-↓
-
-Load Assets
-
-↓
-
-World Ready
-```
-
-No manual registration is required.
-
----
-
-# Current Scope
-
-Internal Logic currently supports:
-
-- World generation
-- Chunk definitions
-- Built-in textures
-- Built-in sounds
-- Built-in materials
-
-Additional engine systems may be added in future versions while maintaining the same architecture.
-
----
-
-# Design Goals
-
-- Minimal architecture
-- Easy to understand
-- Automatic loading
-- Separation of engine systems from gameplay
-- Clear distinction between Internal Logic and External Logic
-- Future-proof for engine expansion
+This decoupling allows developers, graphic designers, and level editors to build, preview, and adjust worlds and gameplay entities inside graphical user interfaces without editing any Lua scripts directly.
