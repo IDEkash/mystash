@@ -276,13 +276,56 @@ void ScriptApiBase::loadModFromMemory(const std::string &mod_name, std::string i
 	sanity_check(m_type == ScriptingType::Client
 			|| m_type == ScriptingType::SSCSM);
 
+	ModVFS *vfs = getModVFS();
+	if (!vfs)
+		return;
+
+	// Check if ClientSideService exists in VFS
+	std::string css_prefix = mod_name + ":ClientSideService/";
+	std::vector<std::string> css_files;
+	for (const auto &pair : vfs->m_vfs) {
+		if (pair.first.find(css_prefix) == 0 && pair.first.size() > 4 && pair.first.substr(pair.first.size() - 4) == ".lua") {
+			css_files.push_back(pair.first);
+		}
+	}
+
+	if (!css_files.empty()) {
+		std::sort(css_files.begin(), css_files.end());
+		for (const auto &vfs_path : css_files) {
+			const std::string chunk_name = "@" + vfs_path;
+			const std::string *contents = vfs->getModFile(vfs_path);
+			if (contents) {
+				verbosestream << "Loading and running ClientSideService script " << chunk_name << std::endl;
+				lua_State *L = getStack();
+				int error_handler = PUSH_ERROR_HANDLER(L);
+				bool ok = ScriptApiSecurity::safeLoadString(L, *contents, chunk_name.c_str());
+				if (ok)
+					ok = !lua_pcall(L, 0, 0, error_handler);
+				if (!ok) {
+					const char *error_msg = lua_tostring(L, -1);
+					if (!error_msg)
+						error_msg = "(error object is not a string)";
+					lua_pop(L, 2); // Pop error message and error handler
+					throw ModError("Failed to load and run ClientSideService script from " +
+							vfs_path + ":\n" + error_msg);
+				}
+				lua_pop(L, 1); // Pop error handler
+			}
+		}
+		return;
+	}
+
 	if (init_path.empty())
 		init_path = mod_name + ":init.lua";
 	const std::string chunk_name = "@" + init_path;
 
-	const std::string *contents = getModVFS()->getModFile(init_path);
-	if (!contents)
-		throw ModError("Mod \"" + mod_name + "\" lacks init.lua");
+	const std::string *contents = vfs->getModFile(init_path);
+	if (!contents) {
+		if (mod_name == BUILTIN_MOD_NAME) {
+			throw ModError("Mod \"" + mod_name + "\" lacks init.lua");
+		}
+		return;
+	}
 
 	verbosestream << "Loading and running script " << chunk_name << std::endl;
 

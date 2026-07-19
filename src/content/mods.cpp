@@ -63,17 +63,22 @@ bool parseModContents(ModSpec &spec)
 
 	std::string conf_filename;
 
-	// Handle modpacks (defined by containing modpack.txt)
-	if (fs::IsFile(spec.path + DIR_DELIM + "modpack.conf")) {
+	// Handle modpacks (defined by containing modpack.txt) or external.conf (External Logic Packages)
+	if (fs::IsFile(spec.path + DIR_DELIM + "external.conf")) {
+		conf_filename = "external.conf";
+	} else if (fs::IsFile(spec.path + DIR_DELIM + "modpack.conf")) {
 		spec.is_modpack = true;
 		conf_filename = "modpack.conf";
 	} else if (fs::IsFile(spec.path + DIR_DELIM + "modpack.txt")) {
 		spec.is_modpack = true;
-	} else if (!fs::IsFile(spec.path + DIR_DELIM + "init.lua")) {
-		return false;
-	} else {
-		// Is a mod
+	} else if (fs::IsFile(spec.path + DIR_DELIM + "init.lua")) {
 		conf_filename = "mod.conf";
+	} else if (fs::PathExists(spec.path + DIR_DELIM + "ServerSideService") ||
+			fs::PathExists(spec.path + DIR_DELIM + "ClientSideService") ||
+			fs::PathExists(spec.path + DIR_DELIM + "Workspace")) {
+		// Valid External Logic Package without a config file
+	} else {
+		return false;
 	}
 
 	if (spec.is_modpack)
@@ -83,35 +88,74 @@ bool parseModContents(ModSpec &spec)
 	if (!conf_filename.empty())
 		info.readConfigFile((spec.path + DIR_DELIM + conf_filename).c_str());
 
-	if (info.exists("name")) {
+	if (info.exists("ID")) {
+		spec.name = info.get("ID");
+		spec.is_name_explicit = true;
+	} else if (info.exists("id")) {
+		spec.name = info.get("id");
+		spec.is_name_explicit = true;
+	} else if (info.exists("name")) {
 		spec.name = info.get("name");
 		spec.is_name_explicit = true;
+	} else if (info.exists("Name")) {
+		spec.name = info.get("Name");
+		spec.is_name_explicit = true;
 	} else if (!spec.is_modpack) {
-		spec.deprecation_msgs.push_back("Mods not having a mod.conf file with the name is deprecated.");
+		spec.deprecation_msgs.push_back("Mods not having a mod.conf or external.conf file with the name is deprecated.");
 	}
 
 	if (info.exists("description"))
 		spec.desc = info.get("description");
+	else if (info.exists("Description"))
+		spec.desc = info.get("Description");
 	else if (fs::ReadFile(spec.path + DIR_DELIM + "description.txt", spec.desc))
-		spec.deprecation_msgs.push_back("description.txt is deprecated, please use mod[pack].conf instead.");
+		spec.deprecation_msgs.push_back("description.txt is deprecated, please use mod[pack].conf or external.conf instead.");
 
 	if (info.exists("author"))
 		spec.author = info.get("author");
+	else if (info.exists("Author"))
+		spec.author = info.get("Author");
 
 	if (info.exists("release"))
 		spec.release = info.getS32("release");
-
+	else if (info.exists("Release"))
+		spec.release = info.getS32("Release");
 
 	// The subsequent fields are not available for modpacks
 	if (spec.is_modpack)
 		return true;
 
+	// Parse Dependencies block from external.conf if present
+	if (conf_filename == "external.conf") {
+		std::string file_content;
+		if (fs::ReadFile(spec.path + DIR_DELIM + "external.conf", file_content)) {
+			size_t dep_pos = file_content.find("Dependencies");
+			if (dep_pos != std::string::npos) {
+				size_t start_brace = file_content.find('{', dep_pos);
+				size_t end_brace = file_content.find('}', dep_pos);
+				if (start_brace != std::string::npos && end_brace != std::string::npos && end_brace > start_brace) {
+					std::string block = file_content.substr(start_brace + 1, end_brace - start_brace - 1);
+					std::vector<std::string> lines = str_split(block, '\n');
+					for (auto &line : lines) {
+						line = trim(line);
+						if (line.empty()) continue;
+						size_t name_end = line.find_first_of(" \t><=");
+						std::string dep_name = (name_end == std::string::npos) ? line : line.substr(0, name_end);
+						dep_name = trim(dep_name);
+						if (!dep_name.empty()) {
+							spec.depends.insert(dep_name);
+						}
+					}
+				}
+			}
+		}
+	}
 
-	// Attempt to load dependencies from mod.conf
+	// Attempt to load dependencies from mod.conf / external.conf standard key
 	bool mod_conf_has_depends = false;
-	if (info.exists("depends")) {
+	if (info.exists("depends") || info.exists("Depends")) {
 		mod_conf_has_depends = true;
-		std::string dep = info.get("depends");
+		std::string dep = info.exists("depends") ? info.get("depends") : info.get("Depends");
 		dep.erase(std::remove_if(dep.begin(), dep.end(),
 				static_cast<int (*)(int)>(&std::isspace)), dep.end());
 		for (const auto &dependency : str_split(dep, ',')) {
@@ -119,9 +163,9 @@ bool parseModContents(ModSpec &spec)
 		}
 	}
 
-	if (info.exists("optional_depends")) {
+	if (info.exists("optional_depends") || info.exists("Optional_depends")) {
 		mod_conf_has_depends = true;
-		std::string dep = info.get("optional_depends");
+		std::string dep = info.exists("optional_depends") ? info.get("optional_depends") : info.get("Optional_depends");
 		dep.erase(std::remove_if(dep.begin(), dep.end(),
 				static_cast<int (*)(int)>(&std::isspace)), dep.end());
 		for (const auto &dependency : str_split(dep, ',')) {
@@ -186,6 +230,21 @@ std::map<std::string, ModSpec> getModsInPath(
 		mod_virtual_path.clear();
 		// Intentionally uses / to keep paths same on different platforms
 		mod_virtual_path.append(virtual_path).append("/").append(modname);
+
+		// Support Part IV: Package Distribution & Library Structures
+		// A library package contains a library.conf configuration file in its root directory
+		// and groups all packages inside a directory named Library/
+		if (fs::IsFile(mod_path + DIR_DELIM + "library.conf")) {
+			std::string library_dir = mod_path + DIR_DELIM + "Library";
+			if (fs::PathExists(library_dir)) {
+				std::map<std::string, ModSpec> library_mods = getModsInPath(
+						library_dir, mod_virtual_path + "/Library", modpack_depth + 1);
+				for (auto &pair : library_mods) {
+					result[pair.first] = std::move(pair.second);
+				}
+			}
+			continue;
+		}
 
 		ModSpec spec(modname, mod_path, modpack_depth, mod_virtual_path);
 		if (parseModContents(spec)) {

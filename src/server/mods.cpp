@@ -19,7 +19,12 @@ ServerModManager::ServerModManager(const std::string &worldpath, SubgameSpec gam
 {
 	// Add all game mods and all world mods
 	configuration.addGameMods(gamespec);
-	configuration.addModsInPath(worldpath + DIR_DELIM + "worldmods", "worldmods");
+	std::string world_ext_path = worldpath + DIR_DELIM + "external-logic";
+	if (fs::PathExists(world_ext_path)) {
+		configuration.addModsInPath(world_ext_path, "external-logic");
+	} else {
+		configuration.addModsInPath(worldpath + DIR_DELIM + "worldmods", "worldmods");
+	}
 
 	// Load normal mods
 	std::string worldmt = worldpath + DIR_DELIM + "world.mt";
@@ -43,8 +48,31 @@ void ServerModManager::loadMods(ServerScripting &script)
 		mod.checkAndLog();
 
 		auto t1 = porting::getTimeMs();
-		std::string script_path = mod.path + DIR_DELIM + "init.lua";
-		script.loadMod(script_path, mod.name);
+		std::string sss_path = mod.path + DIR_DELIM + "ServerSideService";
+		bool sss_loaded = false;
+		if (fs::PathExists(sss_path)) {
+			std::vector<fs::DirListNode> files = fs::GetDirListing(sss_path);
+			std::vector<std::string> lua_files;
+			for (const auto &file : files) {
+				if (!file.dir && file.name.size() > 4 && file.name.substr(file.name.size() - 4) == ".lua") {
+					lua_files.push_back(file.name);
+				}
+			}
+			std::sort(lua_files.begin(), lua_files.end());
+			for (const auto &file_name : lua_files) {
+				std::string script_path = sss_path + DIR_DELIM + file_name;
+				script.loadMod(script_path, mod.name);
+				sss_loaded = true;
+			}
+		}
+
+		if (!sss_loaded) {
+			std::string script_path = mod.path + DIR_DELIM + "init.lua";
+			if (fs::PathExists(script_path)) {
+				script.loadMod(script_path, mod.name);
+			}
+		}
+
 		infostream << "Mod \"" << mod.name << "\" loaded after "
 			<< (porting::getTimeMs() - t1) << " ms" << std::endl;
 	}

@@ -83,7 +83,10 @@ static SubgameSpec getSubgameSpec(const std::string &game_id,
 		const std::string &game_path,
 		const std::unordered_map<std::string, std::string> &mods_paths)
 {
-	const auto gamemods_path = game_path + DIR_DELIM + "mods";
+	std::string gamemods_path = game_path + DIR_DELIM + "external-logic";
+	if (!fs::PathExists(gamemods_path)) {
+		gamemods_path = game_path + DIR_DELIM + "mods";
+	}
 	// Get meta
 	const std::string conf_path = game_path + DIR_DELIM + "game.conf";
 	Settings conf;
@@ -167,9 +170,21 @@ SubgameSpec findSubgame(const std::string &id)
 
 	// Find mod directories
 	std::unordered_map<std::string, std::string> mods_paths;
-	mods_paths["mods"] = user + DIR_DELIM + "mods";
-	if (!user_game && user != share)
-		mods_paths["share"] = share + DIR_DELIM + "mods";
+	std::string ext_logic_path = user + DIR_DELIM + "external-logic";
+	if (fs::PathExists(ext_logic_path)) {
+		mods_paths["external-logic"] = ext_logic_path;
+	} else {
+		mods_paths["mods"] = user + DIR_DELIM + "mods";
+	}
+
+	if (!user_game && user != share) {
+		std::string share_ext = share + DIR_DELIM + "external-logic";
+		if (fs::PathExists(share_ext)) {
+			mods_paths["share_external-logic"] = share_ext;
+		} else {
+			mods_paths["share"] = share + DIR_DELIM + "mods";
+		}
+	}
 
 	for (const std::string &mod_path : getEnvModPaths()) {
 		mods_paths[fs::AbsolutePath(mod_path)] = mod_path;
