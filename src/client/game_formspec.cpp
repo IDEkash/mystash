@@ -398,12 +398,12 @@ void GameFormSpec::showPauseMenu()
 
 	os << "formspec_version[10]size[12.5,7.5]";
 
-	// Background card boxes
-	os << "box[" << info_x << ",0.5;" << info_w << ",6.5;#00000060]";
+	// Background card boxes using premium 9-sliced rounded corner container cells
+	os << "background9[" << info_x << ",0.5;" << info_w << ",6.5;button_hover_semitrans.png;false;6,6]";
 	if (show_controls) {
-		os << "box[" << controls_x << ",0.5;" << controls_w << ",6.5;#00000060]";
+		os << "background9[" << controls_x << ",0.5;" << controls_w << ",6.5;button_hover_semitrans.png;false;6,6]";
 	}
-	os << "box[" << actions_x << ",0.5;" << actions_w << ",6.5;#00000060]";
+	os << "background9[" << actions_x << ",0.5;" << actions_w << ",6.5;button_hover_semitrans.png;false;6,6]";
 
 	// Header labels with styled colorization
 	os << "label[" << (info_x + 0.35f) << ",0.9;\x1b(c@#467832)" << PROJECT_NAME_C << " \x1b(c@#ffffff)" << VERSION_STRING << "]";
@@ -512,11 +512,10 @@ void GameFormSpec::showPauseMenu()
 		by += b_step;
 	}
 
-	// Exit buttons at bottom side-by-side
-	float exit_y = 5.9f;
-	float exit_w = (actions_w - 0.8f) / 2.0f;
-	os << "button_exit[" << (actions_x + 0.3f) << "," << exit_y << ";" << exit_w << ",0.7;btn_exit_menu;" << strgettext("Exit to Menu") << "]"
-	   << "button_exit[" << (actions_x + 0.3f + exit_w + 0.2f) << "," << exit_y << ";" << exit_w << ",0.7;btn_exit_os;" << strgettext("Exit to OS") << "]";
+	// Exit buttons stacked vertically similar to top buttons
+	os << "button_exit[" << (actions_x + 0.3f) << "," << by << ";" << bw << ",0.7;btn_exit_menu;" << strgettext("Exit to Menu") << "]";
+	by += b_step;
+	os << "button_exit[" << (actions_x + 0.3f) << "," << by << ";" << bw << ",0.7;btn_exit_os;" << strgettext("Exit to OS") << "]";
 
 	/* Create menu */
 	/* Note: FormspecFormSource and LocalFormspecHandler  *

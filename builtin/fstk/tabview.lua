@@ -82,7 +82,8 @@ local function get_formspec(self)
 	end
 
 	local formspec = (prepend or "")
-	formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#0000008C]"):format(
+	-- Premium Modern Greyish Blue Theme Backdrops (#0f172aF2 Slate-900 / #1e293bE0 Slate-800)
+	formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#0f172aF2]"):format(
 			TABHEADER_H, orig_tsize.width, orig_tsize.height)
 	formspec = formspec .. self:tab_header(tab_header_size) .. content
 
@@ -155,22 +156,52 @@ end
 
 --------------------------------------------------------------------------------
 local function tab_header(self, size)
-	local toadd = ""
-
+	local fs = {}
+	local col_width = size.width / #self.tablist
+	-- Premium Modern Greyish Blue Theme Bar (#1e293bE0 Slate-800)
+	fs[#fs + 1] = ("box[%f,%f;%f,%f;#1e293bE0]"):format(
+		self.header_x,
+		self.header_y - size.height,
+		size.width,
+		size.height
+	)
 	for i = 1, #self.tablist do
-		if toadd ~= "" then
-			toadd = toadd .. ","
-		end
-
 		local caption = self.tablist[i].caption
 		if type(caption) == "function" then
 			caption = caption(self)
 		end
+		local btn_name = self.name .. "_tab_" .. i
 
-		toadd = toadd .. caption
+		-- Highlight using beautiful modern Sky Blue/Teal accent (#0284c7 for active, #1e293bE0 for inactive) with high contrast text (#ffffff and #94a3b8)
+		local bg = (i == self.last_tab_index) and "#0284c7F0" or "#1e293bE0"
+		local tc = (i == self.last_tab_index) and "#ffffff" or "#94a3b8"
+
+		fs[#fs + 1] = ("style[%s;bgcolor=%s;textcolor=%s;border=false;content_offset=0;font=%s]"):format(
+			btn_name, bg, tc, (i == self.last_tab_index) and "bold" or "normal")
+		fs[#fs + 1] = ("style[%s:hovered;bgcolor=#0369a1;textcolor=#ffffff]style[%s:pressed;bgcolor=#075985;textcolor=#ffffff]"):format(btn_name, btn_name)
+
+		local btn_x = self.header_x + (i - 1) * col_width
+		local btn_y = self.header_y - size.height
+
+		fs[#fs + 1] = ("button[%f,%f;%f,%f;%s;%s]"):format(
+			btn_x,
+			btn_y,
+			col_width,
+			size.height,
+			btn_name,
+			core.formspec_escape(caption)
+		)
+
+		-- Active tab indicator: thin accent indicator (#38bdf8) at the bottom (2px thick, which is roughly 0.05 formspec units)
+		if i == self.last_tab_index then
+			fs[#fs + 1] = ("box[%f,%f;%f,0.06;#38bdf8]"):format(
+				btn_x,
+				btn_y + size.height - 0.06,
+				col_width
+			)
+		end
 	end
-	return string.format("tabheader[%f,%f;%f,%f;%s;%s;%i;true;false]",
-			self.header_x, self.header_y, size.width, size.height, self.name, toadd, self.last_tab_index)
+	return table.concat(fs, "")
 end
 
 --------------------------------------------------------------------------------
@@ -204,6 +235,14 @@ local function handle_tab_buttons(self,fields)
 		local index = tonumber(fields[self.name])
 		switch_to_tab(self, index)
 		return true
+	end
+
+	for i = 1, #self.tablist do
+		local btn_name = self.name .. "_tab_" .. i
+		if fields[btn_name] then
+			switch_to_tab(self, i)
+			return true
+		end
 	end
 
 	return false
