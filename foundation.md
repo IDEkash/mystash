@@ -2034,3 +2034,361 @@ External Logic is the expansion.
 ---
 
 One thing I would **not** change: your `Workspace / Assets / ClientSideService / ServerSideService` separation. That part is actually the strongest idea. The missing piece was simply adding **identity + dependency + permission boundaries** so it can survive a large ecosystem.
+
+
+# Internal Logic Architecture (Draft v0.1)
+
+> Status: Planning
+
+Internal Logic is the built-in framework of the engine.
+
+Unlike External Logic, Internal Logic is **part of the engine itself** and is responsible for generating and managing the game world.
+
+It contains only the minimum systems required for the engine to function.
+
+Future features can expand this architecture without breaking compatibility.
+
+---
+
+# Philosophy
+
+Internal Logic has one purpose:
+
+**Generate and manage the world.**
+
+Unlike External Logic, it is **not intended for gameplay systems or content packs**.
+
+Its responsibility is limited to engine-level systems such as world generation, chunk layout, and built-in assets.
+
+---
+
+# Folder Structure
+
+```
+Internal Logic/
+│
+├── ServerSideService/
+│   ├── Mapgen.gen
+│   └── Chunk.border
+│
+└── Assets/
+    ├── Textures/
+    ├── Sounds/
+    └── Materials/
+```
+
+---
+
+# Responsibilities
+
+| Folder | Responsibility |
+|----------|----------------|
+| ServerSideService | World generation definitions |
+| Assets | Built-in engine resources |
+
+---
+
+# ServerSideService
+
+ServerSideService contains Internal Logic definition files.
+
+Unlike External Logic, these files describe how the engine itself should generate and organize the world.
+
+Currently there are two built-in definition types.
+
+```
+Mapgen.gen
+
+Chunk.border
+```
+
+---
+
+# Map Generation Definition (.gen)
+
+A `.gen` file defines how the world is generated.
+
+It does not define chunk layout.
+
+Instead, it describes terrain generation, biome placement, cave generation, structure placement, and other world-generation systems.
+
+---
+
+# Location
+
+```
+Internal Logic/
+└── ServerSideService/
+    └── Mapgen.gen
+```
+
+---
+
+# Example
+
+```ini
+Name = "Default"
+
+Seed = Random
+
+Chunk = "Default"
+
+SeaLevel = 64
+
+MinHeight = -64
+
+MaxHeight = 320
+
+TerrainGenerator = "Noise"
+
+Biomes = true
+
+Structures = true
+
+Caves = true
+
+Ores = true
+
+Rivers = true
+
+Lakes = true
+```
+
+---
+
+# Responsibilities
+
+A `.gen` file may define:
+
+- World seed
+- Terrain generation
+- Height limits
+- Sea level
+- Cave generation
+- Ore generation
+- Biome generation
+- Structure generation
+- Rivers
+- Lakes
+- Terrain algorithms
+- Chunk definition to use
+
+It should never contain gameplay logic.
+
+---
+
+# Chunk Definition (.border)
+
+A `.border` file defines how the world is divided into chunks.
+
+It controls chunk layout and streaming, but does not generate terrain.
+
+---
+
+# Location
+
+```
+Internal Logic/
+└── ServerSideService/
+    └── Chunk.border
+```
+
+---
+
+# Example
+
+```ini
+Name = "Default"
+
+Shape = Cube
+
+Size = (16,16,16)
+
+Vertical = Infinite
+
+Compression = Binary
+
+Streaming = true
+```
+
+---
+
+# Responsibilities
+
+A `.border` file defines:
+
+- Chunk shape
+- Chunk size
+- Vertical limits
+- Streaming behavior
+- Save format
+- Compression
+- Chunk organization
+
+Future versions may support additional chunk layouts.
+
+Examples:
+
+- Cube
+- Hexagonal
+- Octree
+- Sparse Voxel
+
+---
+
+# Relationship
+
+The world generator references a chunk definition.
+
+```
+Mapgen.gen
+
+↓
+
+Chunk = "Default"
+
+↓
+
+Chunk.border
+```
+
+The `.gen` file decides **what** is generated.
+
+The `.border` file decides **how the world is partitioned**.
+
+---
+
+# Assets
+
+Internal Logic also contains built-in resources used by the engine.
+
+```
+Internal Logic/
+└── Assets/
+    ├── Textures/
+    ├── Sounds/
+    └── Materials/
+```
+
+These assets are part of the engine and are available during world generation.
+
+---
+
+# Textures
+
+Contains built-in textures.
+
+Example
+
+```
+Textures/
+
+Missing.png
+
+Unknown.png
+
+Default.png
+```
+
+---
+
+# Sounds
+
+Contains built-in sounds used by the engine.
+
+Examples:
+
+```
+FootstepStone.ogg
+
+FootstepGrass.ogg
+
+DigStone.ogg
+
+PlaceBlock.ogg
+
+BreakStone.ogg
+```
+
+---
+
+# Materials
+
+Contains reusable material definitions.
+
+Materials allow multiple blocks to share common physical and audio properties.
+
+Example
+
+```
+Stone.material
+
+Wood.material
+
+Grass.material
+
+Metal.material
+```
+
+A material may define:
+
+- Footstep sound
+- Break sound
+- Dig sound
+- Friction
+- Bounciness
+- Hardness
+- Physical properties
+
+---
+
+# Automatic Loading
+
+All Internal Logic definitions are loaded automatically during engine startup.
+
+```
+Engine Start
+
+↓
+
+Load Chunk.border
+
+↓
+
+Load Mapgen.gen
+
+↓
+
+Load Assets
+
+↓
+
+World Ready
+```
+
+No manual registration is required.
+
+---
+
+# Current Scope
+
+Internal Logic currently supports:
+
+- World generation
+- Chunk definitions
+- Built-in textures
+- Built-in sounds
+- Built-in materials
+
+Additional engine systems may be added in future versions while maintaining the same architecture.
+
+---
+
+# Design Goals
+
+- Minimal architecture
+- Easy to understand
+- Automatic loading
+- Separation of engine systems from gameplay
+- Clear distinction between Internal Logic and External Logic
+- Future-proof for engine expansion
