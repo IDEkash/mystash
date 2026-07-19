@@ -230,9 +230,9 @@ local function get_formspec(data)
 
 	local tab_body_height = bottom_buttons_y - 2.0
 
-	-- Left Pane: Hero, stats, categories, screenshots (Width: 6.0)
+	-- Left Pane: Hero, stats, categories, screenshots (Width: 6.0) using rounded background9 card
 	table.insert_all(formspec, {
-		"box[0.2,1.8;6.0," .. (tab_body_height + 0.15) .. ";#33415590]",
+		"background9[0.2,1.8;6.0," .. (tab_body_height + 0.15) .. ";button_hover_semitrans.png;false;6,6]",
 	})
 
 	-- Large Hero Image card
@@ -270,8 +270,8 @@ local function get_formspec(data)
 
 	-- Right Pane: Tabs and Details or reviews
 	table.insert_all(formspec, {
-		-- Translucent Content Card Panel (Layer 2)
-		"box[6.4,1.8;" .. (W - 6.4) .. "," .. (tab_body_height + 0.15) .. ";#33415590]",
+		-- Translucent Content Card Panel (Layer 2) using rounded background9 card
+		"background9[6.4,1.8;" .. (W - 6.4) .. "," .. (tab_body_height + 0.15) .. ";button_hover_semitrans.png;false;6,6]",
 
 		"container[6.4,1.8]",
 	})
@@ -306,8 +306,8 @@ local function get_formspec(data)
 		-- Two column layout inside Information tab: Details card on left, Ratings breakdown on right
 		local sub_card_w = pane_w / 2 - 0.2
 		table.insert_all(formspec, {
-			-- Left Column: Details Card (Compatibility and Version Support)
-			"box[0,0;" .. sub_card_w .. "," .. pane_h .. ";#33415560]",
+			-- Left Column: Details Card (Compatibility and Version Support) - Premium 9-slice Rounded Slate Card
+			"background9[0,0;" .. sub_card_w .. "," .. pane_h .. ";button_hover_semitrans.png;false;6,6]",
 			"style[det_hdr;font=bold;font_size=+12]",
 			"label[0.2,0.3;det_hdr;" .. fgettext("Details") .. "]",
 
@@ -317,8 +317,8 @@ local function get_formspec(data)
 			"label[0.2,1.8;" .. fgettext("Developer:") .. "]",
 			"label[0.2,2.2;" .. core.formspec_escape(package.author) .. "]",
 
-			-- Right Column: Ratings Card
-			"box[" .. (sub_card_w + 0.4) .. ",0;" .. sub_card_w .. "," .. pane_h .. ";#33415560]",
+			-- Right Column: Ratings Card - Premium 9-slice Rounded Slate Card
+			"background9[" .. (sub_card_w + 0.4) .. ",0;" .. sub_card_w .. "," .. pane_h .. ";button_hover_semitrans.png;false;6,6]",
 			"label[" .. (sub_card_w + 0.6) .. ",0.3;det_hdr;" .. fgettext("Ratings") .. "]",
 		})
 

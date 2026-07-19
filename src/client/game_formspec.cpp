@@ -398,12 +398,12 @@ void GameFormSpec::showPauseMenu()
 
 	os << "formspec_version[10]size[12.5,7.5]";
 
-	// Background card boxes
-	os << "box[" << info_x << ",0.5;" << info_w << ",6.5;#00000060]";
+	// Background card boxes using premium 9-sliced rounded corner container cells
+	os << "background9[" << info_x << ",0.5;" << info_w << ",6.5;button_hover_semitrans.png;false;6,6]";
 	if (show_controls) {
-		os << "box[" << controls_x << ",0.5;" << controls_w << ",6.5;#00000060]";
+		os << "background9[" << controls_x << ",0.5;" << controls_w << ",6.5;button_hover_semitrans.png;false;6,6]";
 	}
-	os << "box[" << actions_x << ",0.5;" << actions_w << ",6.5;#00000060]";
+	os << "background9[" << actions_x << ",0.5;" << actions_w << ",6.5;button_hover_semitrans.png;false;6,6]";
 
 	// Header labels with styled colorization
 	os << "label[" << (info_x + 0.35f) << ",0.9;\x1b(c@#467832)" << PROJECT_NAME_C << " \x1b(c@#ffffff)" << VERSION_STRING << "]";

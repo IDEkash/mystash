@@ -120,10 +120,10 @@ local function get_formspec(tabview, name, tabdata)
 			"style[world_delete;bgcolor=#9b2c2c;textcolor=white]" ..
 			"style[world_delete:hovered;bgcolor=#b91c1c]"
 
-	-- Background card boxes representing two tables with borders
+	-- Background card boxes representing two tables with borders: Premium 9-sliced rounded corner panels
 	retval = retval ..
-			"box[0.15,0.15;4.8,6.8;#1e293bB0]" ..
-			"box[5.05,0.15;10.3,6.8;#1e293bB0]"
+			"background9[0.15,0.15;4.8,6.8;button_hover_semitrans.png;false;6,6]" ..
+			"background9[5.05,0.15;10.3,6.8;button_hover_semitrans.png;false;6,6]"
 
 	local index = core.get_textlist_index("sp_worlds") or filterlist.get_current_index(menudata.worldlist,
 				tonumber(core.settings:get("mainmenu_last_selected_world"))) or 0
@@ -149,7 +149,9 @@ local function get_formspec(tabview, name, tabdata)
 	if tabdata.games_expanded then
 		local scroll_h = 5.2
 		local total_h = (#pkgmgr.games + 1) * 0.9
-		retval = retval .. ("scroll_container[0.35,1.3;4.2,%f;games_scroll;vertical;0.1;0]"):format(scroll_h)
+		local max_scroll = math.max(total_h - scroll_h, 0.1)
+		local scroll_factor = max_scroll / 1000
+		retval = retval .. ("scroll_container[0.35,1.3;4.2,%f;games_scroll;vertical;%f]"):format(scroll_h, scroll_factor)
 		for i, g in ipairs(pkgmgr.games) do
 			local item_y = (i - 1) * 0.9
 			local icon = (g.menuicon_path and g.menuicon_path ~= "") and core.formspec_escape(g.menuicon_path) or core.formspec_escape(defaulttexturedir .. "no_screenshot.png")

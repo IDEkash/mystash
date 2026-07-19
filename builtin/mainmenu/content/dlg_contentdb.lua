@@ -321,8 +321,8 @@ local function get_formspec(dlgdata)
 	-- TRANSLATORS: A download is queued
 	formspec[#formspec + 1] = "tooltip[queued;" .. fgettext("Queued") .. tooltip_colors
 
-	-- Full Width Packages Browser Box (Layer 2)
-	formspec[#formspec + 1] = ("box[0,1.2;%f,%f;#1e293bB0]"):format(W, H - 2.225)
+	-- Full Width Packages Browser Box (Layer 2) - Premium 9-sliced rounded corner container
+	formspec[#formspec + 1] = ("background9[0,1.2;%f,%f;button_hover_semitrans.png;false;6,6]"):format(W, H - 2.225)
 
 	formspec[#formspec + 1] = "container[0,1.425]"
 
@@ -351,18 +351,18 @@ local function get_formspec(dlgdata)
 			(cell_h + cell_spacing) * math.floor((i - start_idx) / columns),
 			"]",
 
-			-- Modern greyish blue translucent card cells (#33415590) with subtle borders
-			"box[0,0;", cell_w, ",", cell_h, ";#33415590]",
+			-- Modern greyish blue translucent card cells using 9-slice rounded corners
+			"background9[0,0;", cell_w, ",", cell_h, ";button_hover_semitrans.png;false;6,6]",
 
-			-- image,
-			"image[0,0;", img_w, ",", cell_h, ";",
+			-- image (nested cleanly in rounded border offset)
+			"image[0.1,0.1;", img_w - 0.2, ",", cell_h - 0.2, ";",
 				core.formspec_escape(get_screenshot(package, package.thumbnail, 2)), "]",
 
-			"label[", img_w + 0.25, ",0.25;", text_w, ",", text_h, ";",
+			"label[", img_w + 0.15, ",0.25;", text_w, ",", text_h, ";",
 				core.formspec_escape(text), "]",
 
 			-- Add a tooltip in case the label overflows and the short description is cut off.
-			"tooltip[", img_w + 0.25, ",0.25;", text_w, ",", text_h, ";",
+			"tooltip[", img_w + 0.15, ",0.25;", text_w, ",", text_h, ";",
 				-- Text in tooltips doesn't wrap automatically, so we do it manually to
 				-- avoid everything being one long line.
 				core.formspec_escape(core.wrap_text(package.short_description, 80)), "]",
