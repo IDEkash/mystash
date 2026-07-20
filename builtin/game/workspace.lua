@@ -307,7 +307,6 @@ function Rig:ShowBone(bone)
 end
 
 function Rig:AddAttachment(bone, model, texture)
-	-- Support attaching custom models to skeletal bones
 end
 
 function Rig:RemoveAttachment(bone)
@@ -447,8 +446,6 @@ local function register_characters(modname, modpath)
 			local id = modname .. ":" .. name
 
 			local hp = data.Gameplay and data.Gameplay.Health or 100
-			local damage = data.Gameplay and data.Gameplay.Damage or 10
-			local speed = data.Gameplay and data.Gameplay.WalkSpeed or 4
 
 			local def = {
 				initial_properties = {
@@ -500,7 +497,55 @@ local function register_vehicles(modname, modpath)
 				},
 				on_activate = function(self, staticdata, dtime_s)
 					self.max_speed = data.MaxSpeed or 80
-					self.seats = data.Seats or 4
+					self.seats = data.Seats or {}
+					self.occupied_seats = {}
+				end,
+				-- Seat Attachment & Customizable Animations API
+				sit = function(self, player, seat_name)
+					if not seat_name then
+						for name, _ in pairs(self.seats) do
+							if not self.occupied_seats[name] then
+								seat_name = name
+								break
+							end
+						end
+					end
+
+					if not seat_name or not self.seats[seat_name] then
+						return false
+					end
+
+					local seat_def = self.seats[seat_name]
+					local bone = ""
+					local animation = "Sit"
+
+					if type(seat_def) == "table" then
+						bone = seat_def.Bone or seat_def.bone or ""
+						animation = seat_def.Animation or seat_def.animation or "Sit"
+					elseif type(seat_def) == "string" then
+						bone = seat_def
+					end
+
+					player:set_attach(self.object, bone, {x=0, y=0, z=0}, {x=0, y=0, z=0})
+					self.occupied_seats[seat_name] = player
+
+					if player.set_animation then
+						player:set_animation({clip = animation, loop = true})
+					end
+					return true
+				end,
+				unsit = function(self, player)
+					for name, occupied_player in pairs(self.occupied_seats) do
+						if occupied_player == player then
+							player:set_detach()
+							self.occupied_seats[name] = nil
+							if player.set_animation then
+								player:set_animation({clip = "Idle", loop = true})
+							end
+							return true
+						end
+					end
+					return false
 				end,
 			}
 
