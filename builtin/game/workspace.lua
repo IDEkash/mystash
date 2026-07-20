@@ -128,6 +128,8 @@ end
 local registered_structures = {}
 local registered_pathfindings = {}
 local registered_rigs = {}
+local registered_effects = {}
+local registered_lights = {}
 
 -- Directory scanning helper
 local function scan_workspace_dir(modpath, subfolder, ext)
@@ -168,6 +170,175 @@ local function resolve_asset(asset_str, default_ext)
 	return base_name
 end
 
+-- Script loader and executor for Service files
+local function execute_service_script(modname, script_name, event, pos, player, object)
+	local modpath = core.get_modpath(modname)
+	if not modpath then return end
+	local script_path = modpath .. DIR_DELIM .. "ServerSideService" .. DIR_DELIM .. script_name .. ".lua"
+	local f = loadfile(script_path)
+	if f then
+		local env = setmetatable({
+			pos = pos,
+			player = player,
+			object = object,
+			event = event,
+		}, { __index = _G })
+		setfenv(f, env)
+		local ok, err = pcall(f)
+		if ok and type(env[event]) == "function" then
+			pcall(env[event], pos, player, object)
+		end
+	end
+end
+
+-- Built-in Rig APIs
+local Rig = {}
+Rig.__index = Rig
+
+function Rig.new(data, object)
+	local self = setmetatable({}, Rig)
+	self.data = data
+	self.object = object
+
+	-- Auto-apply scale & default transforms
+	if object and data then
+		local props = object:get_properties() or {}
+		if data.Scale then
+			props.visual_scale = {x = data.Scale, y = data.Scale, z = data.Scale}
+		end
+		if data.Collision then
+			if data.Collision.Shape == "Capsule" then
+				local r = data.Collision.Radius or 0.3
+				local h = data.Collision.Height or 1.8
+				props.collisionbox = {-r, 0, -r, r, h, r}
+			end
+		end
+		object:set_properties(props)
+
+		if data.Transforms then
+			for bone_name, trans in pairs(data.Transforms) do
+				if trans.Position then
+					self:SetBonePosition(bone_name, trans.Position)
+				end
+				if trans.Rotation then
+					self:SetBoneRotation(bone_name, trans.Rotation)
+				end
+				if trans.Scale then
+					self:SetBoneScale(bone_name, trans.Scale)
+				end
+			end
+		end
+	end
+
+	return self
+end
+
+function Rig:SetModel(model)
+	if self.object then
+		local props = self.object:get_properties() or {}
+		props.mesh = resolve_asset(model, ".gltf")
+		self.object:set_properties(props)
+	end
+end
+
+function Rig:GetModel()
+	if self.object then
+		local props = self.object:get_properties()
+		return props and props.mesh
+	end
+	return self.data and resolve_asset(self.data.Model, ".gltf")
+end
+
+function Rig:SetCollisionShape(shape)
+	if self.object then
+		local props = self.object:get_properties() or {}
+		if shape == "Capsule" then
+			props.collisionbox = {-0.3, 0, -0.3, 0.3, 1.8, 0.3}
+		else
+			props.collisionbox = {-0.5, 0, -0.5, 0.5, 1.0, 0.5}
+		end
+		self.object:set_properties(props)
+	end
+end
+
+function Rig:GetCollisionShape()
+	if self.object then
+		local props = self.object:get_properties()
+		return props and props.collisionbox
+	end
+	return self.data and self.data.CollisionShape
+end
+
+function Rig:SetBonePosition(bone, pos, opts)
+	if self.object and self.object.set_bone_position then
+		self.object:set_bone_position(bone, pos, opts)
+	end
+end
+
+function Rig:SetBoneRotation(bone, rot, opts)
+	if self.object and self.object.set_bone_rotation then
+		self.object:set_bone_rotation(bone, rot, opts)
+	end
+end
+
+function Rig:SetBoneScale(bone, scale, opts)
+	if self.object and self.object.set_bone_scale then
+		self.object:set_bone_scale(bone, scale, opts)
+	end
+end
+
+function Rig:GetBone(bone)
+	if self.object and self.object.get_bone_position then
+		return self.object:get_bone_position(bone)
+	end
+	return nil
+end
+
+function Rig:HideBone(bone)
+	if self.object and self.object.set_part_visible then
+		self.object:set_part_visible(bone, false)
+	end
+end
+
+function Rig:ShowBone(bone)
+	if self.object and self.object.set_part_visible then
+		self.object:set_part_visible(bone, true)
+	end
+end
+
+function Rig:AddAttachment(bone, model, texture)
+	-- Support attaching custom models to skeletal bones
+end
+
+function Rig:RemoveAttachment(bone)
+end
+
+function Rig:ResetBone(bone)
+	if self.object and self.object.set_bone_position then
+		self.object:set_bone_position(bone, {x=0, y=0, z=0})
+		self.object:set_bone_rotation(bone, {x=0, y=0, z=0})
+		self.object:set_bone_scale(bone, {x=1, y=1, z=1})
+	end
+end
+
+function Rig:ResetPose()
+	if self.object and self.data and self.data.Bones then
+		for _, bone in ipairs(self.data.Bones) do
+			self:ResetBone(bone)
+		end
+	end
+end
+
+core.rigs = {}
+
+function core.rigs.get(id, object)
+	local data = registered_rigs[id]
+	if data then
+		return Rig.new(data, object)
+	end
+	return nil
+end
+
 -- Core Registration functions
 local function register_blocks(modname, modpath)
 	local files = scan_workspace_dir(modpath, "Blocks", ".block")
@@ -204,6 +375,26 @@ local function register_blocks(modname, modpath)
 				def.diggable = (data.Interaction.Breakable ~= false)
 			end
 
+			-- Dynamic Event script callbacks (ServerScript)
+			if data.ServerScript then
+				local s_name = data.ServerScript
+				def.on_construct = function(pos)
+					execute_service_script(modname, s_name, "OnTouch", pos)
+				end
+				def.on_punch = function(pos, node, puncher)
+					execute_service_script(modname, s_name, "OnPunch", pos, puncher)
+				end
+				def.on_rightclick = function(pos, node, clicker)
+					execute_service_script(modname, s_name, "OnInteract", pos, clicker)
+				end
+				def.after_place_node = function(pos, placer, itemstack, pointed_thing)
+					execute_service_script(modname, s_name, "OnPlace", pos, placer)
+				end
+				def.after_dig_node = function(pos, oldnode, oldmetadata, digger)
+					execute_service_script(modname, s_name, "OnBreak", pos, digger)
+				end
+			end
+
 			core.register_node(id, def)
 		end
 	end
@@ -218,13 +409,30 @@ local function register_items(modname, modpath)
 			local name = data.Name or f.name:sub(1, -6)
 			local id = modname .. ":" .. name
 
-			local def = {
-				description = data.DisplayName or name,
-				inventory_image = resolve_asset(data.Texture, ".png") or (name .. ".png"),
-				wield_image = resolve_asset(data.Texture, ".png"),
-			}
-
-			core.register_craftitem(id, def)
+			-- If item specifies weapon/tool properties, register as a tool
+			if data.Damage or data.Durability then
+				local def = {
+					description = data.DisplayName or name,
+					inventory_image = resolve_asset(data.Texture, ".png") or (name .. ".png"),
+					wield_image = resolve_asset(data.Texture, ".png"),
+					tool_capabilities = {
+						full_punch_interval = 1.0,
+						max_drop_level = 1,
+						groupcaps = {
+							fleshy = {times={[1]=2.0, [2]=1.0, [3]=0.5}, uses=data.Durability or 100, maxlevel=1},
+						},
+						damage_groups = {fleshy = data.Damage or 5},
+					}
+				}
+				core.register_tool(id, def)
+			else
+				local def = {
+					description = data.DisplayName or name,
+					inventory_image = resolve_asset(data.Texture, ".png") or (name .. ".png"),
+					wield_image = resolve_asset(data.Texture, ".png"),
+				}
+				core.register_craftitem(id, def)
+			end
 		end
 	end
 end
@@ -238,17 +446,33 @@ local function register_characters(modname, modpath)
 			local name = data.Name or f.name:sub(1, -11)
 			local id = modname .. ":" .. name
 
+			local hp = data.Gameplay and data.Gameplay.Health or 100
+			local damage = data.Gameplay and data.Gameplay.Damage or 10
+			local speed = data.Gameplay and data.Gameplay.WalkSpeed or 4
+
 			local def = {
 				initial_properties = {
 					visual = "mesh",
 					mesh = resolve_asset(data.Model, ".gltf") or (name .. ".gltf"),
 					textures = { resolve_asset(data.Texture, ".png") or (name .. ".png") },
-					hp_max = data.Gameplay and data.Gameplay.Health or 100,
+					hp_max = hp,
 					physical = true,
 					collisionbox = {-0.3, 0, -0.3, 0.3, 1.8, 0.3},
 				},
 				on_activate = function(self, staticdata, dtime_s)
 					self.object:set_armor_groups({fleshy = 100})
+					-- Initialize Rig if specified
+					if data.Rig then
+						self.rig = core.rigs.get(modname .. ":" .. data.Rig, self.object)
+					end
+					if data.ServerScript then
+						execute_service_script(modname, data.ServerScript, "OnActivate", self.object:get_pos(), nil, self.object)
+					end
+				end,
+				on_step = function(self, dtime)
+					if data.ServerScript then
+						execute_service_script(modname, data.ServerScript, "OnStep", self.object:get_pos(), nil, self.object)
+					end
 				end,
 			}
 
@@ -274,6 +498,10 @@ local function register_vehicles(modname, modpath)
 					physical = true,
 					collisionbox = {-0.5, 0, -0.5, 0.5, 1.0, 0.5},
 				},
+				on_activate = function(self, staticdata, dtime_s)
+					self.max_speed = data.MaxSpeed or 80
+					self.seats = data.Seats or 4
+				end,
 			}
 
 			core.register_entity(id, def)
@@ -320,6 +548,32 @@ local function register_rigs(modname, modpath)
 	end
 end
 
+local function register_effects(modname, modpath)
+	local files = scan_workspace_dir(modpath, "Effects", ".effect")
+	for _, f in ipairs(files) do
+		local content = read_file_content(f.fullpath)
+		if content then
+			local data = parse_ini(content)
+			local name = data.Particle or data.Sound or f.name:sub(1, -8)
+			local id = modname .. ":" .. name
+			registered_effects[id] = data
+		end
+	end
+end
+
+local function register_lights(modname, modpath)
+	local files = scan_workspace_dir(modpath, "Lights", ".light")
+	for _, f in ipairs(files) do
+		local content = read_file_content(f.fullpath)
+		if content then
+			local data = parse_ini(content)
+			local name = f.name:sub(1, -7)
+			local id = modname .. ":" .. name
+			registered_lights[id] = data
+		end
+	end
+end
+
 -- Scan and Load all package definitions when mods have loaded
 core.register_on_mods_loaded(function()
 	local loaded_mods = core.get_modnames()
@@ -333,6 +587,8 @@ core.register_on_mods_loaded(function()
 			register_pathfinding(modname, modpath)
 			register_structures(modname, modpath)
 			register_rigs(modname, modpath)
+			register_effects(modname, modpath)
+			register_lights(modname, modpath)
 		end
 	end
 end)
@@ -427,118 +683,22 @@ function core.structures.get(id)
 	return nil
 end
 
--- Built-in Rig APIs
-local Rig = {}
-Rig.__index = Rig
-
-function Rig.new(data, object)
-	local self = setmetatable({}, Rig)
-	self.data = data
-	self.object = object
-	return self
-end
-
-function Rig:SetModel(model)
-	if self.object then
-		local props = self.object:get_properties() or {}
-		props.mesh = resolve_asset(model, ".gltf")
-		self.object:set_properties(props)
-	end
-end
-
-function Rig:GetModel()
-	if self.object then
-		local props = self.object:get_properties()
-		return props and props.mesh
-	end
-	return self.data and resolve_asset(self.data.Model, ".gltf")
-end
-
-function Rig:SetCollisionShape(shape)
-	if self.object then
-		local props = self.object:get_properties() or {}
-		if shape == "Capsule" then
-			props.collisionbox = {-0.3, 0, -0.3, 0.3, 1.8, 0.3}
-		else
-			props.collisionbox = {-0.5, 0, -0.5, 0.5, 1.0, 0.5}
-		end
-		self.object:set_properties(props)
-	end
-end
-
-function Rig:GetCollisionShape()
-	if self.object then
-		local props = self.object:get_properties()
-		return props and props.collisionbox
-	end
-	return self.data and self.data.CollisionShape
-end
-
-function Rig:SetBonePosition(bone, pos, opts)
-	if self.object and self.object.set_bone_position then
-		self.object:set_bone_position(bone, pos, opts)
-	end
-end
-
-function Rig:SetBoneRotation(bone, rot, opts)
-	if self.object and self.object.set_bone_rotation then
-		self.object:set_bone_rotation(bone, rot, opts)
-	end
-end
-
-function Rig:SetBoneScale(bone, scale, opts)
-	if self.object and self.object.set_bone_scale then
-		self.object:set_bone_scale(bone, scale, opts)
-	end
-end
-
-function Rig:GetBone(bone)
-	if self.object and self.object.get_bone_position then
-		return self.object:get_bone_position(bone)
-	end
-	return nil
-end
-
-function Rig:HideBone(bone)
-	if self.object and self.object.set_part_visible then
-		self.object:set_part_visible(bone, false)
-	end
-end
-
-function Rig:ShowBone(bone)
-	if self.object and self.object.set_part_visible then
-		self.object:set_part_visible(bone, true)
-	end
-end
-
-function Rig:AddAttachment(bone, model, texture)
-end
-
-function Rig:RemoveAttachment(bone)
-end
-
-function Rig:ResetBone(bone)
-	if self.object and self.object.set_bone_position then
-		self.object:set_bone_position(bone, {x=0, y=0, z=0})
-		self.object:set_bone_rotation(bone, {x=0, y=0, z=0})
-		self.object:set_bone_scale(bone, {x=1, y=1, z=1})
-	end
-end
-
-function Rig:ResetPose()
-	if self.object and self.data and self.data.Bones then
-		for _, bone in ipairs(self.data.Bones) do
-			self:ResetBone(bone)
-		end
-	end
-end
-
-core.rigs = {}
-
-function core.rigs.get(id, object)
-	local data = registered_rigs[id]
+-- Built-in Effects Engine API
+core.effects = {}
+function core.effects.spawn(id, pos)
+	local data = registered_effects[id]
 	if data then
-		return Rig.new(data, object)
+		if data.Sound then
+			core.sound_play(data.Sound, { pos = pos })
+		end
+		if data.Particle then
+			core.add_particlespawner({
+				amount = 20,
+				time = data.Duration or 1,
+				minpos = pos,
+				maxpos = pos,
+				texture = resolve_asset(data.Particle, ".png") or "smoke_puff.png",
+			})
+		end
 	end
-	return nil
 end
