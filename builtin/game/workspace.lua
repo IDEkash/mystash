@@ -68,7 +68,6 @@ local function parse_structure(content)
 	local data = {}
 	local palette = {}
 	local layers = {}
-	local markers = {}
 
 	local current_layer = nil
 	local current_layer_content = {}
@@ -156,6 +155,19 @@ local function read_file_content(path)
 	return content
 end
 
+-- Asset path resolution helper (Part II: Asset Resolution with Namespaces)
+local function resolve_asset(asset_str, default_ext)
+	if not asset_str or asset_str == "" then
+		return nil
+	end
+	local path = asset_str:match(":(.+)$") or asset_str
+	local base_name = path:match("^.*/([^/]+)$") or path:match("^.*\\([^\\]+)$") or path
+	if default_ext and not base_name:match("%.%a+$") then
+		base_name = base_name .. default_ext
+	end
+	return base_name
+end
+
 -- Core Registration functions
 local function register_blocks(modname, modpath)
 	local files = scan_workspace_dir(modpath, "Blocks", ".block")
@@ -172,12 +184,12 @@ local function register_blocks(modname, modpath)
 			}
 
 			if data.Texture then
-				def.tiles = { data.Texture }
+				def.tiles = { resolve_asset(data.Texture, ".png") }
 			end
 
 			if data.Model then
 				def.drawtype = "mesh"
-				def.mesh = data.Model
+				def.mesh = resolve_asset(data.Model, ".obj")
 			end
 
 			if data.Physics then
@@ -208,8 +220,8 @@ local function register_items(modname, modpath)
 
 			local def = {
 				description = data.DisplayName or name,
-				inventory_image = data.Texture or (name .. ".png"),
-				wield_image = data.Texture,
+				inventory_image = resolve_asset(data.Texture, ".png") or (name .. ".png"),
+				wield_image = resolve_asset(data.Texture, ".png"),
 			}
 
 			core.register_craftitem(id, def)
@@ -229,8 +241,8 @@ local function register_characters(modname, modpath)
 			local def = {
 				initial_properties = {
 					visual = "mesh",
-					mesh = data.Model or (name .. ".gltf"),
-					textures = { data.Texture or (name .. ".png") },
+					mesh = resolve_asset(data.Model, ".gltf") or (name .. ".gltf"),
+					textures = { resolve_asset(data.Texture, ".png") or (name .. ".png") },
 					hp_max = data.Gameplay and data.Gameplay.Health or 100,
 					physical = true,
 					collisionbox = {-0.3, 0, -0.3, 0.3, 1.8, 0.3},
@@ -257,8 +269,8 @@ local function register_vehicles(modname, modpath)
 			local def = {
 				initial_properties = {
 					visual = "mesh",
-					mesh = data.Model,
-					textures = { data.Texture or (name .. ".png") },
+					mesh = resolve_asset(data.Model, ".gltf"),
+					textures = { resolve_asset(data.Texture, ".png") or (name .. ".png") },
 					physical = true,
 					collisionbox = {-0.5, 0, -0.5, 0.5, 1.0, 0.5},
 				},
@@ -308,20 +320,22 @@ local function register_rigs(modname, modpath)
 	end
 end
 
--- Scan and Load all package definitions
-local loaded_mods = core.get_modnames()
-for _, modname in ipairs(loaded_mods) do
-	local modpath = core.get_modpath(modname)
-	if modpath then
-		register_blocks(modname, modpath)
-		register_items(modname, modpath)
-		register_characters(modname, modpath)
-		register_vehicles(modname, modpath)
-		register_pathfinding(modname, modpath)
-		register_structures(modname, modpath)
-		register_rigs(modname, modpath)
+-- Scan and Load all package definitions when mods have loaded
+core.register_on_mods_loaded(function()
+	local loaded_mods = core.get_modnames()
+	for _, modname in ipairs(loaded_mods) do
+		local modpath = core.get_modpath(modname)
+		if modpath then
+			register_blocks(modname, modpath)
+			register_items(modname, modpath)
+			register_characters(modname, modpath)
+			register_vehicles(modname, modpath)
+			register_pathfinding(modname, modpath)
+			register_structures(modname, modpath)
+			register_rigs(modname, modpath)
+		end
 	end
-end
+end)
 
 -- Built-in Structure APIs
 local Structure = {}
@@ -427,7 +441,7 @@ end
 function Rig:SetModel(model)
 	if self.object then
 		local props = self.object:get_properties() or {}
-		props.mesh = model
+		props.mesh = resolve_asset(model, ".gltf")
 		self.object:set_properties(props)
 	end
 end
@@ -437,7 +451,7 @@ function Rig:GetModel()
 		local props = self.object:get_properties()
 		return props and props.mesh
 	end
-	return self.data and self.data.Model
+	return self.data and resolve_asset(self.data.Model, ".gltf")
 end
 
 function Rig:SetCollisionShape(shape)

@@ -11,7 +11,9 @@ ContentType getContentType(const std::string &path)
 	if (fs::IsFile(path + DIR_DELIM "modpack.txt") || fs::IsFile(path + DIR_DELIM "modpack.conf"))
 		return ContentType::MODPACK;
 
-	if (fs::IsFile(path + DIR_DELIM "init.lua"))
+	if (fs::IsFile(path + DIR_DELIM "init.lua") || fs::IsFile(path + DIR_DELIM "external.conf") ||
+			fs::PathExists(path + DIR_DELIM "ServerSideService") || fs::PathExists(path + DIR_DELIM "ClientSideService") ||
+			fs::PathExists(path + DIR_DELIM "Workspace"))
 		return ContentType::MOD;
 
 	if (fs::IsFile(path + DIR_DELIM "game.conf"))
@@ -30,7 +32,11 @@ void parseContentInfo(ContentSpec &spec)
 	switch (getContentType(spec.path)) {
 	case ContentType::MOD:
 		spec.type = "mod";
-		conf_path = spec.path + DIR_DELIM "mod.conf";
+		if (fs::IsFile(spec.path + DIR_DELIM "external.conf")) {
+			conf_path = spec.path + DIR_DELIM "external.conf";
+		} else {
+			conf_path = spec.path + DIR_DELIM "mod.conf";
+		}
 		break;
 	case ContentType::MODPACK:
 		spec.type = "modpack";
@@ -53,14 +59,21 @@ void parseContentInfo(ContentSpec &spec)
 	if (!conf_path.empty() && conf.readConfigFile(conf_path.c_str())) {
 		if (conf.exists("title"))
 			spec.title = conf.get("title");
+		else if (conf.exists("Name"))
+			spec.title = conf.get("Name");
+		else if (conf.exists("name"))
+			spec.title = conf.get("name");
 		else if (spec.type == "game" && conf.exists("name"))
 			spec.title = conf.get("name");
 
-		if (spec.type != "game" && conf.exists("name"))
-			spec.name = conf.get("name");
-
-		if (conf.exists("title"))
-			spec.title = conf.get("title");
+		if (spec.type != "game") {
+			if (conf.exists("ID"))
+				spec.name = conf.get("ID");
+			else if (conf.exists("id"))
+				spec.name = conf.get("id");
+			else if (conf.exists("name"))
+				spec.name = conf.get("name");
+		}
 
 		if (spec.type == "game") {
 			if (spec.title.empty())
