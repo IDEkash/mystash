@@ -68,6 +68,9 @@ local function parse_structure(content)
 	local data = {}
 	local palette = {}
 	local layers = {}
+	local spawn_points = {}
+	local markers = {}
+	local settings = {}
 
 	local current_layer = nil
 	local current_layer_content = {}
@@ -119,8 +122,72 @@ local function parse_structure(content)
 		end
 	end
 
+	-- Extract SpawnPoints
+	local sp_pos = content:find("SpawnPoints")
+	if sp_pos then
+		local start_brace = content:find('{', sp_pos)
+		local end_brace = content:find('}', sp_pos)
+		if start_brace and end_brace and end_brace > start_brace then
+			local block = content:sub(start_brace + 1, end_brace - 1)
+			for line in block:gmatch("[^\r\n]+") do
+				local k, v = line:match("^%s*([%w_]+)%s*=%s*(.*)$")
+				if k and v then
+					v = trim(v)
+					local x, y, z = v:match("^%((%-?%d+%.?%d*),%s*(%-?%d+%.?%d*),%s*(%-?%d+%.?%d*)%)")
+					if x and y and z then
+						spawn_points[k] = { x = tonumber(x), y = tonumber(y), z = tonumber(z) }
+					end
+				end
+			end
+		end
+	end
+
+	-- Extract Markers
+	local mk_pos = content:find("Markers")
+	if mk_pos then
+		local start_brace = content:find('{', mk_pos)
+		local end_brace = content:find('}', mk_pos)
+		if start_brace and end_brace and end_brace > start_brace then
+			local block = content:sub(start_brace + 1, end_brace - 1)
+			for line in block:gmatch("[^\r\n]+") do
+				local k, v = line:match("^%s*([%w_]+)%s*=%s*(.*)$")
+				if k and v then
+					v = trim(v)
+					local x, y, z = v:match("^%((%-?%d+%.?%d*),%s*(%-?%d+%.?%d*),%s*(%-?%d+%.?%d*)%)")
+					if x and y and z then
+						markers[k] = { x = tonumber(x), y = tonumber(y), z = tonumber(z) }
+					end
+				end
+			end
+		end
+	end
+
+	-- Extract Settings
+	local st_pos = content:find("Settings")
+	if st_pos then
+		local start_brace = content:find('{', st_pos)
+		local end_brace = content:find('}', st_pos)
+		if start_brace and end_brace and end_brace > start_brace then
+			local block = content:sub(start_brace + 1, end_brace - 1)
+			for line in block:gmatch("[^\r\n]+") do
+				local k, v = line:match("^%s*([%w_]+)%s*=%s*(.*)$")
+				if k and v then
+					v = trim(v)
+					if v == "true" then v = true
+					elseif v == "false" then v = false
+					elseif tonumber(v) then v = tonumber(v)
+					end
+					settings[k] = v
+				end
+			end
+		end
+	end
+
 	data.layers = layers
 	data.Palette = palette
+	data.SpawnPoints = spawn_points
+	data.Markers = markers
+	data.Settings = settings
 	return data
 end
 
@@ -187,6 +254,19 @@ local function execute_service_script(modname, script_name, event, pos, player, 
 		local ok, err = pcall(f)
 		if ok and type(env[event]) == "function" then
 			pcall(env[event], pos, player, object)
+		end
+	end
+end
+
+-- Runtime Validation helper (Part II: Runtime Validation)
+local function validate_serverscript(modname, modpath, script_name, entity_id)
+	if script_name then
+		local script_path = modpath .. DIR_DELIM .. "ServerSideService" .. DIR_DELIM .. script_name .. ".lua"
+		local f = io.open(script_path, "r")
+		if f then
+			f:close()
+		else
+			core.log("warning", "[Warning] Object '" .. entity_id .. "' loaded without AI (ServerScript '" .. script_name .. "' not found).")
 		end
 	end
 end
@@ -376,6 +456,7 @@ local function register_blocks(modname, modpath)
 
 			-- Dynamic Event script callbacks (ServerScript)
 			if data.ServerScript then
+				validate_serverscript(modname, modpath, data.ServerScript, id)
 				local s_name = data.ServerScript
 				def.on_construct = function(pos)
 					execute_service_script(modname, s_name, "OnTouch", pos)
@@ -407,6 +488,10 @@ local function register_items(modname, modpath)
 			local data = parse_ini(content)
 			local name = data.Name or f.name:sub(1, -6)
 			local id = modname .. ":" .. name
+
+			if data.ServerScript then
+				validate_serverscript(modname, modpath, data.ServerScript, id)
+			end
 
 			-- If item specifies weapon/tool properties, register as a tool
 			if data.Damage or data.Durability then
@@ -472,6 +557,10 @@ local function register_characters(modname, modpath)
 					end
 				end,
 			}
+
+			if data.ServerScript then
+				validate_serverscript(modname, modpath, data.ServerScript, id)
+			end
 
 			core.register_entity(id, def)
 		end
@@ -548,6 +637,10 @@ local function register_vehicles(modname, modpath)
 					return false
 				end,
 			}
+
+			if data.ServerScript then
+				validate_serverscript(modname, modpath, data.ServerScript, id)
+			end
 
 			core.register_entity(id, def)
 		end
