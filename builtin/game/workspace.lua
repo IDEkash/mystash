@@ -237,6 +237,49 @@ local function resolve_asset(asset_str, default_ext)
 	return base_name
 end
 
+-- Runtime Validation helper (Part II: Runtime Validation)
+local function validate_serverscript(modname, modpath, script_name, entity_id)
+	if script_name then
+		local script_path = modpath .. DIR_DELIM .. "ServerSideService" .. DIR_DELIM .. script_name .. ".lua"
+		local f = io.open(script_path, "r")
+		if f then
+			f:close()
+		else
+			core.log("warning", "[Warning] Object '" .. entity_id .. "' loaded without AI (ServerScript '" .. script_name .. "' not found).")
+		end
+	end
+end
+
+local function validate_clientscript(modname, modpath, script_name, entity_id)
+	if script_name then
+		local script_path = modpath .. DIR_DELIM .. "ClientSideService" .. DIR_DELIM .. script_name .. ".lua"
+		local f = io.open(script_path, "r")
+		if f then
+			f:close()
+		else
+			core.log("warning", "[Warning] Object '" .. entity_id .. "' loaded without Client Logic (ClientScript '" .. script_name .. "' not found).")
+		end
+	end
+end
+
+local function validate_asset(modpath, asset_path, sub_folder, entity_id)
+	if asset_path and asset_path ~= "" then
+		local clean_path = asset_path:match(":(.+)$") or asset_path
+		local full_asset_path = modpath .. DIR_DELIM .. "Assets" .. DIR_DELIM .. sub_folder .. DIR_DELIM .. clean_path
+		-- Try with standard extensions if no extension is provided
+		local f = io.open(full_asset_path, "r")
+		if not f then
+			f = io.open(full_asset_path .. ".png", "r") or io.open(full_asset_path .. ".gltf", "r") or io.open(full_asset_path .. ".glb", "r") or io.open(full_asset_path .. ".obj", "r")
+		end
+
+		if f then
+			f:close()
+		else
+			core.log("warning", "[Warning] Asset '" .. asset_path .. "' referenced by '" .. entity_id .. "' was not found in " .. sub_folder .. ".")
+		end
+	end
+end
+
 -- Script loader and executor for Service files
 local function execute_service_script(modname, script_name, event, pos, player, object)
 	local modpath = core.get_modpath(modname)
@@ -254,19 +297,6 @@ local function execute_service_script(modname, script_name, event, pos, player, 
 		local ok, err = pcall(f)
 		if ok and type(env[event]) == "function" then
 			pcall(env[event], pos, player, object)
-		end
-	end
-end
-
--- Runtime Validation helper (Part II: Runtime Validation)
-local function validate_serverscript(modname, modpath, script_name, entity_id)
-	if script_name then
-		local script_path = modpath .. DIR_DELIM .. "ServerSideService" .. DIR_DELIM .. script_name .. ".lua"
-		local f = io.open(script_path, "r")
-		if f then
-			f:close()
-		else
-			core.log("warning", "[Warning] Object '" .. entity_id .. "' loaded without AI (ServerScript '" .. script_name .. "' not found).")
 		end
 	end
 end
@@ -434,10 +464,12 @@ local function register_blocks(modname, modpath)
 			}
 
 			if data.Texture then
+				validate_asset(modpath, data.Texture, "Textures", id)
 				def.tiles = { resolve_asset(data.Texture, ".png") }
 			end
 
 			if data.Model then
+				validate_asset(modpath, data.Model, "Models", id)
 				def.drawtype = "mesh"
 				def.mesh = resolve_asset(data.Model, ".obj")
 			end
@@ -491,6 +523,10 @@ local function register_items(modname, modpath)
 
 			if data.ServerScript then
 				validate_serverscript(modname, modpath, data.ServerScript, id)
+			end
+
+			if data.Texture then
+				validate_asset(modpath, data.Texture, "Textures", id)
 			end
 
 			-- If item specifies weapon/tool properties, register as a tool
@@ -560,6 +596,16 @@ local function register_characters(modname, modpath)
 
 			if data.ServerScript then
 				validate_serverscript(modname, modpath, data.ServerScript, id)
+			end
+			if data.ClientScript then
+				validate_clientscript(modname, modpath, data.ClientScript, id)
+			end
+
+			if data.Model then
+				validate_asset(modpath, data.Model, "Models", id)
+			end
+			if data.Texture then
+				validate_asset(modpath, data.Texture, "Textures", id)
 			end
 
 			core.register_entity(id, def)
@@ -641,6 +687,16 @@ local function register_vehicles(modname, modpath)
 			if data.ServerScript then
 				validate_serverscript(modname, modpath, data.ServerScript, id)
 			end
+			if data.ClientScript then
+				validate_clientscript(modname, modpath, data.ClientScript, id)
+			end
+
+			if data.Model then
+				validate_asset(modpath, data.Model, "Models", id)
+			end
+			if data.Texture then
+				validate_asset(modpath, data.Texture, "Textures", id)
+			end
 
 			core.register_entity(id, def)
 		end
@@ -682,6 +738,10 @@ local function register_rigs(modname, modpath)
 			local name = data.Name or f.name:sub(1, -5)
 			local id = modname .. ":" .. name
 			registered_rigs[id] = data
+
+			if data.Model then
+				validate_asset(modpath, data.Model, "Models", id)
+			end
 		end
 	end
 end
@@ -695,6 +755,10 @@ local function register_effects(modname, modpath)
 			local name = data.Particle or data.Sound or f.name:sub(1, -8)
 			local id = modname .. ":" .. name
 			registered_effects[id] = data
+
+			if data.Particle then
+				validate_asset(modpath, data.Particle, "Textures", id)
+			end
 		end
 	end
 end
