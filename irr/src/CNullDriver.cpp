@@ -667,6 +667,27 @@ void CNullDriver::draw2DRectangle(const core::rect<s32> &pos,
 {
 }
 
+//! Draws a 2d rounded rectangle.
+void CNullDriver::draw2DRoundedRectangle(const core::rect<s32> &pos, f32 radius,
+		SColor color, const core::rect<s32> *clip)
+{
+	draw2DRoundedRectangle(pos, radius, color, color, color, color, clip);
+}
+
+//! Draws a 2d rounded rectangle with a gradient.
+void CNullDriver::draw2DRoundedRectangle(const core::rect<s32> &pos, f32 radius,
+		SColor colorLeftUp, SColor colorRightUp,
+		SColor colorLeftDown, SColor colorRightDown,
+		const core::rect<s32> *clip)
+{
+}
+
+//! Draws a 2d rounded rectangle outline.
+void CNullDriver::draw2DRoundedRectangleOutline(const core::rect<s32> &pos, f32 radius,
+		SColor color, const core::rect<s32> *clip)
+{
+}
+
 //! Draws a 2d line.
 void CNullDriver::draw2DLine(const core::position2d<s32> &start,
 		const core::position2d<s32> &end, SColor color)

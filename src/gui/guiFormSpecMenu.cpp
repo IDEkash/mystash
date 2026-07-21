@@ -2284,8 +2284,10 @@ void GUIFormSpecMenu::parseBox(parserData* data, const std::string &element)
 
 	core::rect<s32> rect(pos, pos + geom);
 
+	f32 border_radius = style.getFloat(StyleSpec::BORDER_RADIUS, 0.0f);
+
 	GUIBox *e = new GUIBox(Environment, data->current_parent, spec.fid, rect,
-		colors, bordercolors, borderwidths);
+		colors, bordercolors, borderwidths, border_radius);
 	e->setNotClipped(style.getBool(StyleSpec::NOCLIP, m_formspec_version < 3));
 	e->drop();
 

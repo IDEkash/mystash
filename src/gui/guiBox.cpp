@@ -10,11 +10,13 @@ GUIBox::GUIBox(gui::IGUIEnvironment *env, gui::IGUIElement *parent, s32 id,
 	const core::rect<s32> &rectangle,
 	const std::array<video::SColor, 4> &colors,
 	const std::array<video::SColor, 4> &bordercolors,
-	const std::array<s32, 4> &borderwidths) :
+	const std::array<s32, 4> &borderwidths,
+	f32 border_radius) :
 	gui::IGUIElement(gui::EGUIET_ELEMENT, env, parent, id, rectangle),
 	m_colors(colors),
 	m_bordercolors(bordercolors),
-	m_borderwidths(borderwidths)
+	m_borderwidths(borderwidths),
+	m_border_radius(border_radius)
 {
 }
 
@@ -61,56 +63,79 @@ void GUIBox::draw()
 		lowerright_rect.Y
 	);
 
-	std::array<core::rect<s32>, 4> border_rects;
-
-	border_rects[0] = core::rect<s32>(
-		topleft_border.X,
-		topleft_border.Y,
-		lowerright_border.X,
-		topleft_rect.Y
-	);
-
-	border_rects[1] = core::rect<s32>(
-		lowerright_rect.X,
-		topleft_rect.Y,
-		lowerright_border.X,
-		lowerright_rect.Y
-	);
-
-	border_rects[2] = core::rect<s32>(
-		topleft_border.X,
-		lowerright_rect.Y,
-		lowerright_border.X,
-		lowerright_border.Y
-	);
-
-	border_rects[3] = core::rect<s32>(
-		topleft_border.X,
-		topleft_rect.Y,
-		topleft_rect.X,
-		lowerright_rect.Y
-	);
-
 	video::IVideoDriver *driver = Environment->getVideoDriver();
 
-	driver->draw2DRectangle(main_rect, m_colors[0], m_colors[1], m_colors[3],
-		m_colors[2], &AbsoluteClippingRect);
+	if (m_border_radius > 0.0f) {
+		s32 border_width = 0;
+		for (size_t i = 0; i <= 3; i++) {
+			if (m_borderwidths[i] > border_width)
+				border_width = m_borderwidths[i];
+		}
 
-	// The border rectangle can be larger than 'AbsoluteClippingRect',
-	// hence clip against the (generally larger) parent.
-	core::rect<s32> border_rect = core::rect<s32>(
-		topleft_border.X,
-		topleft_border.Y,
-		lowerright_border.X,
-		lowerright_border.Y
-	);
-	if(!isNotClipped()) {
-		border_rect.clipAgainst(Parent->getAbsoluteClippingRect());
+		if (border_width > 0) {
+			core::rect<s32> outer_rect(
+				topleft_border.X,
+				topleft_border.Y,
+				lowerright_border.X,
+				lowerright_border.Y
+			);
+			driver->draw2DRoundedRectangle(outer_rect, m_border_radius, m_bordercolors[0], &AbsoluteClippingRect);
+			driver->draw2DRoundedRectangle(main_rect, std::max(0.0f, m_border_radius - border_width),
+				m_colors[0], m_colors[1], m_colors[3], m_colors[2], &AbsoluteClippingRect);
+		} else {
+			driver->draw2DRoundedRectangle(main_rect, m_border_radius,
+				m_colors[0], m_colors[1], m_colors[3], m_colors[2], &AbsoluteClippingRect);
+		}
+	} else {
+		std::array<core::rect<s32>, 4> border_rects;
+
+		border_rects[0] = core::rect<s32>(
+			topleft_border.X,
+			topleft_border.Y,
+			lowerright_border.X,
+			topleft_rect.Y
+		);
+
+		border_rects[1] = core::rect<s32>(
+			lowerright_rect.X,
+			topleft_rect.Y,
+			lowerright_border.X,
+			lowerright_rect.Y
+		);
+
+		border_rects[2] = core::rect<s32>(
+			topleft_border.X,
+			lowerright_rect.Y,
+			lowerright_border.X,
+			lowerright_border.Y
+		);
+
+		border_rects[3] = core::rect<s32>(
+			topleft_border.X,
+			topleft_rect.Y,
+			topleft_rect.X,
+			lowerright_rect.Y
+		);
+
+		driver->draw2DRectangle(main_rect, m_colors[0], m_colors[1], m_colors[3],
+			m_colors[2], &AbsoluteClippingRect);
+
+		// The border rectangle can be larger than 'AbsoluteClippingRect',
+		// hence clip against the (generally larger) parent.
+		core::rect<s32> border_rect = core::rect<s32>(
+			topleft_border.X,
+			topleft_border.Y,
+			lowerright_border.X,
+			lowerright_border.Y
+		);
+		if(!isNotClipped()) {
+			border_rect.clipAgainst(Parent->getAbsoluteClippingRect());
+		}
+
+		for (size_t i = 0; i <= 3; i++)
+			driver->draw2DRectangle(m_bordercolors[i], border_rects[i],
+					&border_rect);
 	}
-
-	for (size_t i = 0; i <= 3; i++)
-		driver->draw2DRectangle(m_bordercolors[i], border_rects[i],
-				&border_rect);
 
 	IGUIElement::draw();
 }

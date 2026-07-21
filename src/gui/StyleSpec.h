@@ -41,6 +41,7 @@ public:
 		COLORS,
 		BORDERCOLORS,
 		BORDERWIDTHS,
+		BORDER_RADIUS,
 		SOUND,
 		SPACING,
 		SIZE,
@@ -111,6 +112,8 @@ public:
 			return BORDERCOLORS;
 		} else if (name == "borderwidths") {
 			return BORDERWIDTHS;
+		} else if (name == "border_radius") {
+			return BORDER_RADIUS;
 		} else if (name == "sound") {
 			return SOUND;
 		} else if (name == "spacing") {
@@ -369,6 +372,19 @@ public:
 		}
 
 		return is_yes(val);
+	}
+
+	f32 getFloat(Property prop, f32 def) const
+	{
+		const auto &val = properties[prop];
+		if (val.empty()) {
+			return def;
+		}
+		try {
+			return stof(val);
+		} catch (...) {
+			return def;
+		}
 	}
 
 	inline bool isNotDefault(Property prop) const

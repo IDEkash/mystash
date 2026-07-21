@@ -175,6 +175,20 @@ public:
 			SColor colorLeftUp, SColor colorRightUp, SColor colorLeftDown, SColor colorRightDown,
 			const core::rect<s32> *clip = 0) override;
 
+	//! Draws a 2d rounded rectangle.
+	virtual void draw2DRoundedRectangle(const core::rect<s32> &pos, f32 radius,
+			SColor color, const core::rect<s32> *clip = 0) override;
+
+	//! Draws a 2d rounded rectangle with a gradient.
+	virtual void draw2DRoundedRectangle(const core::rect<s32> &pos, f32 radius,
+			SColor colorLeftUp, SColor colorRightUp,
+			SColor colorLeftDown, SColor colorRightDown,
+			const core::rect<s32> *clip = 0) override;
+
+	//! Draws a 2d rounded rectangle outline.
+	virtual void draw2DRoundedRectangleOutline(const core::rect<s32> &pos, f32 radius,
+			SColor color, const core::rect<s32> *clip = 0) override;
+
 	//! Draws a 2d line.
 	virtual void draw2DLine(const core::position2d<s32> &start,
 			const core::position2d<s32> &end,

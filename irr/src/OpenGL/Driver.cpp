@@ -944,6 +944,264 @@ void COpenGL3DriverBase::draw2DRectangle(const core::rect<s32> &position,
 	drawQuad(vtPrimitive, vertices);
 }
 
+// Helper for color interpolation
+static SColor getInterpolatedColor(f32 x, f32 y, f32 left, f32 top, f32 right, f32 bottom,
+		SColor colorLeftUp, SColor colorRightUp, SColor colorLeftDown, SColor colorRightDown)
+{
+	f32 tx = (right > left) ? (x - left) / (right - left) : 0.0f;
+	f32 ty = (bottom > top) ? (y - top) / (bottom - top) : 0.0f;
+	tx = core::clamp(tx, 0.0f, 1.0f);
+	ty = core::clamp(ty, 0.0f, 1.0f);
+
+	f32 rTop = colorLeftUp.getRed() * (1.0f - tx) + colorRightUp.getRed() * tx;
+	f32 gTop = colorLeftUp.getGreen() * (1.0f - tx) + colorRightUp.getGreen() * tx;
+	f32 bTop = colorLeftUp.getBlue() * (1.0f - tx) + colorRightUp.getBlue() * tx;
+	f32 aTop = colorLeftUp.getAlpha() * (1.0f - tx) + colorRightUp.getAlpha() * tx;
+
+	f32 rBottom = colorLeftDown.getRed() * (1.0f - tx) + colorRightDown.getRed() * tx;
+	f32 gBottom = colorLeftDown.getGreen() * (1.0f - tx) + colorRightDown.getGreen() * tx;
+	f32 bBottom = colorLeftDown.getBlue() * (1.0f - tx) + colorRightDown.getBlue() * tx;
+	f32 aBottom = colorLeftDown.getAlpha() * (1.0f - tx) + colorRightDown.getAlpha() * tx;
+
+	u32 r = (u32)(rTop * (1.0f - ty) + rBottom * ty);
+	u32 g = (u32)(gTop * (1.0f - ty) + gBottom * ty);
+	u32 b = (u32)(bTop * (1.0f - ty) + bBottom * ty);
+	u32 a = (u32)(aTop * (1.0f - ty) + aBottom * ty);
+
+	return SColor(a, r, g, b);
+}
+
+void COpenGL3DriverBase::draw2DRoundedRectangle(const core::rect<s32> &pos, f32 radius,
+		SColor color, const core::rect<s32> *clip)
+{
+	draw2DRoundedRectangle(pos, radius, color, color, color, color, clip);
+}
+
+void COpenGL3DriverBase::draw2DRoundedRectangle(const core::rect<s32> &position, f32 radius,
+		SColor colorLeftUp, SColor colorRightUp,
+		SColor colorLeftDown, SColor colorRightDown,
+		const core::rect<s32> *clip)
+{
+	core::rect<s32> pos = position;
+	if (clip && !pos.isRectCollided(*clip))
+		return;
+
+	f32 left  = (f32)pos.UpperLeftCorner.X;
+	f32 right = (f32)pos.LowerRightCorner.X;
+	f32 down  = (f32)pos.LowerRightCorner.Y;
+	f32 top   = (f32)pos.UpperLeftCorner.Y;
+
+	f32 w = right - left;
+	f32 h = down - top;
+
+	if (radius > w / 2.0f)
+		radius = w / 2.0f;
+	if (radius > h / 2.0f)
+		radius = h / 2.0f;
+
+	if (radius <= 0.0f) {
+		draw2DRectangle(pos, colorLeftUp, colorRightUp, colorLeftDown, colorRightDown, clip);
+		return;
+	}
+
+	chooseMaterial2D();
+	setMaterialTexture(0, 0);
+
+	setRenderStates2DMode(colorLeftUp.getAlpha() < 255 ||
+								  colorRightUp.getAlpha() < 255 ||
+								  colorLeftDown.getAlpha() < 255 ||
+								  colorRightDown.getAlpha() < 255,
+			false, false);
+
+	const core::dimension2d<u32> &renderTargetSize = getCurrentRenderTargetSize();
+	if (clip) {
+		if (!clip->isValid())
+			return;
+		GL.Enable(GL_SCISSOR_TEST);
+		GL.Scissor(clip->UpperLeftCorner.X, renderTargetSize.Height - clip->LowerRightCorner.Y,
+				clip->getWidth(), clip->getHeight());
+	}
+
+	std::vector<S3DVertex> vertices;
+	// Center vertex
+	f32 centerX = (left + right) / 2.0f;
+	f32 centerY = (top + down) / 2.0f;
+	SColor centerColor = getInterpolatedColor(centerX, centerY, left, top, right, down,
+			colorLeftUp, colorRightUp, colorLeftDown, colorRightDown);
+	vertices.emplace_back(centerX, centerY, 0, 0, 0, 1, centerColor, 0, 0);
+
+	const f32 PI = 3.1415926535f;
+	const int segments = 12;
+
+	// Corner 1: Top-Right (cx = right - radius, cy = top + radius)
+	{
+		f32 cx = right - radius;
+		f32 cy = top + radius;
+		for (int i = 0; i <= segments; ++i) {
+			f32 angle = -PI / 2.0f + (PI / 2.0f) * (i / (f32)segments);
+			f32 x = cx + radius * cosf(angle);
+			f32 y = cy + radius * sinf(angle);
+			SColor col = getInterpolatedColor(x, y, left, top, right, down,
+					colorLeftUp, colorRightUp, colorLeftDown, colorRightDown);
+			vertices.emplace_back(x, y, 0, 0, 0, 1, col, 0, 0);
+		}
+	}
+
+	// Corner 2: Bottom-Right (cx = right - radius, cy = down - radius)
+	{
+		f32 cx = right - radius;
+		f32 cy = down - radius;
+		for (int i = 0; i <= segments; ++i) {
+			f32 angle = 0.0f + (PI / 2.0f) * (i / (f32)segments);
+			f32 x = cx + radius * cosf(angle);
+			f32 y = cy + radius * sinf(angle);
+			SColor col = getInterpolatedColor(x, y, left, top, right, down,
+					colorLeftUp, colorRightUp, colorLeftDown, colorRightDown);
+			vertices.emplace_back(x, y, 0, 0, 0, 1, col, 0, 0);
+		}
+	}
+
+	// Corner 3: Bottom-Left (cx = left + radius, cy = down - radius)
+	{
+		f32 cx = left + radius;
+		f32 cy = down - radius;
+		for (int i = 0; i <= segments; ++i) {
+			f32 angle = PI / 2.0f + (PI / 2.0f) * (i / (f32)segments);
+			f32 x = cx + radius * cosf(angle);
+			f32 y = cy + radius * sinf(angle);
+			SColor col = getInterpolatedColor(x, y, left, top, right, down,
+					colorLeftUp, colorRightUp, colorLeftDown, colorRightDown);
+			vertices.emplace_back(x, y, 0, 0, 0, 1, col, 0, 0);
+		}
+	}
+
+	// Corner 4: Top-Left (cx = left + radius, cy = top + radius)
+	{
+		f32 cx = left + radius;
+		f32 cy = top + radius;
+		for (int i = 0; i <= segments; ++i) {
+			f32 angle = PI + (PI / 2.0f) * (i / (f32)segments);
+			f32 x = cx + radius * cosf(angle);
+			f32 y = cy + radius * sinf(angle);
+			SColor col = getInterpolatedColor(x, y, left, top, right, down,
+					colorLeftUp, colorRightUp, colorLeftDown, colorRightDown);
+			vertices.emplace_back(x, y, 0, 0, 0, 1, col, 0, 0);
+		}
+	}
+
+	// Close the fan by connecting back to the first corner vertex
+	vertices.push_back(vertices[1]);
+
+	drawArrays(GL_TRIANGLE_FAN, vtPrimitive, vertices.data(), vertices.size());
+
+	if (clip)
+		GL.Disable(GL_SCISSOR_TEST);
+}
+
+void COpenGL3DriverBase::draw2DRoundedRectangleOutline(const core::rect<s32> &position, f32 radius,
+		SColor color, const core::rect<s32> *clip)
+{
+	core::rect<s32> pos = position;
+	if (clip && !pos.isRectCollided(*clip))
+		return;
+
+	f32 left  = (f32)pos.UpperLeftCorner.X;
+	f32 right = (f32)pos.LowerRightCorner.X;
+	f32 down  = (f32)pos.LowerRightCorner.Y;
+	f32 top   = (f32)pos.UpperLeftCorner.Y;
+
+	f32 w = right - left;
+	f32 h = down - top;
+
+	if (radius > w / 2.0f)
+		radius = w / 2.0f;
+	if (radius > h / 2.0f)
+		radius = h / 2.0f;
+
+	if (radius <= 0.0f) {
+		draw2DLine(core::position2d<s32>(pos.UpperLeftCorner.X, pos.UpperLeftCorner.Y),
+				core::position2d<s32>(pos.LowerRightCorner.X, pos.UpperLeftCorner.Y), color);
+		draw2DLine(core::position2d<s32>(pos.LowerRightCorner.X, pos.UpperLeftCorner.Y),
+				core::position2d<s32>(pos.LowerRightCorner.X, pos.LowerRightCorner.Y), color);
+		draw2DLine(core::position2d<s32>(pos.LowerRightCorner.X, pos.LowerRightCorner.Y),
+				core::position2d<s32>(pos.UpperLeftCorner.X, pos.LowerRightCorner.Y), color);
+		draw2DLine(core::position2d<s32>(pos.UpperLeftCorner.X, pos.LowerRightCorner.Y),
+				core::position2d<s32>(pos.UpperLeftCorner.X, pos.UpperLeftCorner.Y), color);
+		return;
+	}
+
+	chooseMaterial2D();
+	setMaterialTexture(0, 0);
+
+	setRenderStates2DMode(color.getAlpha() < 255, false, false);
+
+	const core::dimension2d<u32> &renderTargetSize = getCurrentRenderTargetSize();
+	if (clip) {
+		if (!clip->isValid())
+			return;
+		GL.Enable(GL_SCISSOR_TEST);
+		GL.Scissor(clip->UpperLeftCorner.X, renderTargetSize.Height - clip->LowerRightCorner.Y,
+				clip->getWidth(), clip->getHeight());
+	}
+
+	std::vector<S3DVertex> vertices;
+	const f32 PI = 3.1415926535f;
+	const int segments = 12;
+
+	// Corner 1: Top-Right
+	{
+		f32 cx = right - radius;
+		f32 cy = top + radius;
+		for (int i = 0; i <= segments; ++i) {
+			f32 angle = -PI / 2.0f + (PI / 2.0f) * (i / (f32)segments);
+			f32 x = cx + radius * cosf(angle);
+			f32 y = cy + radius * sinf(angle);
+			vertices.emplace_back(x, y, 0, 0, 0, 1, color, 0, 0);
+		}
+	}
+
+	// Corner 2: Bottom-Right
+	{
+		f32 cx = right - radius;
+		f32 cy = down - radius;
+		for (int i = 0; i <= segments; ++i) {
+			f32 angle = 0.0f + (PI / 2.0f) * (i / (f32)segments);
+			f32 x = cx + radius * cosf(angle);
+			f32 y = cy + radius * sinf(angle);
+			vertices.emplace_back(x, y, 0, 0, 0, 1, color, 0, 0);
+		}
+	}
+
+	// Corner 3: Bottom-Left
+	{
+		f32 cx = left + radius;
+		f32 cy = down - radius;
+		for (int i = 0; i <= segments; ++i) {
+			f32 angle = PI / 2.0f + (PI / 2.0f) * (i / (f32)segments);
+			f32 x = cx + radius * cosf(angle);
+			f32 y = cy + radius * sinf(angle);
+			vertices.emplace_back(x, y, 0, 0, 0, 1, color, 0, 0);
+		}
+	}
+
+	// Corner 4: Top-Left
+	{
+		f32 cx = left + radius;
+		f32 cy = top + radius;
+		for (int i = 0; i <= segments; ++i) {
+			f32 angle = PI + (PI / 2.0f) * (i / (f32)segments);
+			f32 x = cx + radius * cosf(angle);
+			f32 y = cy + radius * sinf(angle);
+			vertices.emplace_back(x, y, 0, 0, 0, 1, color, 0, 0);
+		}
+	}
+
+	drawArrays(GL_LINE_LOOP, vtPrimitive, vertices.data(), vertices.size());
+
+	if (clip)
+		GL.Disable(GL_SCISSOR_TEST);
+}
+
 //! Draws a 2d line.
 void COpenGL3DriverBase::draw2DLine(const core::position2d<s32> &start,
 		const core::position2d<s32> &end, SColor color)
