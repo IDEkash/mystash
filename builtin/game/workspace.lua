@@ -3,7 +3,7 @@
 --
 -- Implements Part III of the spec: Workspace Definitions
 -- Automatically scans and registers .block, .character, .item, .vehicle,
--- .pathfinding, .structure, and .rig definitions from Workspace/
+-- .pathfinding, .structure, .rig, and .ui definitions from Workspace/
 --
 
 local function trim(s)
@@ -151,7 +151,7 @@ local function parse_structure(content)
 			local block = content:sub(start_brace + 1, end_brace - 1)
 			for line in block:gmatch("[^\r\n]+") do
 				local k, v = line:match("^%s*([%w_]+)%s*=%s*(.*)$")
-				if k and v then
+				if k rebuild then
 					v = trim(v)
 					local x, y, z = v:match("^%((%-?%d+%.?%d*),%s*(%-?%d+%.?%d*),%s*(%-?%d+%.?%d*)%)")
 					if x and y and z then
@@ -197,6 +197,7 @@ local registered_pathfindings = {}
 local registered_rigs = {}
 local registered_effects = {}
 local registered_lights = {}
+local registered_uis = {}
 
 -- Directory scanning helper
 local function scan_workspace_dir(modpath, subfolder, ext)
@@ -266,7 +267,6 @@ local function validate_asset(modpath, asset_path, sub_folder, entity_id)
 	if asset_path and asset_path ~= "" then
 		local clean_path = asset_path:match(":(.+)$") or asset_path
 		local full_asset_path = modpath .. DIR_DELIM .. "Assets" .. DIR_DELIM .. sub_folder .. DIR_DELIM .. clean_path
-		-- Try with standard extensions if no extension is provided
 		local f = io.open(full_asset_path, "r")
 		if not f then
 			f = io.open(full_asset_path .. ".png", "r") or io.open(full_asset_path .. ".gltf", "r") or io.open(full_asset_path .. ".glb", "r") or io.open(full_asset_path .. ".obj", "r")
@@ -776,6 +776,38 @@ local function register_lights(modname, modpath)
 	end
 end
 
+local function register_uis(modname, modpath)
+	local files = scan_workspace_dir(modpath, "UI", ".ui")
+	for _, f in ipairs(files) do
+		local content = read_file_content(f.fullpath)
+		if content then
+			local data = parse_ini(content)
+			local name = data.Name or f.name:sub(1, -4)
+			local id = modname .. ":" .. name
+
+			-- Read formspec layout file if specified
+			if data.Layout then
+				validate_asset(modpath, data.Layout, "UI", id)
+				local clean_layout_path = data.Layout:match(":(.+)$") or data.Layout
+				local fs_path = modpath .. DIR_DELIM .. "Assets" .. DIR_DELIM .. "UI" .. DIR_DELIM .. clean_layout_path
+				if not fs_path:match("%.formspec$") then
+					fs_path = fs_path .. ".formspec"
+				end
+				local fs_content = read_file_content(fs_path)
+				if fs_content then
+					-- Pre-resolve namespaced asset paths inside the formspec string
+					fs_content = fs_content:gsub("([%w_%.]+):Textures/([%w_%.]+)", function(pkg, img)
+						return resolve_asset(pkg .. ":Textures/" .. img, ".png")
+					end)
+					data.compiled_formspec = fs_content
+				end
+			end
+
+			registered_uis[id] = data
+		end
+	end
+end
+
 -- Scan and Load all package definitions when mods have loaded
 core.register_on_mods_loaded(function()
 	local loaded_mods = core.get_modnames()
@@ -791,6 +823,7 @@ core.register_on_mods_loaded(function()
 			register_rigs(modname, modpath)
 			register_effects(modname, modpath)
 			register_lights(modname, modpath)
+			register_uis(modname, modpath)
 		end
 	end
 end)
@@ -903,4 +936,25 @@ function core.effects.spawn(id, pos)
 			})
 		end
 	end
+end
+
+-- Built-in UI Declarative Formspecs Engine API
+core.ui = {}
+function core.ui.show(player_name, ui_id, custom_substitutions)
+	local data = registered_uis[ui_id]
+	if data and data.compiled_formspec then
+		local formspec = data.compiled_formspec
+		if custom_substitutions then
+			for k, v in pairs(custom_substitutions) do
+				formspec = formspec:gsub("%$" .. k, tostring(v))
+			end
+		end
+		core.show_formspec(player_name, ui_id, formspec)
+		return true
+	end
+	return false
+end
+
+function core.ui.hide(player_name, ui_id)
+	core.show_formspec(player_name, ui_id, "")
 end
