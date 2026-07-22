@@ -124,6 +124,128 @@ core.register_entity(":__builtin:moving_node", {
 		static_save = true,
 	},
 
+	remove_all = function(self)
+		if self.object then
+			local children = self.object:get_children() or {}
+			for _, child in ipairs(children) do
+				child:remove()
+			end
+			self.object:remove()
+		end
+	end,
+
+	on_punch = function(self, puncher, time_from_last_punch, tool_capabilities, dir)
+		if not puncher or not puncher:is_player() then return end
+		local player_name = puncher:get_player_name()
+
+		-- Identify node info
+		local node_info = self.node_info
+		if not node_info and self.is_master and self.nodes and #self.nodes == 1 then
+			node_info = self.nodes[1]
+		end
+
+		if not node_info then return end
+
+		-- Check if player can dig this node
+		local pos = self.object:get_pos()
+		if not pos then return end
+		if core.is_protected(pos, player_name) then
+			core.record_protection_violation(pos, player_name)
+			return
+		end
+
+		local node = node_info.node
+		local def = node_info.def or core.registered_nodes[node.name]
+		if not def then return end
+
+		-- Simulate realistic block digging time and tools
+		local tool = puncher:get_wielded_item()
+		local dig_params = core.get_dig_params(def.groups, tool_capabilities)
+		if not dig_params or not dig_params.diggable then
+			-- Node is not diggable with this tool
+			return
+		end
+
+		-- Play punch/crack sound and particles
+		if def.sounds and def.sounds.dug then
+			core.sound_play(def.sounds.dug, {pos = pos, gain = 0.5}, true)
+		end
+
+		self.dig_progress = (self.dig_progress or 0) + (time_from_last_punch or 0.2)
+		self.last_punch_time = core.get_gametime()
+
+		-- Visually crack the block
+		local ratio = math.floor((self.dig_progress / dig_params.time) * 10)
+		if ratio > 0 and ratio < 10 then
+			self.object:set_properties({
+				damage_texture_modifier = "^[crack:10:" .. ratio
+			})
+		end
+
+		if self.dig_progress >= dig_params.time then
+			-- Play destruction sound
+			if def.sounds and def.sounds.dug then
+				core.sound_play(def.sounds.dug, {pos = pos}, true)
+			end
+
+			-- Handle drops
+			local drops = core.get_node_drops(node, tool:get_name())
+			for _, drop in ipairs(drops) do
+				core.add_item(pos, drop)
+			end
+
+			-- Wear tool
+			if not core.settings:get_bool("creative_mode") then
+				tool:add_wear(dig_params.wear)
+				puncher:set_wielded_item(tool)
+			end
+
+			-- Remove entire structure
+			if self.is_child then
+				local parent = self.object:get_attach()
+				if parent then
+					local parent_ent = parent:get_luaentity()
+					if parent_ent and parent_ent.remove_all then
+						parent_ent:remove_all()
+					else
+						parent:remove()
+					end
+				end
+				self.object:remove()
+			elseif self.is_master then
+				self:remove_all()
+			else
+				self.object:remove()
+			end
+		end
+	end,
+
+	on_rightclick = function(self, clicker)
+		if not clicker or not clicker:is_player() then return end
+		local node_info = self.node_info
+		if not node_info and self.is_master and self.nodes and #self.nodes == 1 then
+			node_info = self.nodes[1]
+		end
+
+		if not node_info then return end
+
+		local def = node_info.def or core.registered_nodes[node_info.node.name]
+		if def and def.on_rightclick then
+			def.on_rightclick(self.object:get_pos(), node_info.node, clicker)
+		end
+	end,
+
+	on_step = function(self, dtime)
+		-- Reset dig progress if player stopped punching
+		if self.last_punch_time and core.get_gametime() - self.last_punch_time > 1.5 then
+			self.dig_progress = 0
+			self.last_punch_time = nil
+			self.object:set_properties({
+				damage_texture_modifier = ""
+			})
+		end
+	end,
+
 	on_activate = function(self, staticdata)
 		self.object:set_armor_groups({immortal = 1})
 	end,
