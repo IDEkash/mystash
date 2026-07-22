@@ -44,6 +44,51 @@ public:
 		NOTE: m_env can be NULL, but step() isn't called if it is.
 		Prototypes are used that way.
 	*/
+	struct MoveNodeWaypoint {
+		v3f pos_a;
+		v3f pos_b;
+		v3f rot_a;
+		v3f rot_b;
+		float duration = 0.0f;
+		float start_time = 0.0f;
+		float end_time = 0.0f;
+	};
+
+	struct MoveNodeState {
+		bool active = false;
+		bool paused = false;
+		std::vector<MoveNodeWaypoint> legs;
+		std::string easing = "linear";
+		std::string loop = "false";
+		bool collide = true;
+		float total_duration = 0.0f;
+		float elapsed_time = 0.0f;
+		int pingpong_direction = 1;
+		float current_progress = 0.0f;
+		v3f start_rot;
+		v3f last_pos;
+		v3f last_rot;
+		v3f pivot;
+		v3f platform_min;
+		v3f platform_max;
+	};
+
+	MoveNodeState m_move_node_state;
+
+	void startMoveNode(const v3f &pivot, const std::vector<MoveNodeWaypoint> &legs,
+		const std::string &easing, const std::string &loop, bool collide,
+		const v3f &platform_min, const v3f &platform_max);
+	void stopMoveNode();
+	void pauseMoveNode() { m_move_node_state.paused = true; }
+	void resumeMoveNode() { m_move_node_state.paused = false; }
+	float getMoveNodeProgress() const { return m_move_node_state.current_progress; }
+	v3f getMoveNodePosition() const { return getBasePosition(); }
+
+	void stepMoveNode(float dtime);
+
+	virtual void setRotation(v3f rotation) {}
+	virtual const v3f &getRotation() const;
+
 	ServerActiveObject(ServerEnvironment *env, v3f pos);
 	virtual ~ServerActiveObject() = default;
 

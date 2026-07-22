@@ -1914,6 +1914,125 @@ int ObjectRef::l_get_luaentity(lua_State *L)
 	return 1;
 }
 
+int ObjectRef::l_start_move_node(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	v3f pivot = checkFloatPos(L, 2);
+
+	std::vector<ServerActiveObject::MoveNodeWaypoint> legs;
+	luaL_checktype(L, 3, LUA_TTABLE);
+	int table_len = lua_objlen(L, 3);
+	for (int i = 1; i <= table_len; ++i) {
+		lua_rawgeti(L, 3, i);
+		luaL_checktype(L, -1, LUA_TTABLE);
+
+		ServerActiveObject::MoveNodeWaypoint wp;
+
+		lua_getfield(L, -1, "pos_a");
+		wp.pos_a = checkFloatPos(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "pos_b");
+		wp.pos_b = checkFloatPos(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "rot_a");
+		wp.rot_a = checkFloatPos(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "rot_b");
+		wp.rot_b = checkFloatPos(L, -1);
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "start_time");
+		wp.start_time = readParam<float>(L, -1, 0.0f);
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "end_time");
+		wp.end_time = readParam<float>(L, -1, 0.0f);
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "duration");
+		wp.duration = readParam<float>(L, -1, 0.0f);
+		lua_pop(L, 1);
+
+		legs.push_back(wp);
+		lua_pop(L, 1);
+	}
+
+	std::string easing = readParam<std::string>(L, 4, "linear");
+	std::string loop = readParam<std::string>(L, 5, "false");
+	bool collide = readParam<bool>(L, 6, true);
+	v3f platform_min = checkFloatPos(L, 7);
+	v3f platform_max = checkFloatPos(L, 8);
+
+	sao->startMoveNode(pivot, legs, easing, loop, collide, platform_min, platform_max);
+	return 0;
+}
+
+int ObjectRef::l_stop_move_node(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+	sao->stopMoveNode();
+	return 0;
+}
+
+int ObjectRef::l_pause_move_node(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+	sao->pauseMoveNode();
+	return 0;
+}
+
+int ObjectRef::l_resume_move_node(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+	sao->resumeMoveNode();
+	return 0;
+}
+
+int ObjectRef::l_get_move_node_progress(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr) {
+		lua_pushnumber(L, 0.0);
+		return 1;
+	}
+	lua_pushnumber(L, sao->getMoveNodeProgress());
+	return 1;
+}
+
+int ObjectRef::l_get_move_node_position(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr) {
+		return 0;
+	}
+	pushFloatPos(L, sao->getMoveNodePosition());
+	return 1;
+}
+
 /* Player-only */
 
 // get_player_name(self)
@@ -3556,6 +3675,12 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod_aliased(ObjectRef, set_sprite, setsprite),
 	luamethod(ObjectRef, get_entity_name),
 	luamethod(ObjectRef, get_luaentity),
+	luamethod(ObjectRef, start_move_node),
+	luamethod(ObjectRef, stop_move_node),
+	luamethod(ObjectRef, pause_move_node),
+	luamethod(ObjectRef, resume_move_node),
+	luamethod(ObjectRef, get_move_node_progress),
+	luamethod(ObjectRef, get_move_node_position),
 
 	// Player-only
 	luamethod(ObjectRef, is_player),

@@ -136,6 +136,10 @@ void LuaEntitySAO::dispatchScriptDeactivate(bool removal)
 
 void LuaEntitySAO::step(float dtime, bool send_recommended)
 {
+	if (m_move_node_state.active) {
+		stepMoveNode(dtime);
+	}
+
 	if (!m_properties_sent) {
 		m_properties_sent = true;
 		std::string str = getPropertyPacket();

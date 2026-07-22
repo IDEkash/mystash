@@ -247,6 +247,24 @@ private:
 	// get_luaentity(self)
 	static int l_get_luaentity(lua_State *L);
 
+	// start_move_node(self, pivot, legs, easing, loop, collide, platform_min, platform_max)
+	static int l_start_move_node(lua_State *L);
+
+	// stop_move_node(self)
+	static int l_stop_move_node(lua_State *L);
+
+	// pause_move_node(self)
+	static int l_pause_move_node(lua_State *L);
+
+	// resume_move_node(self)
+	static int l_resume_move_node(lua_State *L);
+
+	// get_move_node_progress(self) -> 0..1
+	static int l_get_move_node_progress(lua_State *L);
+
+	// get_move_node_position(self) -> pos
+	static int l_get_move_node_position(lua_State *L);
+
 	/* Player-only */
 
 	// get_player_name(self)

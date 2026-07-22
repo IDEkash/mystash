@@ -25,15 +25,6 @@ local facedir_to_euler = {
 	{y = math.pi/2, x = math.pi, z = 0}
 }
 
-local function lerp(a, b, t)
-	return a + (b - a) * t
-end
-
-local function lerp_angle(a, b, t)
-	local diff = (b - a + math.pi) % (math.pi * 2) - math.pi
-	return a + diff * t
-end
-
 local function rotate_vector(v, rot)
 	local cx, sx = math.cos(rot.x), math.sin(rot.x)
 	local cy, sy = math.cos(rot.y), math.sin(rot.y)
@@ -101,18 +92,6 @@ local function find_closest_facedir(euler_rot, paramtype2)
 	return best_fdir
 end
 
-local function get_eased_time(t, easing)
-	if easing == "smoothstep" then
-		return t * t * (3 - 2 * t)
-	elseif easing == "ease_in" then
-		return t * t
-	elseif easing == "ease_out" then
-		return t * (2 - t)
-	else -- "linear"
-		return t
-	end
-end
-
 -- Register moving node entity
 core.register_entity(":__builtin:moving_node", {
 	initial_properties = {
@@ -121,130 +100,8 @@ core.register_entity(":__builtin:moving_node", {
 		collide_with_objects = false,
 		is_visible = true,
 		interpolate_position = true, -- Smooth client-side interpolation of physical entities
-		static_save = true,
+		static_save = false,
 	},
-
-	remove_all = function(self)
-		if self.object then
-			local children = self.object:get_children() or {}
-			for _, child in ipairs(children) do
-				child:remove()
-			end
-			self.object:remove()
-		end
-	end,
-
-	on_punch = function(self, puncher, time_from_last_punch, tool_capabilities, dir)
-		if not puncher or not puncher:is_player() then return end
-		local player_name = puncher:get_player_name()
-
-		-- Identify node info
-		local node_info = self.node_info
-		if not node_info and self.is_master and self.nodes and #self.nodes == 1 then
-			node_info = self.nodes[1]
-		end
-
-		if not node_info then return end
-
-		-- Check if player can dig this node
-		local pos = self.object:get_pos()
-		if not pos then return end
-		if core.is_protected(pos, player_name) then
-			core.record_protection_violation(pos, player_name)
-			return
-		end
-
-		local node = node_info.node
-		local def = node_info.def or core.registered_nodes[node.name]
-		if not def then return end
-
-		-- Simulate realistic block digging time and tools
-		local tool = puncher:get_wielded_item()
-		local dig_params = core.get_dig_params(def.groups, tool_capabilities)
-		if not dig_params or not dig_params.diggable then
-			-- Node is not diggable with this tool
-			return
-		end
-
-		-- Play punch/crack sound and particles
-		if def.sounds and def.sounds.dug then
-			core.sound_play(def.sounds.dug, {pos = pos, gain = 0.5}, true)
-		end
-
-		self.dig_progress = (self.dig_progress or 0) + (time_from_last_punch or 0.2)
-		self.last_punch_time = core.get_gametime()
-
-		-- Visually crack the block
-		local ratio = math.floor((self.dig_progress / dig_params.time) * 10)
-		if ratio > 0 and ratio < 10 then
-			self.object:set_properties({
-				damage_texture_modifier = "^[crack:10:" .. ratio
-			})
-		end
-
-		if self.dig_progress >= dig_params.time then
-			-- Play destruction sound
-			if def.sounds and def.sounds.dug then
-				core.sound_play(def.sounds.dug, {pos = pos}, true)
-			end
-
-			-- Handle drops
-			local drops = core.get_node_drops(node, tool:get_name())
-			for _, drop in ipairs(drops) do
-				core.add_item(pos, drop)
-			end
-
-			-- Wear tool
-			if not core.settings:get_bool("creative_mode") then
-				tool:add_wear(dig_params.wear)
-				puncher:set_wielded_item(tool)
-			end
-
-			-- Remove entire structure
-			if self.is_child then
-				local parent = self.object:get_attach()
-				if parent then
-					local parent_ent = parent:get_luaentity()
-					if parent_ent and parent_ent.remove_all then
-						parent_ent:remove_all()
-					else
-						parent:remove()
-					end
-				end
-				self.object:remove()
-			elseif self.is_master then
-				self:remove_all()
-			else
-				self.object:remove()
-			end
-		end
-	end,
-
-	on_rightclick = function(self, clicker)
-		if not clicker or not clicker:is_player() then return end
-		local node_info = self.node_info
-		if not node_info and self.is_master and self.nodes and #self.nodes == 1 then
-			node_info = self.nodes[1]
-		end
-
-		if not node_info then return end
-
-		local def = node_info.def or core.registered_nodes[node_info.node.name]
-		if def and def.on_rightclick then
-			def.on_rightclick(self.object:get_pos(), node_info.node, clicker)
-		end
-	end,
-
-	on_step = function(self, dtime)
-		-- Reset dig progress if player stopped punching
-		if self.last_punch_time and core.get_gametime() - self.last_punch_time > 1.5 then
-			self.dig_progress = 0
-			self.last_punch_time = nil
-			self.object:set_properties({
-				damage_texture_modifier = ""
-			})
-		end
-	end,
 
 	on_activate = function(self, staticdata)
 		self.object:set_armor_groups({immortal = 1})
@@ -259,7 +116,7 @@ core.register_entity(":__builtin:moving_node_master", {
 		physical = false,
 		collide_with_objects = false,
 		is_visible = false,
-		static_save = true,
+		static_save = false,
 	},
 
 	on_activate = function(self, staticdata)
@@ -268,7 +125,6 @@ core.register_entity(":__builtin:moving_node_master", {
 })
 
 local active_moves = {}
-local attached_passengers = {} -- { [playerName/objectId] = { master = obj, offset = vec } }
 
 local MoveHandle = {}
 MoveHandle.__index = MoveHandle
@@ -452,48 +308,21 @@ function MoveHandle:start()
 	self.active = true
 	self.current_progress = 0
 
+	local easing = self.opts.easing or "linear"
+	local loop = "false"
+	if self.opts.loop == "pingpong" then
+		loop = "pingpong"
+	elseif self.opts.loop then
+		loop = "true"
+	end
+
+	local p_min = { x = self.platform_min.x, y = 0, z = self.platform_min.y }
+	local p_max = { x = self.platform_max.x, y = 0, z = self.platform_max.y }
+
+	-- NATIVE C++ ENHANCED MOVING PLATFORM!
+	self.master_entity:start_move_node(start_pos, self.legs, easing, loop, self.opts.collide, p_min, p_max)
+
 	table.insert(active_moves, self)
-end
-
-local function get_interpolation(self, t)
-	local leg
-	for _, l in ipairs(self.legs) do
-		if t >= l.start_time and t <= l.end_time then
-			leg = l
-			break
-		end
-	end
-	if not leg then
-		if t < 0 then
-			leg = self.legs[1]
-		else
-			leg = self.legs[#self.legs]
-		end
-	end
-
-	local factor = 0
-	if leg.duration > 0.0001 then
-		factor = (t - leg.start_time) / leg.duration
-	else
-		factor = 1.0
-	end
-	if factor < 0 then factor = 0 elseif factor > 1 then factor = 1 end
-
-	local eased_factor = get_eased_time(factor, self.opts.easing)
-
-	local current_pos = vector.new(
-		lerp(leg.pos_a.x, leg.pos_b.x, eased_factor),
-		lerp(leg.pos_a.y, leg.pos_b.y, eased_factor),
-		lerp(leg.pos_a.z, leg.pos_b.z, eased_factor)
-	)
-
-	local current_rot = {
-		x = lerp_angle(leg.rot_a.x, leg.rot_b.x, eased_factor),
-		y = lerp_angle(leg.rot_a.y, leg.rot_b.y, eased_factor),
-		z = lerp_angle(leg.rot_a.z, leg.rot_b.z, eased_factor)
-	}
-
-	return current_pos, current_rot, factor
 end
 
 function MoveHandle:step(dtime)
@@ -527,81 +356,7 @@ function MoveHandle:step(dtime)
 	end
 
 	self.elapsed_time = next_time
-
-	local current_pos, current_rot, leg_progress = get_interpolation(self, next_time)
-	self.current_progress = leg_progress
-
-	local prev_pos = self.master_entity:get_pos()
-	self.master_entity:set_pos(current_pos)
-	self.master_entity:set_rotation(current_rot)
-
-	local delta = vector.subtract(current_pos, prev_pos)
-
-	-- 100% Smooth attachment-based player rider support
-	if self.opts.collide and vector.length(delta) > 0.0001 then
-		local players = core.get_connected_players()
-		for _, player in ipairs(players) do
-			local name = player:get_player_name()
-			local attach_info = attached_passengers[name]
-
-			if attach_info then
-				-- Detach ONLY if they press Jump to jump off
-				local ctrl = player:get_player_control()
-				if ctrl.jump then
-					player:set_detach()
-					attached_passengers[name] = nil
-					-- Provide a natural upward jump velocity boost
-					player:add_velocity({x=0, y=8, z=0})
-				end
-			else
-				-- Detect if standing on top of platform bounding box
-				local ppos = player:get_pos()
-				local box_min = self.platform_min
-				local box_max = self.platform_max
-
-				-- Apply translation delta of platform to the bounding box checks
-				local current_min_x = box_min.x + (current_pos.x - self.pivot.x)
-				local current_max_x = box_max.x + (current_pos.x - self.pivot.x)
-				local current_min_z = box_min.z + (current_pos.z - self.pivot.z)
-				local current_max_z = box_max.z + (current_pos.z - self.pivot.z)
-				local platform_y = current_pos.y
-
-				if ppos.x >= current_min_x and ppos.x <= current_max_x and
-				   ppos.z >= current_min_z and ppos.z <= current_max_z and
-				   ppos.y >= platform_y + 0.4 and ppos.y <= platform_y + 1.2 then
-
-					-- Attach player smoothly to master entity!
-					local offset = vector.subtract(ppos, current_pos)
-					player:set_attach(self.master_entity, "", vector.multiply(offset, 10), {x=0, y=0, z=0})
-					attached_passengers[name] = { master = self.master_entity, offset = offset }
-				end
-			end
-		end
-
-		-- Shift other non-player entities in radius
-		local objects = core.get_objects_inside_radius(prev_pos, 15)
-		for _, obj in ipairs(objects) do
-			if obj:get_luaentity() and not self.entity_ids[obj:get_luaentity()] and not obj:is_player() then
-				local opos = obj:get_pos()
-				if opos then
-					local box_min = self.platform_min
-					local box_max = self.platform_max
-					local current_min_x = box_min.x + (current_pos.x - self.pivot.x)
-					local current_max_x = box_max.x + (current_pos.x - self.pivot.x)
-					local current_min_z = box_min.z + (current_pos.z - self.pivot.z)
-					local current_max_z = box_max.z + (current_pos.z - self.pivot.z)
-					local platform_y = current_pos.y
-
-					if opos.x >= current_min_x and opos.x <= current_max_x and
-					   opos.z >= current_min_z and opos.z <= current_max_z and
-					   opos.y >= platform_y + 0.4 and opos.y <= platform_y + 1.2 then
-
-						obj:set_pos(vector.add(opos, delta))
-					end
-				end
-			end
-		end
-	end
+	self.current_progress = self.master_entity:get_move_node_progress()
 
 	if self.opts.on_step then
 		self.opts.on_step(self, dtime)
@@ -617,15 +372,7 @@ function MoveHandle:complete()
 	local final_pos = self.legs[#self.legs].pos_b
 	local final_rot = self.legs[#self.legs].rot_b
 
-	-- Detach passengers
-	local players = core.get_connected_players()
-	for _, player in ipairs(players) do
-		local name = player:get_player_name()
-		if attached_passengers[name] and attached_passengers[name].master == self.master_entity then
-			player:set_detach()
-			attached_passengers[name] = nil
-		end
-	end
+	self.master_entity:stop_move_node()
 
 	-- Write real nodes back to the voxel grid (Requirement 3 complete)
 	for _, node_info in ipairs(self.nodes) do
@@ -671,19 +418,11 @@ function MoveHandle:stop()
 	local current_rot = self.start_rot
 
 	if self.master_entity and self.master_entity:get_pos() then
-		current_pos = self.master_entity:get_pos()
+		current_pos = self.master_entity:get_move_node_position()
 		current_rot = self.master_entity:get_rotation() or {x=0, y=0, z=0}
 	end
 
-	-- Detach passengers
-	local players = core.get_connected_players()
-	for _, player in ipairs(players) do
-		local name = player:get_player_name()
-		if attached_passengers[name] and attached_passengers[name].master == self.master_entity then
-			player:set_detach()
-			attached_passengers[name] = nil
-		end
-	end
+	self.master_entity:stop_move_node()
 
 	-- Write real nodes back to the voxel grid (Requirement 3 stop)
 	for _, node_info in ipairs(self.nodes) do
@@ -719,10 +458,12 @@ end
 
 function MoveHandle:pause()
 	self.paused = true
+	self.master_entity:pause_move_node()
 end
 
 function MoveHandle:resume()
 	self.paused = false
+	self.master_entity:resume_move_node()
 end
 
 function MoveHandle:get_progress()
@@ -731,7 +472,7 @@ end
 
 function MoveHandle:get_position()
 	if self.master_entity and self.master_entity:get_pos() then
-		return self.master_entity:get_pos()
+		return self.master_entity:get_move_node_position()
 	end
 	return self.pivot
 end
