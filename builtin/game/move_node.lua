@@ -121,96 +121,32 @@ core.register_entity(":__builtin:moving_node", {
 		collide_with_objects = false,
 		is_visible = true,
 		interpolate_position = true, -- Smooth client-side interpolation of physical entities
-		static_save = true, -- Persist smooth blocks across restarts!
+		static_save = true,
 	},
 
 	on_activate = function(self, staticdata)
 		self.object:set_armor_groups({immortal = 1})
-		if staticdata and staticdata ~= "" then
-			local data = core.deserialize(staticdata)
-			if data then
-				self.is_master = data.is_master
-				self.nodes = data.nodes
-				self.collision = data.collision
-				self.is_child = data.is_child
-				self.node_info = data.node_info
-
-				if self.is_child then
-					self.object:set_properties({
-						node = self.node_info.node,
-						physical = self.collision,
-						collide_with_objects = self.collision,
-						collisionbox = self.node_info.colbox,
-						glow = self.node_info.glow,
-						static_save = false,
-					})
-				elseif self.is_master then
-					if #self.nodes == 1 and vector.equals(self.nodes[1].offset, vector.zero()) then
-						local node_info = self.nodes[1]
-						self.object:set_properties({
-							node = node_info.node,
-							physical = self.collision,
-							collide_with_objects = self.collision,
-							collisionbox = node_info.colbox,
-							glow = node_info.glow,
-						})
-					else
-						self.object:set_properties({
-							is_visible = false,
-							physical = false,
-							collide_with_objects = false,
-						})
-						core.after(0.1, function()
-							if not self.object or not self.object:get_pos() then return end
-							for _, node_info in ipairs(self.nodes) do
-								local child_pos = vector.add(self.object:get_pos(), node_info.offset)
-								local child_obj = core.add_entity(child_pos, "__builtin:moving_node")
-								if child_obj then
-									child_obj:set_properties({
-										node = node_info.node,
-										physical = self.collision,
-										collide_with_objects = self.collision,
-										collisionbox = node_info.colbox,
-										glow = node_info.glow,
-										static_save = false,
-									})
-									child_obj:get_luaentity().is_child = true
-									child_obj:get_luaentity().node_info = node_info
-									child_obj:get_luaentity().collision = self.collision
-									child_obj:set_attach(self.object, "", vector.multiply(node_info.offset, 10), {x=0, y=0, z=0})
-								end
-							end
-						end)
-					end
-				end
-			end
-		end
 	end,
+})
 
-	get_staticdata = function(self)
-		local data = {
-			is_master = self.is_master,
-			nodes = self.nodes,
-			collision = self.collision,
-			is_child = self.is_child,
-			node_info = self.node_info,
-		}
-		return core.serialize(data)
+-- Register moving node master entity (clean, invisible placeholder)
+core.register_entity(":__builtin:moving_node_master", {
+	initial_properties = {
+		visual = "sprite",
+		visual_size = {x=0, y=0},
+		physical = false,
+		collide_with_objects = false,
+		is_visible = false,
+		static_save = true,
+	},
+
+	on_activate = function(self, staticdata)
+		self.object:set_armor_groups({immortal = 1})
 	end,
 })
 
 local active_moves = {}
-
-local function find_moving_node_entity(pos)
-	local objects = core.get_objects_inside_radius(pos, 0.1)
-	for _, obj in ipairs(objects) do
-		local luaent = obj:get_luaentity()
-		if luaent and luaent.name == "__builtin:moving_node" and luaent.is_master then
-			return obj
-		end
-	end
-	return nil
-end
+local attached_passengers = {} -- { [playerName/objectId] = { master = obj, offset = vec } }
 
 local MoveHandle = {}
 MoveHandle.__index = MoveHandle
@@ -219,12 +155,7 @@ function MoveHandle:new(pos, opts)
 	local obj = setmetatable({}, MoveHandle)
 	obj.opts = opts or {}
 
-	if type(pos) == "userdata" or (type(pos) == "table" and pos.get_pos) then
-		obj.existing_master = pos
-		obj.pivot = pos:get_pos()
-		obj.min_pos = obj.pivot
-		obj.max_pos = obj.pivot
-	elseif pos.x and pos.y and pos.z then
+	if pos.x and pos.y and pos.z then
 		obj.min_pos = vector.new(pos)
 		obj.max_pos = vector.new(pos)
 		obj.pivot = vector.new(pos)
@@ -237,7 +168,7 @@ function MoveHandle:new(pos, opts)
 		obj.max_pos = vector.new(pos[2])
 		obj.pivot = vector.new(pos[1])
 	else
-		error("core.move_node: invalid position/region/ObjectRef format")
+		error("core.move_node: invalid position/region format")
 	end
 
 	return obj
@@ -252,155 +183,108 @@ function MoveHandle:start()
 	self.entities = {}
 	self.entity_ids = {}
 
-	local existing_master = self.existing_master
-	if not existing_master and self.min_pos and self.max_pos and vector.equals(self.min_pos, self.max_pos) then
-		existing_master = find_moving_node_entity(self.min_pos)
+	local is_movable_group = false
+	local placeholder = self.opts.placeholder or "air"
+
+	-- Calculate optimized single bounding box of the platform
+	self.platform_min = { x = min_pos.x - 0.5, z = min_pos.z - 0.5 }
+	self.platform_max = { x = max_pos.x + 0.5, z = max_pos.z + 0.5 }
+
+	-- 1. Read and replace nodes from voxel grid
+	for x = min_pos.x, max_pos.x do
+		for y = min_pos.y, max_pos.y do
+			for z = min_pos.z, max_pos.z do
+				local curr_pos = vector.new(x, y, z)
+				local node = core.get_node(curr_pos)
+				if node.name ~= "air" and node.name ~= "ignore" then
+					local def = core.registered_nodes[node.name]
+					if def then
+						if core.get_item_group(node.name, "movable") > 0 then
+							is_movable_group = true
+						end
+						local meta = core.get_meta(curr_pos):to_table()
+
+						local colbox = {-0.5, -0.5, -0.5, 0.5, 0.5, 0.5}
+						if def.collision_box and def.collision_box.fixed then
+							local fixed = def.collision_box.fixed
+							if type(fixed[1]) == "table" then fixed = fixed[1] end
+							if type(fixed) == "table" and #fixed >= 6 then colbox = fixed end
+						elseif def.node_box and def.node_box.fixed then
+							local fixed = def.node_box.fixed
+							if type(fixed[1]) == "table" then fixed = fixed[1] end
+							if type(fixed) == "table" and #fixed >= 6 then colbox = fixed end
+						end
+
+						table.insert(self.nodes, {
+							offset = vector.subtract(curr_pos, pivot),
+							node = node,
+							meta = meta,
+							glow = def.light_source or 0,
+							colbox = colbox,
+							def = def,
+						})
+						core.set_node(curr_pos, {name = placeholder})
+						core.log("action", ("Moving platform start: %s replaced with placeholder at %s"):format(node.name, core.pos_to_string(curr_pos)))
+					end
+				end
+			end
+		end
 	end
 
-	local is_movable_group = false
+	if is_movable_group then
+		if self.opts.collide == nil then self.opts.collide = true end
+		if self.opts.easing == nil then self.opts.easing = "smoothstep" end
+	end
+	if self.opts.collide == nil then self.opts.collide = true end
+
+	-- 2. Spawn entities
 	local start_pos = pivot
 	local start_rot = {x=0, y=0, z=0}
+	if #self.nodes > 0 then
+		start_rot = get_node_initial_rotation(self.nodes[1].node)
+	end
 
-	if existing_master then
-		self.master_entity = existing_master
-		local luaent = existing_master:get_luaentity()
-		if luaent then
-			self.nodes = luaent.nodes or {}
-			table.insert(self.entities, existing_master)
-			self.entity_ids[luaent] = true
-
-			local children = existing_master:get_children() or {}
-			for _, child in ipairs(children) do
-				table.insert(self.entities, child)
-				local child_lua = child:get_luaentity()
-				if child_lua then
-					self.entity_ids[child_lua] = true
-				end
-			end
+	if #self.nodes == 1 and vector.equals(self.nodes[1].offset, vector.zero()) then
+		local node_info = self.nodes[1]
+		local obj = core.add_entity(start_pos, "__builtin:moving_node")
+		if obj then
+			obj:set_properties({
+				node = node_info.node,
+				physical = self.opts.collide,
+				collide_with_objects = self.opts.collide,
+				collisionbox = node_info.colbox,
+				glow = node_info.glow,
+			})
+			obj:set_rotation(start_rot)
+			self.master_entity = obj
+			table.insert(self.entities, obj)
+			self.entity_ids[obj:get_luaentity()] = true
 		end
-		start_pos = existing_master:get_pos()
-		start_rot = existing_master:get_rotation() or {x=0, y=0, z=0}
 	else
-		-- Read and replace nodes from voxel grid
-		for x = min_pos.x, max_pos.x do
-			for y = min_pos.y, max_pos.y do
-				for z = min_pos.z, max_pos.z do
-					local curr_pos = vector.new(x, y, z)
-					local node = core.get_node(curr_pos)
-					if node.name ~= "air" and node.name ~= "ignore" then
-						local def = core.registered_nodes[node.name]
-						if def then
-							if core.get_item_group(node.name, "movable") > 0 then
-								is_movable_group = true
-							end
-							local meta = core.get_meta(curr_pos):to_table()
+		-- Spawn invisible master coordinator entity
+		local master_obj = core.add_entity(start_pos, "__builtin:moving_node_master")
+		if master_obj then
+			master_obj:set_rotation(start_rot)
+			self.master_entity = master_obj
+			table.insert(self.entities, master_obj)
+			self.entity_ids[master_obj:get_luaentity()] = true
 
-							local colbox = {-0.5, -0.5, -0.5, 0.5, 0.5, 0.5}
-							if def.collision_box and def.collision_box.fixed then
-								local fixed = def.collision_box.fixed
-								if type(fixed[1]) == "table" then fixed = fixed[1] end
-								if type(fixed) == "table" and #fixed >= 6 then colbox = fixed end
-							elseif def.node_box and def.node_box.fixed then
-								local fixed = def.node_box.fixed
-								if type(fixed[1]) == "table" then fixed = fixed[1] end
-								if type(fixed) == "table" and #fixed >= 6 then colbox = fixed end
-							end
+			for _, node_info in ipairs(self.nodes) do
+				local child_pos = vector.add(start_pos, node_info.offset)
+				local child_obj = core.add_entity(child_pos, "__builtin:moving_node")
+				if child_obj then
+					child_obj:set_properties({
+						node = node_info.node,
+						physical = self.opts.collide,
+						collide_with_objects = self.opts.collide,
+						collisionbox = node_info.colbox,
+						glow = node_info.glow,
+					})
+					child_obj:set_rotation(get_node_initial_rotation(node_info.node))
+					child_obj:set_attach(master_obj, "", vector.multiply(node_info.offset, 10), {x=0, y=0, z=0})
 
-							table.insert(self.nodes, {
-								offset = vector.subtract(curr_pos, pivot),
-								node = node,
-								meta = meta,
-								glow = def.light_source or 0,
-								colbox = colbox,
-							})
-							core.remove_node(curr_pos)
-							core.log("action", ("Moving platform start: %s removed at %s"):format(node.name, core.pos_to_string(curr_pos)))
-						end
-					end
-				end
-			end
-		end
-
-		if is_movable_group then
-			if self.opts.collide == nil then self.opts.collide = true end
-			if self.opts.easing == nil then self.opts.easing = "smoothstep" end
-		end
-		if self.opts.collide == nil then self.opts.collide = true end
-
-		if #self.nodes > 0 then
-			start_rot = get_node_initial_rotation(self.nodes[1].node)
-		end
-
-		if #self.nodes == 1 and vector.equals(self.nodes[1].offset, vector.zero()) then
-			local node_info = self.nodes[1]
-			local obj = core.add_entity(start_pos, "__builtin:moving_node")
-			if obj then
-				obj:set_properties({
-					node = node_info.node,
-					physical = self.opts.collide,
-					collide_with_objects = self.opts.collide,
-					collisionbox = node_info.colbox,
-					glow = node_info.glow,
-				})
-				obj:set_rotation(start_rot)
-
-				local luaent = obj:get_luaentity()
-				if luaent then
-					luaent.is_master = true
-					luaent.nodes = self.nodes
-					luaent.collision = self.opts.collide
-				end
-
-				self.master_entity = obj
-				table.insert(self.entities, obj)
-				self.entity_ids[luaent] = true
-			end
-		else
-			local master_obj = core.add_entity(start_pos, "__builtin:moving_node")
-			if master_obj then
-				master_obj:set_properties({
-					is_visible = false,
-					physical = false,
-					collide_with_objects = false,
-				})
-				master_obj:set_rotation(start_rot)
-
-				local luaent = master_obj:get_luaentity()
-				if luaent then
-					luaent.is_master = true
-					luaent.nodes = self.nodes
-					luaent.collision = self.opts.collide
-				end
-
-				self.master_entity = master_obj
-				table.insert(self.entities, master_obj)
-				self.entity_ids[luaent] = true
-
-				for _, node_info in ipairs(self.nodes) do
-					local child_pos = vector.add(start_pos, node_info.offset)
-					local child_obj = core.add_entity(child_pos, "__builtin:moving_node")
-					if child_obj then
-						child_obj:set_properties({
-							node = node_info.node,
-							physical = self.opts.collide,
-							collide_with_objects = self.opts.collide,
-							collisionbox = node_info.colbox,
-							glow = node_info.glow,
-							static_save = false,
-						})
-						child_obj:set_rotation(get_node_initial_rotation(node_info.node))
-						child_obj:set_attach(master_obj, "", vector.multiply(node_info.offset, 10), {x=0, y=0, z=0})
-
-						local child_lua = child_obj:get_luaentity()
-						if child_lua then
-							child_lua.is_child = true
-							child_lua.node_info = node_info
-							child_lua.collision = self.opts.collide
-						end
-
-						table.insert(self.entities, child_obj)
-						self.entity_ids[child_lua] = true
-					end
+					table.insert(self.entities, child_obj)
+					self.entity_ids[child_obj:get_luaentity()] = true
 				end
 			end
 		end
@@ -531,52 +415,65 @@ function MoveHandle:step(dtime)
 
 	local delta = vector.subtract(current_pos, prev_pos)
 
-	-- Rider/Passenger support
+	-- 100% Smooth attachment-based player rider support
 	if self.opts.collide and vector.length(delta) > 0.0001 then
 		local players = core.get_connected_players()
 		for _, player in ipairs(players) do
-			local ppos = player:get_pos()
-			local on_platform = false
+			local name = player:get_player_name()
+			local attach_info = attached_passengers[name]
 
-			for _, node_info in ipairs(self.nodes) do
-				local rot_offset = rotate_vector(node_info.offset, current_rot)
-				local node_world_pos = vector.add(prev_pos, rot_offset)
-				local diff_x = math.abs(ppos.x - node_world_pos.x)
-				local diff_z = math.abs(ppos.z - node_world_pos.z)
-				local diff_y = ppos.y - node_world_pos.y
-
-				-- Player is on top of this node
-				if diff_x < 0.8 and diff_z < 0.8 and diff_y >= 0.4 and diff_y <= 1.2 then
-					on_platform = true
-					break
+			if attach_info then
+				-- Detach ONLY if they press Jump to jump off
+				local ctrl = player:get_player_control()
+				if ctrl.jump then
+					player:set_detach()
+					attached_passengers[name] = nil
+					-- Provide a natural upward jump velocity boost
+					player:add_velocity({x=0, y=8, z=0})
 				end
-			end
+			else
+				-- Detect if standing on top of platform bounding box
+				local ppos = player:get_pos()
+				local box_min = self.platform_min
+				local box_max = self.platform_max
 
-			if on_platform then
-				player:set_pos(vector.add(ppos, delta))
+				-- Apply translation delta of platform to the bounding box checks
+				local current_min_x = box_min.x + (current_pos.x - self.pivot.x)
+				local current_max_x = box_max.x + (current_pos.x - self.pivot.x)
+				local current_min_z = box_min.z + (current_pos.z - self.pivot.z)
+				local current_max_z = box_max.z + (current_pos.z - self.pivot.z)
+				local platform_y = current_pos.y
+
+				if ppos.x >= current_min_x and ppos.x <= current_max_x and
+				   ppos.z >= current_min_z and ppos.z <= current_max_z and
+				   ppos.y >= platform_y + 0.4 and ppos.y <= platform_y + 1.2 then
+
+					-- Attach player smoothly to master entity!
+					local offset = vector.subtract(ppos, current_pos)
+					player:set_attach(self.master_entity, "", vector.multiply(offset, 10), {x=0, y=0, z=0})
+					attached_passengers[name] = { master = self.master_entity, offset = offset }
+				end
 			end
 		end
 
+		-- Shift other non-player entities in radius
 		local objects = core.get_objects_inside_radius(prev_pos, 15)
 		for _, obj in ipairs(objects) do
 			if obj:get_luaentity() and not self.entity_ids[obj:get_luaentity()] and not obj:is_player() then
 				local opos = obj:get_pos()
 				if opos then
-					local on_platform = false
-					for _, node_info in ipairs(self.nodes) do
-						local rot_offset = rotate_vector(node_info.offset, current_rot)
-						local node_world_pos = vector.add(prev_pos, rot_offset)
-						local diff_x = math.abs(opos.x - node_world_pos.x)
-						local diff_z = math.abs(opos.z - node_world_pos.z)
-						local diff_y = opos.y - node_world_pos.y
+					local box_min = self.platform_min
+					local box_max = self.platform_max
+					local current_min_x = box_min.x + (current_pos.x - self.pivot.x)
+					local current_max_x = box_max.x + (current_pos.x - self.pivot.x)
+					local current_min_z = box_min.z + (current_pos.z - self.pivot.z)
+					local current_max_z = box_max.z + (current_pos.z - self.pivot.z)
+					local platform_y = current_pos.y
 
-						if diff_x < 0.8 and diff_z < 0.8 and diff_y >= 0.4 and diff_y <= 1.2 then
-							on_platform = true
-							break
-						end
-					end
+					if opos.x >= current_min_x and opos.x <= current_max_x and
+					   opos.z >= current_min_z and opos.z <= current_max_z and
+					   opos.y >= platform_y + 0.4 and opos.y <= platform_y + 1.2 then
 
-					if on_platform then
 						obj:set_pos(vector.add(opos, delta))
 					end
 				end
@@ -598,19 +495,38 @@ function MoveHandle:complete()
 	local final_pos = self.legs[#self.legs].pos_b
 	local final_rot = self.legs[#self.legs].rot_b
 
-	-- Keep blocks as floating-point entities, DO NOT rounded-write back to voxel grid!
-	if self.master_entity and self.master_entity:get_pos() then
-		self.master_entity:set_pos(final_pos)
-		self.master_entity:set_rotation(final_rot)
+	-- Detach passengers
+	local players = core.get_connected_players()
+	for _, player in ipairs(players) do
+		local name = player:get_player_name()
+		if attached_passengers[name] and attached_passengers[name].master == self.master_entity then
+			player:set_detach()
+			attached_passengers[name] = nil
+		end
+	end
 
-		local luaent = self.master_entity:get_luaentity()
-		if luaent then
-			luaent.is_master = true
-			luaent.nodes = self.nodes
-			luaent.collision = self.opts.collide
+	-- Write real nodes back to the voxel grid (Requirement 3 complete)
+	for _, node_info in ipairs(self.nodes) do
+		local rot_offset = rotate_vector(node_info.offset, final_rot)
+		local rounded_pos = vector.round(vector.add(final_pos, rot_offset))
+
+		local placing_node = table.copy(node_info.node)
+		local def = node_info.def
+		if def and (def.paramtype2 == "facedir" or def.paramtype2 == "4dir") then
+			placing_node.param2 = find_closest_facedir(final_rot, def.paramtype2)
 		end
 
-		core.log("action", ("Moving platform complete: kept as smooth entity at %s"):format(core.pos_to_string(final_pos)))
+		core.set_node(rounded_pos, placing_node)
+		if node_info.meta then
+			core.get_meta(rounded_pos):from_table(node_info.meta)
+		end
+		core.log("action", ("Moving platform complete: %s placed at %s"):format(placing_node.name, core.pos_to_string(rounded_pos)))
+	end
+
+	for _, ent in ipairs(self.entities) do
+		if ent:get_pos() then
+			ent:remove()
+		end
 	end
 
 	if self.opts.on_complete then
@@ -629,21 +545,46 @@ function MoveHandle:stop()
 	if not self.active then return end
 	self.active = false
 
+	local current_pos = self.pivot
+	local current_rot = self.start_rot
+
 	if self.master_entity and self.master_entity:get_pos() then
-		local current_pos = self.master_entity:get_pos()
-		local current_rot = self.master_entity:get_rotation() or {x=0, y=0, z=0}
+		current_pos = self.master_entity:get_pos()
+		current_rot = self.master_entity:get_rotation() or {x=0, y=0, z=0}
+	end
 
-		self.master_entity:set_pos(current_pos)
-		self.master_entity:set_rotation(current_rot)
+	-- Detach passengers
+	local players = core.get_connected_players()
+	for _, player in ipairs(players) do
+		local name = player:get_player_name()
+		if attached_passengers[name] and attached_passengers[name].master == self.master_entity then
+			player:set_detach()
+			attached_passengers[name] = nil
+		end
+	end
 
-		local luaent = self.master_entity:get_luaentity()
-		if luaent then
-			luaent.is_master = true
-			luaent.nodes = self.nodes
-			luaent.collision = self.opts.collide
+	-- Write real nodes back to the voxel grid (Requirement 3 stop)
+	for _, node_info in ipairs(self.nodes) do
+		local rot_offset = rotate_vector(node_info.offset, current_rot)
+		local rounded_pos = vector.round(vector.add(current_pos, rot_offset))
+
+		local placing_node = table.copy(node_info.node)
+		local def = node_info.def
+		if def and (def.paramtype2 == "facedir" or def.paramtype2 == "4dir") then
+			placing_node.param2 = find_closest_facedir(current_rot, def.paramtype2)
 		end
 
-		core.log("action", ("Moving platform stopped: kept as smooth entity at %s"):format(core.pos_to_string(current_pos)))
+		core.set_node(rounded_pos, placing_node)
+		if node_info.meta then
+			core.get_meta(rounded_pos):from_table(node_info.meta)
+		end
+		core.log("action", ("Moving platform stopped: %s placed at %s"):format(placing_node.name, core.pos_to_string(rounded_pos)))
+	end
+
+	for _, ent in ipairs(self.entities) do
+		if ent:get_pos() then
+			ent:remove()
+		end
 	end
 
 	for i, h in ipairs(active_moves) do
