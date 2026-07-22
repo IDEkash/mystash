@@ -20,9 +20,9 @@ Nothing must ever mix these responsibilities.
 
 ---
 
-# Part I: Internal Logic Architecture (Draft v0.1)
+# Part I: Internal Logic Architecture (Stable v1.0)
 
-> Status: Planning
+> Status: Implemented & Stable
 
 **Internal Logic** is the built-in foundation of the engine. It replaces the old concept of "game files". Unlike External Logic, Internal Logic is a part of the engine itself and has deeper engine access.
 
@@ -148,9 +148,9 @@ Hardness = 3.0
 
 ---
 
-# Part II: External Logic Architecture (Draft v0.3)
+# Part II: External Logic Architecture (Stable v1.0)
 
-> Status: Planning
+> Status: Implemented & Stable
 
 **External Logic** is the replacement for the traditional Mod system. It contains everything created outside of the engine itself (e.g., game systems, vehicle packs, weapon systems, RPG frameworks, custom worlds).
 
@@ -760,7 +760,7 @@ The engine bootstrapper discovers and loads definitions, code, and resources in 
 
 ---
 
-# Part VII: Future Definition APIs (Planned)
+# Part VII: Future Definition APIs (Stable v1.0)
 
 Every declarative blueprint definition in the Workspace can support standardized block sections to map seamlessly to future editors and engine-level systems:
 

@@ -976,6 +976,64 @@ int ModApiServer::l_get_game_info(lua_State *L)
 	return 1;
 }
 
+// get_internal_logic_specs()
+int ModApiServer::l_get_internal_logic_specs(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	std::vector<InternalLogicSpec> specs = loadInternalLogicPackages();
+	lua_createtable(L, specs.size(), 0);
+	for (size_t i = 0; i < specs.size(); ++i) {
+		const auto &spec = specs[i];
+		lua_newtable(L);
+
+		lua_pushstring(L, spec.id.c_str());
+		lua_setfield(L, -2, "id");
+
+		lua_pushstring(L, spec.name.c_str());
+		lua_setfield(L, -2, "name");
+
+		lua_pushstring(L, spec.version.c_str());
+		lua_setfield(L, -2, "version");
+
+		lua_pushstring(L, spec.description.c_str());
+		lua_setfield(L, -2, "description");
+
+		// Materials
+		lua_createtable(L, spec.materials.size(), 0);
+		for (size_t j = 0; j < spec.materials.size(); ++j) {
+			const auto &mat = spec.materials[j];
+			lua_newtable(L);
+
+			lua_pushstring(L, mat.name.c_str());
+			lua_setfield(L, -2, "name");
+
+			lua_pushstring(L, mat.footstep_sound.c_str());
+			lua_setfield(L, -2, "footstep_sound");
+
+			lua_pushstring(L, mat.break_sound.c_str());
+			lua_setfield(L, -2, "break_sound");
+
+			lua_pushstring(L, mat.dig_sound.c_str());
+			lua_setfield(L, -2, "dig_sound");
+
+			lua_pushnumber(L, mat.friction);
+			lua_setfield(L, -2, "friction");
+
+			lua_pushnumber(L, mat.bounciness);
+			lua_setfield(L, -2, "bounciness");
+
+			lua_pushnumber(L, mat.hardness);
+			lua_setfield(L, -2, "hardness");
+
+			lua_rawseti(L, -2, j + 1);
+		}
+		lua_setfield(L, -2, "materials");
+
+		lua_rawseti(L, -2, i + 1);
+	}
+	return 1;
+}
+
 // get_worldpath()
 int ModApiServer::l_get_worldpath(lua_State *L)
 {
@@ -1211,6 +1269,7 @@ void ModApiServer::Initialize(lua_State *L, int top)
 	API_FCT(get_modpath);
 	API_FCT(get_modnames);
 	API_FCT(get_game_info);
+	API_FCT(get_internal_logic_specs);
 
 	API_FCT(print);
 
@@ -1255,4 +1314,5 @@ void ModApiServer::InitializeAsync(lua_State *L, int top)
 	API_FCT(get_modpath);
 	API_FCT(get_modnames);
 	API_FCT(get_game_info);
+	API_FCT(get_internal_logic_specs);
 }

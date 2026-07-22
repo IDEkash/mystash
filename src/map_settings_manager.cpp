@@ -6,6 +6,7 @@
 #include "log.h"
 #include "mapgen/mapgen.h"
 #include "settings.h"
+#include "content/mods.h"
 
 #include "map_settings_manager.h"
 
@@ -137,6 +138,18 @@ MapgenParams *MapSettingsManager::makeMapgenParamsCopy() const
 
 	assert(m_map_settings);
 	assert(m_defaults);
+
+	std::vector<InternalLogicSpec> internal_packages = loadInternalLogicPackages();
+	if (!internal_packages.empty()) {
+		const auto &spec = internal_packages[0];
+		if (!spec.mapgen.name.empty()) {
+			m_map_settings->set("mg_name", spec.mapgen.name);
+			m_map_settings->setS32("water_level", spec.mapgen.sea_level);
+			m_map_settings->setBool("enable_biomes", spec.mapgen.biomes);
+			m_map_settings->setBool("enable_caves", spec.mapgen.caves);
+			m_map_settings->setBool("enable_ores", spec.mapgen.ores);
+		}
+	}
 
 	std::string mg_name;
 	MapgenType mgtype = getMapSetting("mg_name", &mg_name) ?

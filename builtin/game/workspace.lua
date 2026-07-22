@@ -151,7 +151,7 @@ local function parse_structure(content)
 			local block = content:sub(start_brace + 1, end_brace - 1)
 			for line in block:gmatch("[^\r\n]+") do
 				local k, v = line:match("^%s*([%w_]+)%s*=%s*(.*)$")
-				if k rebuild then
+				if k and v then
 					v = trim(v)
 					local x, y, z = v:match("^%((%-?%d+%.?%d*),%s*(%-?%d+%.?%d*),%s*(%-?%d+%.?%d*)%)")
 					if x and y and z then

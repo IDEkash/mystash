@@ -52,6 +52,9 @@ private:
 	// get_game_info()
 	static int l_get_game_info(lua_State *L);
 
+	// get_internal_logic_specs()
+	static int l_get_internal_logic_specs(lua_State *L);
+
 	// print(text)
 	static int l_print(lua_State *L);
 
