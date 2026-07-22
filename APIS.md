@@ -831,5 +831,48 @@ core.create_world("ProgrammaticWorld", "minetest", {
 ```
 
 ---
+
+## Movable/Rotatable Node API (`core.move_node`)
+
+Lets server-side mods smoothly move and/or rotate a map node (or a defined multi-part structure of nodes) between positions over time, with passenger-riding support and incremental transform sync.
+
+### Spawning/Movement API
+
+`core.move_node(pos, opts) -> handle`
+- `pos`: Can be a single vector `{x, y, z}` (for a single node) or a bounding region `{min = pos1, max = pos2}` / `{pos1, pos2}` (for multi-part structures).
+- `opts`: A table containing:
+  - `to`: Target position vector `{x, y, z}`.
+  - `waypoints`: Array of `{pos, time, rotation?}` defining multi-stop paths.
+  - `time`: Duration of the move segment in seconds.
+  - `speed`: Speed in nodes per second (alternative to `time`).
+  - `rotation`: Target euler rotation in degrees `{x, y, z}`.
+  - `easing`: `"linear"` | `"smoothstep"` | `"ease_in"` | `"ease_out"`.
+  - `loop`: `boolean` (restart from beginning when complete) or `"pingpong"` (reverse direction).
+  - `collide`: `boolean` (default `true`). Enables player/object collision against the platform.
+  - `placeholder`: `string` (default `"air"`). The node placed in the world while moving.
+  - `on_step`: `function(handle, dtime)` callback invoked every update step.
+  - `on_complete`: `function(handle)` callback invoked when the path successfully completes.
+
+### Handle Methods
+
+- `handle:stop()`: Halts movement immediately, placing the real nodes back into the world grid at the nearest integer coordinate of their current positions, and deletes the visual entities.
+- `handle:pause()`: Pauses the movement.
+- `handle:resume()`: Resumes the movement.
+- `handle:get_progress() -> 0..1`: Returns the current segment progress fraction.
+- `handle:get_position() -> vector`: Returns the current visual position of the master entity.
+
+### Multi-part Structure support
+
+If a bounding region is passed, the engine replaces all non-air nodes in the region with the placeholder, spawns a master coordinator entity, and attaches child node entities to it with the correct relative offset. These parts translate and rotate together automatically.
+
+### Passenger/Rider support
+
+If `collide = true`, the platform's visual position and collision box are smoothly interpolated on the client side. Standing players and entities are automatically tracked on the server and smoothly shifted along with the platform's exact movement delta, ensuring they move with it without sliding or falling through.
+
+### Group-based defaults
+
+Nodes with `group:movable` in their definitions automatically fallback to sensible default options (e.g. `collide = true`, `easing = "smoothstep"`) when moved via `core.move_node`.
+
+---
 - **More Soon!**
-- Latest Update: May, 30, 2026
+- Latest Update: July, 11, 2026
