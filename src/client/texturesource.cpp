@@ -120,6 +120,8 @@ public:
 
 	void setImageCaching(bool enabled);
 
+	void overrideTexture(const std::string &name, video::ITexture *texture) override;
+
 private:
 	// Gets or generates an image for a texture string
 	// Caller needs to drop the returned image
@@ -677,5 +679,22 @@ void TextureSource::setImageCaching(bool enabled)
 			it.second.image->drop();
 		}
 		m_image_cache.clear();
+	}
+}
+
+void TextureSource::overrideTexture(const std::string &name, video::ITexture *texture)
+{
+	MutexAutoLock lock(m_textureinfo_cache_mutex);
+	auto it = m_name_to_id.find(name);
+	if (it != m_name_to_id.end()) {
+		u32 id = it->second;
+		if (id < m_textureinfo_cache.size()) {
+			m_textureinfo_cache[id].texture = texture;
+		}
+	} else {
+		u32 id = m_textureinfo_cache.size();
+		TextureInfo ti{video::ETT_2D, name, {name}, texture, {}};
+		m_textureinfo_cache.emplace_back(std::move(ti));
+		m_name_to_id[name] = id;
 	}
 }

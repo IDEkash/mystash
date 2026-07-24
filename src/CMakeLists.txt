@@ -556,6 +556,10 @@ list(APPEND client_SRCS
 	${client_SCRIPT_SRCS}
 )
 
+if(NOT ANDROID)
+	list(APPEND client_SRCS htmlview_jni.cpp)
+endif()
+
 if(BUILD_UNITTESTS)
 	list(APPEND client_SRCS ${UNITTEST_CLIENT_SRCS})
 endif()

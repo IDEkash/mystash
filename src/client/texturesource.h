@@ -114,6 +114,8 @@ public:
 	 * @note Disabling caching will flush the cache.
 	 */
 	virtual void setImageCaching(bool enabled) {};
+
+	virtual void overrideTexture(const std::string &name, video::ITexture *texture) = 0;
 };
 
 class IWritableTextureSource : public ITextureSource

@@ -1,15 +1,16 @@
 // Luanti
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
-#ifdef __ANDROID__
-
 #include "htmlview_jni.h"
 
 #include "config.h"
 #include "log.h"
-#include "porting_android.h"
 
+#ifdef __ANDROID__
+#include "porting_android.h"
 #include <jni.h>
+#endif
+
 #include <deque>
 #include <mutex>
 #include <unordered_map>
@@ -29,6 +30,7 @@
 #include <IWriteFile.h>
 #include <IFileSystem.h>
 #include "irr_ptr.h"
+#include "client/texturesource.h"
 
 struct Viewport {
 	v3f pos;
@@ -62,6 +64,8 @@ struct Viewport {
 
 static std::mutex g_viewport_mutex;
 static std::unordered_map<std::string, std::unordered_map<std::string, std::unique_ptr<Viewport>>> g_viewports;
+
+#ifdef __ANDROID__
 
 struct HtmlViewMessage {
 	std::string id;
@@ -354,6 +358,8 @@ void htmlview_jni_capture(const std::string &id, int width, int height)
 	callVoidMethod1Str2Int("htmlview_capture", id, width, height);
 }
 
+#endif // __ANDROID__
+
 void htmlview_jni_set_viewport(const std::string &id, const std::string &name,
 		v3f pos, v3f dir, v3f up, float fov, float tilt, int width, int height,
 		u32 refresh_interval_ms, const std::string &format, int quality,
@@ -534,6 +540,13 @@ void htmlview_jni_render_viewports(Client *client, float dtime)
 
 					driver->setRenderTarget(0, false, false);
 
+					// Override the texture by name so blocks can stream it!
+					std::string override_name = "viewport_camera_" + it->first;
+					auto texture_source = client->getTextureSource();
+					if (texture_source) {
+						texture_source->overrideTexture(override_name, vp->texture);
+					}
+
 					// Restore camera state
 					old_cam_node->setPosition(old_pos);
 					old_cam_node->setTarget(old_target);
@@ -560,6 +573,7 @@ void htmlview_jni_pipe(const std::string &fromId, const std::string &toId)
 }
 #endif
 
+#ifdef __ANDROID__
 
 extern "C" JNIEXPORT void JNICALL
 Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLMessage(
@@ -599,6 +613,8 @@ Java_net_minetest_minetest_HTMLViewManager_nativeOnHTMLReady(
 		g_events.push_back(std::move(e));
 	}
 }
+
+#endif // __ANDROID__
 
 bool htmlview_jni_get_viewport(const std::string &id, const std::string &name,
 		v3f &pos, v3f &dir, v3f &up, float &fov, float &tilt, int &width, int &height,
@@ -713,6 +729,8 @@ std::vector<std::string> htmlview_jni_get_viewport_list(const std::string &id)
 	}
 	return names;
 }
+
+#ifdef __ANDROID__
 
 extern "C" JNIEXPORT jbyteArray JNICALL
 Java_net_minetest_minetest_HTMLViewManager_nativeGetViewportFrame(

@@ -17,9 +17,7 @@
 #include "clientmedia.h" // For clientMediaUpdateCacheCopy
 #include "config.h"
 
-#ifdef __ANDROID__
 #include "htmlview_jni.h"
-#endif
 
 #include "content_cao.h"
 #include "content/subgames.h"
@@ -3898,9 +3896,7 @@ void Game::drawScene(ProfilerGraph *graph, RunStats *stats, f32 dtime)
 	this->m_rendering_engine->draw_scene(sky_color, this->m_game_ui->m_flags.show_hud,
 			draw_wield_tool, draw_crosshair);
 
-#ifdef __ANDROID__
 	htmlview_jni_render_viewports(client, dtime);
-#endif
 
 	/*
 		Profiler graph

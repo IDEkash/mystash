@@ -20,6 +20,7 @@ end
 dofile(commonpath .. "after.lua")
 dofile(commonpath .. "metatable.lua")
 dofile(commonpath .. "mod_storage.lua")
+dofile(gamepath .. "instance.lua")
 dofile(gamepath .. "workspace.lua")
 dofile(gamepath .. "item_entity.lua")
 dofile(gamepath .. "deprecated.lua")
