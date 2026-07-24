@@ -242,6 +242,22 @@ function Instance:FindFirstAncestor(name)
 	return nil
 end
 
+function Instance:GetService(name)
+	local children = rawget(self, "_children")
+	if children then
+		for _, child in ipairs(children) do
+			if child.Name == name then
+				return child
+			end
+		end
+	end
+	-- If it doesn't exist, create it as a Folder with the given name
+	local service = Instance.new("Folder")
+	service.Name = name
+	service:SetParent(self)
+	return service
+end
+
 -- Parent manipulation
 function Instance:SetParent(new_parent)
 	if self._parent == new_parent then return end
@@ -428,6 +444,12 @@ end
 -- Register Specialized Instance Classes
 -- ==========================================
 
+-- 0. DataModel Class
+registered_classes["DataModel"] = {
+	properties = {},
+	init = function(self) end,
+}
+
 -- 1. Folder Class
 registered_classes["Folder"] = {
 	properties = {},
@@ -468,14 +490,15 @@ function Instance:_clearBlock()
 end
 
 function Instance:_syncBlock()
+	local workspace_instance = game:GetService("Workspace")
 	local is_under_workspace = false
-	local curr = self._parent
+	local curr = rawget(self, "_parent")
 	while curr do
-		if curr.Name == "Workspace" or curr.ClassName == "Folder" and curr.Name == "Workspace" then
+		if curr == workspace_instance then
 			is_under_workspace = true
 			break
 		end
-		curr = curr._parent
+		curr = rawget(curr, "_parent")
 	end
 
 	if is_under_workspace and self.Position then
@@ -644,6 +667,56 @@ registered_classes["Script"] = {
 	end,
 }
 
+local safe_sandbox_globals = {
+	-- Lua Standard Libraries (Safe subsets)
+	math = math,
+	string = string,
+	table = table,
+	pairs = pairs,
+	ipairs = ipairs,
+	next = next,
+	unpack = unpack or table.unpack,
+	select = select,
+	type = type,
+	tostring = tostring,
+	tonumber = tonumber,
+	print = print,
+	vector = vector,
+	error = error,
+	pcall = pcall,
+	xpcall = xpcall,
+	assert = assert,
+	_VERSION = _VERSION,
+
+	-- Luanti/Minetest APIs (Safe subsets: exclude OS/IO/require/loadfile)
+	core = {
+		log = core.log,
+		sound_play = core.sound_play,
+		sound_stop = core.sound_stop,
+		set_node = core.set_node,
+		remove_node = core.remove_node,
+		get_node = core.get_node,
+		serialize = core.serialize,
+		deserialize = core.deserialize,
+		after = core.after,
+		get_player_by_name = core.get_player_by_name,
+		get_connected_players = core.get_connected_players,
+	},
+	minetest = {
+		log = minetest.log,
+		sound_play = minetest.sound_play,
+		sound_stop = minetest.sound_stop,
+		set_node = minetest.set_node,
+		remove_node = minetest.remove_node,
+		get_node = minetest.get_node,
+		serialize = minetest.serialize,
+		deserialize = minetest.deserialize,
+		after = minetest.after,
+		get_player_by_name = minetest.get_player_by_name,
+		get_connected_players = minetest.get_connected_players,
+	}
+}
+
 function Instance:Run()
 	if not self.Source or self.Source == "" then return end
 	local f, err = loadstring(self.Source, "=@" .. self.Name)
@@ -653,11 +726,14 @@ function Instance:Run()
 	end
 
 	-- Isolated script run environment
-	local env = setmetatable({
+	local env = {
 		script = self,
 		game = game,
 		Instance = Instance,
-	}, { __index = _G })
+	}
+	for k, v in pairs(safe_sandbox_globals) do
+		env[k] = v
+	end
 
 	setfenv(f, env)
 
@@ -672,46 +748,10 @@ end
 -- Global game Service tree (Root DataModel)
 -- ==========================================
 
-local DataModel = {}
-DataModel.__index = function(self, key)
-	if DataModel[key] ~= nil then
-		return DataModel[key]
-	end
-	local root = rawget(self, "_root_instance")
-	if root then
-		return root[key]
-	end
-	return nil
-end
-
-DataModel.__newindex = function(self, key, value)
-	local root = rawget(self, "_root_instance")
-	if root then
-		root[key] = value
-	end
-end
-
-function DataModel.new()
-	local self = setmetatable({}, DataModel)
-	rawset(self, "_root_instance", Instance.new("Folder"))
-	local root = rawget(self, "_root_instance")
-	root.Name = "game"
-	return self
-end
-
-function DataModel:GetService(name)
-	local service = self._root_instance:FindFirstChild(name)
-	if not service then
-		service = Instance.new("Folder")
-		service.Name = name
-		service:SetParent(self._root_instance)
-	end
-	return service
-end
-
 -- Expose Globals
 _G.Instance = Instance
-_G.game = DataModel.new()
+_G.game = Instance.new("DataModel")
+_G.game.Name = "game"
 
 -- Create default Services
 _G.game:GetService("Workspace")
@@ -819,7 +859,7 @@ core.register_on_mods_loaded(function()
 			-- If the Rojo-style directory exists, compile it directly into the active game tree!
 			local list = core.get_dir_listing(explorer_path, false)
 			if list then
-				compile_explorer_directory(explorer_path, _G.game._root_instance)
+				compile_explorer_directory(explorer_path, _G.game)
 			end
 		end
 	end
@@ -863,6 +903,12 @@ local function run_luanti_foundation_tests()
 
 	local child_found = folder:FindFirstChild("MyPart")
 	assert(child_found == part, "FindFirstChild failed")
+
+	-- Assert DataModel directly extends Instance methods
+	assert(game.ClassName == "DataModel", "game ClassName incorrect")
+	assert(game:FindFirstChild("Workspace") ~= nil, "game:FindFirstChild failed")
+	assert(#game:GetChildren() > 0, "game:GetChildren failed")
+
 	core.log("action", "[TEST] 2. Instance hierarchies & indexing passed.")
 
 	-- 3. Test Universal Attributes

@@ -220,6 +220,12 @@ int ModApiUtil::l_parse_json(lua_State *L)
 	return 1;
 }
 
+// get_dir_listing(path, is_dir)
+int ModApiUtil::l_get_dir_listing(lua_State *L)
+{
+	return l_get_dir_list(L);
+}
+
 // write_json(data[, styled]) -> string or nil and error message
 int ModApiUtil::l_write_json(lua_State *L)
 {
@@ -1031,6 +1037,7 @@ void ModApiUtil::Initialize(lua_State *L, int top)
 	API_FCT(cpdir);
 	API_FCT(mvdir);
 	API_FCT(get_dir_list);
+	API_FCT(get_dir_listing);
 	API_FCT(safe_file_write);
 
 	API_FCT(request_insecure_environment);
@@ -1155,6 +1162,7 @@ void ModApiUtil::InitializeAsync(lua_State *L, int top)
 	API_FCT(cpdir);
 	API_FCT(mvdir);
 	API_FCT(get_dir_list);
+	API_FCT(get_dir_listing);
 	API_FCT(safe_file_write);
 
 	// no request_insecure_environment here! mod origins are not tracked securely here.

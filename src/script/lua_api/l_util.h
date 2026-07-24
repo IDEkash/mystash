@@ -91,6 +91,9 @@ private:
 	// get_dir_list(path, is_dir)
 	static int l_get_dir_list(lua_State *L);
 
+	// get_dir_listing(path, is_dir)
+	static int l_get_dir_listing(lua_State *L);
+
 	// safe_file_write(path, content)
 	static int l_safe_file_write(lua_State *L);
 
