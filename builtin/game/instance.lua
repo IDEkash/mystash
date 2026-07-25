@@ -667,55 +667,42 @@ registered_classes["Script"] = {
 	end,
 }
 
-local safe_sandbox_globals = {
-	-- Lua Standard Libraries (Safe subsets)
-	math = math,
-	string = string,
-	table = table,
-	pairs = pairs,
-	ipairs = ipairs,
-	next = next,
-	unpack = unpack or table.unpack,
-	select = select,
-	type = type,
-	tostring = tostring,
-	tonumber = tonumber,
-	print = print,
-	vector = vector,
-	error = error,
-	pcall = pcall,
-	xpcall = xpcall,
-	assert = assert,
-	_VERSION = _VERSION,
-
-	-- Luanti/Minetest APIs (Safe subsets: exclude OS/IO/require/loadfile)
-	core = {
-		log = core.log,
-		sound_play = core.sound_play,
-		sound_stop = core.sound_stop,
-		set_node = core.set_node,
-		remove_node = core.remove_node,
-		get_node = core.get_node,
-		serialize = core.serialize,
-		deserialize = core.deserialize,
-		after = core.after,
-		get_player_by_name = core.get_player_by_name,
-		get_connected_players = core.get_connected_players,
-	},
-	minetest = {
-		log = minetest.log,
-		sound_play = minetest.sound_play,
-		sound_stop = minetest.sound_stop,
-		set_node = minetest.set_node,
-		remove_node = minetest.remove_node,
-		get_node = minetest.get_node,
-		serialize = minetest.serialize,
-		deserialize = minetest.deserialize,
-		after = minetest.after,
-		get_player_by_name = minetest.get_player_by_name,
-		get_connected_players = minetest.get_connected_players,
+function core.create_sandbox(env_vars)
+	local blocked = {
+		_G = true,
+		os = { execute = true, remove = true, rename = true, exit = true },
+		io = true,
+		require = true,
+		loadfile = true,
+		dofile = true,
+		debug = true,
 	}
-}
+
+	return setmetatable(env_vars or {}, {
+		__index = function(env, key)
+			if key == "_G" then
+				return env
+			end
+			if blocked[key] == true then
+				return nil
+			end
+			if type(blocked[key]) == "table" then
+				local lib = _G[key]
+				if lib then
+					return setmetatable({}, {
+						__index = function(_, subkey)
+							if blocked[key][subkey] then
+								return nil
+							end
+							return lib[subkey]
+						end
+					})
+				end
+			end
+			return _G[key]
+		end
+	})
+end
 
 function Instance:Run()
 	if not self.Source or self.Source == "" then return end
@@ -725,15 +712,12 @@ function Instance:Run()
 		return
 	end
 
-	-- Isolated script run environment
-	local env = {
+	-- Isolated script run environment (Smart blacklist-based sandbox)
+	local env = core.create_sandbox({
 		script = self,
 		game = game,
 		Instance = Instance,
-	}
-	for k, v in pairs(safe_sandbox_globals) do
-		env[k] = v
-	end
+	})
 
 	setfenv(f, env)
 
@@ -963,6 +947,9 @@ local function run_luanti_foundation_tests()
 		assert(script ~= nil, "Global script is nil")
 		assert(game ~= nil, "Global game is nil")
 		assert(Instance ~= nil, "Global Instance is nil")
+		assert(os.execute == nil, "Sandbox bypass: os.execute is available")
+		assert(_G.os == nil or _G.os.execute == nil, "Sandbox bypass: _G.os.execute is available")
+		assert(io == nil, "Sandbox bypass: io is available")
 		script:SetAttribute("Executed", true)
 	]]
 	script_inst:Run()

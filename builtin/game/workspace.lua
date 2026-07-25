@@ -287,12 +287,12 @@ local function execute_service_script(modname, script_name, event, pos, player, 
 	local script_path = modpath .. DIR_DELIM .. "ServerSideService" .. DIR_DELIM .. script_name .. ".lua"
 	local f = loadfile(script_path)
 	if f then
-		local env = setmetatable({
+		local env = core.create_sandbox({
 			pos = pos,
 			player = player,
 			object = object,
 			event = event,
-		}, { __index = _G })
+		})
 		setfenv(f, env)
 		local ok, err = pcall(f)
 		if ok and type(env[event]) == "function" then
