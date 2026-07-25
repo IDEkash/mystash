@@ -222,6 +222,153 @@ int ObjectRef::l_punch(lua_State *L)
 	return 1;
 }
 
+int ObjectRef::l_set_platform_behavior(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *co = getobject(ref);
+	if (co == nullptr)
+		return 0;
+
+	luaL_checktype(L, 2, LUA_TTABLE);
+
+	ServerActiveObject::PlatformBehavior opts = co->getPlatformBehavior();
+
+	opts.enabled = getboolfield_default(L, 2, "enabled", opts.enabled);
+	opts.carry_rotation = getboolfield_default(L, 2, "carry_rotation", opts.carry_rotation);
+
+	lua_getfield(L, 2, "friction_override");
+	if (lua_isnumber(L, -1))
+		opts.friction_override = lua_tonumber(L, -1);
+	lua_pop(L, 1);
+
+	co->setPlatformBehavior(opts);
+	return 0;
+}
+
+int ObjectRef::l_get_platform_behavior(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *co = getobject(ref);
+	if (co == nullptr)
+		return 0;
+
+	const ServerActiveObject::PlatformBehavior &opts = co->getPlatformBehavior();
+
+	lua_newtable(L);
+	setboolfield(L, -1, "enabled", opts.enabled);
+	setboolfield(L, -1, "carry_rotation", opts.carry_rotation);
+	if (opts.friction_override >= 0.0f)
+		setfloatfield(L, -1, "friction_override", opts.friction_override);
+
+	return 1;
+}
+
+int ObjectRef::l_set_collision_parts(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *co = getobject(ref);
+	if (co == nullptr)
+		return 0;
+
+	luaL_checktype(L, 2, LUA_TTABLE);
+
+	std::vector<ServerActiveObject::CollisionPart> parts;
+	int len = lua_objlen(L, 2);
+	for (int i = 1; i <= len; i++) {
+		lua_rawgeti(L, 2, i);
+		if (lua_istable(L, -1)) {
+			ServerActiveObject::CollisionPart part;
+			part.name = getstringfield_default(L, -1, "name", "");
+			part.shape = getstringfield_default(L, -1, "shape", "Box");
+
+			v3f size = v3f(1.0f, 1.0f, 1.0f);
+			lua_getfield(L, -1, "size");
+			if (!lua_isnil(L, -1)) size = read_v3f(L, -1);
+			lua_pop(L, 1);
+			part.size = size;
+
+			part.radius = getfloatfield_default(L, -1, "radius", 0.0f);
+			part.height = getfloatfield_default(L, -1, "height", 0.0f);
+
+			v3f offset = v3f(0, 0, 0);
+			lua_getfield(L, -1, "offset");
+			if (!lua_isnil(L, -1)) offset = read_v3f(L, -1);
+			lua_pop(L, 1);
+			part.offset = offset;
+
+			part.attach_to_bone = getboolfield_default(L, -1, "attach_to_bone", false);
+			parts.push_back(part);
+		}
+		lua_pop(L, 1);
+	}
+
+	co->setCollisionParts(parts);
+	return 0;
+}
+
+int ObjectRef::l_get_collision_parts(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *co = getobject(ref);
+	if (co == nullptr)
+		return 0;
+
+	const std::vector<ServerActiveObject::CollisionPart> &parts = co->getCollisionParts();
+
+	lua_newtable(L);
+	int i = 1;
+	for (const auto &part : parts) {
+		lua_newtable(L);
+		setstringfield(L, -1, "name", part.name.c_str());
+		setstringfield(L, -1, "shape", part.shape.c_str());
+		push_v3f(L, part.size);
+		lua_setfield(L, -2, "size");
+		setfloatfield(L, -1, "radius", part.radius);
+		setfloatfield(L, -1, "height", part.height);
+		push_v3f(L, part.offset);
+		lua_setfield(L, -2, "offset");
+		setboolfield(L, -1, "attach_to_bone", part.attach_to_bone);
+		lua_rawseti(L, -2, i++);
+	}
+
+	return 1;
+}
+
+int ObjectRef::l_get_collision_part(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *co = getobject(ref);
+	if (co == nullptr)
+		return 0;
+
+	std::string name = luaL_checkstring(L, 2);
+	const std::vector<ServerActiveObject::CollisionPart> &parts = co->getCollisionParts();
+
+	for (const auto &part : parts) {
+		if (part.name == name) {
+			lua_newtable(L);
+			setstringfield(L, -1, "name", part.name.c_str());
+			setstringfield(L, -1, "shape", part.shape.c_str());
+			push_v3f(L, part.size);
+			lua_setfield(L, -2, "size");
+			setfloatfield(L, -1, "radius", part.radius);
+			setfloatfield(L, -1, "height", part.height);
+			push_v3f(L, part.offset);
+			lua_setfield(L, -2, "offset");
+			setboolfield(L, -1, "attach_to_bone", part.attach_to_bone);
+			return 1;
+		}
+	}
+
+	lua_pushnil(L);
+	return 1;
+}
+
 // right_click(self, clicker)
 int ObjectRef::l_right_click(lua_State *L)
 {
@@ -3623,6 +3770,11 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod(ObjectRef, get_flags),
 	luamethod(ObjectRef, set_camera),
 	luamethod(ObjectRef, get_camera),
+	luamethod(ObjectRef, set_platform_behavior),
+	luamethod(ObjectRef, get_platform_behavior),
+	luamethod(ObjectRef, set_collision_parts),
+	luamethod(ObjectRef, get_collision_parts),
+	luamethod(ObjectRef, get_collision_part),
 
 	{0,0}
 };

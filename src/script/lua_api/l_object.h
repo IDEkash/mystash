@@ -424,6 +424,21 @@ private:
 	// get_camera(self)
 	static int l_get_camera(lua_State *L);
 
+	// set_platform_behavior(self, {opts})
+	static int l_set_platform_behavior(lua_State *L);
+
+	// get_platform_behavior(self)
+	static int l_get_platform_behavior(lua_State *L);
+
+	// set_collision_parts(self, {parts})
+	static int l_set_collision_parts(lua_State *L);
+
+	// get_collision_parts(self)
+	static int l_get_collision_parts(lua_State *L);
+
+	// get_collision_part(self, name)
+	static int l_get_collision_part(lua_State *L);
+
 	// set_nametag_attributes(self, attributes)
 	static int l_set_nametag_attributes(lua_State *L);
 

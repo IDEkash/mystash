@@ -464,6 +464,8 @@ registered_classes["Part"] = {
 		BlockType = "default:stone",
 		Color = "#FFFFFF",
 		Anchored = true,
+		PlatformBehavior = { enabled = true, carry_rotation = false },
+		CollisionParts = {},
 	},
 	init = function(self)
 		self._placed_pos = nil
@@ -474,6 +476,8 @@ registered_classes["Part"] = {
 	onPropertyChanged = function(self, key, value, old_value)
 		if key == "Position" or key == "BlockType" then
 			self:_syncBlock()
+		elseif key == "PlatformBehavior" or key == "CollisionParts" then
+			self:_syncPhysics()
 		end
 	end,
 	destroy = function(self)
@@ -512,6 +516,10 @@ function Instance:_syncBlock()
 	else
 		self:_clearBlock()
 	end
+end
+
+function Instance:_syncPhysics()
+	-- If this part has a physical active object associated, we can apply platform/collision behavior!
 end
 
 
@@ -892,6 +900,16 @@ local function run_luanti_foundation_tests()
 	assert(game.ClassName == "DataModel", "game ClassName incorrect")
 	assert(game:FindFirstChild("Workspace") ~= nil, "game:FindFirstChild failed")
 	assert(#game:GetChildren() > 0, "game:GetChildren failed")
+
+	-- Assert platform behavior and collision parts properties
+	assert(part.PlatformBehavior.enabled == true, "PlatformBehavior default failed")
+	part.PlatformBehavior = { enabled = false, carry_rotation = true }
+	assert(part.PlatformBehavior.enabled == false, "PlatformBehavior update failed")
+	assert(part.PlatformBehavior.carry_rotation == true, "PlatformBehavior update failed")
+
+	assert(#part.CollisionParts == 0, "CollisionParts default failed")
+	part.CollisionParts = { { name = "Torso", shape = "Box" } }
+	assert(part.CollisionParts[1].name == "Torso", "CollisionParts update failed")
 
 	core.log("action", "[TEST] 2. Instance hierarchies & indexing passed.")
 

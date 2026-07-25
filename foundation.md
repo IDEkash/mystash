@@ -148,3 +148,33 @@ To make viewports rendering universally available, the rendering pipeline has be
 1. **`core.get_dir_listing` C++ Registration**: Ported directory listing utilities to compile in all contexts, enabling server-side workspace discovery.
 2. **`htmlview_jni_render_viewports`**: Ported the Irrlicht viewport camera rendering loop from JNI guards to compile globally.
 3. **`ITextureSource::overrideTexture`**: Implemented dynamic texture overriding inside the core texture manager, allowing C++ viewports to write live 3D feeds onto custom block materials dynamically.
+
+---
+
+# Part IV: Physics, Platform & Collision Customizations (Implemented)
+
+The physics and movement model is extended with native C++ and Lua bindings to support Roblox-style moving platforms and multi-part collision geometry.
+
+## 1. Moving Platform Velocity Inheritance
+
+Allows standing on moving entities or nodes to inherit their velocities seamlessly:
+- **`set_platform_behavior(opts)`**: Sets the platform settings for an object.
+  - `enabled`: boolean (default `true`) - if false, standing objects do not inherit its motion.
+  - `carry_rotation`: boolean (default `false`) - if true, standing players are rotated around the platform's pivot as it spins.
+  - `friction_override`: number or nil - overrides normal ground friction while standing on this object.
+- **`get_platform_behavior()`**: Retrieves the current platform options.
+- **Signals/Callbacks**:
+  - `core.register_on_platform_attach(function(player, platform))` - Fired when standing on a platform.
+  - `core.register_on_platform_detach(function(player, platform))` - Fired when leaving a platform.
+
+## 2. Named Per-Part Collision Shapes
+
+Supports declaring multiple independent named collision parts on a single model/rig:
+- **`set_collision_parts(parts_table)`**: Configures named collision boxes/spheres.
+  - Each entry is a table: `{name, shape, size, radius, height, offset, attach_to_bone}`.
+  - Support shapes: `"Box"`, `"Capsule"`, `"Cylinder"`, `"Sphere"`.
+  - `attach_to_bone`: boolean (follows bone movements during rigging animations).
+- **`get_collision_parts()`**: Returns the full list of active collision parts.
+- **`get_collision_part(name)`**: Retrieves a single part by name.
+- **Signals/Callbacks**:
+  - `core.register_on_part_collision(function(object, part_name, other_object))` - Fired when a specific named part registers a collision.

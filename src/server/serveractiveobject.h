@@ -40,6 +40,28 @@ struct InventoryLocation;
 class ServerActiveObject : public ActiveObject
 {
 public:
+	struct PlatformBehavior {
+		bool enabled = true;
+		bool carry_rotation = false;
+		float friction_override = -1.0f;
+	};
+
+	struct CollisionPart {
+		std::string name;
+		std::string shape;
+		v3f size;
+		float radius = 0.0f;
+		float height = 0.0f;
+		v3f offset;
+		bool attach_to_bone = false;
+	};
+
+	void setPlatformBehavior(const PlatformBehavior &opts) { m_platform_behavior = opts; }
+	const PlatformBehavior &getPlatformBehavior() const { return m_platform_behavior; }
+
+	void setCollisionParts(const std::vector<CollisionPart> &parts) { m_collision_parts = parts; }
+	const std::vector<CollisionPart> &getCollisionParts() const { return m_collision_parts; }
+
 	/*
 		NOTE: m_env can be NULL, but step() isn't called if it is.
 		Prototypes are used that way.
@@ -262,6 +284,9 @@ protected:
 
 	ServerEnvironment *m_env;
 	std::unordered_set<u32> m_attached_particle_spawners;
+
+	PlatformBehavior m_platform_behavior;
+	std::vector<CollisionPart> m_collision_parts;
 
 	/*
 		Same purpose as m_pending_removal but for deactivation.
