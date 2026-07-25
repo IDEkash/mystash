@@ -309,7 +309,11 @@ function pkgmgr.render_packagelist(render_list, use_technical_names, with_icon)
 			end
 		elseif v.enabled or v.type == "txp" then
 			icon = 1
-			color = mt_color_green
+			if v.requests_internal then
+				color = mt_color_red
+			else
+				color = mt_color_green
+			end
 		end
 
 		if icon_info then
@@ -398,14 +402,7 @@ local function toggle_mod_or_modpack(list, toggled_mods, enabled_mods, toset, mo
 	end
 end
 
-function pkgmgr.enable_mod(this, toset)
-	local list = this.data.list:get_list()
-	local mod = list[this.data.selected_mod]
-
-	if mod.always_on then
-		return
-	end
-
+function pkgmgr.do_enable_mod_actual(this, toset, list, mod)
 	local toggled_mods = {}
 	local enabled_mods = {}
 	toggle_mod_or_modpack(list, toggled_mods, enabled_mods, toset, mod)
@@ -479,6 +476,46 @@ function pkgmgr.enable_mod(this, toset)
 	table.sort(toggled_mods)
 	core.log("info", "Following mods were enabled: " ..
 		table.concat(toggled_mods, ", "))
+end
+
+function pkgmgr.enable_mod(this, toset)
+	local list = this.data.list:get_list()
+	local mod = list[this.data.selected_mod]
+
+	if mod.always_on then
+		return
+	end
+
+	local target_val = toset
+	if target_val == nil then
+		target_val = not mod.enabled
+	end
+
+	local function has_internal_mods(lst, m)
+		if not m.is_modpack then
+			return m.requests_internal
+		else
+			for i = 1, #lst do
+				if lst[i].modpack == m.name and lst[i].parent_dir == m.path then
+					if has_internal_mods(lst, lst[i]) then
+						return true
+					end
+				end
+			end
+		end
+		return false
+	end
+
+	if target_val and has_internal_mods(list, mod) then
+		local dlg = create_internal_consent_dialog(this, function()
+			pkgmgr.do_enable_mod_actual(this, toset, list, mod)
+		end, mod.name)
+		dlg:set_parent(this)
+		this:hide()
+		dlg:show()
+	else
+		pkgmgr.do_enable_mod_actual(this, toset, list, mod)
+	end
 end
 
 --------------------------------------------------------------------------------

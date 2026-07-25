@@ -2683,6 +2683,9 @@ void push_mod_spec(lua_State *L, const ModSpec &spec, bool include_unsatisfied)
 	lua_pushstring(L, spec.virtual_path.c_str());
 	lua_setfield(L, -2, "virtual_path");
 
+	lua_pushboolean(L, spec.requests_internal);
+	lua_setfield(L, -2, "requests_internal");
+
 	if (include_unsatisfied) {
 		lua_newtable(L);
 		int i = 1;

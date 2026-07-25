@@ -76,6 +76,18 @@ bool parseModContents(ModSpec &spec)
 		conf_filename = "mod.conf";
 	}
 
+	spec.requests_internal = false;
+	std::vector<fs::DirListNode> dirlist = fs::GetDirListing(spec.path);
+	for (const fs::DirListNode &dln : dirlist) {
+		if (!dln.dir) {
+			std::string filename = dln.name;
+			if (filename == "internal.init" || (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".int")) {
+				spec.requests_internal = true;
+				break;
+			}
+		}
+	}
+
 	if (spec.is_modpack)
 		spec.modpack_content = getModsInPath(spec.path, spec.virtual_path, spec.modpack_depth + 1);
 

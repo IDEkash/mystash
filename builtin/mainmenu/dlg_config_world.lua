@@ -384,13 +384,33 @@ local function handle_buttons(this, fields)
 			end
 		end
 
+		local has_any_internal = false
 		for _, mod in ipairs(list) do
 			if not mod.always_on and not mod.is_modpack and not was_enabled[mod.name] then
-				mod.enabled = true
+				if mod.requests_internal then
+					has_any_internal = true
+					break
+				end
 			end
 		end
 
-		enabled_all = true
+		local function do_enable_all()
+			for _, mod in ipairs(list) do
+				if not mod.always_on and not mod.is_modpack and not was_enabled[mod.name] then
+					mod.enabled = true
+				end
+			end
+			enabled_all = true
+		end
+
+		if has_any_internal then
+			local dlg = create_internal_consent_dialog(this, do_enable_all, fgettext("Multiple Mods"))
+			dlg:set_parent(this)
+			this:hide()
+			dlg:show()
+		else
+			do_enable_all()
+		end
 		return true
 	end
 

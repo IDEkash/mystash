@@ -30,6 +30,7 @@ struct ModSpec
 
 	int modpack_depth = 0; //< Modpack depth, 0 = no parent modpack
 	bool is_modpack = false;
+	bool requests_internal = false;
 
 	/**
 	 * A constructed canonical path to represent this mod's location.
