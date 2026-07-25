@@ -45,6 +45,21 @@ void ServerModManager::loadMods(ServerScripting &script)
 		auto t1 = porting::getTimeMs();
 		std::string script_path = mod.path + DIR_DELIM + "init.lua";
 		script.loadMod(script_path, mod.name);
+
+		// Also load `.int` and `internal.init` files if they request internal access
+		if (mod.requests_internal) {
+			std::vector<fs::DirListNode> dirlist = fs::GetDirListing(mod.path);
+			for (const fs::DirListNode &dln : dirlist) {
+				if (!dln.dir) {
+					std::string filename = dln.name;
+					if (filename == "internal.init" || (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".int")) {
+						std::string int_script_path = mod.path + DIR_DELIM + filename;
+						script.loadMod(int_script_path, mod.name);
+					}
+				}
+			}
+		}
+
 		infostream << "Mod \"" << mod.name << "\" loaded after "
 			<< (porting::getTimeMs() - t1) << " ms" << std::endl;
 	}
