@@ -270,9 +270,19 @@ function menu_worldmt_legacy(selected)
 end
 
 function confirmation_formspec(message, confirm_id, confirm_label, cancel_id, cancel_label)
-	return "size[10,2.5,true]" ..
-			"label[0.5,0.5;" .. message .. "]" ..
-			"style[" .. confirm_id .. ";bgcolor=red]" ..
-			"button[0.5,1.5;2.5,0.5;" .. confirm_id .. ";" .. confirm_label .. "]" ..
-			"button[7.0,1.5;2.5,0.5;" .. cancel_id .. ";" .. cancel_label .. "]"
+	return "formspec_version[10]size[10,3.0]" ..
+			"style[" .. confirm_id .. ";bgcolor=#9b2c2c;textcolor=white]" ..
+			"style[" .. confirm_id .. ":hovered;bgcolor=#b91c1c]" ..
+			"style[" .. cancel_id .. ";bgcolor=#334155;textcolor=white]" ..
+			"style[" .. cancel_id .. ":hovered;bgcolor=#475569]" ..
+
+			-- Solid modern greyish-blue background (Layer 1)
+			"box[-0.5,-0.5;11.0,4.0;#0f172aF2]" ..
+
+			-- Rounded Container Card (Layer 2)
+			"background9[0.15,0.15;9.7;2.7;button_hover_semitrans.png;false;6,6]" ..
+
+			"label[0.5,0.6;" .. message .. "]" ..
+			"button[0.5,1.8;3,0.8;" .. confirm_id .. ";" .. confirm_label .. "]" ..
+			"button[6.5,1.8;" .. cancel_id .. ";" .. cancel_label .. "]"
 end

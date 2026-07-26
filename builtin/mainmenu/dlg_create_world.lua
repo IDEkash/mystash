@@ -233,7 +233,7 @@ local function create_world_formspec(dialogdata)
 		form = form .. "label[0,"..(y+0.1)..";" .. fgettext("Biomes") .. "]"
 		y = y + 0.6
 
-		form = form .. "dropdown[0,"..y..";6.3;mgv6_biomes;"
+		form = form .. "dropdown[0,"..y..";5.4;mgv6_biomes;"
 		for b=1, #mgv6_biomes do
 			form = form .. mgv6_biomes[b][1]
 			if b < #mgv6_biomes then
@@ -253,37 +253,51 @@ local function create_world_formspec(dialogdata)
 		return form, y
 	end
 
-	local y_start = 0.0
+	local y_start = 0.2
 	local y = y_start
 	local str_flags, str_spflags
 	local label_flags, label_spflags = "", ""
 	y = y + 0.3
 	str_flags, y = mg_main_flags(current_mg, y)
 	if str_flags ~= "" then
-		label_flags = "label[0,"..y_start..";" .. fgettext("Mapgen flags") .. "]"
+		label_flags = "label[0.3,"..y_start..";" .. fgettext("Mapgen flags") .. "]"
 		y_start = y + 0.4
 	else
-		y_start = 0.0
+		y_start = 0.2
 	end
 	y = y_start + 0.3
 	str_spflags = mg_specific_flags(current_mg, y)
 	if str_spflags ~= "" then
-		label_spflags = "label[0,"..y_start..";" .. fgettext("Mapgen-specific flags") .. "]"
+		label_spflags = "label[0.3,"..y_start..";" .. fgettext("Mapgen-specific flags") .. "]"
 	end
 
 	local retval =
-		"size[12.25,7.4,true]" ..
+		"formspec_version[10]size[12.25,7.4]" ..
+		"style[te_world_name,te_seed,dd_mapgen,mgv6_biomes;bgcolor=#1e293b;textcolor=white;border=true;border_color=#334155]" ..
+		"style[world_create_confirm;bgcolor=#0284c7;textcolor=white;font=bold]" ..
+		"style[world_create_confirm:hovered;bgcolor=#0369a1]" ..
+		"style[world_create_cancel;bgcolor=#9b2c2c;textcolor=white]" ..
+		"style[world_create_cancel:hovered;bgcolor=#b91c1c]" ..
+		"style[world_create_open_cdb;bgcolor=#334155;textcolor=white]" ..
+		"style[world_create_open_cdb:hovered;bgcolor=#475569]" ..
+
+		-- Solid modern greyish-blue container background (Layer 1)
+		"box[-0.5,-0.5;13.25,8.4;#0f172aF2]" ..
+
+		-- Panel Cards (Layer 2)
+		"background9[0.15,0.15;5.8,5.8;button_hover_semitrans.png;false;6,6]" ..
+		"background9[6.15,0.15;5.95,5.8;button_hover_semitrans.png;false;6,6]" ..
 
 		-- Left side
-		"container[0,0]"..
-		"field[0.3,0.6;6,0.5;te_world_name;" ..
+		"container[0.15,0.15]"..
+		"field[0.3,0.5;5.2,0.75;te_world_name;" ..
 		fgettext("World name") ..
 		";" .. core.formspec_escape(dialogdata.worldname) .. "]" ..
 		"set_focus[te_world_name;false]"
 
 	if not disallowed_mapgen_settings["seed"] then
 
-		retval = retval .. "field[0.3,1.7;6,0.5;te_seed;" ..
+		retval = retval .. "field[0.3,1.6;5.2,0.75;te_seed;" ..
 				-- TRANSLATORS: Value for randomness
 				fgettext("Seed") ..
 				";".. core.formspec_escape(dialogdata.seed) .. "]"
@@ -291,17 +305,17 @@ local function create_world_formspec(dialogdata)
 	end
 
 	retval = retval ..
-		"label[0,2;" .. fgettext("Mapgen") .. "]"..
-		"dropdown[0,2.5;6.3;dd_mapgen;" .. mglist .. ";" .. selindex .. "]"
+		"label[0.3,2.7;" .. fgettext("Mapgen") .. "]"..
+		"dropdown[0.3,3.1;5.2;dd_mapgen;" .. mglist .. ";" .. selindex .. "]"
 
 	-- Warning when making a devtest world
 	if game.id == "devtest" then
 		retval = retval ..
-			"container[0,3.5]" ..
-			"box[0,0;5.8,1.7;#ff8800]" ..
-			"textarea[0.4,0.1;6,1.8;;;"..
+			"container[0.3,4.0]" ..
+			"box[0,0;5.2,1.5;#ff8800]" ..
+			"textarea[0.1,0.1;5.0,1.3;;;"..
 			fgettext("Development Test is meant for developers.") .. "]" ..
-			"button[1,1;4,0.5;world_create_open_cdb;" .. fgettext("Install another game") .. "]" ..
+			"button[0.6,0.9;4.0,0.5;world_create_open_cdb;" .. fgettext("Install another game") .. "]" ..
 			"container_end[]"
 	end
 
@@ -309,15 +323,15 @@ local function create_world_formspec(dialogdata)
 		"container_end[]" ..
 
 		-- Right side
-		"container[6.2,0]"..
-		label_flags .. str_flags ..
-		label_spflags .. str_spflags ..
+		"container[6.15,0.15]"..
+		label_flags .. "container[0.3,0]" .. str_flags .. "container_end[]" ..
+		label_spflags .. "container[0.3,0]" .. str_spflags .. "container_end[]" ..
 		"container_end[]"..
 
 		-- Menu buttons
-		"container[0,6.9]"..
-		"button[3.25,0;3,0.5;world_create_confirm;" .. fgettext("Create") .. "]" ..
-		"button[6.25,0;3,0.5;world_create_cancel;" .. fgettext("Cancel") .. "]" ..
+		"container[0,6.2]"..
+		"button[3.0,0;3.0,0.8;world_create_confirm;" .. fgettext("Create") .. "]" ..
+		"button[6.25,0;3.0,0.8;world_create_cancel;" .. fgettext("Cancel") .. "]" ..
 		"container_end[]"
 
 	return retval

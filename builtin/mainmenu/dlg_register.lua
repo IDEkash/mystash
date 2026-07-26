@@ -13,8 +13,20 @@ local function register_formspec(dialogdata)
 	end
 
 	local retval = {
-		"formspec_version[4]",
+		"formspec_version[10]",
 		"size[8,", tostring(buttons_y + 1.175), "]",
+		"style[name,password,password_2;bgcolor=#1e293b;textcolor=white;border=true;border_color=#334155]",
+		"style[dlg_register_confirm;bgcolor=#0284c7;textcolor=white;font=bold]",
+		"style[dlg_register_confirm:hovered;bgcolor=#0369a1]",
+		"style[dlg_register_cancel;bgcolor=#9b2c2c;textcolor=white]",
+		"style[dlg_register_cancel:hovered;bgcolor=#b91c1c]",
+
+		-- Solid modern greyish-blue background (Layer 1)
+		"box[-0.5,-0.5;9.0,", tostring(buttons_y + 2.175), ";#0f172aF2]",
+
+		-- Rounded Container Card (Layer 2)
+		"background9[0.15,0.15;7.7,", tostring(buttons_y + 0.825), ";button_hover_semitrans.png;false;6,6]",
+
 		"set_focus[", (dialogdata.name ~= "" and "password" or "name"), "]",
 		"label[0.375,0.8;", title, "]",
 		"field[0.375,1.575;7.25,0.8;name;", core.formspec_escape(fgettext("Name")), ";",

@@ -66,17 +66,34 @@ local function get_formspec(tabview, name, tabdata)
 	end
 
 	local retval = {
-		"label[0.4,0.4;", fgettext("Installed Packages:"), "]",
+		"style[btn_contentdb;bgcolor=#0284c7;textcolor=white;font=bold]",
+		"style[btn_contentdb:hovered;bgcolor=#0369a1]",
+		"style[title_lbl;font=bold;font_size=+14;textcolor=#38bdf8]",
+		"style[btn_mod_mgr_delete_mod;bgcolor=#9b2c2c;textcolor=white]",
+		"style[btn_mod_mgr_delete_mod:hovered;bgcolor=#b91c1c]",
+		"style[btn_mod_mgr_update;bgcolor=#0284c7;textcolor=white;font=bold]",
+		"style[btn_mod_mgr_update:hovered;bgcolor=#0369a1]",
+		"style[btn_mod_mgr_use_txp;bgcolor=#0ea5e9;textcolor=white]",
+		"style[btn_mod_mgr_use_txp:hovered;bgcolor=#0284c7]",
+		"style[btn_mod_mgr_disable_txp;bgcolor=#9b2c2c;textcolor=white]",
+		"style[btn_mod_mgr_disable_txp:hovered;bgcolor=#b91c1c]",
+		"style[btn_mod_mgr_rename_modpack;bgcolor=#334155;textcolor=white]",
+		"style[btn_mod_mgr_rename_modpack:hovered;bgcolor=#475569]",
+
+		"background9[0.15,0.15;6.6,6.8;button_hover_semitrans.png;false;6,6]",
+		"background9[6.9,0.15;8.45,6.8;button_hover_semitrans.png;false;6,6]",
+
+		"label[0.35,0.35;", fgettext("Installed Packages:"), "]",
 		"tablecolumns[color;tree;image,align=inline,width=1.5",
 			",tooltip=", fgettext("Update available?"),
 			",0=", core.formspec_escape(defaulttexturedir .. "blank.png"),
 			",4=", core.formspec_escape(defaulttexturedir .. "cdb_update_cropped.png"),
 			";text]",
-		"table[0.4,0.8;6.3,4.8;pkglist;",
+		"table[0.35,0.75;6.2,4.85;pkglist;",
 		pkgmgr.render_packagelist(packages, use_technical_names, update_icons),
 		";", tabdata.selected_pkg, "]",
 
-		"button[0.4,5.8;6.3,0.9;btn_contentdb;", contentdb_label, "]"
+		"button[0.35,5.8;6.2,0.8;btn_contentdb;", contentdb_label, "]"
 	}
 
 	local selected_pkg
@@ -120,7 +137,7 @@ local function get_formspec(tabview, name, tabdata)
 			title_and_name = selected_pkg.title or selected_pkg.name
 		else
 			title_and_name = (selected_pkg.title or selected_pkg.name) .. "\n" ..
-				core.colorize("#BFBFBF", selected_pkg.name)
+				core.colorize("#94a3b8", selected_pkg.name)
 		end
 
 		local desc_height = 3.2
@@ -129,7 +146,7 @@ local function get_formspec(tabview, name, tabdata)
 			desc_height = 2.1
 
 			table.insert_all(retval, {
-				"button[7.1,4.7;8,0.9;btn_mod_mgr_rename_modpack;",
+				"button[7.1,4.8;8.05,0.8;btn_mod_mgr_rename_modpack;",
 				fgettext("Rename"), "]"
 			})
 		elseif selected_pkg.type == "mod" then
@@ -157,34 +174,34 @@ local function get_formspec(tabview, name, tabdata)
 
 			if selected_pkg.enabled then
 				table.insert_all(retval, {
-					"button[7.1,4.7;8,0.9;btn_mod_mgr_disable_txp;",
+					"button[7.1,4.8;8.05,0.8;btn_mod_mgr_disable_txp;",
 					fgettext("Disable Texture Pack"), "]"
 				})
 			else
 				table.insert_all(retval, {
-					"button[7.1,4.7;8,0.9;btn_mod_mgr_use_txp;",
+					"button[7.1,4.8;8.05,0.8;btn_mod_mgr_use_txp;",
 					fgettext("Use Texture Pack"), "]"
 				})
 			end
 		end
 
 		table.insert_all(retval, {
-			"image[7.1,0.2;3,2;", core.formspec_escape(modscreenshot), "]",
-			"label[10.5,1;", core.formspec_escape(title_and_name), "]",
-			"box[7.1,2.4;8,", tostring(desc_height), ";#000]",
-			"textarea[7.1,2.4;8,", tostring(desc_height), ";;;", desc, "]",
+			"image[7.1,0.35;3,2;", core.formspec_escape(modscreenshot), "]",
+			"label[10.3,0.35;title_lbl;", core.formspec_escape(title_and_name), "]",
+			"background9[7.1,2.5;8.05,", tostring(desc_height), ";button_hover_semitrans.png;false;6,6]",
+			"textarea[7.2,2.55;7.85,", tostring(desc_height - 0.1), ";;;", desc, "]",
 		})
 
 		if core.may_modify_path(selected_pkg.path) then
 			table.insert_all(retval, {
-				"button[7.1,5.8;4,0.9;btn_mod_mgr_delete_mod;",
+				"button[7.1,5.8;3.9,0.8;btn_mod_mgr_delete_mod;",
 				fgettext("Uninstall"), "]"
 			})
 		end
 
 		if update_icons[selected_pkg.virtual_path or selected_pkg.path] then
 			table.insert_all(retval, {
-				"button[11.1,5.8;4,0.9;btn_mod_mgr_update;",
+				"button[11.2,5.8;3.9,0.8;btn_mod_mgr_update;",
 				fgettext("Update"), "]"
 			})
 		end

@@ -58,20 +58,30 @@ local function get_formspec(dialogdata)
 	end
 
 	local formspec = {
-		"formspec_version[8]",
+		"formspec_version[10]",
 		"size[8,9.5]",
 		TOUCH_GUI and "padding[0.01,0.01]" or "",
-		"hypertext[0,0;8,1.5;;<global margin=5 halign=center valign=middle>", heading, "]",
+		"style[quit;bgcolor=#0284c7;textcolor=white;font=bold]",
+		"style[quit:hovered;bgcolor=#0369a1]",
+		"style_type[table;bgcolor=#1e293b;textcolor=white;border=true;border_color=#334155]",
+
+		-- Solid modern greyish-blue background (Layer 1)
+		"box[-0.5,-0.5;9.0,10.5;#0f172aF2]",
+
+		-- Rounded Container Card (Layer 2)
+		"background9[0.15,0.15;7.7;9.2;button_hover_semitrans.png;false;6,6]",
+
+		"hypertext[0,0.2;8,1.5;;<global margin=5 halign=center valign=middle color=#ffffff>", heading, "]",
 		"tablecolumns[", group_by_prefix and
 			(expand_all and "indent;text" or "tree;text") or "text", "]",
-		"table[0.5,1.5;7,6.8;mods;", cells, "]",
+		"table[0.5,1.7;7,6.5;mods;", cells, "]",
 		-- TRANSLATORS: A checkbox; if enabled, it will group mods by their prefix
-		"checkbox[0.5,8.7;group_by_prefix;", fgettext("Group by prefix"), ";",
+		"checkbox[0.5,8.5;group_by_prefix;", fgettext("Group by prefix"), ";",
 			group_by_prefix and "true" or "false", "]",
 		-- TRANSLATORS: Expand all entries in a tree view
-		group_by_prefix and ("checkbox[0.5,9.15;expand_all;" .. fgettext("Expand all") .. ";" ..
+		group_by_prefix and ("checkbox[3.2,8.5;expand_all;" .. fgettext("Expand all") .. ";" ..
 			(expand_all and "true" or "false") .. "]") or "",
-		"button[5.5,8.5;2,0.8;quit;OK]"
+		"button[5.5,8.4;2,0.8;quit;OK]"
 	}
 	return table.concat(formspec, "")
 end

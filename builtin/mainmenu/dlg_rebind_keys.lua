@@ -16,9 +16,20 @@ local function get_formspec(dialogdata)
 	}, "\n")
 
 	return table.concat({
-		"formspec_version[6]",
+		"formspec_version[10]",
 		"size[12,7]",
-		"hypertext[0.5,0.5;11,4.7;text;", core.formspec_escape(markup), "]",
+		"style[reconfigure;bgcolor=#0284c7;textcolor=white;font=bold]",
+		"style[reconfigure:hovered;bgcolor=#0369a1]",
+		"style[dismiss;bgcolor=#9b2c2c;textcolor=white]",
+		"style[dismiss:hovered;bgcolor=#b91c1c]",
+
+		-- Solid modern greyish-blue background (Layer 1)
+		"box[-0.5,-0.5;13,8;#0f172aF2]",
+
+		-- Rounded Container Card (Layer 2)
+		"background9[0.15,0.15;11.7,6.7;button_hover_semitrans.png;false;6,6]",
+
+		"hypertext[0.5,0.5;11,4.7;text;<global margin=5 color=#ffffff>" .. core.formspec_escape(markup) .. "]",
 		"container[0.5,5.7]",
 		"button[0,0;4,0.8;dismiss;", fgettext("Close"), "]",
 		"button[4.5,0;6.5,0.8;reconfigure;", fgettext("Open settings"), "]",

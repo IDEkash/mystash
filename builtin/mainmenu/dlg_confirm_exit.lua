@@ -9,7 +9,17 @@ local function exit_dialog_formspec()
 		"formspec_version[10]" ..
 		"size[10,3.6]" ..
 		"style_type[label;font=bold]" ..
-		"style[btn_quit_confirm_yes;bgcolor=red]" ..
+		"style[btn_quit_confirm_yes;bgcolor=#9b2c2c;textcolor=white]" ..
+		"style[btn_quit_confirm_yes:hovered;bgcolor=#b91c1c]" ..
+		"style[btn_quit_confirm_cancel;bgcolor=#334155;textcolor=white]" ..
+		"style[btn_quit_confirm_cancel:hovered;bgcolor=#475569]" ..
+
+		-- Solid modern greyish-blue background (Layer 1)
+		"box[-0.5,-0.5;11.0,4.6;#0f172aF2]" ..
+
+		-- Rounded Container Card (Layer 2)
+		"background9[0.15,0.15;9.7;3.3;button_hover_semitrans.png;false;6,6]" ..
+
 		"label[0.5,0.5;" .. fgettext("Are you sure you want to quit?") .. "]" ..
 		"checkbox[0.5,1.4;cb_show_dialog;" .. fgettext("Always show this dialog.") .. ";" .. tostring(show_dialog) .. "]" ..
 		"button[0.5,2.3;3,0.8;btn_quit_confirm_cancel;" .. fgettext("Cancel") .. "]" ..

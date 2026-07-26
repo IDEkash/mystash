@@ -35,15 +35,28 @@ local function version_info_formspec(data)
 			cur_ver.string, data.new_version or "", data.url or "")
 
 	local fs = {
-		"formspec_version[3]",
+		"formspec_version[10]",
 		"size[12.8,7]",
-		"style_type[label;textcolor=#0E0]",
-		"label[0.5,0.8;", title, "]",
-		"textarea[0.4,1.6;12,3.4;;;", message, "]",
-		"container[0.4,5.8]",
+		"style[version_check_visit;bgcolor=#0284c7;textcolor=white;font=bold]",
+		"style[version_check_visit:hovered;bgcolor=#0369a1]",
+		"style[version_check_remind;bgcolor=#334155;textcolor=white]",
+		"style[version_check_remind:hovered;bgcolor=#475569]",
+		"style[version_check_never;bgcolor=#9b2c2c;textcolor=white]",
+		"style[version_check_never:hovered;bgcolor=#b91c1c]",
+		"style_type[label;textcolor=#38bdf8;font=bold;font_size=+14]",
+
+		-- Solid modern greyish-blue background (Layer 1)
+		"box[-0.5,-0.5;13.8,8.0;#0f172aF2]",
+
+		-- Rounded Container Card (Layer 2)
+		"background9[0.15,0.15;12.5,6.7;button_hover_semitrans.png;false;6,6]",
+
+		"label[0.5,0.6;", title, "]",
+		"textarea[0.5,1.5;11.8,3.4;;;", message, "]",
+		"container[0.5,5.4]",
 		"button[0.0,0;4.0,0.8;version_check_visit;", fgettext("Visit website"), "]",
-		"button[4.5,0;3.5,0.8;version_check_remind;", fgettext("Later"), "]",
-		"button[8.5.5,0;3.5,0.8;version_check_never;", fgettext("Never"), "]",
+		"button[4.3,0;3.5,0.8;version_check_remind;", fgettext("Later"), "]",
+		"button[8.1,0;3.5,0.8;version_check_never;", fgettext("Never"), "]",
 		"container_end[]",
 	}
 

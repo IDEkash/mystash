@@ -96,9 +96,24 @@ local function get_formspec(tabview, name, tabdata)
 		tabdata.search_for = ""
 	end
 
-	local retval =
+	local retval = "style[te_search,te_address,te_port,te_name,te_pwd;bgcolor=#1e293b;textcolor=white;border=true;border_color=#334155]" ..
+		"style[btn_mp_search,btn_mp_clear,btn_mp_refresh;bgcolor=#334155;border=false]" ..
+		"style[btn_mp_search:hovered,btn_mp_clear:hovered,btn_mp_refresh:hovered;bgcolor=#475569]" ..
+		"style[btn_mp_login;bgcolor=#0284c7;textcolor=white;font=bold]" ..
+		"style[btn_mp_login:hovered;bgcolor=#0369a1]" ..
+		"style[btn_mp_login:pressed;bgcolor=#075985]" ..
+		"style[btn_mp_register;bgcolor=#334155;textcolor=white]" ..
+		"style[btn_mp_register:hovered;bgcolor=#475569]"
+
+	-- Background panel cards (Layer 2)
+	retval = retval ..
+		"background9[0.15,0.15;9.45,6.8;button_hover_semitrans.png;false;6,6]" ..
+		"background9[9.75,0.15;5.75,6.8;button_hover_semitrans.png;false;6,6]"
+
+	-- Search and actions in Left Pane
+	retval = retval ..
 		-- Search
-		"field[0.25,0.25;7,0.75;te_search;;" .. core.formspec_escape(tabdata.search_for) .. "]" ..
+		"field[0.35,0.35;6.6,0.75;te_search;;" .. core.formspec_escape(tabdata.search_for) .. "]" ..
 		"tooltip[te_search;" .. table.concat({
 				fgettext("Possible filters"),
 				"game:<name>",
@@ -107,7 +122,7 @@ local function get_formspec(tabview, name, tabdata)
 				"sort:[-](name|relevance|players|mods|uptime|ping|lag)",
 		}, "\n") .. "]" ..
 		"field_enter_after_edit[te_search;true]" ..
-		"container[7.25,0.25]" ..
+		"container[7.15,0.35]" ..
 		"image_button[0,0;0.75,0.75;" .. core.formspec_escape(defaulttexturedir .. "search.png") .. ";btn_mp_search;]" ..
 		"image_button[0.75,0;0.75,0.75;" .. core.formspec_escape(defaulttexturedir .. "clear.png") .. ";btn_mp_clear;]" ..
 		"image_button[1.5,0;0.75,0.75;" .. core.formspec_escape(defaulttexturedir .. "refresh.png") .. ";btn_mp_refresh;]" ..
@@ -117,21 +132,20 @@ local function get_formspec(tabview, name, tabdata)
 		"tooltip[btn_mp_refresh;" .. fgettext("Refresh") .. "]" ..
 		"container_end[]" ..
 
-		"container[9.75,0]" ..
-		"box[0,0;5.75,7.1;#666666]" ..
+		"container[9.75,0.15]" ..
 
 		-- TRANSLATORS: Network address
 		"label[0.25,0.35;" .. fgettext("Address") .. "]" ..
 		-- TRANSLATORS: Network port
 		"label[4.25,0.35;" .. fgettext("Port") .. "]" ..
-		"field[0.25,0.5;4,0.75;te_address;;" ..
+		"field[0.25,0.5;3.8,0.75;te_address;;" ..
 			core.formspec_escape(core.settings:get("address")) .. "]" ..
 		"field[4.25,0.5;1.25,0.75;te_port;;" ..
 			core.formspec_escape(core.settings:get("remote_port")) .. "]" ..
 
 		-- Description Background
 		"label[0.25,1.6;" .. fgettext("Server Description") .. "]" ..
-		"box[0.25,1.85;5.25,2.7;#999999]"..
+		"background9[0.25,1.85;5.25,2.7;button_hover_semitrans.png;false;6,6]"..
 
 		-- Name / Password
 		"container[0,4.8]" ..

@@ -49,8 +49,8 @@ return {
 		local version = core.get_version()
 
 		local hypertext = {
-			"<tag name=heading color=#ff0>",
-			"<tag name=gray color=#aaa>",
+			"<tag name=heading color=#38bdf8 font=bold size=18>",
+			"<tag name=gray color=#94a3b8>",
 		}
 
 		local credits = get_credits()
@@ -82,26 +82,34 @@ return {
 
 		hypertext = table.concat(hypertext):sub(1, -2)
 
-		local fs = "image[1.5,0.6;2.5,2.5;" .. core.formspec_escape(logofile) .. "]" ..
-			"style[label_button;border=false]" ..
-			"button[0.1,3.4;5.3,0.5;label_button;" ..
+		-- Premium Modern Grayish Blue styling with background9 double panels
+		local fs = "style[label_button;border=false;font=bold;textcolor=#38bdf8]" ..
+			"style[label_button2;border=false;textcolor=#94a3b8]" ..
+			"style[homepage;bgcolor=#0284c7;textcolor=white;font=bold]" ..
+			"style[homepage:hovered;bgcolor=#0369a1]" ..
+			"style[userdata,share_debug;bgcolor=#334155;textcolor=white]" ..
+			"style[userdata:hovered,share_debug:hovered;bgcolor=#475569]" ..
+			"background9[0.15,0.15;5.1,6.8;button_hover_semitrans.png;false;6,6]" ..
+			"background9[5.4,0.15;10.1,6.8;button_hover_semitrans.png;false;6,6]" ..
+
+			"image[1.45,0.4;2.5,2.5;" .. core.formspec_escape(logofile) .. "]" ..
+			"button[0.25,3.1;4.9,0.5;label_button;" ..
 			core.formspec_escape(version.project .. " " .. version.string) .. "]" ..
-			"button_url[1.5,4.1;2.5,0.8;homepage;luanti.org;https://www.luanti.org/]" ..
-			"hypertext[5.5,0.25;9.75,6.6;credits;" .. core.formspec_escape(hypertext) .. "]"
+			"button_url[1.45,3.75;2.5,0.65;homepage;luanti.org;https://www.luanti.org/]" ..
+			"hypertext[5.65,0.4;9.6;6.3;credits;" .. core.formspec_escape(hypertext) .. "]"
 
 		local active_renderer_info = fgettext("Active renderer:") .. "\n" ..
 			core.formspec_escape(get_renderer_info())
-		fs = fs .. "style[label_button2;border=false]" ..
-			"button[0.1,6;5.3,1;label_button2;" .. active_renderer_info .. "]"..
+		fs = fs .. "button[0.25,5.5;4.9,1.1;label_button2;" .. active_renderer_info .. "]"..
 			"tooltip[label_button2;" .. active_renderer_info .. "]"
 
 		if PLATFORM == "Android" then
-			fs = fs .. "button[0.5,5.1;4.5,0.8;share_debug;" .. fgettext("Share debug log") .. "]"
+			fs = fs .. "button[0.45,4.65;4.5,0.65;share_debug;" .. fgettext("Share debug log") .. "]"
 		else
 			fs = fs .. "tooltip[userdata;" ..
 					fgettext("Opens the directory that contains user-provided worlds, games, mods,\n" ..
 							"and texture packs in a file manager / explorer.") .. "]"
-			fs = fs .. "button[0.5,5.1;4.5,0.8;userdata;" .. fgettext("Open User Data Directory") .. "]"
+			fs = fs .. "button[0.45,4.65;4.5,0.65;userdata;" .. fgettext("Open User Data Directory") .. "]"
 		end
 
 		return fs
