@@ -257,7 +257,8 @@ int ObjectRef::l_get_platform_behavior(lua_State *L)
 	const ServerActiveObject::PlatformBehavior &opts = co->getPlatformBehavior();
 
 	lua_newtable(L);
-	setboolfield(L, -1, "enabled", opts.enabled);
+	// Smart design: only allow platform behavior if the entity is physical (solid/collidable)!
+	setboolfield(L, -1, "enabled", co->isPhysical() && opts.enabled);
 	setboolfield(L, -1, "carry_rotation", opts.carry_rotation);
 	if (opts.friction_override >= 0.0f)
 		setfloatfield(L, -1, "friction_override", opts.friction_override);

@@ -70,6 +70,7 @@ public:
 
 	void addedToEnvironment(u32 dtime_s) override;
 	void removingFromEnvironment() override;
+	bool isPhysical() const override { return true; }
 	bool isStaticAllowed() const override { return false; }
 	bool shouldUnload() const override { return false; }
 	std::string getClientInitializationData(u16 protocol_version) override;

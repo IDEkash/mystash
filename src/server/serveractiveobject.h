@@ -84,6 +84,7 @@ public:
 	/*
 		Some simple getters/setters
 	*/
+	virtual bool isPhysical() const { return false; }
 	v3f getBasePosition() const { return m_base_position; }
 	virtual v3f getBoneWorldPos(const std::string &bone) { return getBasePosition(); }
 	void setBasePosition(v3f pos);
