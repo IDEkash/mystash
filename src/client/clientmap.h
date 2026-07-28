@@ -105,6 +105,11 @@ public:
 	// Returns true if draw list needs updating before drawing the next frame.
 	bool needsUpdateDrawList() { return m_needs_update_drawlist; }
 
+	inline v3f getCameraPosition() const { return m_camera_position; }
+	inline v3f getCameraDirection() const { return m_camera_direction; }
+	inline v3s16 getCameraOffset() const { return m_camera_offset; }
+	inline video::SColor getCameraLightColor() const { return m_camera_light_color; }
+
 	void renderMap(video::IVideoDriver* driver, s32 pass);
 
 	void renderMapShadows(video::IVideoDriver *driver,

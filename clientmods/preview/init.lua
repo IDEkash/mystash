@@ -204,3 +204,86 @@ core.register_chatcommand("text", {
 core.register_on_mods_loaded(function()
 	core.log("Yeah preview mod is loaded with other CSM mods.")
 end)
+
+-- Multi-Camera Rendering System & Render Target Pipeline self-tests
+core.after(1, function()
+    print("[RENDER PIPELINE TEST] Starting self-tests...")
+
+    -- Test render target creation
+    local target = core.create_render_target(512, 256, "rgba8")
+    assert(target, "Failed to create render target")
+    assert(target:get_width() == 512, "Incorrect render target width")
+    assert(target:get_height() == 256, "Incorrect render target height")
+    assert(type(target:get_name()) == "string", "Render target name should be a string")
+    assert(tostring(target) == target:get_name(), "String conversion should return the name")
+    print("[RENDER PIPELINE TEST] Render target tests passed!")
+
+    -- Test camera creation
+    local camera = core.create_camera()
+    assert(camera, "Failed to create camera")
+
+    -- Test position
+    camera:set_pos({x=10, y=20, z=30})
+    local pos = camera:get_pos()
+    assert(math.abs(pos.x - 10) < 0.01 and math.abs(pos.y - 20) < 0.01 and math.abs(pos.z - 30) < 0.01, "Camera position mismatch")
+
+    -- Test rotation
+    camera:set_rotation({x=5, y=15, z=25})
+    local rot = camera:get_rotation()
+    assert(math.abs(rot.x - 5) < 0.01 and math.abs(rot.y - 15) < 0.01 and math.abs(rot.z - 25) < 0.01, "Camera rotation mismatch")
+
+    -- Test fov
+    camera:set_fov(85)
+    assert(math.abs(camera:get_fov() - 85) < 0.01, "Camera FOV mismatch")
+
+    -- Test projection
+    camera:set_projection("orthographic")
+    assert(camera:get_projection() == "orthographic", "Camera projection mismatch")
+
+    -- Test near/far
+    camera:set_near_far(0.5, 500)
+    local near, far = camera:get_near_far()
+    assert(near == 0.5 and far == 500, "Camera near/far mismatch")
+
+    -- Test viewport
+    camera:set_viewport({x=0.1, y=0.2, w=0.5, h=0.6})
+    local vp = camera:get_viewport()
+    assert(math.abs(vp.x - 0.1) < 0.01 and math.abs(vp.y - 0.2) < 0.01 and math.abs(vp.w - 0.5) < 0.01 and math.abs(vp.h - 0.6) < 0.01, "Camera viewport mismatch")
+
+    -- Test priority
+    camera:set_render_priority(12)
+    assert(camera:get_render_priority() == 12, "Camera priority mismatch")
+
+    -- Test render target assignment
+    camera:set_render_target(target)
+    local assigned_target = camera:get_render_target()
+    assert(assigned_target, "Camera render target assignment failed")
+    assert(assigned_target:get_name() == target:get_name(), "Camera render target name mismatch")
+
+    -- Test enable/disable
+    camera:set_enabled(false)
+    assert(camera:get_enabled() == false, "Camera enabled mismatch")
+    camera:set_enabled(true)
+    assert(camera:get_enabled() == true, "Camera enabled mismatch (true)")
+
+    -- Test update frequency
+    camera:set_update_frequency(0.5)
+    assert(math.abs(camera:get_update_frequency() - 0.5) < 0.01, "Camera update frequency mismatch")
+
+    -- Test render mask
+    camera:set_render_mask(0xF0F0F0F0)
+    assert(camera:get_render_mask() == 0xF0F0F0F0, "Camera render mask mismatch")
+
+    -- Test resolution scaling
+    camera:set_resolution_scaling(1.5)
+    assert(math.abs(camera:get_resolution_scaling() - 1.5) < 0.01, "Camera resolution scaling mismatch")
+
+    -- Test parent setting
+    camera:set_parent("player")
+    camera:set_parent("head")
+    camera:set_parent("camera")
+    camera:set_parent("root")
+    camera:set_parent(nil)
+
+    print("[RENDER PIPELINE TEST] All camera tests passed successfully!")
+end)

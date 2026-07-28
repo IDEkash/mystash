@@ -7,6 +7,7 @@
 
 #include "pipeline.h"
 #include "client/shadows/dynamicshadowsrender.h"
+#include "client/render_camera.h"
 
 RenderingCore::RenderingCore(IrrlichtDevice *_device, Client *_client, Hud *_hud,
 		std::unique_ptr<ShadowRenderer> _shadow_renderer,
@@ -15,9 +16,13 @@ RenderingCore::RenderingCore(IrrlichtDevice *_device, Client *_client, Hud *_hud
 	: device(_device), client(_client), hud(_hud), shadow_renderer(std::move(_shadow_renderer)),
 	pipeline(std::move(_pipeline)), virtual_size_scale(_virtual_size_scale)
 {
+	RenderCameraManager::get()->setClient(_client);
 }
 
-RenderingCore::~RenderingCore() = default;
+RenderingCore::~RenderingCore()
+{
+	RenderCameraManager::get()->setClient(nullptr);
+}
 
 void RenderingCore::draw(video::SColor _skycolor, bool _show_hud,
 		bool _draw_wield_tool, bool _draw_crosshair)
@@ -30,8 +35,14 @@ void RenderingCore::draw(video::SColor _skycolor, bool _show_hud,
 	context.draw_wield_tool = _draw_wield_tool;
 	context.show_hud = _show_hud;
 
+	// Render off-screen targets first
+	RenderCameraManager::get()->renderAll(_skycolor, true);
+
 	pipeline->reset(context);
 	pipeline->run(context);
+
+	// Render on-screen viewports last
+	RenderCameraManager::get()->renderAll(_skycolor, false);
 }
 
 v2u32 RenderingCore::getVirtualSize() const

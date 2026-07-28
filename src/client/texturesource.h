@@ -137,6 +137,8 @@ public:
 	 * So you have to re-get all textures anyway.
 	 */
 	virtual void rebuildImagesAndTextures()=0;
+
+	virtual void registerRenderTargetTexture(const std::string &name, video::ITexture *texture)=0;
 };
 
 IWritableTextureSource *createTextureSource();

@@ -73,6 +73,16 @@ public:
 		return m_cameranode;
 	}
 
+	inline scene::ISceneNode* getPlayerNode() const
+	{
+		return m_playernode;
+	}
+
+	inline scene::ISceneNode* getHeadNode() const
+	{
+		return m_headnode;
+	}
+
 	// Get the camera position (in absolute scene coordinates).
 	// This has view bobbing applied.
 	inline v3f getPosition() const

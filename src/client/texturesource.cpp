@@ -114,6 +114,8 @@ public:
 	// Shall be called from the main thread.
 	void rebuildImagesAndTextures();
 
+	void registerRenderTargetTexture(const std::string &name, video::ITexture *texture) override;
+
 	video::SColor getTextureAverageColor(const std::string &name);
 
 	core::dimension2du getTextureDimensions(const std::string &image);
@@ -162,6 +164,8 @@ private:
 	std::vector<TextureInfo> m_textureinfo_cache;
 	// Maps a texture name to an index in the former.
 	std::unordered_map<std::string, u32> m_name_to_id;
+	// Persistent map of registered render target textures
+	std::unordered_map<std::string, video::ITexture*> m_render_target_textures;
 	// The two former containers are behind this mutex
 	std::mutex m_textureinfo_cache_mutex;
 
@@ -556,6 +560,20 @@ void TextureSource::insertSourceImage(const std::string &name, video::IImage *im
 				<< affected << " textures." << std::endl;
 }
 
+void TextureSource::registerRenderTargetTexture(const std::string &name, video::ITexture *texture)
+{
+	MutexAutoLock lock(m_textureinfo_cache_mutex);
+	m_render_target_textures[name] = texture;
+	auto n = m_name_to_id.find(name);
+	if (n != m_name_to_id.end()) {
+		m_textureinfo_cache[n->second].texture = texture;
+	} else {
+		u32 id = m_textureinfo_cache.size();
+		m_textureinfo_cache.emplace_back(TextureInfo{video::ETT_2D, name, {name}, texture, {}});
+		m_name_to_id[name] = id;
+	}
+}
+
 void TextureSource::rebuildImagesAndTextures()
 {
 	MutexAutoLock lock(m_textureinfo_cache_mutex);
@@ -580,6 +598,18 @@ void TextureSource::rebuildImagesAndTextures()
 		if (ti.name.empty())
 			continue; // Skip dummy entry
 		rebuildTexture(driver, ti);
+	}
+
+	// Re-inject registered render target textures
+	for (auto const &pair : m_render_target_textures) {
+		auto n = m_name_to_id.find(pair.first);
+		if (n != m_name_to_id.end()) {
+			m_textureinfo_cache[n->second].texture = pair.second;
+		} else {
+			u32 id = m_textureinfo_cache.size();
+			m_textureinfo_cache.emplace_back(TextureInfo{video::ETT_2D, pair.first, {pair.first}, pair.second, {}});
+			m_name_to_id[pair.first] = id;
+		}
 	}
 
 	// FIXME: we should rebuild palettes too

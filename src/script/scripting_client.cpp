@@ -23,6 +23,8 @@
 #include "lua_api/l_settings.h"
 #include "lua_api/l_client_sound.h"
 #include "lua_api/l_htmlview.h"
+#include "lua_api/l_render_pipeline.h"
+#include "client/render_camera.h"
 
 ClientScripting::ClientScripting(Client *client):
 	ScriptApiBase(ScriptingType::Client)
@@ -50,6 +52,11 @@ ClientScripting::ClientScripting(Client *client):
 	infostream << "SCRIPTAPI: Initialized client game modules" << std::endl;
 }
 
+ClientScripting::~ClientScripting()
+{
+	RenderCameraManager::get()->clear();
+}
+
 void ClientScripting::InitializeModApi(lua_State *L, int top)
 {
 	LuaItemStack::Register(L);
@@ -60,11 +67,14 @@ void ClientScripting::InitializeModApi(lua_State *L, int top)
 	NodeMetaRef::RegisterClient(L);
 	LuaLocalPlayer::Register(L);
 	LuaCamera::Register(L);
+	LuaRenderTarget::Register(L);
+	LuaRenderCamera::Register(L);
 	ModChannelRef::Register(L);
 	LuaSettings::Register(L);
 	ClientSoundHandle::Register(L);
 
 	ModApiUtil::InitializeClient(L, top);
+	ModApiRenderPipeline::Initialize(L, top);
 	ModApiClientCommon::Initialize(L, top);
 	ModApiClient::Initialize(L, top);
 	ModApiItem::InitializeClient(L, top);
