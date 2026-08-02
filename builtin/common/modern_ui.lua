@@ -1038,7 +1038,14 @@ function Widget:render_to_formspec(buffer)
 
 	elseif self.type == "panel" then
 		local color = resolved_style.background or "#252538"
+		local r = resolved_style.radius or 0
+		if r > 0 then
+			table.insert(buffer, string.format("style_type[box;border_radius=%d]\n", math.floor(r)))
+		end
 		table.insert(buffer, string.format("box[%f,%f;%f,%f;%s]\n", self.x, self.y, self.width, self.height, color))
+		if r > 0 then
+			table.insert(buffer, "style_type[box;border_radius=0]\n")
+		end
 
 	elseif self.type == "label" then
 		local text = core.formspec_escape(self:get_property("text", ""))

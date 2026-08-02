@@ -44,6 +44,7 @@ public:
 		SOUND,
 		SPACING,
 		SIZE,
+		BORDER_RADIUS,
 		NUM_PROPERTIES,
 		NONE
 	};
@@ -117,6 +118,8 @@ public:
 			return SPACING;
 		} else if (name == "size") {
 			return SIZE;
+		} else if (name == "border_radius" || name == "radius") {
+			return BORDER_RADIUS;
 		} else {
 			return NONE;
 		}
