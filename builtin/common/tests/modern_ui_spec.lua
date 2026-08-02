@@ -135,4 +135,40 @@ describe("modern_ui", function()
 		state.count = 42
 		assert.equal("Count: 42", lbl:get_property("text"))
 	end)
+
+	it("supports smooth animated transitions and custom easings", function()
+		local widget = modern_ui.build(function()
+			return button { text = "Animate Me" }
+		end)
+
+		assert.equal(0, widget:get_property("x_offset") or 0)
+
+		-- Trigger spring translation offset animation
+		widget:animate("x_offset", 10.0, 1.0, "spring")
+
+		-- Verify active animations are registered
+		assert.not_nil(modern_ui.active_animations[widget])
+		local anim = modern_ui.active_animations[widget]["x_offset"]
+		assert.equal(0, anim.start)
+		assert.equal(10.0, anim.dest)
+		assert.equal("spring", anim.easing)
+	end)
+
+	it("supports advanced custom canvas drawing commands", function()
+		local cv = modern_ui.build(function()
+			return canvas {
+				width = 5,
+				height = 5,
+				draw_list = {
+					{ type = "rect", x = 1, y = 1, w = 3, h = 3, color = "#FF0000" },
+					{ type = "line", x1 = 0, y1 = 0, x2 = 5, y2 = 5, color = "#00FF00" }
+				}
+			}
+		end)
+
+		local spec = cv:render_to_formspec()
+		assert.not_nil(spec:find("box"))
+		assert.not_nil(spec:find("#FF0000"))
+		assert.not_nil(spec:find("#00FF00"))
+	end)
 end)

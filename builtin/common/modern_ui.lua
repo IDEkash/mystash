@@ -161,6 +161,133 @@ end
 
 
 -- =============================================================================
+-- EXTENSIBLE ANIMATION & EASING ENGINE
+-- =============================================================================
+
+modern_ui.active_animations = {}
+
+local easings = {
+	linear = function(t) return t end,
+	easeIn = function(t) return t * t end,
+	easeOut = function(t) return t * (2 - t) end,
+	easeInOut = function(t)
+		if t < 0.5 then return 2 * t * t else return -1 + (4 - 2 * t) * t end
+	end,
+	bounce = function(t)
+		if t < 1 / 2.75 then
+			return 7.5625 * t * t
+		elseif t < 2 / 2.75 then
+			t = t - 1.5 / 2.75
+			return 7.5625 * t * t + 0.75
+		elseif t < 2.5 / 2.75 then
+			t = t - 2.25 / 2.75
+			return 7.5625 * t * t + 0.9375
+		else
+			t = t - 2.625 / 2.75
+			return 7.5625 * t * t + 0.984375
+		end
+	end,
+	elastic = function(t)
+		if t == 0 or t == 1 then return t end
+		local p = 0.3
+		return math.pow(2, -10 * t) * math.sin((t - p / 4) * (2 * math.pi) / p) + 1
+	end,
+	spring = function(t)
+		return 1 - math.exp(-6 * t) * math.cos(12 * t)
+	end
+}
+
+local function interpolate_num(start, dest, t)
+	return start + (dest - start) * t
+end
+
+local function parse_color(hex)
+	hex = tostring(hex):gsub("#", "")
+	if #hex == 3 then
+		local r = (tonumber(hex:sub(1,1), 16) or 15) * 17
+		local g = (tonumber(hex:sub(2,2), 16) or 15) * 17
+		local b = (tonumber(hex:sub(3,3), 16) or 15) * 17
+		return { r = r, g = g, b = b }
+	elseif #hex == 6 then
+		local r = tonumber(hex:sub(1,2), 16)
+		local g = tonumber(hex:sub(3,4), 16)
+		local b = tonumber(hex:sub(5,6), 16)
+		return { r = r or 255, g = g or 255, b = b or 255 }
+	end
+	return { r = 255, g = 255, b = 255 }
+end
+
+local function format_color(rgb)
+	return string.format("#%02X%02X%02X", math.max(0, math.min(255, rgb.r)), math.max(0, math.min(255, rgb.g)), math.max(0, math.min(255, rgb.b)))
+end
+
+local function interpolate_color(start_hex, dest_hex, t)
+	local c1 = parse_color(start_hex)
+	local c2 = parse_color(dest_hex)
+	return format_color({
+		r = interpolate_num(c1.r, c2.r, t),
+		g = interpolate_num(c1.g, c2.g, t),
+		b = interpolate_num(c1.b, c2.b, t)
+	})
+end
+
+if core.register_globalstep then
+	core.register_globalstep(function(dtime)
+		local dirty_forms = {}
+		modern_ui.suppress_immediate_render = true
+
+		for widget, anims in pairs(modern_ui.active_animations) do
+			local widget_dirty = false
+			for prop, anim in pairs(anims) do
+				anim.elapsed = anim.elapsed + dtime
+				local raw_t = math.min(1, anim.elapsed / anim.duration)
+				local ease_fn = easings[anim.easing] or easings.linear
+				local t = ease_fn(raw_t)
+
+				local current
+				if anim.is_color then
+					current = interpolate_color(anim.start, anim.dest, t)
+				else
+					current = interpolate_num(anim.start, anim.dest, t)
+				end
+
+				widget:set_property(prop, current)
+
+				if raw_t >= 1 then
+					anims[prop] = nil
+					if anim.callback then
+						pcall(anim.callback, widget)
+					end
+				end
+				widget_dirty = true
+			end
+
+			if widget_dirty then
+				local root = widget
+				while root.parent do root = root.parent end
+				if root.form_instance then
+					dirty_forms[root.form_instance] = true
+				end
+			end
+
+			-- Clean empty tables
+			local empty = true
+			for _ in pairs(anims) do empty = false; break end
+			if empty then
+				modern_ui.active_animations[widget] = nil
+			end
+		end
+
+		modern_ui.suppress_immediate_render = nil
+
+		for form, _ in pairs(dirty_forms) do
+			form:update()
+		end
+	end)
+end
+
+
+-- =============================================================================
 -- WIDGET CORE CLASS
 -- =============================================================================
 
@@ -242,6 +369,26 @@ function Widget:destroy()
 end
 
 function Widget:set_property(key, value)
+	-- Support dynamic assignment of reactive bindings inside set_property
+	if type(value) == "table" and value.is_binding then
+		self.bindings[key] = value
+		local unsub = value.state:subscribe(value.key, function(new_val)
+			local resolved = new_val
+			if value.transform then
+				resolved = value.transform(new_val)
+			end
+			self:set_property(key, resolved)
+		end)
+		table.insert(self.unsubscribers, unsub)
+
+		-- Resolve initial value
+		local initial = value.state[value.key]
+		if value.transform then
+			initial = value.transform(initial)
+		end
+		value = initial
+	end
+
 	local old = self.properties[key]
 	if old ~= value then
 		self.properties[key] = value
@@ -252,7 +399,9 @@ function Widget:set_property(key, value)
 		if self.parent then
 			self.parent:request_layout()
 		elseif self.form_instance then
-			self.form_instance:update()
+			if not modern_ui.suppress_immediate_render then
+				self.form_instance:update()
+			end
 		end
 	end
 end
@@ -263,6 +412,39 @@ function Widget:get_property(key, default)
 		return default
 	end
 	return val
+end
+
+function Widget:animate(prop, dest, duration, easing, callback)
+	duration = duration or 0.5
+	easing = easing or "linear"
+
+	local start = self:get_property(prop)
+	if start == nil then
+		if prop == "opacity" or prop == "scale" then start = 1
+		elseif prop == "x_offset" or prop == "y_offset" or prop == "rotation" then start = 0
+		elseif prop == "background" or prop == "color" then start = "#FFFFFF"
+		else start = 0
+		end
+	end
+
+	local is_color = false
+	if type(dest) == "string" and (dest:find("#") or prop == "background" or prop == "color") then
+		is_color = true
+	end
+
+	if not modern_ui.active_animations[self] then
+		modern_ui.active_animations[self] = {}
+	end
+
+	modern_ui.active_animations[self][prop] = {
+		start = start,
+		dest = dest,
+		duration = duration,
+		elapsed = 0,
+		easing = easing,
+		is_color = is_color,
+		callback = callback
+	}
 end
 
 function Widget:request_layout()
@@ -381,8 +563,8 @@ function Widget:measure()
 end
 
 function Widget:compute_layout(parent_w, parent_h, parent_x, parent_y)
-	self.x = parent_x
-	self.y = parent_y
+	self.x = parent_x + (self:get_property("x_offset") or 0)
+	self.y = parent_y + (self:get_property("y_offset") or 0)
 
 	-- 1. Resolve Sizing
 	local w_prop = self:get_property("width", "auto")
@@ -903,6 +1085,28 @@ function Widget:render_to_formspec(buffer)
 			table.insert(buffer, string.format("box[%f,%f;%f,%f;#000000]\n", self.x, self.y, self.width, self.height))
 			table.insert(buffer, string.format("label[%f,%f;[Camera Viewport: %s]]\n", self.x + 0.5, self.y + 0.5, viewport_name))
 		end
+
+	elseif self.type == "canvas" then
+		local draw_list = self:get_property("draw_list", {})
+		for _, cmd in ipairs(draw_list) do
+			if cmd.type == "rect" then
+				table.insert(buffer, string.format("box[%f,%f;%f,%f;%s]\n", self.x + (cmd.x or 0), self.y + (cmd.y or 0), cmd.w or 1, cmd.h or 1, cmd.color or "#FFFFFF"))
+			elseif cmd.type == "line" then
+				-- Draw line as a thin box
+				local x1 = self.x + (cmd.x1 or 0)
+				local y1 = self.y + (cmd.y1 or 0)
+				local x2 = self.x + (cmd.x2 or 0)
+				local y2 = self.y + (cmd.y2 or 0)
+				local thickness = cmd.thickness or 0.05
+				local lx = math.min(x1, x2)
+				local ly = math.min(y1, y2)
+				local lw = math.max(thickness, math.abs(x2 - x1))
+				local lh = math.max(thickness, math.abs(y2 - y1))
+				table.insert(buffer, string.format("box[%f,%f;%f,%f;%s]\n", lx, ly, lw, lh, cmd.color or "#FFFFFF"))
+			elseif cmd.type == "image" then
+				table.insert(buffer, string.format("image[%f,%f;%f,%f;%s]\n", self.x + (cmd.x or 0), self.y + (cmd.y or 0), cmd.w or 1, cmd.h or 1, cmd.texture or ""))
+			end
+		end
 	end
 
 	-- Traverse children
@@ -1100,6 +1304,18 @@ function modern_ui.run_self_tests()
 	if not parsed_btn or parsed_btn.type ~= "button" or parsed_btn:get_property("text") ~= "Confirm" then
 		passed = false
 		print("[Modern UI Test] Parser failed to extract button attributes.")
+	end
+
+	-- Test 6: Animations and Canvas
+	local anim_widget = modern_ui.build(function()
+		return canvas {
+			draw_list = { { type = "rect", x = 0, y = 0, w = 1, h = 1, color = "#FFFFFF" } }
+		}
+	end)
+	anim_widget:animate("x_offset", 5.0, 1.0, "spring")
+	if not modern_ui.active_animations[anim_widget] then
+		passed = false
+		print("[Modern UI Test] Animation registration self-test failed.")
 	end
 
 	return passed
