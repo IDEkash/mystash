@@ -1,3 +1,6 @@
+if not _G.core then
+	_G.core = {}
+end
 local M = {}
 core.animator = M
 

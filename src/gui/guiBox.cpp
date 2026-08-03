@@ -37,6 +37,7 @@ void GUIBox::draw()
 	s32 width = AbsoluteRect.getWidth();
 	s32 height = AbsoluteRect.getHeight();
 	s32 r = m_border_radius;
+	s32 bw = m_borderwidths[0]; // Uniform border width
 
 	// Clamp radius to half of width/height
 	if (r > width / 2) r = width / 2;
@@ -129,39 +130,109 @@ void GUIBox::draw()
 		return;
 	}
 
-	// Dynamic Rounded Corner Box Drawing!
+	// Dynamic Rounded Corner Box and Border Drawing with NO bleed-through, NO gaps, NO cos/sin!
+	video::SColor c_bg = m_colors[0];
+	video::SColor c_border = m_bordercolors[0];
+
+	if (bw > r) bw = r; // Clamp border width to radius
+
 	// 1. Draw central vertical block
-	core::rect<s32> center_v(upperleft.X + r, upperleft.Y, lowerright.X - r, lowerright.Y);
-	driver->draw2DRectangle(center_v, m_colors[0], m_colors[0], m_colors[0], m_colors[0], &AbsoluteClippingRect);
+	if (bw > 0) {
+		// Top border of central block
+		core::rect<s32> top_border(upperleft.X + r, upperleft.Y, lowerright.X - r, upperleft.Y + bw);
+		driver->draw2DRectangle(top_border, c_border, c_border, c_border, c_border, &AbsoluteClippingRect);
+
+		// Center fill of central block
+		core::rect<s32> center_fill(upperleft.X + r, upperleft.Y + bw, lowerright.X - r, lowerright.Y - bw);
+		driver->draw2DRectangle(center_fill, c_bg, c_bg, c_bg, c_bg, &AbsoluteClippingRect);
+
+		// Bottom border of central block
+		core::rect<s32> bottom_border(upperleft.X + r, lowerright.Y - bw, lowerright.X - r, lowerright.Y);
+		driver->draw2DRectangle(bottom_border, c_border, c_border, c_border, c_border, &AbsoluteClippingRect);
+	} else {
+		core::rect<s32> center_v(upperleft.X + r, upperleft.Y, lowerright.X - r, lowerright.Y);
+		driver->draw2DRectangle(center_v, c_bg, c_bg, c_bg, c_bg, &AbsoluteClippingRect);
+	}
 
 	// 2. Draw left-wing and right-wing blocks (excluding corner heights)
-	core::rect<s32> wing_l(upperleft.X, upperleft.Y + r, upperleft.X + r, lowerright.Y - r);
-	driver->draw2DRectangle(wing_l, m_colors[0], m_colors[0], m_colors[0], m_colors[0], &AbsoluteClippingRect);
+	if (bw > 0) {
+		// Left border
+		core::rect<s32> left_border(upperleft.X, upperleft.Y + r, upperleft.X + bw, lowerright.Y - r);
+		driver->draw2DRectangle(left_border, c_border, c_border, c_border, c_border, &AbsoluteClippingRect);
 
-	core::rect<s32> wing_r(lowerright.X - r, upperleft.Y + r, lowerright.X, lowerright.Y - r);
-	driver->draw2DRectangle(wing_r, m_colors[0], m_colors[0], m_colors[0], m_colors[0], &AbsoluteClippingRect);
+		// Left center fill
+		core::rect<s32> left_fill(upperleft.X + bw, upperleft.Y + r, upperleft.X + r, lowerright.Y - r);
+		driver->draw2DRectangle(left_fill, c_bg, c_bg, c_bg, c_bg, &AbsoluteClippingRect);
 
-	// 3. Draw rounded corner approximation (sub-rectangles drawing a quarter circle for each corner)
-	for (s32 step = 0; step < r; step++) {
-		f32 angle = ((f32)step / (f32)r) * (M_PI / 2.0);
-		s32 px = r - (s32)(cos(angle) * r);
-		s32 py = r - (s32)(sin(angle) * r);
+		// Right border
+		core::rect<s32> right_border(lowerright.X - bw, upperleft.Y + r, lowerright.X, lowerright.Y - r);
+		driver->draw2DRectangle(right_border, c_border, c_border, c_border, c_border, &AbsoluteClippingRect);
 
-		// Top Left Corner
-		core::rect<s32> tl(upperleft.X + px, upperleft.Y + py, upperleft.X + r, upperleft.Y + py + 1);
-		driver->draw2DRectangle(tl, m_colors[0], m_colors[0], m_colors[0], m_colors[0], &AbsoluteClippingRect);
+		// Right center fill
+		core::rect<s32> right_fill(lowerright.X - r, upperleft.Y + r, lowerright.X - bw, lowerright.Y - r);
+		driver->draw2DRectangle(right_fill, c_bg, c_bg, c_bg, c_bg, &AbsoluteClippingRect);
+	} else {
+		core::rect<s32> wing_l(upperleft.X, upperleft.Y + r, upperleft.X + r, lowerright.Y - r);
+		driver->draw2DRectangle(wing_l, c_bg, c_bg, c_bg, c_bg, &AbsoluteClippingRect);
 
-		// Top Right Corner
-		core::rect<s32> tr(lowerright.X - r, upperleft.Y + py, lowerright.X - px, upperleft.Y + py + 1);
-		driver->draw2DRectangle(tr, m_colors[0], m_colors[0], m_colors[0], m_colors[0], &AbsoluteClippingRect);
+		core::rect<s32> wing_r(lowerright.X - r, upperleft.Y + r, lowerright.X, lowerright.Y - r);
+		driver->draw2DRectangle(wing_r, c_bg, c_bg, c_bg, c_bg, &AbsoluteClippingRect);
+	}
 
-		// Bottom Left Corner
-		core::rect<s32> bl(upperleft.X + px, lowerright.Y - py - 1, upperleft.X + r, lowerright.Y - py);
-		driver->draw2DRectangle(bl, m_colors[0], m_colors[0], m_colors[0], m_colors[0], &AbsoluteClippingRect);
+	// 3. Draw rounded corners disjointly row-by-row (exact-circle, no gaps, no cos/sin!)
+	s32 r_inner = r - bw;
+	for (s32 y = 0; y < r; y++) {
+		// Outer boundary X
+		s32 x_outer = r - (s32)std::round(std::sqrt((f32)(r * r - y * y)));
 
-		// Bottom Right Corner
-		core::rect<s32> br(lowerright.X - r, lowerright.Y - py - 1, lowerright.X - px, lowerright.Y - py);
-		driver->draw2DRectangle(br, m_colors[0], m_colors[0], m_colors[0], m_colors[0], &AbsoluteClippingRect);
+		// Inner boundary X
+		s32 x_inner = r;
+		if (bw > 0) {
+			s32 y_inner = y - bw;
+			if (y_inner >= 0 && r_inner > 0) {
+				x_inner = bw + r_inner - (s32)std::round(std::sqrt((f32)(r_inner * r_inner - y_inner * y_inner)));
+			}
+		}
+
+		// Row segments for Top Left Corner
+		if (x_inner > x_outer) {
+			core::rect<s32> tl_border(upperleft.X + x_outer, upperleft.Y + y, upperleft.X + x_inner, upperleft.Y + y + 1);
+			driver->draw2DRectangle(tl_border, c_border, c_border, c_border, c_border, &AbsoluteClippingRect);
+		}
+		if (r > x_inner) {
+			core::rect<s32> tl_fill(upperleft.X + x_inner, upperleft.Y + y, upperleft.X + r, upperleft.Y + y + 1);
+			driver->draw2DRectangle(tl_fill, c_bg, c_bg, c_bg, c_bg, &AbsoluteClippingRect);
+		}
+
+		// Row segments for Top Right Corner
+		if (x_inner > x_outer) {
+			core::rect<s32> tr_border(lowerright.X - x_inner, upperleft.Y + y, lowerright.X - x_outer, upperleft.Y + y + 1);
+			driver->draw2DRectangle(tr_border, c_border, c_border, c_border, c_border, &AbsoluteClippingRect);
+		}
+		if (r > x_inner) {
+			core::rect<s32> tr_fill(lowerright.X - r, upperleft.Y + y, lowerright.X - x_inner, upperleft.Y + y + 1);
+			driver->draw2DRectangle(tr_fill, c_bg, c_bg, c_bg, c_bg, &AbsoluteClippingRect);
+		}
+
+		// Row segments for Bottom Left Corner
+		if (x_inner > x_outer) {
+			core::rect<s32> bl_border(upperleft.X + x_outer, lowerright.Y - y - 1, upperleft.X + x_inner, lowerright.Y - y);
+			driver->draw2DRectangle(bl_border, c_border, c_border, c_border, c_border, &AbsoluteClippingRect);
+		}
+		if (r > x_inner) {
+			core::rect<s32> bl_fill(upperleft.X + x_inner, lowerright.Y - y - 1, upperleft.X + r, lowerright.Y - y);
+			driver->draw2DRectangle(bl_fill, c_bg, c_bg, c_bg, c_bg, &AbsoluteClippingRect);
+		}
+
+		// Row segments for Bottom Right Corner
+		if (x_inner > x_outer) {
+			core::rect<s32> br_border(lowerright.X - x_inner, lowerright.Y - y - 1, lowerright.X - x_outer, lowerright.Y - y);
+			driver->draw2DRectangle(br_border, c_border, c_border, c_border, c_border, &AbsoluteClippingRect);
+		}
+		if (r > x_inner) {
+			core::rect<s32> br_fill(lowerright.X - r, lowerright.Y - y - 1, lowerright.X - x_inner, lowerright.Y - y);
+			driver->draw2DRectangle(br_fill, c_bg, c_bg, c_bg, c_bg, &AbsoluteClippingRect);
+		}
 	}
 
 	IGUIElement::draw();

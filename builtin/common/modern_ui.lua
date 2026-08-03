@@ -20,6 +20,21 @@ local setfenv = _G.setfenv or function(fn, env)
 	return fn
 end
 
+-- Defensive wrappers for core functions to prevent nil-errors
+local safe_formspec_escape = function(text)
+	if type(core) == "table" and type(core.formspec_escape) == "function" then
+		return core.formspec_escape(text)
+	end
+	return tostring(text):gsub("\\", "\\\\"):gsub("%[", "\\x5b"):gsub("%]", "\\x5d"):gsub(";", "\\x3b"):gsub(",", "\\x2c")
+end
+
+local safe_show_formspec = function(playername, formname, formspec_str)
+	if type(core) == "table" and type(core.show_formspec) == "function" then
+		return core.show_formspec(playername, formname, formspec_str)
+	end
+	return false
+end
+
 -- =============================================================================
 -- RE-USABLE STYLES AND THEMES
 -- =============================================================================
@@ -1048,11 +1063,11 @@ function Widget:render_to_formspec(buffer)
 		end
 
 	elseif self.type == "label" then
-		local text = core.formspec_escape(self:get_property("text", ""))
+		local text = safe_formspec_escape(self:get_property("text", ""))
 		table.insert(buffer, string.format("label[%f,%f;%s]\n", self.x, self.y + 0.35, text))
 
 	elseif self.type == "richtext" then
-		local text = core.formspec_escape(self:get_property("text", ""))
+		local text = safe_formspec_escape(self:get_property("text", ""))
 		local id = self:get_property("id")
 		table.insert(buffer, string.format("hypertext[%f,%f;%f,%f;%s;%s]\n", self.x, self.y, self.width, self.height, id, text))
 
@@ -1062,12 +1077,12 @@ function Widget:render_to_formspec(buffer)
 
 	elseif self.type == "button" then
 		local id = self:get_property("id")
-		local text = core.formspec_escape(self:get_property("text", ""))
+		local text = safe_formspec_escape(self:get_property("text", ""))
 		table.insert(buffer, string.format("button[%f,%f;%f,%f;%s;%s]\n", self.x, self.y, self.width, self.height, id, text))
 
 	elseif self.type == "checkbox" or self.type == "toggle" or self.type == "switch" then
 		local id = self:get_property("id")
-		local text = core.formspec_escape(self:get_property("text", ""))
+		local text = safe_formspec_escape(self:get_property("text", ""))
 		local selected = self:get_property("selected", false) and "true" or "false"
 		table.insert(buffer, string.format("checkbox[%f,%f;%s;%s;%s]\n", self.x, self.y, id, text, selected))
 
@@ -1154,7 +1169,7 @@ function modern_ui.show(playername, formname, widget_tree)
 
 		self.root:compute_layout(root_w, root_h, 0, 0)
 		local formspec_str = self.root:render_to_formspec()
-		core.show_formspec(self.playername, self.name, formspec_str)
+		safe_show_formspec(self.playername, self.name, formspec_str)
 	end
 
 	form:update()
