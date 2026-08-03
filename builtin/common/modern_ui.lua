@@ -386,6 +386,9 @@ end
 function Widget:set_property(key, value)
 	-- Support dynamic assignment of reactive bindings inside set_property
 	if type(value) == "table" and value.is_binding then
+		if not self.unsubscribers then
+			self.unsubscribers = {}
+		end
 		self.bindings[key] = value
 		local unsub = value.state:subscribe(value.key, function(new_val)
 			local resolved = new_val
@@ -478,6 +481,11 @@ modern_ui.custom_widgets = {}
 
 function modern_ui.register_widget(name, constructor)
 	modern_ui.custom_widgets[name] = constructor
+	-- Automatically register in DSL builders so they are accessible in sandboxed scopes
+	modern_ui.builders[name] = function(props)
+		return constructor(props)
+	end
+	modern_ui[name] = modern_ui.builders[name]
 end
 
 
