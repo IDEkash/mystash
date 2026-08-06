@@ -1,4 +1,4 @@
--- CCI Runtime & Rendering Pipeline Bridge (Mod-based - Multiplayer-Safe)
+-- CCI Runtime & Rendering Pipeline Bridge (Built-in - Multiplayer-Safe)
 -- Translates the hierarchical Lua CCI representation into HTML/CSS DOM structure per player.
 -- Provides bidirectional communication between Lua and WebView for interaction.
 
@@ -59,7 +59,18 @@ local function get_cci_html()
     const root = document.getElementById('cci-root');
     const objects = {};
 
-    function updateDOM(data) {
+    function updateDOM(data, styles) {
+      // Sync injected custom CSS stylesheets (Chapter 3)
+      if (styles && Array.isArray(styles)) {
+        let styleEl = document.getElementById('cci-injected-styles');
+        if (!styleEl) {
+          styleEl = document.createElement('style');
+          styleEl.id = 'cci-injected-styles';
+          document.head.appendChild(styleEl);
+        }
+        styleEl.textContent = styles.join('\n');
+      }
+
       // Create or update elements
       for (const objId in data) {
         const obj = data[objId];
@@ -67,7 +78,6 @@ local function get_cci_html()
         if (!el) {
           el = document.createElement('div');
           el.id = objId;
-          el.className = 'cci-object';
 
           // Action Attributes: Pressable (Chapter 3)
           el.addEventListener('pointerdown', (e) => {
@@ -118,6 +128,10 @@ local function get_cci_html()
 
           objects[objId] = el;
         }
+
+        // Apply CSS classes dynamically
+        const customClasses = obj.classes || [];
+        el.className = 'cci-object ' + customClasses.join(' ');
 
         // Set visibility
         el.style.display = obj.visible ? 'block' : 'none';
@@ -178,7 +192,7 @@ local function get_cci_html()
         try {
           const payload = JSON.parse(msg);
           if (payload.action === 'update') {
-            updateDOM(payload.data);
+            updateDOM(payload.data, payload.styles);
           }
         } catch(e) {
           console.error(e);
@@ -272,6 +286,7 @@ minetest.register_globalstep(function(dtime)
 				-- Prepare data structure to send to renderer
 				local payload = {
 					action = "update",
+					styles = session.styles,
 					data = {}
 				}
 
@@ -282,6 +297,7 @@ minetest.register_globalstep(function(dtime)
 						type = obj.type,
 						visible = obj.visible,
 						safe_area = obj.safe_area,
+						classes = obj.classes,
 						style = obj.style,
 						transform = obj.transform,
 						parent = obj.parent,
@@ -290,7 +306,7 @@ minetest.register_globalstep(function(dtime)
 					}
 				end
 
-				-- Send updated DOM state using send_json (or standard serialize to JSON)
+				-- Send updated DOM state using send_json
 				if is_htmlview_available() then
 					pcall(function()
 						htmlview.send_json(session.view_id, payload)

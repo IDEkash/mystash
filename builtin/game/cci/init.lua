@@ -1,5 +1,5 @@
 -- Creative Composition Interface (CCI)
--- Mod-based Core Engine & API (Multiplayer-Safe Per-Player Sessions)
+-- Built-in Core Engine & API (Multiplayer-Safe Per-Player Sessions & CSS Class Integration)
 
 cci = {
 	sessions = {},
@@ -15,6 +15,7 @@ function cci.get_session(player_name)
 			is_dirty = false,
 			view_id = "cci_view_" .. player_name,
 			active = false,
+			styles = {}, -- List of injected custom CSS stylesheet strings
 		}
 
 		-- Helper methods directly on the session object
@@ -38,9 +39,16 @@ function cci.get_session(player_name)
 	return cci.sessions[player_name]
 end
 
-local modpath = minetest.get_modpath(minetest.get_current_modname())
+-- Inject a custom global CSS stylesheet string for a player's WebView session
+function cci.inject_style(player_name, css_string)
+	local session = cci.get_session(player_name)
+	table.insert(session.styles, css_string)
+	session.is_dirty = true
+end
 
-dofile(modpath .. "/object.lua")
-dofile(modpath .. "/easytools.lua")
-dofile(modpath .. "/runtime.lua")
-dofile(modpath .. "/tests.lua")
+local gamepath = core.get_builtin_path() .. "game" .. DIR_DELIM .. "cci" .. DIR_DELIM
+
+dofile(gamepath .. "object.lua")
+dofile(gamepath .. "easytools.lua")
+dofile(gamepath .. "runtime.lua")
+dofile(gamepath .. "tests.lua")

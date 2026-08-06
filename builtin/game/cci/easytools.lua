@@ -1,4 +1,4 @@
--- EasyTools Creation Toolkit for CCI (Mod-based)
+-- EasyTools Creation Toolkit for CCI (Built-in)
 -- Simplifies geometry creation by instantly generating normal point-draw objects.
 
 local safe_unpack = table.unpack or unpack

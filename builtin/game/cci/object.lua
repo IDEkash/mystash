@@ -1,4 +1,4 @@
--- CCI Object Interface Implementation (Mod-based - Multiplayer-Safe)
+-- CCI Object Interface Implementation (Built-in - Multiplayer-Safe & CSS Class Enabled)
 -- Manages Points, Chains, Transforms, Styling, Attributes, Events, and Hierarchy.
 
 local Object = {}
@@ -7,6 +7,15 @@ Object.__index = Object
 function cci.create_object(player_name, options)
 	options = options or {}
 	local session = cci.get_session(player_name)
+
+	-- Parse classes option
+	local classes = {}
+	if type(options.class) == "string" then
+		table.insert(classes, options.class)
+	elseif type(options.classes) == "table" then
+		classes = {unpack(options.classes)}
+	end
+
 	local obj = setmetatable({
 		player_name = player_name,
 		id = options.id or ("obj_" .. session.next_id),
@@ -21,6 +30,7 @@ function cci.create_object(player_name, options)
 			scale = options.scale or 1,
 		},
 		style = options.style or {},
+		classes = classes, -- CSS Class names
 		attributes = {
 			style = {},
 			action = {},
@@ -50,6 +60,44 @@ function cci.create_object(player_name, options)
 	return obj
 end
 
+-- CSS Class support
+function Object:add_class(class_name)
+	for _, c in ipairs(self.classes) do
+		if c == class_name then
+			return self
+		end
+	end
+	table.insert(self.classes, class_name)
+	local session = cci.get_session(self.player_name)
+	session.is_dirty = true
+	return self
+end
+
+function Object:remove_class(class_name)
+	for i, c in ipairs(self.classes) do
+		if c == class_name then
+			table.remove(self.classes, i)
+			local session = cci.get_session(self.player_name)
+			session.is_dirty = true
+			break
+		end
+	end
+	return self
+end
+
+function Object:set_class(class_name)
+	if type(class_name) == "string" then
+		self.classes = { class_name }
+	elseif type(class_name) == "table" then
+		self.classes = { unpack(class_name) }
+	else
+		self.classes = {}
+	end
+	local session = cci.get_session(self.player_name)
+	session.is_dirty = true
+	return self
+end
+
 -- Geometry: Points & Chains (Chapter 2)
 function Object:add_point(x, y)
 	local pt = { x = x, y = y }
@@ -59,6 +107,7 @@ function Object:add_point(x, y)
 	return #self.points
 end
 
+-- Add chains
 function Object:add_chain(...)
 	local chain = {...}
 	table.insert(self.chains, chain)
