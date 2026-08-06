@@ -1,0 +1,3 @@
+## 2026-07-10 - Modern Pause Menu Card Redesign
+**Learning:** Modernizing in-game menus in Luanti is best done using formspec version 10, which allows absolute card-like grid layouts. We can use semi-transparent `box` overlays to act as visual container cards, and apply standardized action colors via `style` selectors (e.g. `#467832` for primary continue, `#43464b` for slate-gray settings, and dark red hues for exit actions). Stacking active buttons dynamically in C++ ensures robust responsive layouts.
+**Action:** Always prefer containerized/card-like visual grouping and consistent button styling for modernized UI components.
