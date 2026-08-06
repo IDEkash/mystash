@@ -181,10 +181,10 @@ local function get_formspec(dlgdata)
 	local size = contentdb.get_formspec_size()
 
 	if contentdb.loading then
-		return get_info_formspec(size, window_padding, fgettext("Loading..."))
+		return "formspec_version[10]" .. get_info_formspec(size, window_padding, fgettext("Loading..."))
 	end
 	if contentdb.load_error then
-		return get_info_formspec(size, window_padding, fgettext("No packages could be retrieved"))
+		return "formspec_version[10]" .. get_info_formspec(size, window_padding, fgettext("No packages could be retrieved"))
 	end
 	assert(contentdb.load_ok)
 
@@ -205,8 +205,8 @@ local function get_formspec(dlgdata)
 	local category_button_w = math.min(max_button_w, 3)
 	local function make_category_button(name, label, selected)
 		category_x = category_x + 1
-		local color = selected and mt_color_green or ""
-		return ("style[%s;bgcolor=%s]button[%f,0;%f,0.8;%s;%s]"):format(name, color,
+		local style = selected and "bgcolor=#467832;textcolor=white;font=bold" or "bgcolor=#43464b;textcolor=white"
+		return ("style[%s;%s]button[%f,0;%f,0.8;%s;%s]"):format(name, style,
 				(category_x - 1) * category_button_w, category_button_w, name, label)
 	end
 
@@ -216,7 +216,7 @@ local function get_formspec(dlgdata)
 	local search_box_width = W - 0.375 - 0.25 - 2*0.8
 			- number_category_buttons * category_button_w
 	local formspec = {
-		"formspec_version[7]",
+		"formspec_version[10]",
 		"size[", size.x, ",", size.y, "]",
 		"padding[0,0]",
 		"bgcolor[;true]",
@@ -241,6 +241,7 @@ local function get_formspec(dlgdata)
 
 		-- Bottom strip start
 		"container[0,", H - 0.8, "]",
+		"style[back;bgcolor=#43464b;textcolor=white]",
 		"button[0,0;2,0.8;back;", fgettext("Back"), "]",
 
 		-- Bottom-center: Page nav buttons
@@ -278,10 +279,12 @@ local function get_formspec(dlgdata)
 		end
 
 		if num_avail_updates == 0 then
+			formspec[#formspec + 1] = "style[status;bgcolor=#43464b;textcolor=white]"
 			formspec[#formspec + 1] = "button[0,0;3,0.8;status;"
 			formspec[#formspec + 1] = fgettext("No updates")
 			formspec[#formspec + 1] = "]"
 		else
+			formspec[#formspec + 1] = "style[update_all;bgcolor=#467832;textcolor=white;font=bold]"
 			formspec[#formspec + 1] = "button[0,0;3,0.8;update_all;"
 			-- TRANSLATORS: $1 = number of available updates
 			formspec[#formspec + 1] = fgettext("Update All [$1]", num_avail_updates)

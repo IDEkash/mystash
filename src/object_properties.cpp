@@ -27,6 +27,14 @@ const struct EnumString es_ObjectVisual[] =
 	{0, nullptr},
 };
 
+const struct EnumString es_VisibilityPerspective[] =
+{
+	{VIEW_VISIBILITY_ALL, "all"},
+	{VIEW_VISIBILITY_FIRST_PERSON, "first_person"},
+	{VIEW_VISIBILITY_THIRD_PERSON, "third_person"},
+	{0, nullptr},
+};
+
 ObjectProperties::ObjectProperties()
 {
 	textures.emplace_back("no_texture.png");
@@ -60,6 +68,7 @@ std::string ObjectProperties::dump() const
 	os << ", spritediv=" << spritediv;
 	os << ", initial_sprite_basepos=" << initial_sprite_basepos;
 	os << ", is_visible=" << is_visible;
+	os << ", visibility=" << enum_to_string(es_VisibilityPerspective, visibility);
 	os << ", makes_footstep_sound=" << makes_footstep_sound;
 	os << ", automatic_rotate="<< automatic_rotate;
 	os << ", backface_culling="<< backface_culling;
@@ -106,7 +115,7 @@ static inline auto tie(const ObjectProperties &o)
 	o.initial_sprite_basepos,
 	o.stepheight, o.automatic_rotate, o.automatic_face_movement_dir_offset,
 	o.automatic_face_movement_max_rotation_per_sec, o.eye_height, o.zoom_fov,
-	o.model_unit_scale, o.auto_normalize, o.target_height,
+	o.model_unit_scale, o.auto_normalize, o.target_height, o.visibility,
 	o.node, o.hp_max, o.breath_max, o.glow, o.pointable, o.physical,
 	o.collideWithObjects, o.rotate_selectionbox, o.is_visible, o.makes_footstep_sound,
 	o.automatic_face_movement_dir, o.backface_culling, o.static_save, o.use_texture_alpha,
@@ -225,6 +234,8 @@ void ObjectProperties::serialize(std::ostream &os) const
 	writeU8(os, auto_normalize);
 	writeF32(os, target_height);
 
+	writeU8(os, visibility);
+
 	// Add stuff only at the bottom.
 	// Never remove anything, because we don't want new versions of this!
 }
@@ -334,6 +345,12 @@ void ObjectProperties::deSerialize(std::istream &is)
 	model_unit_scale = readV3F32(is);
 	auto_normalize = readU8(is);
 	target_height = readF32(is);
+
+	if (!canRead(is))
+		return;
+	// >= 5.16.0-dev
+
+	visibility = static_cast<VisibilityPerspective>(readU8(is));
 
 	//if (!canRead(is))
 	//	return;

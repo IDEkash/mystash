@@ -2801,7 +2801,7 @@ void Game::updateCameraMode()
 	if (playercao) {
 		// Make the player visible depending on camera mode.
 		playercao->updateMeshCulling();
-		playercao->setChildrenVisible(camera->getCameraMode() > CAMERA_MODE_FIRST);
+		playercao->updateVisibility();
 	}
 }
 
@@ -3750,7 +3750,7 @@ void Game::updateFrame(ProfilerGraph *graph, RunStats *stats, f32 dtime,
 		==================== Drawing begins ====================
 	*/
 	if (device->isWindowVisible())
-		drawScene(graph, stats);
+		drawScene(graph, stats, dtime);
 	/*
 		==================== End scene ====================
 	*/
@@ -3829,7 +3829,7 @@ void Game::updateShadows()
 	shadow->getDirectionalLight().updateFrustum(camera, client);
 }
 
-void Game::drawScene(ProfilerGraph *graph, RunStats *stats)
+void Game::drawScene(ProfilerGraph *graph, RunStats *stats, f32 dtime)
 {
 	ZoneScoped;
 
@@ -3899,7 +3899,7 @@ void Game::drawScene(ProfilerGraph *graph, RunStats *stats)
 			draw_wield_tool, draw_crosshair);
 
 #ifdef __ANDROID__
-	htmlview_jni_render_viewports(client);
+	htmlview_jni_render_viewports(client, dtime);
 #endif
 
 	/*

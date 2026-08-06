@@ -96,9 +96,15 @@ local function get_formspec(tabview, name, tabdata)
 		tabdata.search_for = ""
 	end
 
+	local MARGIN = 0.5
+	local LIST_W = 9.5
+	local DETAILS_X = MARGIN + LIST_W + 0.5
+	local DETAILS_W = tabview.width - DETAILS_X - MARGIN
+
 	local retval =
-		-- Search
-		"field[0.25,0.25;7,0.75;te_search;;" .. core.formspec_escape(tabdata.search_for) .. "]" ..
+		-- Search and Refresh Bar
+		"container[" .. MARGIN .. "," .. MARGIN .. "]" ..
+		"field[0,0;" .. (LIST_W - 2.5) .. ",0.8;te_search;;" .. core.formspec_escape(tabdata.search_for) .. "]" ..
 		"tooltip[te_search;" .. table.concat({
 				fgettext("Possible filters"),
 				"game:<name>",
@@ -107,131 +113,15 @@ local function get_formspec(tabview, name, tabdata)
 				"sort:[-](name|relevance|players|mods|uptime|ping|lag)",
 		}, "\n") .. "]" ..
 		"field_enter_after_edit[te_search;true]" ..
-		"container[7.25,0.25]" ..
-		"image_button[0,0;0.75,0.75;" .. core.formspec_escape(defaulttexturedir .. "search.png") .. ";btn_mp_search;]" ..
-		"image_button[0.75,0;0.75,0.75;" .. core.formspec_escape(defaulttexturedir .. "clear.png") .. ";btn_mp_clear;]" ..
-		"image_button[1.5,0;0.75,0.75;" .. core.formspec_escape(defaulttexturedir .. "refresh.png") .. ";btn_mp_refresh;]" ..
+		"image_button[" .. (LIST_W - 2.4) .. ",0;0.8,0.8;" .. core.formspec_escape(defaulttexturedir .. "search.png") .. ";btn_mp_search;]" ..
+		"image_button[" .. (LIST_W - 1.6) .. ",0;0.8,0.8;" .. core.formspec_escape(defaulttexturedir .. "clear.png") .. ";btn_mp_clear;]" ..
+		"image_button[" .. (LIST_W - 0.8) .. ",0;0.8,0.8;" .. core.formspec_escape(defaulttexturedir .. "refresh.png") .. ";btn_mp_refresh;]" ..
 		"tooltip[btn_mp_clear;" .. fgettext("Clear") .. "]" ..
 		"tooltip[btn_mp_search;" .. fgettext("Search") .. "]" ..
-		-- TRANSLATORS: As in 'reload'/'check again'
 		"tooltip[btn_mp_refresh;" .. fgettext("Refresh") .. "]" ..
-		"container_end[]" ..
 
-		"container[9.75,0]" ..
-		"box[0,0;5.75,7.1;#666666]" ..
-
-		-- TRANSLATORS: Network address
-		"label[0.25,0.35;" .. fgettext("Address") .. "]" ..
-		-- TRANSLATORS: Network port
-		"label[4.25,0.35;" .. fgettext("Port") .. "]" ..
-		"field[0.25,0.5;4,0.75;te_address;;" ..
-			core.formspec_escape(core.settings:get("address")) .. "]" ..
-		"field[4.25,0.5;1.25,0.75;te_port;;" ..
-			core.formspec_escape(core.settings:get("remote_port")) .. "]" ..
-
-		-- Description Background
-		"label[0.25,1.6;" .. fgettext("Server Description") .. "]" ..
-		"box[0.25,1.85;5.25,2.7;#999999]"..
-
-		-- Name / Password
-		"container[0,4.8]" ..
-		"label[0.25,0;" .. fgettext("Name") .. "]" ..
-		"label[2.875,0;" .. fgettext("Password") .. "]" ..
-		"field[0.25,0.2;2.625,0.75;te_name;;" .. core.formspec_escape(core.settings:get("name")) .. "]" ..
-		"pwdfield[2.875,0.2;2.625,0.75;te_pwd;]" ..
-		"container_end[]" ..
-
-		-- Connect
-		-- TRANSLATORS: Login to server
-		"button[3,6;2.5,0.75;btn_mp_login;" .. fgettext("Login") .. "]"
-
-	if core.settings:get_bool("enable_split_login_register") then
-		-- TRANSLATORS: Register an account on a server
-		retval = retval .. "button[0.25,6;2.5,0.75;btn_mp_register;" .. fgettext("Register") .. "]"
-	end
-
-	local selected_server = find_selected_server()
-
-	if selected_server then
-		gamedata.serverdescription = selected_server.description
-		if gamedata.serverdescription then
-			retval = retval .. "textarea[0.25,1.85;5.25,2.7;;;" ..
-				core.formspec_escape(gamedata.serverdescription) .. "]"
-		end
-
-		-- Mods button
-		local mods = selected_server.mods
-		if mods and #mods > 0 then
-			local tooltip = ""
-			if selected_server.gameid then
-				tooltip = fgettext("Game: $1", selected_server.gameid) .. "\n"
-			end
-			tooltip = tooltip .. fgettext("Number of mods: $1", #mods)
-
-			retval = retval ..
-				"tooltip[btn_view_mods;" .. tooltip .. "]" ..
-				"style[btn_view_mods;padding=6]" ..
-				"image_button[4,1.3;0.5,0.5;" .. core.formspec_escape(defaulttexturedir ..
-				"server_view_mods.png") .. ";btn_view_mods;]"
-		else
-			retval = retval .. "image[4.1,1.4;0.3,0.3;" .. core.formspec_escape(defaulttexturedir ..
-				"server_view_mods_unavailable.png") .. "]"
-		end
-
-		-- Clients list button
-		local clients_list = selected_server.clients_list
-		local can_view_clients_list = clients_list and #clients_list > 0
-		if can_view_clients_list then
-			table.sort(clients_list, function(a, b)
-				return a:lower() < b:lower()
-			end)
-			local max_clients = 5
-			if #clients_list > max_clients then
-				retval = retval .. "tooltip[btn_view_clients;" ..
-						-- TRANSLATORS: $1 is a list of players
-						fgettext("Players:\n$1", table.concat(clients_list, "\n", 1, max_clients)) .. "\n..." .. "]"
-			else
-				retval = retval .. "tooltip[btn_view_clients;" ..
-						fgettext("Players:\n$1", table.concat(clients_list, "\n")) .. "]"
-			end
-			retval = retval .. "style[btn_view_clients;padding=6]"
-			retval = retval .. "image_button[4.5,1.3;0.5,0.5;" .. core.formspec_escape(defaulttexturedir ..
-				"server_view_clients.png") .. ";btn_view_clients;]"
-		else
-			retval = retval .. "image[4.6,1.4;0.3,0.3;" .. core.formspec_escape(defaulttexturedir ..
-				"server_view_clients_unavailable.png") .. "]"
-		end
-
-		-- URL button
-		if selected_server.url then
-			retval = retval .. "tooltip[btn_server_url;" .. fgettext("Open server website") .. "]"
-			retval = retval .. "style[btn_server_url;padding=6]"
-			retval = retval .. "image_button[3.5,1.3;0.5,0.5;" ..
-				core.formspec_escape(defaulttexturedir .. "server_url.png") .. ";btn_server_url;]"
-		else
-			retval = retval .. "image[3.6,1.4;0.3,0.3;" .. core.formspec_escape(defaulttexturedir ..
-				"server_url_unavailable.png") .. "]"
-		end
-
-		-- Favorites toggle button
-		if is_selected_fav() then
-			retval = retval .. "tooltip[btn_delete_favorite;" .. fgettext("Remove favorite") .. "]"
-			retval = retval .. "style[btn_delete_favorite;padding=6]"
-			retval = retval .. "image_button[5,1.3;0.5,0.5;" ..
-				core.formspec_escape(defaulttexturedir .. "server_favorite_delete.png") .. ";btn_delete_favorite;]"
-		else
-			retval = retval .. "tooltip[btn_add_favorite;" .. fgettext("Add favorite") .. "]"
-			retval = retval .. "style[btn_add_favorite;padding=6]"
-			retval = retval .. "image_button[5,1.3;0.5,0.5;" ..
-				core.formspec_escape(defaulttexturedir .. "server_favorite.png") .. ";btn_add_favorite;]"
-		end
-	end
-
-	retval = retval .. "container_end[]"
-
-	-- Table
-	retval = retval .. "tablecolumns[" ..
-		-- TRANSLATORS: Also known as "latency"
+		-- Server Table
+		"tablecolumns[" ..
 		"image,tooltip=" .. fgettext("Ping") .. "," ..
 		"0=" .. core.formspec_escape(defaulttexturedir .. "blank.png") .. "," ..
 		"1=" .. core.formspec_escape(defaulttexturedir .. "server_ping_4.png") .. "," ..
@@ -249,7 +139,6 @@ local function get_formspec(tabview, name, tabdata)
 		"0=" .. core.formspec_escape(defaulttexturedir .. "blank.png") .. "," ..
 		"1=" .. core.formspec_escape(defaulttexturedir .. "server_flags_creative.png") .. "," ..
 		"align=inline,padding=0.25,width=1.5;" ..
-		-- TRANSLATORS: PvP = Player versus Player
 		"image,tooltip=" .. fgettext("Damage / PvP") .. "," ..
 		"0=" .. core.formspec_escape(defaulttexturedir .. "blank.png") .. "," ..
 		"1=" .. core.formspec_escape(defaulttexturedir .. "server_flags_damage.png") .. "," ..
@@ -257,18 +146,16 @@ local function get_formspec(tabview, name, tabdata)
 		"align=inline,padding=0.25,width=1.5;" ..
 		"color,align=inline,span=1;" ..
 		"text,align=inline,padding=1]" ..
-		"table[0.25,1;9.25,5.8;servers;"
+		"table[0,1;" .. LIST_W .. ",5.6;servers;"
 
 	local servers = get_sorted_servers()
-
 	local dividers = {
 		fav = "5,#ffff00," .. fgettext("Favorites") .. ",,,0,0,,",
 		public = "6,#4bdd42," .. fgettext("Public Servers") .. ",,,0,0,,",
 		incompatible = "7,"..mt_color_grey.."," .. fgettext("Incompatible Servers") .. ",,,0,0,,"
 	}
 	local order = {"fav", "public", "incompatible"}
-
-	tabdata.lookup = {} -- maps row number to server
+	tabdata.lookup = {}
 	local rows = {}
 	for _, section in ipairs(order) do
 		local section_servers = servers[section]
@@ -280,9 +167,9 @@ local function get_formspec(tabview, name, tabdata)
 			end
 		end
 	end
-
 	retval = retval .. table.concat(rows, ",")
 
+	local selected_server = find_selected_server()
 	local selected_row_idx = 0
 	if selected_server then
 		for i, server in pairs(tabdata.lookup) do
@@ -293,7 +180,98 @@ local function get_formspec(tabview, name, tabdata)
 			end
 		end
 	end
-	retval = retval .. ";" .. selected_row_idx .. "]"
+	retval = retval .. ";" .. selected_row_idx .. "]" ..
+		"container_end[]" ..
+
+		-- Details Pane (Right)
+		"container[" .. DETAILS_X .. "," .. MARGIN .. "]" ..
+		"box[0,0;" .. DETAILS_W .. ",6.6;#00000040]" ..
+
+		"label[0.2,0.3;" .. fgettext("Address") .. "]" ..
+		"field[0.2,0.5;" .. (DETAILS_W - 0.4) .. ",0.8;te_address;;" .. core.formspec_escape(core.settings:get("address")) .. "]" ..
+		"label[0.2,1.3;" .. fgettext("Port") .. "]" ..
+		"field[0.2,1.5;" .. (DETAILS_W - 0.4) .. ",0.8;te_port;;" .. core.formspec_escape(core.settings:get("remote_port")) .. "]" ..
+
+		"label[0.2,2.5;" .. fgettext("Name") .. "]" ..
+		"field[0.2,2.7;" .. (DETAILS_W - 0.4) .. ",0.8;te_name;;" .. core.formspec_escape(core.settings:get("name")) .. "]" ..
+		"label[0.2,3.5;" .. fgettext("Password") .. "]" ..
+		"pwdfield[0.2,3.7;" .. (DETAILS_W - 0.4) .. ",0.8;te_pwd;]" ..
+
+		"label[0.2,4.7;" .. fgettext("Server Description") .. "]" ..
+		"box[0.2,4.95;" .. (DETAILS_W - 0.4) .. ",1.15;#00000080]"
+
+	if selected_server then
+		gamedata.serverdescription = selected_server.description
+		if gamedata.serverdescription then
+			retval = retval .. "textarea[0.2,4.95;" .. (DETAILS_W - 0.4) .. ",1.15;;;" ..
+				core.formspec_escape(gamedata.serverdescription) .. "]"
+		end
+
+		-- Actions bar (top of description area)
+		local ax = 0.2
+		local aw = (DETAILS_W - 0.4) / 4
+
+		-- URL button
+		if selected_server.url then
+			retval = retval .. "tooltip[" .. ax .. ",4.15;" .. aw .. ",0.5;" .. fgettext("Open server website") .. "]" ..
+				"style[btn_server_url;padding=6;bgcolor=#43464b]" ..
+				"image_button[" .. ax .. ",4.15;" .. aw .. ",0.5;" .. core.formspec_escape(defaulttexturedir .. "server_url.png") .. ";btn_server_url;]"
+		else
+			retval = retval .. "image[" .. (ax+aw/2-0.2) .. ",4.25;0.4,0.4;" .. core.formspec_escape(defaulttexturedir .. "server_url_unavailable.png") .. "]"
+		end
+		ax = ax + aw
+
+		-- Mods button
+		local mods = selected_server.mods
+		if mods and #mods > 0 then
+			local tooltip = (selected_server.gameid and fgettext("Game: $1", selected_server.gameid) .. "\n" or "") ..
+				fgettext("Number of mods: $1", #mods)
+			retval = retval .. "tooltip[" .. ax .. ",4.15;" .. aw .. ",0.5;" .. tooltip .. "]" ..
+				"style[btn_view_mods;padding=6;bgcolor=#43464b]" ..
+				"image_button[" .. ax .. ",4.15;" .. aw .. ",0.5;" .. core.formspec_escape(defaulttexturedir .. "server_view_mods.png") .. ";btn_view_mods;]"
+		else
+			retval = retval .. "image[" .. (ax+aw/2-0.2) .. ",4.25;0.4,0.4;" .. core.formspec_escape(defaulttexturedir .. "server_view_mods_unavailable.png") .. "]"
+		end
+		ax = ax + aw
+
+		-- Clients list button
+		local clients_list = selected_server.clients_list
+		if clients_list and #clients_list > 0 then
+			retval = retval .. "tooltip[" .. ax .. ",4.15;" .. aw .. ",0.5;" .. fgettext("View player list") .. "]" ..
+				"style[btn_view_clients;padding=6;bgcolor=#43464b]" ..
+				"image_button[" .. ax .. ",4.15;" .. aw .. ",0.5;" .. core.formspec_escape(defaulttexturedir .. "server_view_clients.png") .. ";btn_view_clients;]"
+		else
+			retval = retval .. "image[" .. (ax+aw/2-0.2) .. ",4.25;0.4,0.4;" .. core.formspec_escape(defaulttexturedir .. "server_view_clients_unavailable.png") .. "]"
+		end
+		ax = ax + aw
+
+		-- Favorites toggle
+		if is_selected_fav() then
+			retval = retval .. "tooltip[" .. ax .. ",4.15;" .. aw .. ",0.5;" .. fgettext("Remove favorite") .. "]" ..
+				"style[btn_delete_favorite;padding=6;bgcolor=#43464b]" ..
+				"image_button[" .. ax .. ",4.15;" .. aw .. ",0.5;" .. core.formspec_escape(defaulttexturedir .. "server_favorite_delete.png") .. ";btn_delete_favorite;]"
+		else
+			retval = retval .. "tooltip[" .. ax .. ",4.15;" .. aw .. ",0.5;" .. fgettext("Add favorite") .. "]" ..
+				"style[btn_add_favorite;padding=6;bgcolor=#43464b]" ..
+				"image_button[" .. ax .. ",4.15;" .. aw .. ",0.5;" .. core.formspec_escape(defaulttexturedir .. "server_favorite.png") .. ";btn_add_favorite;]"
+		end
+	end
+
+	-- Connect / Register
+	local btn_w = (DETAILS_W - 0.4)
+	if core.settings:get_bool("enable_split_login_register") then
+		btn_w = (DETAILS_W - 0.6) / 2
+		retval = retval .. "style[btn_mp_register;bgcolor=#43464b;textcolor=white]" ..
+			"button[0.2,6.1;" .. btn_w .. ",0.8;btn_mp_register;" .. fgettext("Register") .. "]" ..
+			"tooltip[btn_mp_register;" .. fgettext("Register a new account") .. "]" ..
+			"style[btn_mp_login;bgcolor=#467832;textcolor=white;font=bold]" ..
+			"button[" .. (0.4 + btn_w) .. ",6.1;" .. btn_w .. ",0.8;btn_mp_login;" .. fgettext("Login") .. "]"
+	else
+		retval = retval .. "style[btn_mp_login;bgcolor=#467832;textcolor=white;font=bold]" ..
+			"button[0.2,6.1;" .. btn_w .. ",0.8;btn_mp_login;" .. fgettext("Login") .. "]"
+	end
+
+	retval = retval .. "container_end[]"
 
 	return retval
 end

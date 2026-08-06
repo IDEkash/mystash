@@ -29,7 +29,7 @@ local function add_tab(self,tab)
 		event_handler = tab.cbf_events,
 		get_formspec = tab.cbf_formspec,
 		tabsize = tab.tabsize,
-		formspec_version = tab.formspec_version or 6,
+		formspec_version = tab.formspec_version or 10,
 		on_change = tab.on_change,
 		tabdata = {},
 	}
@@ -89,7 +89,7 @@ local function get_formspec(self)
 	if self.end_button then
 		formspec = formspec ..
 				("style[%s;noclip=true;border=false]"):format(self.end_button.name) ..
-				("tooltip[%s;%s]"):format(self.end_button.name, self.end_button.label) ..
+				("tooltip[%s;%s]"):format(self.end_button.name, self.end_button.tooltip or self.end_button.label) ..
 				("image_button[%f,%f;%f,%f;%s;%s;]"):format(
 						self.width - end_button_size,
 						(-tab_header_size.height - end_button_size) / 2,

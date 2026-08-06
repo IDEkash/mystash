@@ -520,7 +520,7 @@ local function get_formspec(dialogdata)
 	formspec_show_hack = not formspec_show_hack
 
 	local fs = {
-		"formspec_version[6]",
+		"formspec_version[10]",
 		"size[", tostring(tabsize.width), ",", tostring(tabsize.height + extra_h), "]",
 		core.settings:get_bool("touch_gui") and "padding[0.01,0.01]" or "",
 		"bgcolor[#0000]",
@@ -530,19 +530,20 @@ local function get_formspec(dialogdata)
 
 		"box[0,0;", tostring(tabsize.width), ",", tostring(tabsize.height), ";#0000008C]",
 
-		("button[0,%f;%f,0.8;back;%s]"):format(
+		("style[back;bgcolor=#43464b;textcolor=white]button[0,%f;%f,0.8;back;%s]"):format(
 				tabsize.height + 0.2, back_w,
 				-- TRANSLATORS: Button text to go back
 				fgettext("Back")),
 
-		("box[%f,%f;%f,0.8;#0000008C]"):format(
+
+		("box[%f,%f;%f,0.8;#00000040]"):format(
 			back_w + 0.2, tabsize.height + 0.2, checkbox_w),
 		("checkbox[%f,%f;show_technical_names;%s;%s]"):format(
 			back_w + 2*0.2, tabsize.height + 0.6,
 			-- TRANSLATORS: Checkbox that toggles displaying the technical setting names
 			fgettext("Show technical names"), tostring(show_technical_names)),
 
-		("box[%f,%f;%f,0.8;#0000008C]"):format(
+		("box[%f,%f;%f,0.8;#00000040]"):format(
 			back_w + 2*0.2 + checkbox_w, tabsize.height + 0.2, checkbox_w),
 		("checkbox[%f,%f;show_advanced;%s;%s]"):format(
 			back_w + 3*0.2 + checkbox_w, tabsize.height + 0.6,

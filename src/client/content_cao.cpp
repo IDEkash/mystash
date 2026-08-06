@@ -320,7 +320,7 @@ void GenericCAO::processInitData(const std::string &data)
 		LocalPlayer *player = m_env->getLocalPlayer();
 		if (player && player->getName() == m_name) {
 			m_is_local_player = true;
-			m_is_visible = false;
+			m_is_visible = true;
 			player->setCAO(this);
 		}
 	}
@@ -438,19 +438,63 @@ scene::AnimatedMeshSceneNode *GenericCAO::getAnimatedMeshSceneNode() const
 	return m_animated_meshnode;
 }
 
-void GenericCAO::setChildrenVisible(bool toset, u16 depth)
+void GenericCAO::updateVisibility()
 {
-	if (!m_env || depth > 100)
-		return;
+	Camera *cam = m_client->getCamera();
+	bool is_first_person = cam && cam->getCameraMode() == CAMERA_MODE_FIRST;
+
+	bool in_local_chain = m_is_local_player;
+	ClientActiveObject *p = getParent();
+	while (p && !in_local_chain) {
+		if (p->isLocalPlayer())
+			in_local_chain = true;
+		else
+			p = p->getParent();
+	}
+
+	updateVisibility(is_first_person, in_local_chain);
+}
+
+void GenericCAO::updateVisibility(bool is_first_person, bool in_local_chain)
+{
+	if (!m_prop.is_visible) {
+		m_is_visible = false;
+	} else if (m_is_local_player) {
+		m_is_visible = true;
+	} else if (m_force_visible) {
+		m_is_visible = true;
+	} else {
+		switch (m_prop.visibility) {
+		case VIEW_VISIBILITY_ALL:
+			m_is_visible = !in_local_chain || !is_first_person;
+			break;
+		case VIEW_VISIBILITY_FIRST_PERSON:
+			m_is_visible = in_local_chain && is_first_person;
+			break;
+		case VIEW_VISIBILITY_THIRD_PERSON:
+			m_is_visible = !in_local_chain || (in_local_chain && !is_first_person);
+			break;
+		}
+	}
 
 	for (object_t cao_id : m_attachment_child_ids) {
 		GenericCAO *obj = m_env->getGenericCAO(cao_id);
-		if (obj) {
-			// Check if the entity is forced to appear in first person.
-			obj->setVisible(obj->m_force_visible ? true : toset);
-			obj->setChildrenVisible(toset, depth + 1);
-		}
+		if (obj)
+			obj->updateVisibility(is_first_person, in_local_chain);
 	}
+
+	if (scene::ISceneNode *node = getSceneNode())
+		node->setVisible(m_is_visible);
+
+	if (m_is_local_player)
+		updateMeshCulling();
+}
+
+void GenericCAO::setChildrenVisible(bool toset, u16 depth)
+{
+	if (depth > 100)
+		return;
+	updateVisibility();
 }
 
 void GenericCAO::setAttachment(object_t parent_id, const std::string &bone,
@@ -499,20 +543,7 @@ void GenericCAO::setAttachment(object_t parent_id, const std::string &bone,
 	}
 	updateAttachments();
 
-	// Forcibly show attachments if required by set_attach
-	if (m_force_visible) {
-		m_is_visible = true;
-	} else if (!m_is_local_player) {
-		// Objects attached to the local player should be hidden in first person
-		Camera *cam = m_client->getCamera();
-		m_is_visible = !m_attached_to_local ||
-			(cam && cam->getCameraMode() != CAMERA_MODE_FIRST);
-		m_force_visible = false;
-	} else {
-		// Local players need to have this set,
-		// otherwise first person attachments fail.
-		m_is_visible = true;
-	}
+	updateVisibility();
 }
 
 void GenericCAO::getAttachment(object_t *parent_id, std::string *bone, v3f *position,
@@ -1496,7 +1527,11 @@ void GenericCAO::updateAttachments()
 {
 	ClientActiveObject *parent = getParent();
 
+	bool was_attached_to_local = m_attached_to_local;
 	m_attached_to_local = parent && parent->isLocalPlayer();
+
+	if (was_attached_to_local != m_attached_to_local)
+		updateVisibility();
 
 	/*
 	Following cases exist:
@@ -1558,6 +1593,7 @@ bool GenericCAO::visualExpiryRequired(const ObjectProperties &new_) const
 	// Ordered to compare primitive types before std::vectors
 	return old.backface_culling != new_.backface_culling ||
 		old.is_visible != new_.is_visible ||
+		old.visibility != new_.visibility ||
 		old.shaded != new_.shaded ||
 		old.use_texture_alpha != new_.use_texture_alpha ||
 		old.node != new_.node ||
@@ -1628,6 +1664,7 @@ void GenericCAO::processMessage(const std::string &data)
 			}
 			updateNametag();
 			updateMarker();
+			updateVisibility();
 		}
 	} else if (cmd == AO_CMD_UPDATE_POSITION) {
 		// Not sent by the server if this object is an attachment.
@@ -1992,7 +2029,20 @@ void GenericCAO::updateMeshCulling()
 	if (!cam)
 		return;
 
-	const bool hidden = cam->getCameraMode() == CAMERA_MODE_FIRST;
+	bool is_first_person = cam->getCameraMode() == CAMERA_MODE_FIRST;
+	bool hide_mesh = false;
+
+	switch (m_prop.visibility) {
+	case VIEW_VISIBILITY_ALL:
+		hide_mesh = is_first_person;
+		break;
+	case VIEW_VISIBILITY_FIRST_PERSON:
+		hide_mesh = !is_first_person;
+		break;
+	case VIEW_VISIBILITY_THIRD_PERSON:
+		hide_mesh = is_first_person;
+		break;
+	}
 
 	scene::ISceneNode *node = getSceneNode();
 
@@ -2002,12 +2052,12 @@ void GenericCAO::updateMeshCulling()
 	if (m_prop.visual ==  OBJECTVISUAL_UPRIGHT_SPRITE) {
 		// upright sprite has no backface culling
 		node->forEachMaterial([=] (auto &mat) {
-			mat.FrontfaceCulling = hidden;
+			mat.FrontfaceCulling = hide_mesh;
 		});
 		return;
 	}
 
-	if (hidden) {
+	if (hide_mesh) {
 		// Hide the mesh by culling both front and
 		// back faces. Serious hackyness but it works for our
 		// purposes. This also preserves the skeletal armature.
