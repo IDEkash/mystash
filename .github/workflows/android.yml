@@ -28,7 +28,6 @@ on:
       - 'po/**.po'
       - 'android/**'
       - '.github/workflows/android.yml'
-  workflow_dispatch:
 
 jobs:
   build:

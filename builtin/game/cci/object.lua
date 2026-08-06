@@ -1,4 +1,4 @@
--- CCI Object Interface Implementation
+-- CCI Object Interface Implementation (Built-in)
 -- Manages Points, Chains, Transforms, Styling, Attributes, Events, and Hierarchy.
 
 local Object = {}

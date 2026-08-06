@@ -1,4 +1,4 @@
--- EasyTools Creation Toolkit for CCI (Chapter 5)
+-- EasyTools Creation Toolkit for CCI (Built-in)
 -- Simplifies geometry creation by instantly generating normal point-draw objects.
 
 cci.easytools = {}

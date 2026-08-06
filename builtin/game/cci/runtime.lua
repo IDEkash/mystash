@@ -1,4 +1,4 @@
--- CCI Runtime & Rendering Pipeline Bridge (Chapter 4)
+-- CCI Runtime & Rendering Pipeline Bridge (Built-in)
 -- Translates the hierarchical Lua CCI representation into HTML/CSS DOM structure.
 -- Provides bidirectional communication between Lua and WebView for interaction.
 
@@ -186,7 +186,7 @@ end
 
 function cci.runtime.init()
 	if not is_htmlview_available() then
-		minetest.log("warning", "[CCI] htmlview is not supported or enabled on this platform. CCI running in headless/mock mode.")
+		core.log("warning", "[CCI] htmlview is not supported or enabled on this platform. CCI running in headless/mock mode.")
 		return
 	end
 
@@ -201,7 +201,7 @@ function cci.runtime.init()
 
 	-- Handle incoming events from the renderer
 	htmlview.on_message(cci.runtime.view_id, function(msg)
-		local data = minetest.parse_json(msg)
+		local data = core.parse_json(msg)
 		if data and data.id then
 			local obj = cci.objects[data.id]
 			if obj then
@@ -221,12 +221,12 @@ function cci.runtime.init()
 	end)
 
 	cci.runtime.active = true
-	minetest.log("action", "[CCI] Runtime successfully initialized and rendering.")
+	core.log("action", "[CCI] Runtime successfully initialized and rendering.")
 end
 
 -- Global Runtime Step function (Chapter 4 - Frame updates)
 local accumulated_time = 0
-minetest.register_globalstep(function(dtime)
+core.register_globalstep(function(dtime)
 	accumulated_time = accumulated_time + dtime
 	-- Process updates, limit updates to 60 fps to optimize rendering performance
 	if accumulated_time >= 0.016 then
@@ -258,7 +258,6 @@ minetest.register_globalstep(function(dtime)
 			end
 
 			-- Send updated DOM state using send_json (or standard serialize to JSON)
-			-- Since htmlview.send_json is available in l_htmlview.cpp:
 			pcall(function()
 				htmlview.send_json(cci.runtime.view_id, payload)
 			end)
