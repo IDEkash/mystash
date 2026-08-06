@@ -1,4 +1,4 @@
--- Unit tests for Creative Composition Interface (CCI) core logic (Built-in)
+-- Unit tests for Creative Composition Interface (CCI) core logic (Built-in - Multiplayer-Safe)
 -- Verifies object composition, points & geometry, spatial transforms, hierarchy, events, and lifecycle management.
 
 local function run_tests()
@@ -15,8 +15,11 @@ local function run_tests()
 
 	print("[CCI Tests] Starting core UI unit tests...")
 
+	local player_name = "test_player"
+	local session = cci.get_session(player_name)
+
 	-- Test 1: Object Creation and Defaults (Chapter 2)
-	local obj1 = cci.create_object({ id = "test_obj_1", x = 10, y = 20 })
+	local obj1 = cci.create_object(player_name, { id = "test_obj_1", x = 10, y = 20 })
 	assert_eq(obj1.id, "test_obj_1", "Object ID registration")
 	assert_eq(obj1.transform.x, 10, "Initial X position")
 	assert_eq(obj1.transform.y, 20, "Initial Y position")
@@ -35,8 +38,8 @@ local function run_tests()
 	assert_eq(obj1.chains[1][2], 2, "Chain links correct")
 
 	-- Test 3: Hierarchy and Transformations (Chapter 4)
-	local parent = cci.create_object({ id = "test_parent", x = 100, y = 100 })
-	local child = cci.create_object({ id = "test_child", x = 10, y = 10 })
+	local parent = cci.create_object(player_name, { id = "test_parent", x = 100, y = 100 })
+	local child = cci.create_object(player_name, { id = "test_child", x = 10, y = 10 })
 	parent:add_child(child)
 
 	assert_eq(child.parent, "test_parent", "Child parent-pointer set")
@@ -72,16 +75,19 @@ local function run_tests()
 	assert_eq(cond_action_executed, true, "Action executed when condition returns true")
 
 	-- Test 6: Recursive Destruction (Chapter 4)
-	local root_obj = cci.create_object({ id = "test_root" })
-	local sub_obj = cci.create_object({ id = "test_sub" })
+	local root_obj = cci.create_object(player_name, { id = "test_root" })
+	local sub_obj = cci.create_object(player_name, { id = "test_sub" })
 	root_obj:add_child(sub_obj)
 
-	assert_eq(not not cci.objects["test_root"], true, "Root exists before destruction")
-	assert_eq(not not cci.objects["test_sub"], true, "Sub-object exists before destruction")
+	assert_eq(not not session.objects["test_root"], true, "Root exists before destruction")
+	assert_eq(not not session.objects["test_sub"], true, "Sub-object exists before destruction")
 
 	root_obj:destroy()
-	assert_eq(cci.objects["test_root"], nil, "Root deleted after destruction")
-	assert_eq(cci.objects["test_sub"], nil, "Sub-object recursively deleted")
+	assert_eq(session.objects["test_root"], nil, "Root deleted after destruction")
+	assert_eq(session.objects["test_sub"], nil, "Sub-object recursively deleted")
+
+	-- Clean up session
+	session:destroy()
 
 	-- Summary
 	print(("[CCI Tests] Test run complete. Passed: %d, Failed: %d"):format(passed, failed))

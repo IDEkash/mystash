@@ -1,4 +1,4 @@
--- CCI Demo Mod (Chapter 5 Composition Examples)
+-- CCI Demo Mod (Chapter 5 Composition Examples - Multiplayer-Safe)
 -- Demonstrates how to compose complex interactive widgets (Buttons, Toggles, Sliders, Windows)
 -- using the core CCI systems without introducing any custom C++ widgets.
 
@@ -7,9 +7,9 @@ local function msg(name, text)
 end
 
 -- Compose a beautiful Button (Style Attributes + Action Attributes + Functionable Services)
-local function create_button(id, text, x, y, width, height, onClick)
+local function create_button(player_name, id, text, x, y, width, height, onClick)
 	-- 1. Create the container rectangle
-	local btn = cci.easytools.create_rounded_rectangle(width, height, 12, {
+	local btn = cci.easytools.create_rounded_rectangle(player_name, width, height, 12, {
 		id = id,
 		x = x,
 		y = y,
@@ -28,7 +28,7 @@ local function create_button(id, text, x, y, width, height, onClick)
 	})
 
 	-- 2. Create the internal Textbox element (hierarchy support)
-	local label = cci.create_object({
+	local label = cci.create_object(player_name, {
 		id = id .. "_label",
 		type = "textbox",
 		style = {
@@ -58,9 +58,9 @@ local function create_button(id, text, x, y, width, height, onClick)
 end
 
 -- Compose a beautiful Toggle Switch (Chapter 5 Example)
-local function create_toggle(id, x, y, onChange)
+local function create_toggle(player_name, id, x, y, onChange)
 	-- Track Object
-	local track = cci.easytools.create_rounded_rectangle(70, 36, 18, {
+	local track = cci.easytools.create_rounded_rectangle(player_name, 70, 36, 18, {
 		id = id,
 		x = x,
 		y = y,
@@ -73,7 +73,7 @@ local function create_toggle(id, x, y, onChange)
 	})
 
 	-- Handle Object
-	local handle = cci.easytools.create_circle(14, {
+	local handle = cci.easytools.create_circle(player_name, 14, {
 		id = id .. "_handle",
 		x = 4,
 		y = 4,
@@ -104,9 +104,9 @@ local function create_toggle(id, x, y, onChange)
 end
 
 -- Compose a beautiful Window containing content (Chapter 5 Composition)
-local function create_window(id, title, x, y, width, height)
+local function create_window(player_name, id, title, x, y, width, height)
 	-- Window Background
-	local win = cci.easytools.create_rounded_rectangle(width, height, 16, {
+	local win = cci.easytools.create_rounded_rectangle(player_name, width, height, 16, {
 		id = id,
 		x = x,
 		y = y,
@@ -119,7 +119,7 @@ local function create_window(id, title, x, y, width, height)
 	})
 
 	-- Window Header / Titlebar (Drag handler support)
-	local header = cci.easytools.create_rounded_rectangle(width - 20, 40, 8, {
+	local header = cci.easytools.create_rounded_rectangle(player_name, width - 20, 40, 8, {
 		id = id .. "_header",
 		x = 10,
 		y = 10,
@@ -134,7 +134,7 @@ local function create_window(id, title, x, y, width, height)
 	win:add_child(header)
 
 	-- Title text
-	local title_txt = cci.create_object({
+	local title_txt = cci.create_object(player_name, {
 		id = id .. "_title",
 		type = "textbox",
 		style = {
@@ -160,7 +160,7 @@ local function create_window(id, title, x, y, width, height)
 	end)
 
 	-- Close Button inside header (Hierarchy + Runtime Destruction)
-	local close_btn = create_button(id .. "_close", "X", width - 40, 10, 30, 30, function()
+	local close_btn = create_button(player_name, id .. "_close", "X", width - 40, 10, 30, 30, function()
 		win:destroy() -- Completely destroys window and all children recursively (Chapter 4)
 	end)
 	close_btn:set_style("background", "#ff3b30")
@@ -177,26 +177,26 @@ minetest.register_chatcommand("cci_demo", {
 	privs = { interact = true },
 	func = function(name, param)
 		param = param:trim()
+		local session = cci.get_session(name)
+
 		if param == "stop" then
-			-- Destroy all active UI
-			for id, obj in pairs(cci.objects) do
-				obj:destroy()
-			end
+			-- Destroy player's active UI
+			session:destroy()
 			msg(name, "CCI Demo stopped.")
 			return
 		end
 
-		-- Clean existing objects
-		for id, obj in pairs(cci.objects) do
+		-- Clean existing objects in session
+		for id, obj in pairs(session.objects) do
 			obj:destroy()
 		end
 
 		-- 1. Create a modern Window container
-		local win = create_window("demo_win", "Creative Composition Interface (CCI)", 100, 100, 450, 350)
+		local win = create_window(name, "demo_win", "Creative Composition Interface (CCI)", 100, 100, 450, 350)
 
 		-- 2. Compose interactive widgets inside the Window container
 		-- Add a simple informative text label
-		local info = cci.create_object({
+		local info = cci.create_object(name, {
 			id = "demo_info",
 			type = "textbox",
 			x = 20,
@@ -211,7 +211,7 @@ minetest.register_chatcommand("cci_demo", {
 		win:add_child(info)
 
 		-- Add a Toggle Switch
-		local toggle_label = cci.create_object({
+		local toggle_label = cci.create_object(name, {
 			id = "toggle_label",
 			type = "textbox",
 			x = 20,
@@ -224,7 +224,7 @@ minetest.register_chatcommand("cci_demo", {
 		toggle_label:set_style("content", "Modern Dark Mode Toggle:")
 		win:add_child(toggle_label)
 
-		local toggle = create_toggle("demo_toggle", 240, 140, function(state_on)
+		local toggle = create_toggle(name, "demo_toggle", 240, 140, function(state_on)
 			if state_on then
 				win:set_style("background", "#0d1117")
 				msg(name, "Mode: Dark theme enabled")
@@ -236,7 +236,7 @@ minetest.register_chatcommand("cci_demo", {
 		win:add_child(toggle)
 
 		-- Add an action button
-		local action_btn = create_button("demo_action", "Teleport Randomly", 20, 220, 200, 45, function()
+		local action_btn = create_button(name, "demo_action", "Teleport Randomly", 20, 220, 200, 45, function()
 			local player = minetest.get_player_by_name(name)
 			if player then
 				player:set_pos({

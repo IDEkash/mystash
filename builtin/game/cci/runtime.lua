@@ -1,11 +1,8 @@
--- CCI Runtime & Rendering Pipeline Bridge (Built-in)
--- Translates the hierarchical Lua CCI representation into HTML/CSS DOM structure.
+-- CCI Runtime & Rendering Pipeline Bridge (Built-in - Multiplayer-Safe)
+-- Translates the hierarchical Lua CCI representation into HTML/CSS DOM structure per player.
 -- Provides bidirectional communication between Lua and WebView for interaction.
 
-cci.runtime = {
-	active = false,
-	view_id = "cci_runtime_view",
-}
+cci.runtime = {}
 
 -- Check if HTMLView is supported
 local function is_htmlview_available()
@@ -184,15 +181,17 @@ local function get_cci_html()
 ]]
 end
 
-function cci.runtime.init()
+function cci.runtime.init_session(player_name)
 	if not is_htmlview_available() then
-		core.log("warning", "[CCI] htmlview is not supported or enabled on this platform. CCI running in headless/mock mode.")
+		core.log("warning", "[CCI] htmlview is not supported or enabled. Headless mock mode for " .. player_name)
 		return
 	end
 
-	-- Initialize htmlview displaying
-	htmlview.run(cci.runtime.view_id, get_cci_html())
-	htmlview.display(cci.runtime.view_id, {
+	local session = cci.get_session(player_name)
+
+	-- Initialize htmlview displaying for this player
+	htmlview.run(session.view_id, get_cci_html())
+	htmlview.display(session.view_id, {
 		visible = true,
 		fullscreen = true,
 		safe_area = true,
@@ -200,10 +199,10 @@ function cci.runtime.init()
 	})
 
 	-- Handle incoming events from the renderer
-	htmlview.on_message(cci.runtime.view_id, function(msg)
+	htmlview.on_message(session.view_id, function(msg)
 		local data = core.parse_json(msg)
 		if data and data.id then
-			local obj = cci.objects[data.id]
+			local obj = session.objects[data.id]
 			if obj then
 				if data.event == "press" then
 					obj:trigger("press", data)
@@ -220,11 +219,34 @@ function cci.runtime.init()
 		end
 	end)
 
-	cci.runtime.active = true
-	core.log("action", "[CCI] Runtime successfully initialized and rendering.")
+	session.active = true
+	core.log("action", "[CCI] Runtime successfully initialized and rendering for player " .. player_name)
 end
 
--- Global Runtime Step function (Chapter 4 - Frame updates)
+function cci.runtime.close_session(player_name)
+	local session = cci.sessions[player_name]
+	if session then
+		if is_htmlview_available() then
+			pcall(function()
+				htmlview.stop(session.view_id)
+			end)
+		end
+		session:destroy()
+	end
+end
+
+-- Automatic player session lifecycles
+core.register_on_joinplayer(function(player)
+	local name = player:get_player_name()
+	cci.runtime.init_session(name)
+end)
+
+core.register_on_leaveplayer(function(player)
+	local name = player:get_player_name()
+	cci.runtime.close_session(name)
+end)
+
+-- Global Runtime Step function (Chapter 4 - Frame updates per session)
 local accumulated_time = 0
 core.register_globalstep(function(dtime)
 	accumulated_time = accumulated_time + dtime
@@ -232,35 +254,39 @@ core.register_globalstep(function(dtime)
 	if accumulated_time >= 0.016 then
 		accumulated_time = 0
 
-		-- Check if any attributes or transforms have updated
-		if cci.is_dirty and cci.runtime.active then
-			cci.is_dirty = false
+		for player_name, session in pairs(cci.sessions) do
+			-- Check if any attributes or transforms have updated for this specific session
+			if session.is_dirty and session.active then
+				session.is_dirty = false
 
-			-- Prepare data structure to send to renderer
-			local payload = {
-				action = "update",
-				data = {}
-			}
-
-			for id, obj in pairs(cci.objects) do
-				-- Prepare object details
-				payload.data[id] = {
-					id = obj.id,
-					type = obj.type,
-					visible = obj.visible,
-					safe_area = obj.safe_area,
-					style = obj.style,
-					transform = obj.transform,
-					parent = obj.parent,
-					layer = obj.layer,
-					draggable = (obj.events["drag_start"] ~= nil or obj.events["dragging"] ~= nil)
+				-- Prepare data structure to send to renderer
+				local payload = {
+					action = "update",
+					data = {}
 				}
-			end
 
-			-- Send updated DOM state using send_json (or standard serialize to JSON)
-			pcall(function()
-				htmlview.send_json(cci.runtime.view_id, payload)
-			end)
+				for id, obj in pairs(session.objects) do
+					-- Prepare object details
+					payload.data[id] = {
+						id = obj.id,
+						type = obj.type,
+						visible = obj.visible,
+						safe_area = obj.safe_area,
+						style = obj.style,
+						transform = obj.transform,
+						parent = obj.parent,
+						layer = obj.layer,
+						draggable = (obj.events["drag_start"] ~= nil or obj.events["dragging"] ~= nil)
+					}
+				end
+
+				-- Send updated DOM state using send_json (or standard serialize to JSON)
+				if is_htmlview_available() then
+					pcall(function()
+						htmlview.send_json(session.view_id, payload)
+					end)
+				end
+			end
 		end
 	end
 end)

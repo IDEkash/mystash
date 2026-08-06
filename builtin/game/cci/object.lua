@@ -1,13 +1,15 @@
--- CCI Object Interface Implementation (Built-in)
+-- CCI Object Interface Implementation (Built-in - Multiplayer-Safe)
 -- Manages Points, Chains, Transforms, Styling, Attributes, Events, and Hierarchy.
 
 local Object = {}
 Object.__index = Object
 
-function cci.create_object(options)
+function cci.create_object(player_name, options)
 	options = options or {}
+	local session = cci.get_session(player_name)
 	local obj = setmetatable({
-		id = options.id or ("obj_" .. cci.next_id),
+		player_name = player_name,
+		id = options.id or ("obj_" .. session.next_id),
 		type = options.type or "rectangle", -- rectangle, circle, shape, textbox, custom
 		points = {},
 		chains = {},
@@ -35,7 +37,7 @@ function cci.create_object(options)
 	}, Object)
 
 	if options.id == nil then
-		cci.next_id = cci.next_id + 1
+		session.next_id = session.next_id + 1
 	end
 
 	-- Apply initial styles if specified in options
@@ -43,8 +45,8 @@ function cci.create_object(options)
 		obj:set_style(k, v)
 	end
 
-	cci.objects[obj.id] = obj
-	cci.is_dirty = true
+	session.objects[obj.id] = obj
+	session.is_dirty = true
 	return obj
 end
 
@@ -52,21 +54,24 @@ end
 function Object:add_point(x, y)
 	local pt = { x = x, y = y }
 	table.insert(self.points, pt)
-	cci.is_dirty = true
+	local session = cci.get_session(self.player_name)
+	session.is_dirty = true
 	return #self.points
 end
 
 function Object:add_chain(...)
 	local chain = {...}
 	table.insert(self.chains, chain)
-	cci.is_dirty = true
+	local session = cci.get_session(self.player_name)
+	session.is_dirty = true
 	return #self.chains
 end
 
 -- Styling & Custom CSS (Chapter 3)
 function Object:set_style(key, value)
 	self.style[key] = value
-	cci.is_dirty = true
+	local session = cci.get_session(self.player_name)
+	session.is_dirty = true
 	return self
 end
 
@@ -74,7 +79,8 @@ function Object:set_styles(tbl)
 	for k, v in pairs(tbl) do
 		self.style[k] = v
 	end
-	cci.is_dirty = true
+	local session = cci.get_session(self.player_name)
+	session.is_dirty = true
 	return self
 end
 
@@ -83,57 +89,67 @@ function Object:set_pos(x, y, z)
 	self.transform.x = x or self.transform.x
 	self.transform.y = y or self.transform.y
 	self.transform.z = z or self.transform.z
-	cci.is_dirty = true
+	local session = cci.get_session(self.player_name)
+	session.is_dirty = true
 	return self
 end
 
 function Object:set_rotation(r)
 	self.transform.rotation = r
-	cci.is_dirty = true
+	local session = cci.get_session(self.player_name)
+	session.is_dirty = true
 	return self
 end
 
 function Object:set_scale(s)
 	self.transform.scale = s
-	cci.is_dirty = true
+	local session = cci.get_session(self.player_name)
+	session.is_dirty = true
 	return self
 end
 
 function Object:set_layer(layer)
 	self.layer = layer
-	cci.is_dirty = true
+	local session = cci.get_session(self.player_name)
+	session.is_dirty = true
 	return self
 end
 
 function Object:set_safe_area(enabled)
 	self.safe_area = enabled
-	cci.is_dirty = true
+	local session = cci.get_session(self.player_name)
+	session.is_dirty = true
 	return self
 end
 
 -- Hierarchy (Chapter 4)
 function Object:add_child(child)
 	if type(child) == "string" then
-		child = cci.objects[child]
+		local session = cci.get_session(self.player_name)
+		child = session.objects[child]
 	end
 	if child then
 		child.parent = self.id
 		table.insert(self.children, child.id)
-		cci.is_dirty = true
+		local session = cci.get_session(self.player_name)
+		session.is_dirty = true
 	end
 	return self
 end
 
+-- Detach a child
 function Object:remove_child(child)
 	if type(child) == "string" then
-		child = cci.objects[child]
+		local session = cci.get_session(self.player_name)
+		child = session.objects[child]
 	end
 	if child then
 		for i, cid in ipairs(self.children) do
 			if cid == child.id then
 				table.remove(self.children, i)
 				child.parent = nil
-				cci.is_dirty = true
+				local session = cci.get_session(self.player_name)
+				session.is_dirty = true
 				break
 			end
 		end
@@ -175,22 +191,26 @@ end
 -- Visibility & State
 function Object:show()
 	self.visible = true
-	cci.is_dirty = true
+	local session = cci.get_session(self.player_name)
+	session.is_dirty = true
 	return self
 end
 
 function Object:hide()
 	self.visible = false
-	cci.is_dirty = true
+	local session = cci.get_session(self.player_name)
+	session.is_dirty = true
 	return self
 end
 
 -- Destruction
 function Object:destroy()
+	local session = cci.get_session(self.player_name)
+
 	-- Destroy all children first
 	local children_to_destroy = {unpack(self.children)}
 	for _, cid in ipairs(children_to_destroy) do
-		local child = cci.objects[cid]
+		local child = session.objects[cid]
 		if child then
 			child:destroy()
 		end
@@ -198,7 +218,7 @@ function Object:destroy()
 
 	-- Remove from parent
 	if self.parent then
-		local parent_obj = cci.objects[self.parent]
+		local parent_obj = session.objects[self.parent]
 		if parent_obj then
 			parent_obj:remove_child(self)
 		end
@@ -207,6 +227,6 @@ function Object:destroy()
 	-- Trigger destruction event
 	self:trigger("destroy")
 
-	cci.objects[self.id] = nil
-	cci.is_dirty = true
+	session.objects[self.id] = nil
+	session.is_dirty = true
 end

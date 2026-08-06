@@ -4,14 +4,14 @@
 cci.easytools = {}
 
 -- Auto Shape: Rectangle (Points, Chains & CSS styling)
-function cci.easytools.create_rectangle(width, height, options)
+function cci.easytools.create_rectangle(player_name, width, height, options)
 	options = options or {}
 	options.type = "rectangle"
 	options.style = options.style or {}
 	options.style.width = width .. "px"
 	options.style.height = height .. "px"
 
-	local obj = cci.create_object(options)
+	local obj = cci.create_object(player_name, options)
 	obj:add_point(0, 0)
 	obj:add_point(width, 0)
 	obj:add_point(width, height)
@@ -21,7 +21,7 @@ function cci.easytools.create_rectangle(width, height, options)
 end
 
 -- Auto Shape: Rounded Rectangle
-function cci.easytools.create_rounded_rectangle(width, height, radius, options)
+function cci.easytools.create_rounded_rectangle(player_name, width, height, radius, options)
 	options = options or {}
 	options.type = "rectangle"
 	options.style = options.style or {}
@@ -29,7 +29,7 @@ function cci.easytools.create_rounded_rectangle(width, height, radius, options)
 	options.style.height = height .. "px"
 	options.style["border-radius"] = radius .. "px"
 
-	local obj = cci.create_object(options)
+	local obj = cci.create_object(player_name, options)
 	obj:add_point(0, 0)
 	obj:add_point(width, 0)
 	obj:add_point(width, height)
@@ -39,7 +39,7 @@ function cci.easytools.create_rounded_rectangle(width, height, radius, options)
 end
 
 -- Auto Shape: Circle
-function cci.easytools.create_circle(radius, options)
+function cci.easytools.create_circle(player_name, radius, options)
 	options = options or {}
 	options.type = "circle"
 	options.style = options.style or {}
@@ -47,7 +47,7 @@ function cci.easytools.create_circle(radius, options)
 	options.style.height = (radius * 2) .. "px"
 	options.style["border-radius"] = "50%"
 
-	local obj = cci.create_object(options)
+	local obj = cci.create_object(player_name, options)
 	-- Generate points mathematically for the Point Draw (Chapter 2 & Chapter 5)
 	local segments = 16
 	for i = 0, segments - 1 do
@@ -67,14 +67,14 @@ function cci.easytools.create_circle(radius, options)
 end
 
 -- Auto Shape: Star
-function cci.easytools.create_star(outer_radius, inner_radius, points_count, options)
+function cci.easytools.create_star(player_name, outer_radius, inner_radius, points_count, options)
 	options = options or {}
 	options.type = "star"
 	options.style = options.style or {}
 	options.style.width = (outer_radius * 2) .. "px"
 	options.style.height = (outer_radius * 2) .. "px"
 
-	local obj = cci.create_object(options)
+	local obj = cci.create_object(player_name, options)
 	local total_points = points_count * 2
 	for i = 0, total_points - 1 do
 		local angle = (i / total_points) * math.PI * 2
