@@ -799,6 +799,7 @@ if(BUILD_SERVER)
 	target_link_libraries(
 		${PROJECT_NAME}server
 		${ZLIB_LIBRARIES}
+		tiniergltf::tiniergltf
 		${ZSTD_LIBRARY}
 		${SQLITE3_LIBRARY}
 		${JSON_LIBRARY}

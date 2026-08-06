@@ -199,48 +199,58 @@ local function get_formspec(dlgdata)
 	local W = size.x - window_padding.x * 2
 	local H = size.y - window_padding.y * 2
 
-	local category_x = 0
-	local number_category_buttons = 4
-	local max_button_w = (W - 0.375 - 0.25 - 7) / number_category_buttons
-	local category_button_w = math.min(max_button_w, 3)
-	local function make_category_button(name, label, selected)
-		category_x = category_x + 1
-		local color = selected and mt_color_green or ""
-		return ("style[%s;bgcolor=%s]button[%f,0;%f,0.8;%s;%s]"):format(name, color,
-				(category_x - 1) * category_button_w, category_button_w, name, label)
-	end
-
-
 	local selected_type = filter_type
 
-	local search_box_width = W - 0.375 - 0.25 - 2*0.8
-			- number_category_buttons * category_button_w
 	local formspec = {
 		"formspec_version[7]",
 		"size[", size.x, ",", size.y, "]",
 		"padding[0,0]",
 		"bgcolor[;true]",
 
+		-- Solid dark premium greyish blue backdrop (Layer 1)
+		"box[-0.5,-0.5;", size.x + 1, ",", size.y + 1, ";#0f172aF2]",
+
 		"container[", window_padding.x, ",", window_padding.y, "]",
+	}
 
-		-- Top-left: categories
-		make_category_button("type_all", fgettext("All"), selected_type == nil),
-		make_category_button("type_game", fgettext("Games"), selected_type == "game"),
-		make_category_button("type_mod", fgettext("Mods"), selected_type == "mod"),
-		make_category_button("type_txp", fgettext("Texture Packs"), selected_type == "txp"),
+	-- Left: Horizontal category selector buttons
+	local cat_buttons = {
+		{ id = "type_all", label = fgettext("All"), active = (selected_type == nil), w = 1.4 },
+		{ id = "type_game", label = fgettext("Games"), active = (selected_type == "game"), w = 1.8 },
+		{ id = "type_mod", label = fgettext("Mods"), active = (selected_type == "mod"), w = 1.6 },
+		{ id = "type_txp", label = fgettext("Textures"), active = (selected_type == "txp"), w = 2.4 },
+	}
 
-		-- Top-right: Search
-		"container[", W - search_box_width - 0.8*2, ",0]",
-		"field[0,0;", search_box_width, ",0.8;search_string;;", core.formspec_escape(search_string), "]",
-		"field_enter_after_edit[search_string;true]",
-		"image_button[", search_box_width, ",0;0.8,0.8;",
-			core.formspec_escape(defaulttexturedir .. "search.png"), ";search;]",
-		"image_button[", search_box_width + 0.8, ",0;0.8,0.8;",
-			core.formspec_escape(defaulttexturedir .. "clear.png"), ";clear;]",
-		"container_end[]",
+	local current_x = 0
+	for _, cat in ipairs(cat_buttons) do
+		local bg_col = cat.active and "#0284c7" or "#334155"
+		local text_col = "white"
+		local font_style = cat.active and "bold" or "normal"
+		formspec[#formspec + 1] = ("style[%s;bgcolor=%s;textcolor=%s;border=false;font=%s]style[%s:hovered;bgcolor=#475569]button[%f,0;%f,0.8;%s;%s]"):format(
+			cat.id, bg_col, text_col, font_style, cat.id, current_x, cat.w, cat.id, cat.label
+		)
+		current_x = current_x + cat.w + 0.15
+	end
 
-		-- Bottom strip start
+	-- Right: Search Box starting exactly at current_x
+	local search_x = current_x
+	local search_box_width = W - search_x - 1.6
+	formspec[#formspec + 1] = ("field[%f,0;%f,0.8;search_string;;%s]"):format(
+		search_x, search_box_width, core.formspec_escape(search_string)
+	)
+	formspec[#formspec + 1] = "field_enter_after_edit[search_string;true]"
+	formspec[#formspec + 1] = ("image_button[%f,0;0.8,0.8;%s;search;]"):format(
+		search_x + search_box_width, core.formspec_escape(defaulttexturedir .. "search.png")
+	)
+	formspec[#formspec + 1] = ("image_button[%f,0;0.8,0.8;%s;clear;]"):format(
+		search_x + search_box_width + 0.8, core.formspec_escape(defaulttexturedir .. "clear.png")
+	)
+
+	-- Bottom strip start
+	table.insert_all(formspec, {
 		"container[0,", H - 0.8, "]",
+		"style[back;bgcolor=#9b2c2c;textcolor=white]",
+		"style[back:hovered;bgcolor=#b91c1c]",
 		"button[0,0;2,0.8;back;", fgettext("Back"), "]",
 
 		-- Bottom-center: Page nav buttons
@@ -256,7 +266,7 @@ local function get_formspec(dlgdata)
 		-- Bottom-right: updating
 		"container[", W - 3, ",0]",
 		"style[status,downloading,queued;border=false]",
-	}
+	})
 
 	if contentdb.number_downloading > 0 then
 		formspec[#formspec + 1] = "button[0,0;3,0.8;downloading;"
@@ -271,8 +281,7 @@ local function get_formspec(dlgdata)
 		local num_avail_updates = 0
 		for i=1, #contentdb.packages_full do
 			local package = contentdb.packages_full[i]
-			if package.path and package.installed_release < package.release and
-					not (package.downloading or package.queued) then
+			if package.path and package.installed_release < package.release then
 				num_avail_updates = num_avail_updates + 1
 			end
 		end
@@ -282,6 +291,8 @@ local function get_formspec(dlgdata)
 			formspec[#formspec + 1] = fgettext("No updates")
 			formspec[#formspec + 1] = "]"
 		else
+			formspec[#formspec + 1] = "style[update_all;bgcolor=#0284c7;textcolor=white;font=bold]"
+			formspec[#formspec + 1] = "style[update_all:hovered;bgcolor=#0369a1]"
 			formspec[#formspec + 1] = "button[0,0;3,0.8;update_all;"
 			-- TRANSLATORS: $1 = number of available updates
 			formspec[#formspec + 1] = fgettext("Update All [$1]", num_avail_updates)
@@ -304,6 +315,9 @@ local function get_formspec(dlgdata)
 	-- TRANSLATORS: A download is queued
 	formspec[#formspec + 1] = "tooltip[queued;" .. fgettext("Queued") .. tooltip_colors
 
+	-- Full Width Packages Browser Box (Layer 2)
+	formspec[#formspec + 1] = ("box[0,1.2;%f,%f;#1e293bB0]"):format(W, H - 2.225)
+
 	formspec[#formspec + 1] = "container[0,1.425]"
 
 	local cell_spacing, columns, cell_w, cell_h = fit_cells(num_per_page, {
@@ -320,8 +334,8 @@ local function get_formspec(dlgdata)
 	local start_idx = (cur_page - 1) * num_per_page + 1
 	for i=start_idx, math.min(#contentdb.packages, start_idx+num_per_page-1) do
 		local package = contentdb.packages[i]
-		local text = core.colorize(mt_color_green, package.title) ..
-			core.colorize("#BFBFBF", " by " .. package.author) .. "\n" ..
+		local text = core.colorize("#38bdf8", package.title) ..
+			core.colorize("#94a3b8", " by " .. package.author) .. "\n" ..
 			package.short_description
 
 		table.insert_all(formspec, {
@@ -331,7 +345,8 @@ local function get_formspec(dlgdata)
 			(cell_h + cell_spacing) * math.floor((i - start_idx) / columns),
 			"]",
 
-			"box[0,0;", cell_w, ",", cell_h, ";#ffffff11]",
+			-- Modern greyish blue translucent card cells (#33415590) with subtle borders
+			"box[0,0;", cell_w, ",", cell_h, ";#33415590]",
 
 			-- image,
 			"image[0,0;", img_w, ",", cell_h, ";",
@@ -400,6 +415,11 @@ end
 
 
 local function handle_submit(this, fields)
+	if fields.btn_categories_dropdown then
+		this.data.categories_expanded = not this.data.categories_expanded
+		return true
+	end
+
 	if fields.search or fields.key_enter_field == "search_string" then
 		search_string = fields.search_string:trim()
 		cur_page = 1
@@ -451,6 +471,7 @@ local function handle_submit(this, fields)
 			filter_type = pair[2]
 			cur_page = 1
 			contentdb.filter_packages(search_string, filter_type)
+			this.data.categories_expanded = false
 			return true
 		end
 	end
@@ -530,5 +551,6 @@ function create_contentdb_dlg(type, install_spec)
 			handle_submit,
 			handle_events)
 	dlg.data.num_per_page = calculate_num_per_page()
+	dlg.data.categories_expanded = false
 	return dlg
 end

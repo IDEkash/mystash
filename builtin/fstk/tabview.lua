@@ -82,7 +82,8 @@ local function get_formspec(self)
 	end
 
 	local formspec = (prepend or "")
-	formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#0000008C]"):format(
+	-- Premium Modern Greyish Blue Theme Backdrops (#0f172aF2 Slate-900 / #1e293bB0 Slate-800)
+	formspec = formspec .. ("bgcolor[;neither]container[0,%f]box[0,0;%f,%f;#0f172aF2]"):format(
 			TABHEADER_H, orig_tsize.width, orig_tsize.height)
 	formspec = formspec .. self:tab_header(tab_header_size) .. content
 
@@ -155,22 +156,37 @@ end
 
 --------------------------------------------------------------------------------
 local function tab_header(self, size)
-	local toadd = ""
-
+	local fs = {}
+	local col_width = size.width / #self.tablist
+	-- Greyish blue theme bar
+	fs[#fs + 1] = ("box[%f,%f;%f,%f;#1e293bE0]"):format(
+		self.header_x,
+		self.header_y - size.height,
+		size.width,
+		size.height
+	)
 	for i = 1, #self.tablist do
-		if toadd ~= "" then
-			toadd = toadd .. ","
-		end
-
 		local caption = self.tablist[i].caption
 		if type(caption) == "function" then
 			caption = caption(self)
 		end
-
-		toadd = toadd .. caption
+		local btn_name = self.name .. "_tab_" .. i
+		-- Highlight using beautiful modern Sky Blue accent (#0284c7 for active, #1e293bE0 for inactive)
+		local bg = (i == self.last_tab_index) and "#0284c7F0" or "#1e293bE0"
+		local tc = (i == self.last_tab_index) and "#ffffff" or "#94a3b8"
+		fs[#fs + 1] = ("style[%s;bgcolor=%s;textcolor=%s;border=false;content_offset=0;font=%s]"):format(
+			btn_name, bg, tc, (i == self.last_tab_index) and "bold" or "normal")
+		fs[#fs + 1] = ("style[%s:hovered;bgcolor=#0369a1]style[%s:pressed;bgcolor=#075985]"):format(btn_name, btn_name)
+		fs[#fs + 1] = ("button[%f,%f;%f,%f;%s;%s]"):format(
+			self.header_x + (i - 1) * col_width,
+			self.header_y - size.height,
+			col_width,
+			size.height,
+			btn_name,
+			core.formspec_escape(caption)
+		)
 	end
-	return string.format("tabheader[%f,%f;%f,%f;%s;%s;%i;true;false]",
-			self.header_x, self.header_y, size.width, size.height, self.name, toadd, self.last_tab_index)
+	return table.concat(fs, "")
 end
 
 --------------------------------------------------------------------------------
@@ -204,6 +220,14 @@ local function handle_tab_buttons(self,fields)
 		local index = tonumber(fields[self.name])
 		switch_to_tab(self, index)
 		return true
+	end
+
+	for i = 1, #self.tablist do
+		local btn_name = self.name .. "_tab_" .. i
+		if fields[btn_name] then
+			switch_to_tab(self, i)
+			return true
+		end
 	end
 
 	return false
