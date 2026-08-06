@@ -1,5 +1,7 @@
--- EasyTools Creation Toolkit for CCI (Built-in)
+-- EasyTools Creation Toolkit for CCI (Mod-based)
 -- Simplifies geometry creation by instantly generating normal point-draw objects.
+
+local safe_unpack = table.unpack or unpack
 
 cci.easytools = {}
 
@@ -62,7 +64,7 @@ function cci.easytools.create_circle(player_name, radius, options)
 		table.insert(chain, i)
 	end
 	table.insert(chain, 1) -- close circle
-	obj:add_chain(unpack(chain))
+	obj:add_chain(safe_unpack(chain))
 	return obj
 end
 
@@ -89,6 +91,6 @@ function cci.easytools.create_star(player_name, outer_radius, inner_radius, poin
 		table.insert(chain, i)
 	end
 	table.insert(chain, 1)
-	obj:add_chain(unpack(chain))
+	obj:add_chain(safe_unpack(chain))
 	return obj
 end

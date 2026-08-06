@@ -1,4 +1,4 @@
--- CCI Runtime & Rendering Pipeline Bridge (Built-in - Multiplayer-Safe)
+-- CCI Runtime & Rendering Pipeline Bridge (Mod-based - Multiplayer-Safe)
 -- Translates the hierarchical Lua CCI representation into HTML/CSS DOM structure per player.
 -- Provides bidirectional communication between Lua and WebView for interaction.
 
@@ -129,9 +129,19 @@ local function get_cci_html()
           el.classList.remove('cci-safe-area');
         }
 
-        // Apply Custom Styles & CSS directly
-        for (const [k, v] of Object.entries(obj.style || {})) {
-          el.style[k] = v;
+        // Apply Custom Styles & CSS directly (while isolating content attribute for text)
+        if (obj.style && obj.style.content !== undefined) {
+          el.textContent = obj.style.content;
+          const cleanStyle = { ...obj.style };
+          delete cleanStyle.content;
+          for (const [k, v] of Object.entries(cleanStyle)) {
+            el.style[k] = v;
+          }
+        } else {
+          el.textContent = '';
+          for (const [k, v] of Object.entries(obj.style || {})) {
+            el.style[k] = v;
+          }
         }
 
         // Apply spatial 2.5D Transforms (Chapter 2 & Chapter 4)
@@ -183,7 +193,7 @@ end
 
 function cci.runtime.init_session(player_name)
 	if not is_htmlview_available() then
-		core.log("warning", "[CCI] htmlview is not supported or enabled. Headless mock mode for " .. player_name)
+		minetest.log("warning", "[CCI] htmlview is not supported or enabled. Headless mock mode for " .. player_name)
 		return
 	end
 
@@ -200,7 +210,7 @@ function cci.runtime.init_session(player_name)
 
 	-- Handle incoming events from the renderer
 	htmlview.on_message(session.view_id, function(msg)
-		local data = core.parse_json(msg)
+		local data = minetest.parse_json(msg)
 		if data and data.id then
 			local obj = session.objects[data.id]
 			if obj then
@@ -220,7 +230,7 @@ function cci.runtime.init_session(player_name)
 	end)
 
 	session.active = true
-	core.log("action", "[CCI] Runtime successfully initialized and rendering for player " .. player_name)
+	minetest.log("action", "[CCI] Runtime successfully initialized and rendering for player " .. player_name)
 end
 
 function cci.runtime.close_session(player_name)
@@ -236,19 +246,19 @@ function cci.runtime.close_session(player_name)
 end
 
 -- Automatic player session lifecycles
-core.register_on_joinplayer(function(player)
+minetest.register_on_joinplayer(function(player)
 	local name = player:get_player_name()
 	cci.runtime.init_session(name)
 end)
 
-core.register_on_leaveplayer(function(player)
+minetest.register_on_leaveplayer(function(player)
 	local name = player:get_player_name()
 	cci.runtime.close_session(name)
 end)
 
 -- Global Runtime Step function (Chapter 4 - Frame updates per session)
 local accumulated_time = 0
-core.register_globalstep(function(dtime)
+minetest.register_globalstep(function(dtime)
 	accumulated_time = accumulated_time + dtime
 	-- Process updates, limit updates to 60 fps to optimize rendering performance
 	if accumulated_time >= 0.016 then

@@ -1,5 +1,5 @@
 -- Creative Composition Interface (CCI)
--- Built-in Core Engine & API (Multiplayer-Safe Per-Player Sessions)
+-- Mod-based Core Engine & API (Multiplayer-Safe Per-Player Sessions)
 
 cci = {
 	sessions = {},
@@ -25,7 +25,11 @@ function cci.get_session(player_name)
 		end
 
 		function Session:destroy()
-			for _, obj in pairs(self.objects) do
+			local to_destroy = {}
+			for id, obj in pairs(self.objects) do
+				table.insert(to_destroy, obj)
+			end
+			for _, obj in ipairs(to_destroy) do
 				obj:destroy()
 			end
 			cci.sessions[player_name] = nil
@@ -34,9 +38,9 @@ function cci.get_session(player_name)
 	return cci.sessions[player_name]
 end
 
-local gamepath = core.get_builtin_path() .. "game" .. DIR_DELIM .. "cci" .. DIR_DELIM
+local modpath = minetest.get_modpath(minetest.get_current_modname())
 
-dofile(gamepath .. "object.lua")
-dofile(gamepath .. "easytools.lua")
-dofile(gamepath .. "runtime.lua")
-dofile(gamepath .. "tests.lua")
+dofile(modpath .. "/object.lua")
+dofile(modpath .. "/easytools.lua")
+dofile(modpath .. "/runtime.lua")
+dofile(modpath .. "/tests.lua")

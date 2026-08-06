@@ -1,4 +1,4 @@
--- CCI Object Interface Implementation (Built-in - Multiplayer-Safe)
+-- CCI Object Interface Implementation (Mod-based - Multiplayer-Safe)
 -- Manages Points, Chains, Transforms, Styling, Attributes, Events, and Hierarchy.
 
 local Object = {}
@@ -206,9 +206,15 @@ end
 -- Destruction
 function Object:destroy()
 	local session = cci.get_session(self.player_name)
+	if not session.objects[self.id] then
+		return -- Already destroyed!
+	end
 
 	-- Destroy all children first
-	local children_to_destroy = {unpack(self.children)}
+	local children_to_destroy = {}
+	for _, cid in ipairs(self.children) do
+		table.insert(children_to_destroy, cid)
+	end
 	for _, cid in ipairs(children_to_destroy) do
 		local child = session.objects[cid]
 		if child then

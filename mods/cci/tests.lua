@@ -1,4 +1,4 @@
--- Unit tests for Creative Composition Interface (CCI) core logic (Built-in - Multiplayer-Safe)
+-- Unit tests for Creative Composition Interface (CCI) core logic (Mod-based)
 -- Verifies object composition, points & geometry, spatial transforms, hierarchy, events, and lifecycle management.
 
 local function run_tests()
@@ -95,7 +95,7 @@ local function run_tests()
 end
 
 -- Run unit tests on startup
-core.register_on_mods_loaded(function()
+minetest.register_on_mods_loaded(function()
 	local success = run_tests()
 	if not success then
 		error("CCI Core Unit Tests Failed!")
