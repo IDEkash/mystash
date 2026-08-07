@@ -816,6 +816,30 @@ int ObjectRef::l_set_camera(lua_State *L)
 		player->camera_anti_tilt_controller = lua_toboolean(L, -1);
 	lua_pop(L, 1);
 
+	lua_getfield(L, -1, "shake_amplitude");
+	if (lua_isnumber(L, -1)) {
+		float val = lua_tonumber(L, -1);
+		if (std::isfinite(val))
+			player->camera_shake_amplitude = val;
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "shake_frequency");
+	if (lua_isnumber(L, -1)) {
+		float val = lua_tonumber(L, -1);
+		if (std::isfinite(val))
+			player->camera_shake_frequency = val;
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "shake_timer");
+	if (lua_isnumber(L, -1)) {
+		float val = lua_tonumber(L, -1);
+		if (std::isfinite(val))
+			player->camera_shake_timer = val;
+	}
+	lua_pop(L, 1);
+
 	lua_getfield(L, -1, "fov");
 	if (lua_isnumber(L, -1)) {
 		PlayerFovSpec s = player->getFov();
@@ -856,6 +880,9 @@ int ObjectRef::l_get_camera(lua_State *L)
 	setboolfield(L, -1, "smooth", player->camera_smooth);
 	setfloatfield(L, -1, "tilt", player->camera_tilt);
 	setboolfield(L, -1, "anti_tilt_controller", player->camera_anti_tilt_controller);
+	setfloatfield(L, -1, "shake_amplitude", player->camera_shake_amplitude);
+	setfloatfield(L, -1, "shake_frequency", player->camera_shake_frequency);
+	setfloatfield(L, -1, "shake_timer", player->camera_shake_timer);
 
 	PlayerFovSpec fov = player->getFov();
 	setfloatfield(L, -1, "fov", fov.fov);
