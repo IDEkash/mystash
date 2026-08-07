@@ -1635,6 +1635,12 @@ void Client::handleCommand_Camera(NetworkPacket* pkt)
 		*pkt >> player->camera_tilt;
 	}
 
+	if (pkt->getRemainingBytes() >= 12) {
+		*pkt >> player->camera_shake_amplitude;
+		*pkt >> player->camera_shake_frequency;
+		*pkt >> player->camera_shake_timer;
+	}
+
 	m_client_event_queue.push(new ClientEvent(CE_UPDATE_CAMERA));
 }
 

@@ -326,6 +326,34 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	if (!player || !m_playernode || !m_headnode || !m_cameranode)
 		return;
 
+	// Update camera shake (procedural game feel)
+	if (player->camera_shake_timer > 0.0f) {
+		player->camera_shake_timer -= frametime;
+		if (player->camera_shake_timer < 0.0f) {
+			player->camera_shake_timer = 0.0f;
+			player->camera_shake_amplitude = 0.0f;
+			player->camera_shake_frequency = 0.0f;
+		}
+	}
+
+	v3f shake_offset(0.0f, 0.0f, 0.0f);
+	v3f shake_rot(0.0f, 0.0f, 0.0f);
+	if (player->camera_shake_timer > 0.0f && player->camera_shake_amplitude > 0.0f) {
+		float angle = player->camera_shake_timer * player->camera_shake_frequency * 2.0f * M_PI;
+		float current_amp = player->camera_shake_amplitude;
+		if (player->camera_shake_timer < 0.5f) {
+			current_amp *= (player->camera_shake_timer / 0.5f);
+		}
+
+		shake_offset.X = std::sin(angle) * current_amp * 0.1f;
+		shake_offset.Y = std::cos(angle * 1.5f) * current_amp * 0.1f;
+		shake_offset.Z = std::sin(angle * 0.7f) * current_amp * 0.05f;
+
+		shake_rot.X = std::cos(angle) * current_amp * 2.0f; // pitch
+		shake_rot.Y = std::sin(angle * 1.2f) * current_amp * 2.0f; // yaw
+		shake_rot.Z = std::cos(angle * 0.5f) * current_amp * 3.0f; // roll
+	}
+
 	// Get player position
 	// Smooth the movement when walking up stairs
 	v3f old_player_position = m_playernode->getPosition();
@@ -389,10 +417,11 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 
 		// Set head node transformation
 		eye_offset.Y += cameratilt * -player->hurt_tilt_strength;
+		eye_offset += shake_offset;
 		if (std::isfinite(eye_offset.X) && std::isfinite(eye_offset.Y) && std::isfinite(eye_offset.Z))
 			m_headnode->setPosition(eye_offset);
 
-		v3f head_rot(pitch, 0, cameratilt * player->hurt_tilt_strength + player->camera_tilt);
+		v3f head_rot(pitch + shake_rot.X, shake_rot.Y, cameratilt * player->hurt_tilt_strength + player->camera_tilt + shake_rot.Z);
 		if (std::isfinite(head_rot.X) && std::isfinite(head_rot.Y) && std::isfinite(head_rot.Z))
 			m_headnode->setRotation(head_rot);
 
