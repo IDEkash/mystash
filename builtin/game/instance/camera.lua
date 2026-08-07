@@ -6,6 +6,9 @@ Instance.classes["Camera"] = {
 		Mode = "firstperson",
 		Smooth = false,
 		Tilt = 0,
+		ShakeAmplitude = 0,
+		ShakeFrequency = 0,
+		ShakeDuration = 0,
 		PlayerRef = nil, -- Direct Player ObjectRef binding
 	},
 	init = function(self)
@@ -19,12 +22,15 @@ Instance.classes["Camera"] = {
 					pcall(function()
 						player:set_fov(value)
 					end)
-				elseif key == "Mode" or key == "Smooth" or key == "Tilt" then
+				elseif key == "Mode" or key == "Smooth" or key == "Tilt" or key == "ShakeAmplitude" or key == "ShakeFrequency" or key == "ShakeDuration" then
 					pcall(function()
 						player:set_camera({
 							mode = self.Mode,
 							smooth = self.Smooth,
 							tilt = self.Tilt,
+							shake_amplitude = self.ShakeAmplitude,
+							shake_frequency = self.ShakeFrequency,
+							shake_timer = self.ShakeDuration,
 						})
 					end)
 				end

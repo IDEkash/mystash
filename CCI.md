@@ -69,8 +69,8 @@ A physical item or model in the workspace.
 
 ### `Camera`
 Controls a player's camera viewport.
-*   Properties: `FieldOfView`, `Mode`, `Smooth`, `Tilt`.
-*   Propagates camera parameters directly to Luanti’s core viewport camera.
+*   Properties: `FieldOfView`, `Mode`, `Smooth`, `Tilt`, `ShakeAmplitude`, `ShakeFrequency`, `ShakeDuration`.
+*   Propagates camera parameters directly to Luanti’s core viewport camera, including triggering dynamic procedural camera shaking over network protocol packets.
 
 ### `BoneTransform`
 Procedural joint controller for skeletal mesh animations.

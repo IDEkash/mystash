@@ -174,6 +174,9 @@ public:
 	bool camera_smooth = false;
 	f32 camera_tilt = 0.0f;
 	bool camera_anti_tilt_controller = false;
+	f32 camera_shake_amplitude = 0.0f;
+	f32 camera_shake_frequency = 0.0f;
+	f32 camera_shake_timer = 0.0f;
 
 	v3f eye_offset_first;
 	v3f eye_offset_third;

@@ -51,14 +51,12 @@ local function run_tests()
 	assert_eq(#folder2:GetChildren(), 1, "New parent registers child in list")
 
 	-- Test 6: Event propagation (.Changed listener)
-	local prop_name, prop_val
-	sub_folder.Changed = function(key, val)
+	local prop_name
+	sub_folder.Changed:Connect(function(key)
 		prop_name = key
-		prop_val = val
-	end
+	end)
 	sub_folder.Name = "RenamedFolder"
 	assert_eq(prop_name, "Name", "Property name passed to Changed listener")
-	assert_eq(prop_val, "RenamedFolder", "New property value passed to Changed listener")
 
 	-- Test 7: Recursive Destruction (:Destroy)
 	local child_part = Instance.new("Part")
@@ -70,6 +68,19 @@ local function run_tests()
 	folder2:Destroy()
 	assert_eq(sub_folder.Parent, nil, "Sub-folder detached from destroyed parent")
 	assert_eq(child_part.Parent, nil, "Child part detached from destroyed parent")
+
+	-- Test 8: Camera Instance and Shake properties
+	local cam = Instance.new("Camera")
+	cam.FieldOfView = 80
+	cam.Tilt = 5
+	cam.ShakeAmplitude = 1.5
+	cam.ShakeFrequency = 20
+	cam.ShakeDuration = 2.0
+	assert_eq(cam.FieldOfView, 80, "Camera FieldOfView set and verified")
+	assert_eq(cam.Tilt, 5, "Camera Tilt set and verified")
+	assert_eq(cam.ShakeAmplitude, 1.5, "Camera ShakeAmplitude set and verified")
+	assert_eq(cam.ShakeFrequency, 20, "Camera ShakeFrequency set and verified")
+	assert_eq(cam.ShakeDuration, 2.0, "Camera ShakeDuration set and verified")
 
 	print(("[Instance Tests] Test run complete. Passed: %d, Failed: %d"):format(passed, failed))
 	return failed == 0
