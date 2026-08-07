@@ -39,7 +39,7 @@ dofile(gamepath .. "hud.lua")
 dofile(gamepath .. "knockback.lua")
 dofile(gamepath .. "async.lua")
 dofile(gamepath .. "death_screen.lua")
-dofile(gamepath .. "cci" .. DIR_DELIM .. "init.lua")
+dofile(gamepath .. "instance" .. DIR_DELIM .. "init.lua")
 
 core.after(0, builtin_shared.cache_content_ids)
 

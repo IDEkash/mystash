@@ -1,222 +1,149 @@
-# Creative Composition Interface (CCI)
+# Roblox-Style Instance & Workspace Engine
 
-This document describes the design, API, and implementation of the **Creative Composition Interface (CCI)**—a modern, high-performance, multiplayer-safe UI system developed natively for Luanti as an alternative to the traditional formspec UI system.
+This document describes the design, API, and implementation of the **Roblox-Style Instance & Workspace Engine**—a modern, high-performance, fully moldable scene-tree and GUI layout system developed natively for Luanti as an alternative to both legacy formspec and standard entity models.
 
 ---
 
 ## 1. Overview & Architecture
 
-Unlike traditional UI systems that rely on predefined, hardcoded widgets (like Buttons, Sliders, Checkboxes), CCI is built on the philosophy of **creative composition**. Modern interfaces are assembled at runtime from simpler, modular components:
+To achieve absolute creative freedom, modern engines model their workspace as a unified hierarchical scene-graph (the Roblox `game` tree). In this tree, every entity, player, camera, container, or user interface element is an **Instance**:
 
-*   **Built-in Engine Core:** Registered inside the game engine's initialization pathline under `builtin/game/cci/`. It is globally available as `cci` to all mods and games automatically on startup—**no mod-level dependencies (`depends = cci`) are required!**
-*   **Multiplayer-Safe Sessions:** Storage and updates are dynamically partitioned per connected player, allowing seamless multi-client rendering without state conflicts.
-*   **Object Interface (Chapter 2):** Defines geometric bounds, points, closed-shape chains, and spatial structures. Objects have no built-in logic or styles—they simply represent spatial coordinates in a parent-child hierarchy.
-*   **CSS Class & Style Injection (Chapter 3):** Allows injecting complete custom CSS stylesheet rules globally via `cci.inject_style()`, and managing classes per-object (`Object:add_class()`) to build highly polished, real CSS-styled interfaces.
-*   **Functionable Services (Chapter 1):** The "brain" of CCI. Handles execution pipelines (detecting Events, evaluating Conditions/If statements, and triggering Actions).
-*   **Runtime & Rendering Pipeline (Chapter 4):** Manages object lifecycles per player, computes recursive transforms (X, Y, Depth/Z, Rotation, Scale), handles safe-area clipping, and renders the hierarchy using an optimized WebView (`htmlview`) backed by GPU-accelerated CSS 3D.
-*   **EasyTools (Chapter 5):** A creation toolkit providing helper functions (Auto Shapes) to instantly instantiate common geometric shapes (Rectangles, Circles, Stars, etc.).
+*   **Global `game` Tree:** The root workspace is available globally as `game.Workspace`.
+*   **Automatic Parent-Child Replication:** Setting an Instance’s `.Parent` property automatically handles detaching it from its old parent, registering it under its new parent, and shifting child lists dynamically.
+*   **Dynamic Properties & Events:** Intercepting property writes triggers a `.Changed` event, allowing instances to synchronize their state automatically with client viewports or physical engine parameters.
+*   **Real Custom CSS GUI Engine:** Hierarchical GUI components (`ScreenGui`, `Frame`, `TextLabel`, `ImageLabel`, `TextBox`) reside inside the player's `PlayerGui` folder. When modified, they dynamically recompile themselves into HTML5/CSS and render smoothly on the player's screen via an optimized client-bound WebView.
 
 ---
 
 ## 2. API Design & Specifications
 
-The CCI API is completely object-oriented, player-partitioned, and natively built-in.
+### Instance Core Creation
 
-### Player Session Management
-
-#### `cci.get_session(player_name)`
-Retrieves (or creates) the isolated session container for a specific player.
-*   Returns a Session object containing helper methods.
+#### `Instance.new(className, [parent])`
+Instantiates a new Instance of type `className`.
+*   `className`: String name of the class (`Folder`, `Part`, `Camera`, `BoneTransform`, `ScreenGui`, `Frame`, `TextLabel`, `ImageLabel`, `TextBox`).
+*   `parent`: (Optional) Parent Instance to attach to immediately.
 ```lua
-local session = cci.get_session("singleplayer")
+local folder = Instance.new("Folder", game.Workspace)
 ```
 
-#### `Session:create_object(options)`
-Convenience method to instantiate a new Object Interface tied directly to this session.
+---
 
-#### `Session:destroy()`
-Recursively destroys all objects inside this player's session and stops the runtime WebView.
+### Shared Instance Methods & Properties
+
+#### `Instance.ClassName` (Read-only string)
+The class name of the instance.
+
+#### `Instance.Name` (String)
+The name of the instance. Defaults to its `ClassName`.
+
+#### `Instance.Parent` (Instance pointer)
+The parent of the instance. Setting this automatically rebuilds child lookup trees.
+
+#### `Instance:GetChildren() -> list`
+Returns an array list of all child Instances attached to this object.
+
+#### `Instance:FindFirstChild(name) -> Instance | nil`
+Searches children and returns the first child whose `.Name` matches `name`.
+
+#### `Instance:FindFirstChildOfClass(className) -> Instance | nil`
+Searches children and returns the first child whose `.ClassName` matches `className`.
+
+#### `Instance:Destroy()`
+Recursively destroys the Instance and all of its nested children, removing all parent/child bindings and reclaiming memory cleanly.
+
+#### `Instance.Changed(propertyName, newValue, oldValue)` (Event callback)
+Fires whenever a property on the instance is written to.
 
 ---
 
-### Core Creation Methods
+## 3. Class Definitions & Bridging
 
-#### `cci.create_object(player_name, options)`
-Instantiates a new Object Interface tied to a specific player's session.
-*   `player_name` (string): The target player's name.
-*   `options` (table, optional):
-    *   `id`: String unique identifier.
-    *   `type`: String indicating geometry type (`rectangle`, `circle`, `shape`, etc.).
-    *   `x`, `y`, `z`: Initial spatial coordinates (Z represents depth for 2.5D rendering).
-    *   `rotation`: Spatial rotation in degrees.
-    *   `scale`: Spatial scale multiplier.
-    *   `class` / `classes`: String or table of CSS classes applied to the element.
-    *   `style`: Table containing CSS style key-value pairs (for inline style overrides).
-    *   `layer`: Number representing rendering layer (z-index).
-    *   `safe_area`: Boolean. If true, clips the rendering of all child objects.
-    *   `visible`: Boolean indicating whether the object is rendered initially.
+### `Folder`
+A generic organizational container.
 
-#### `cci.inject_style(player_name, css_string)`
-Injects a global CSS stylesheet block dynamically into a player's WebView session, enabling standard CSS themes, class selectors, hover scales, or animated keyframe transitions.
+### `Part`
+A physical item or model in the workspace.
+*   Properties: `Position`, `Rotation`, `Velocity`, `Size`.
+*   `ObjectRef`: Can bind a native Luanti `ObjectRef` (player or entity). Property changes to `Position`, `Rotation`, or `Velocity` automatically propagate down to the native physics engine!
+
+### `Camera`
+Controls a player's camera viewport.
+*   Properties: `FieldOfView`, `Mode`, `Smooth`, `Tilt`.
+*   Propagates camera parameters directly to Luanti’s core viewport camera.
+
+### `BoneTransform`
+Procedural joint controller for skeletal mesh animations.
+*   Properties: `BoneName`, `Position`, `Rotation`, `Scale`, `Visible`.
+*   Propagates overrides to native independent bone transforms on the nearest parent `Part`.
+
+### `ScreenGui` / `Frame` / `TextLabel` / `ImageLabel` / `TextBox`
+Standard UI layout components.
+*   Setting layout properties (`Position`, `Size`, `BackgroundColor`, `Text`, `TextColor`, etc.) automatically compiles the hierarchy into custom CSS layouts (flexbox, gradients, shadow borders) and pushes them to the player's screen at up to 60 FPS.
+*   Inputs like typing or touching trigger corresponding `.Activated` or `.TextChanged` callbacks on the Lua-side Instance!
 
 ---
 
-### Object Instance Methods (Styling & CSS Classes)
+## 4. Modern Composition Examples
 
-#### `Object:add_class(class_name)`
-Adds a CSS class selector to the object's class list for stylesheet mapping.
-
-#### `Object:remove_class(class_name)`
-Removes a CSS class selector from the object.
-
-#### `Object:set_class(class_name_or_list)`
-Directly overrides the entire CSS class list for the object.
-
-#### `Object:set_style(key, value)`
-Directly sets a custom inline style or CSS property override on the element.
+### 1. Roblox-Style Draggable Part Spawning
 ```lua
-obj:set_style("background", "linear-gradient(45deg, #ff007f, #7f00ff)")
+-- Create a physical part in the Workspace
+local brick = Instance.new("Part", game.Workspace)
+brick.Name = "GoldenBrick"
+brick.Position = { x = 10, y = 5, z = -10 }
+
+-- Listen for position updates
+brick.Changed = function(key, val)
+	if key == "Position" then
+		print("Brick moved to: " .. val.x .. ", " .. val.y)
+	end
+end
 ```
 
-#### `Object:set_styles(tbl)`
-Batch sets multiple inline CSS styles.
-
----
-
-### Geometry & Transforms (Chapter 2 / Chapter 4)
-
-#### `Object:add_point(x, y)`
-Adds a geometric vertex location to the shape's definition. Returns the index of the point.
-
-#### `Object:add_chain(...)`
-Links multiple point indices together to form a path or a closed shape.
-
-#### `Object:set_pos(x, y, z)`
-Updates the current transform position.
-
-#### `Object:set_rotation(r)`
-Updates the current transform rotation in degrees.
-
-#### `Object:set_scale(s)`
-Updates the spatial scale of the object.
-
-#### `Object:set_layer(layer)`
-Sets rendering order layer (z-index).
-
-#### `Object:set_safe_area(enabled)`
-Enables/disables safe-area clipping for child elements.
-
----
-
-### Hierarchy & Functionable Services (Chapter 4 / Chapter 1)
-
-#### `Object:add_child(child)`
-Attaches a child object to this object, creating a parent-child relationship. Children inherit parent transforms and visibility.
-
-#### `Object:remove_child(child)`
-Detaches a child object.
-
-#### `Object:on(event_name, [condition_fn], action_fn)`
-Registers a Functionable Service handler.
-*   `event_name`: `"press"`, `"release"`, `"drag_start"`, `"dragging"`, `"drag_end"`.
-*   `condition_fn`: (Optional) Function returning boolean. If false, action execution is aborted.
-*   `action_fn`: Function executed upon event receipt.
-
-#### `Object:trigger(event_name, data)`
-Manually fires an event on the object.
-
-#### `Object:show()` / `Object:hide()`
-Changes visibility of the object.
-
-#### `Object:destroy()`
-Recursively destroys the object and all of its nested children, cleaning up all references from the player session.
-
----
-
-### EasyTools (Auto Shapes)
-
-Every EasyTools creation method takes `player_name` as its first parameter to automatically register under the player's session.
-
-#### `cci.easytools.create_rectangle(player_name, width, height, options)`
-Generates a normal point-draw rectangle.
-
-#### `cci.easytools.create_rounded_rectangle(player_name, width, height, radius, options)`
-Generates a rectangle with custom border-radius styling.
-
-#### `cci.easytools.create_circle(player_name, radius, options)`
-Instantiates a circle with generated mathematical points.
-
-#### `cci.easytools.create_star(player_name, outer_radius, inner_radius, points_count, options)`
-Generates a star geometry with the specified number of star tips.
-
----
-
-## 3. How It Works Under the Hood
-
-### The Rendering Pipeline & HTML/CSS Bridge
-CCI avoids traditional native C++ widget rendering in favor of a hybrid approach:
-1. When a player joins, the runtime listener (`register_on_joinplayer`) launches a player-specific `htmlview` session (`cci_view_<player_name>`).
-2. An initial HTML document is loaded, preparing a standard 3D perspective context (`perspective: 1000px; transform-style: preserve-3d;`) to support modern **2.5D rendering** effects like card flipping, floating panels, and depth offsets.
-3. Every global-step (capped to 60fps), the runtime loops through active player sessions and checks if `session.is_dirty` is true.
-4. If changed, the runtime serializes the active object tree and custom stylesheet rules for that player, and updates their client WebView using `htmlview.send_json` with their session-specific `view_id`.
-5. The lightweight Javascript renderer updates the `<style>` block, synchronizes element CSS classes, and uses CSS 3D transforms (`translate3d()`, `rotate()`, `scale()`) for ultra-smooth rendering.
-6. When a player leaves, their session is destroyed and the WebView is cleanly stopped.
-
----
-
-## 4. Pure CSS/Lua Composition Example
-
+### 2. A Real Custom CSS-Styled Login Screen GUI
 ```lua
 local player_name = "singleplayer"
+local player_folder = game.Players[player_name]
 
--- 1. Inject a beautiful CSS stylesheet containing theme configurations and selector classes
-cci.inject_style(player_name, [[
-	.my-panel {
-		background: #1a1e29;
-		border: 1px solid rgba(255,255,255,0.1);
-		border-radius: 16px;
-		box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-	}
-	.my-btn {
-		background: linear-gradient(180deg, #4d90fe, #357ae8);
-		border: 1px solid #2f5bb7;
-		color: #ffffff;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-weight: bold;
-		cursor: pointer;
-		border-radius: 12px;
-		transition: transform 0.1s ease, background 0.1s ease;
-	}
-	.my-btn.pressed {
-		transform: scale(0.95);
-		background: linear-gradient(180deg, #357ae8, #2251a2);
-	}
-	.my-btn-label {
-		font-size: 16px;
-		text-shadow: 0 1px 1px rgba(0,0,0,0.3);
-	}
-]])
+if player_folder then
+	-- 1. Create a ScreenGui canvas inside the player's PlayerGui
+	local screen = Instance.new("ScreenGui", player_folder.PlayerGui)
+	screen.Name = "LoginScreen"
 
--- 2. Compose the widgets and apply CSS classes instead of inline styles!
-local panel = cci.easytools.create_rounded_rectangle(player_name, 300, 200, 16, { x = 100, y = 100 })
-panel:add_class("my-panel")
+	-- 2. Create a centered background panel Frame
+	local panel = Instance.new("Frame", screen)
+	panel.Name = "MainPanel"
+	panel.Position = "center"
+	panel.Size = "400px, 250px"
+	panel.BackgroundColor = "rgba(20, 24, 35, 0.9)"
+	panel.BorderRadius = "16px"
 
-local btn = cci.easytools.create_rounded_rectangle(player_name, 200, 50, 12, { x = 50, y = 75 })
-btn:add_class("my-btn")
-panel:add_child(btn)
+	-- 3. Add a TextLabel header
+	local title = Instance.new("TextLabel", panel)
+	title.Position = "10px, 20px"
+	title.Size = "380px, 40px"
+	title.Text = "Welcome to Luanti Roblox"
+	title.TextColor = "#ffffff"
+	title.TextSize = "20px"
 
-local label = cci.create_object(player_name, { type = "textbox" })
-label:add_class("my-btn-label")
-label:set_style("content", "Click Me")
-btn:add_child(label)
+	-- 4. Add an action Button Frame
+	local button = Instance.new("Frame", panel)
+	button.Position = "100px, 150px"
+	button.Size = "200px, 45px"
+	button.BackgroundColor = "linear-gradient(180deg, #4d90fe, #357ae8)"
+	button.BorderRadius = "8px"
 
-btn:on("press", function(self)
-	self:add_class("pressed")
-end)
-btn:on("release", function(self)
-	self:remove_class("pressed")
-	minetest.chat_send_player(player_name, "Button Clicked!")
-end)
+	local btn_txt = Instance.new("TextLabel", button)
+	btn_txt.Position = "0px, 0px"
+	btn_txt.Size = "200px, 45px"
+	btn_txt.Text = "Enter World"
+	btn_txt.TextColor = "#ffffff"
+
+	-- 5. Bind action event (.Activated)
+	button.Activated = function(self)
+		minetest.chat_send_player(player_name, "Entering the modern world...")
+		screen:Destroy() -- Removes UI cleanly from client device and memory
+	end
+end
 ```
