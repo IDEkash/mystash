@@ -1635,6 +1635,14 @@ void Client::handleCommand_Camera(NetworkPacket* pkt)
 		*pkt >> player->camera_tilt;
 	}
 
+	if (pkt->getRemainingBytes() >= 4) {
+		*pkt >> player->camera_near_clip;
+	}
+
+	if (pkt->getRemainingBytes() >= 4) {
+		*pkt >> player->camera_far_clip;
+	}
+
 	m_client_event_queue.push(new ClientEvent(CE_UPDATE_CAMERA));
 }
 

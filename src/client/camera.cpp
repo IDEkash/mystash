@@ -636,14 +636,24 @@ void Camera::updateViewingRange()
 {
 	f32 viewing_range = g_settings->getFloat("viewing_range");
 
-	m_cameranode->setNearValue(0.1f * BS);
+	LocalPlayer *player = m_client->getEnv().getLocalPlayer();
+	if (player && player->camera_near_clip > 0.0f) {
+		m_cameranode->setNearValue(player->camera_near_clip * BS);
+	} else {
+		m_cameranode->setNearValue(0.1f * BS);
+	}
 
 	m_draw_control.wanted_range = std::fmin(adjustDist(viewing_range, getFovMax()), 6000);
 	if (m_draw_control.range_all) {
 		m_cameranode->setFarValue(100000.0);
 		return;
 	}
-	m_cameranode->setFarValue(std::fmax(2000, m_draw_control.wanted_range) * BS);
+
+	if (player && player->camera_far_clip > 0.0f) {
+		m_cameranode->setFarValue(player->camera_far_clip * BS);
+	} else {
+		m_cameranode->setFarValue(std::fmax(2000, m_draw_control.wanted_range) * BS);
+	}
 }
 
 void Camera::setDigging(s32 button)
