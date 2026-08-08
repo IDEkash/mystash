@@ -644,15 +644,51 @@ int ObjectRef::l_get_animation_info(lua_State *L)
 	lua_pushnumber(L, dur);
 	lua_setfield(L, -2, "duration");
 
-	lua_pushnil(L);
-	lua_setfield(L, -2, "progress");
-	lua_pushnil(L);
-	lua_setfield(L, -2, "bones");
-
 	std::string mesh;
 	if (auto *prop = sao->accessObjectProperties())
 		mesh = prop->mesh;
 	bool is_gltf = str_ends_with(mesh, ".gltf", true) || str_ends_with(mesh, ".glb", true);
+
+	lua_pushnil(L);
+	lua_setfield(L, -2, "progress");
+
+	lua_newtable(L); // bones array
+	int bones_tbl_idx = lua_gettop(L);
+	if (is_gltf && !mesh.empty()) {
+		std::string full_path = getServer(L)->getMediaPath(mesh);
+		if (!full_path.empty()) {
+			std::string data;
+			if (fs::ReadFile(full_path, data, true)) {
+				try {
+					std::optional<tiniergltf::GlTF> model;
+					if (str_ends_with(full_path, ".glb"))
+						model.emplace(tiniergltf::readGlb(data.data(), data.size()));
+					else
+						model.emplace(tiniergltf::readGlTF(data.data(), data.size()));
+
+					int table_idx = 1;
+					std::unordered_set<size_t> joint_nodes;
+					if (model->skins.has_value()) {
+						for (const auto &skin : *model->skins) {
+							for (size_t node : skin.joints) {
+								joint_nodes.insert(node);
+							}
+						}
+					}
+					for (size_t node_idx : joint_nodes) {
+						if (model->nodes.has_value() && node_idx < model->nodes->size()) {
+							const auto &n = model->nodes->at(node_idx);
+							std::string name = n.name.has_value() ? *n.name : ("bone_" + std::to_string(node_idx));
+							lua_pushstring(L, name.c_str());
+							lua_rawseti(L, bones_tbl_idx, table_idx++);
+						}
+					}
+				} catch (...) {}
+			}
+		}
+	}
+	lua_setfield(L, -2, "bones");
+
 	lua_pushboolean(L, is_gltf);
 	lua_setfield(L, -2, "is_gltf");
 	lua_pushstring(L, is_gltf ? "seconds" : "frames");
@@ -788,22 +824,22 @@ int ObjectRef::l_set_camera(lua_State *L)
 
 	luaL_checktype(L, 2, LUA_TTABLE);
 
-	lua_getfield(L, -1, "mode");
+	lua_getfield(L, 2, "mode");
 	if (lua_isstring(L, -1))
 		string_to_enum(es_CameraMode, player->allowed_camera_mode, lua_tostring(L, -1));
 	lua_pop(L, 1);
 
-	lua_getfield(L, -1, "free_look");
+	lua_getfield(L, 2, "free_look");
 	if (lua_isboolean(L, -1))
 		player->camera_free_look = lua_toboolean(L, -1);
 	lua_pop(L, 1);
 
-	lua_getfield(L, -1, "smooth");
+	lua_getfield(L, 2, "smooth");
 	if (lua_isboolean(L, -1))
 		player->camera_smooth = lua_toboolean(L, -1);
 	lua_pop(L, 1);
 
-	lua_getfield(L, -1, "tilt");
+	lua_getfield(L, 2, "tilt");
 	if (lua_isnumber(L, -1)) {
 		float tilt = lua_tonumber(L, -1);
 		if (std::isfinite(tilt))
@@ -811,12 +847,70 @@ int ObjectRef::l_set_camera(lua_State *L)
 	}
 	lua_pop(L, 1);
 
-	lua_getfield(L, -1, "anti_tilt_controller");
+	lua_getfield(L, 2, "anti_tilt_controller");
 	if (lua_isboolean(L, -1))
 		player->camera_anti_tilt_controller = lua_toboolean(L, -1);
 	lua_pop(L, 1);
 
-	lua_getfield(L, -1, "fov");
+	lua_getfield(L, 2, "near_clip");
+	if (lua_isnumber(L, -1)) {
+		float nc = lua_tonumber(L, -1);
+		if (std::isfinite(nc))
+			player->camera_near_clip = nc;
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, 2, "far_clip");
+	if (lua_isnumber(L, -1)) {
+		float fc = lua_tonumber(L, -1);
+		if (std::isfinite(fc))
+			player->camera_far_clip = fc;
+	}
+	lua_pop(L, 1);
+
+	bool eye_offset_changed = false;
+	v3f offset_first = player->eye_offset_first;
+	v3f offset_third = player->eye_offset_third;
+	v3f offset_third_front = player->eye_offset_third_front;
+
+	lua_getfield(L, 2, "eye_offset_first");
+	if (!lua_isnil(L, -1)) {
+		offset_first = read_v3f(L, -1);
+		eye_offset_changed = true;
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, 2, "eye_offset_third");
+	if (!lua_isnil(L, -1)) {
+		offset_third = read_v3f(L, -1);
+		eye_offset_changed = true;
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, 2, "eye_offset_third_front");
+	if (!lua_isnil(L, -1)) {
+		offset_third_front = read_v3f(L, -1);
+		eye_offset_changed = true;
+	}
+	lua_pop(L, 1);
+
+	if (eye_offset_changed) {
+		if (std::isfinite(offset_first.X) && std::isfinite(offset_first.Y) && std::isfinite(offset_first.Z) &&
+				std::isfinite(offset_third.X) && std::isfinite(offset_third.Y) && std::isfinite(offset_third.Z) &&
+				std::isfinite(offset_third_front.X) && std::isfinite(offset_third_front.Y) && std::isfinite(offset_third_front.Z)) {
+			auto clamp_third = [] (v3f &vec) {
+				vec.X = rangelim(vec.X, -10.0f, 10.0f);
+				vec.Z = rangelim(vec.Z, -5.0f, 5.0f);
+				vec.Y = rangelim(vec.Y, -10.0f, 15.0f);
+			};
+			clamp_third(offset_third);
+			clamp_third(offset_third_front);
+
+			getServer(L)->setPlayerEyeOffset(player, offset_first, offset_third, offset_third_front);
+		}
+	}
+
+	lua_getfield(L, 2, "fov");
 	if (lua_isnumber(L, -1)) {
 		PlayerFovSpec s = player->getFov();
 		float fov = lua_tonumber(L, -1);
@@ -856,6 +950,15 @@ int ObjectRef::l_get_camera(lua_State *L)
 	setboolfield(L, -1, "smooth", player->camera_smooth);
 	setfloatfield(L, -1, "tilt", player->camera_tilt);
 	setboolfield(L, -1, "anti_tilt_controller", player->camera_anti_tilt_controller);
+	setfloatfield(L, -1, "near_clip", player->camera_near_clip);
+	setfloatfield(L, -1, "far_clip", player->camera_far_clip);
+
+	push_v3f(L, player->eye_offset_first);
+	lua_setfield(L, -2, "eye_offset_first");
+	push_v3f(L, player->eye_offset_third);
+	lua_setfield(L, -2, "eye_offset_third");
+	push_v3f(L, player->eye_offset_third_front);
+	lua_setfield(L, -2, "eye_offset_third_front");
 
 	PlayerFovSpec fov = player->getFov();
 	setfloatfield(L, -1, "fov", fov.fov);

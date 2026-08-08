@@ -808,6 +808,7 @@ if(BUILD_SERVER)
 		sha256
 		${GMP_LIBRARY}
 		${PLATFORM_LIBS}
+		tiniergltf::tiniergltf
 	)
 	target_compile_definitions(${PROJECT_NAME}server PRIVATE "MT_BUILDTARGET=2")
 	if(NOT USE_LUAJIT)

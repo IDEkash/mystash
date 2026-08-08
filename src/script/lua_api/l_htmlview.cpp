@@ -10,15 +10,16 @@
 #include <memory>
 
 
-	#ifdef __ANDROID__
-	#include "htmlview_jni.h"
-	#include <cctype>
-	#include <limits>
-		#include <json/json.h>
-		#include "convert_json.h"
-		#include "common/c_content.h"
+#include <json/json.h>
+#include "convert_json.h"
+#include "common/c_content.h"
 #include "constants.h"
-		#endif
+#include <cctype>
+#include <limits>
+
+#ifdef __ANDROID__
+#include "htmlview_jni.h"
+#endif
 
 static constexpr const char *HTMLVIEW_CALLBACKS_RKEY = "HTMLVIEW_CALLBACKS";
 static constexpr const char *HTMLVIEW_JSON_CALLBACKS_RKEY = "HTMLVIEW_JSON_CALLBACKS";
@@ -27,7 +28,6 @@ static constexpr const char *HTMLVIEW_READY_CALLBACKS_RKEY = "HTMLVIEW_READY_CAL
 
 static constexpr u16 HTMLVIEW_MAX_JSON_DEPTH = 1024;
 
-#ifdef __ANDROID__
 static constexpr int CENTER_SENTINEL = std::numeric_limits<int>::min();
 
 static bool isStringEqCI(lua_State *L, int idx, const char *s)
@@ -45,15 +45,112 @@ static bool isStringEqCI(lua_State *L, int idx, const char *s)
 		c = (char)std::tolower((unsigned char)c);
 	return v == ss;
 }
+
+#ifndef __ANDROID__
+#include <unordered_map>
+#include <string>
+#include <mutex>
+
+struct MockView {
+	std::string id;
+	bool worker = false;
+	bool visible = false;
+	bool ready = false;
+	std::string html;
+	std::string root_dir;
+	std::string entry;
+};
+
+static std::unordered_map<std::string, MockView> g_mock_views;
+static std::unordered_map<std::string, std::string> g_mock_shared;
+static std::unordered_map<std::string, std::string> g_mock_pipes;
+static std::mutex g_mock_mutex;
+
+static void mock_dispatch_message(lua_State *L, const std::string &id, const std::string &message)
+{
+	// 1. Check plain text callbacks
+	lua_getfield(L, LUA_REGISTRYINDEX, HTMLVIEW_CALLBACKS_RKEY);
+	if (lua_istable(L, -1)) {
+		lua_pushlstring(L, id.c_str(), id.size());
+		lua_gettable(L, -2);
+		if (lua_isfunction(L, -1)) {
+			lua_pushlstring(L, message.c_str(), message.size());
+			if (lua_pcall(L, 1, 0, 0) != 0) {
+				errorstream << "Error in htmlview mock message callback: "
+							<< lua_tostring(L, -1) << std::endl;
+				lua_pop(L, 1);
+			}
+		} else {
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+
+	// 2. Check JSON callbacks
+	lua_getfield(L, LUA_REGISTRYINDEX, HTMLVIEW_JSON_CALLBACKS_RKEY);
+	if (lua_istable(L, -1)) {
+		lua_pushlstring(L, id.c_str(), id.size());
+		lua_gettable(L, -2);
+		if (lua_isfunction(L, -1)) {
+			Json::Value root;
+			bool ok = false;
+			std::string errmsg;
+			{
+				Json::CharReaderBuilder builder;
+				builder.settings_["stackLimit"] = HTMLVIEW_MAX_JSON_DEPTH;
+				builder.settings_["collectComments"] = false;
+				const std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+				ok = reader->parse(message.data(), message.data() + message.size(), &root, &errmsg);
+			}
+
+			if (ok) {
+				lua_pushnil(L);
+				int nullindex = lua_gettop(L);
+				if (!push_json_value(L, root, nullindex)) {
+					errmsg = "depth exceeds lua stack limit";
+					ok = false;
+				}
+				lua_remove(L, nullindex);
+			}
+
+			if (!ok) {
+				lua_pushnil(L);
+			}
+
+			lua_pushlstring(L, message.c_str(), message.size());
+			if (!ok) {
+				lua_pushlstring(L, errmsg.c_str(), errmsg.size());
+			}
+
+			int nargs = ok ? 2 : 3;
+			if (lua_pcall(L, nargs, 0, 0) != 0) {
+				errorstream << "Error in htmlview mock message JSON callback: "
+							<< lua_tostring(L, -1) << std::endl;
+				lua_pop(L, 1);
+			}
+		} else {
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+}
 #endif
 
 int ModApiHTMLView::l_run(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	std::string html = readParam<std::string>(L, 2);
+#ifdef __ANDROID__
 	htmlview_jni_run(id, html);
+#else
+	std::lock_guard<std::mutex> lock(g_mock_mutex);
+	MockView &v = g_mock_views[id];
+	v.id = id;
+	v.html = html;
+	v.worker = false;
+	v.visible = false;
+	v.ready = true;
 #endif
 	return 0;
 }
@@ -61,10 +158,18 @@ int ModApiHTMLView::l_run(lua_State *L)
 int ModApiHTMLView::l_run_worker(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	std::string html = readParam<std::string>(L, 2);
+#ifdef __ANDROID__
 	htmlview_jni_run_worker(id, html);
+#else
+	std::lock_guard<std::mutex> lock(g_mock_mutex);
+	MockView &v = g_mock_views[id];
+	v.id = id;
+	v.html = html;
+	v.worker = true;
+	v.visible = false;
+	v.ready = true;
 #endif
 	return 0;
 }
@@ -72,7 +177,6 @@ int ModApiHTMLView::l_run_worker(lua_State *L)
 int ModApiHTMLView::l_run_external(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	std::string root_dir = readParam<std::string>(L, 2);
 	std::string entry = "index.html";
@@ -80,7 +184,17 @@ int ModApiHTMLView::l_run_external(lua_State *L)
 		entry = readParam<std::string>(L, 3);
 
 	CHECK_SECURE_PATH(L, root_dir.c_str(), false);
+#ifdef __ANDROID__
 	htmlview_jni_run_external(id, root_dir, entry);
+#else
+	std::lock_guard<std::mutex> lock(g_mock_mutex);
+	MockView &v = g_mock_views[id];
+	v.id = id;
+	v.root_dir = root_dir;
+	v.entry = entry;
+	v.worker = false;
+	v.visible = false;
+	v.ready = true;
 #endif
 	return 0;
 }
@@ -88,7 +202,6 @@ int ModApiHTMLView::l_run_external(lua_State *L)
 int ModApiHTMLView::l_run_external_worker(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	std::string root_dir = readParam<std::string>(L, 2);
 	std::string entry = "index.html";
@@ -96,7 +209,17 @@ int ModApiHTMLView::l_run_external_worker(lua_State *L)
 		entry = readParam<std::string>(L, 3);
 
 	CHECK_SECURE_PATH(L, root_dir.c_str(), false);
+#ifdef __ANDROID__
 	htmlview_jni_run_external_worker(id, root_dir, entry);
+#else
+	std::lock_guard<std::mutex> lock(g_mock_mutex);
+	MockView &v = g_mock_views[id];
+	v.id = id;
+	v.root_dir = root_dir;
+	v.entry = entry;
+	v.worker = true;
+	v.visible = false;
+	v.ready = true;
 #endif
 	return 0;
 }
@@ -104,9 +227,13 @@ int ModApiHTMLView::l_run_external_worker(lua_State *L)
 int ModApiHTMLView::l_stop(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
+#ifdef __ANDROID__
 	htmlview_jni_stop(id);
+#else
+	std::lock_guard<std::mutex> lock(g_mock_mutex);
+	g_mock_views.erase(id);
+	g_mock_pipes.erase(id);
 #endif
 	return 0;
 }
@@ -114,7 +241,6 @@ int ModApiHTMLView::l_stop(lua_State *L)
 int ModApiHTMLView::l_display(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	luaL_checktype(L, 2, LUA_TTABLE);
 
@@ -161,8 +287,21 @@ int ModApiHTMLView::l_display(lua_State *L)
 		fullscreen = true;
 	lua_pop(L, 1);
 
+#ifdef __ANDROID__
 	htmlview_jni_display(id, x, y, w, h, visible, fullscreen, safe_area,
 		drag_embed, border_radius);
+#else
+	(void)safe_area;
+	(void)fullscreen;
+	(void)x;
+	(void)y;
+	(void)w;
+	(void)h;
+	std::lock_guard<std::mutex> lock(g_mock_mutex);
+	auto it = g_mock_views.find(id);
+	if (it != g_mock_views.end()) {
+		it->second.visible = visible;
+	}
 #endif
 	return 0;
 }
@@ -170,10 +309,20 @@ int ModApiHTMLView::l_display(lua_State *L)
 int ModApiHTMLView::l_send(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	std::string message = readParam<std::string>(L, 2);
+#ifdef __ANDROID__
 	htmlview_jni_send(id, message);
+#else
+	std::string target_id = id;
+	{
+		std::lock_guard<std::mutex> lock(g_mock_mutex);
+		auto it = g_mock_pipes.find(id);
+		if (it != g_mock_pipes.end()) {
+			target_id = it->second;
+		}
+	}
+	mock_dispatch_message(L, target_id, message);
 #endif
 	return 0;
 }
@@ -181,7 +330,6 @@ int ModApiHTMLView::l_send(lua_State *L)
 int ModApiHTMLView::l_send_json(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	Json::Value root;
 	try {
@@ -190,7 +338,18 @@ int ModApiHTMLView::l_send_json(lua_State *L)
 		return luaL_error(L, "htmlview.send_json: %s", e.what());
 	}
 	std::string out = fastWriteJson(root);
+#ifdef __ANDROID__
 	htmlview_jni_send(id, out);
+#else
+	std::string target_id = id;
+	{
+		std::lock_guard<std::mutex> lock(g_mock_mutex);
+		auto it = g_mock_pipes.find(id);
+		if (it != g_mock_pipes.end()) {
+			target_id = it->second;
+		}
+	}
+	mock_dispatch_message(L, target_id, out);
 #endif
 	return 0;
 }
@@ -198,9 +357,9 @@ int ModApiHTMLView::l_send_json(lua_State *L)
 int ModApiHTMLView::l_navigate(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	std::string url = readParam<std::string>(L, 2);
+#ifdef __ANDROID__
 	htmlview_jni_navigate(id, url);
 #endif
 	return 0;
@@ -209,9 +368,9 @@ int ModApiHTMLView::l_navigate(lua_State *L)
 int ModApiHTMLView::l_inject(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	std::string js = readParam<std::string>(L, 2);
+#ifdef __ANDROID__
 	htmlview_jni_inject(id, js);
 #endif
 	return 0;
@@ -220,10 +379,13 @@ int ModApiHTMLView::l_inject(lua_State *L)
 int ModApiHTMLView::l_pipe(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string from_id = readParam<std::string>(L, 1);
 	std::string to_id = readParam<std::string>(L, 2);
+#ifdef __ANDROID__
 	htmlview_jni_pipe(from_id, to_id);
+#else
+	std::lock_guard<std::mutex> lock(g_mock_mutex);
+	g_mock_pipes[from_id] = to_id;
 #endif
 	return 0;
 }
@@ -231,7 +393,6 @@ int ModApiHTMLView::l_pipe(lua_State *L)
 int ModApiHTMLView::l_capture(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	int width = 0;
 	int height = 0;
@@ -244,6 +405,7 @@ int ModApiHTMLView::l_capture(lua_State *L)
 	if (height < 0)
 		height = 0;
 
+#ifdef __ANDROID__
 	htmlview_jni_capture(id, width, height);
 #endif
 	return 0;
@@ -252,12 +414,14 @@ int ModApiHTMLView::l_capture(lua_State *L)
 int ModApiHTMLView::l_input(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 	luaL_checktype(L, 2, LUA_TTABLE);
 
 	bool block_game_input = getboolfield_default(L, 2, "block_game_input", false);
+#ifdef __ANDROID__
 	htmlview_jni_input(id, block_game_input);
+#else
+	(void)block_game_input;
 #endif
 	return 0;
 }
@@ -265,9 +429,9 @@ int ModApiHTMLView::l_input(lua_State *L)
 int ModApiHTMLView::l_state(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
 
+#ifdef __ANDROID__
 	std::string json = htmlview_jni_state(id);
 	if (json.empty()) {
 		lua_pushnil(L);
@@ -291,7 +455,21 @@ int ModApiHTMLView::l_state(lua_State *L)
 	}
 	return 1;
 #else
-	lua_pushnil(L);
+	std::lock_guard<std::mutex> lock(g_mock_mutex);
+	auto it = g_mock_views.find(id);
+	if (it == g_mock_views.end()) {
+		lua_pushnil(L);
+	} else {
+		lua_newtable(L);
+		lua_pushboolean(L, true);
+		lua_setfield(L, -2, "exists");
+		lua_pushboolean(L, it->second.worker);
+		lua_setfield(L, -2, "worker");
+		lua_pushboolean(L, it->second.visible);
+		lua_setfield(L, -2, "visible");
+		lua_pushboolean(L, it->second.ready);
+		lua_setfield(L, -2, "ready");
+	}
 	return 1;
 #endif
 }
@@ -299,8 +477,8 @@ int ModApiHTMLView::l_state(lua_State *L)
 int ModApiHTMLView::l_reload(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
+#ifdef __ANDROID__
 	htmlview_jni_reload(id);
 #endif
 	return 0;
@@ -309,8 +487,8 @@ int ModApiHTMLView::l_reload(lua_State *L)
 int ModApiHTMLView::l_focus(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string id = readParam<std::string>(L, 1);
+#ifdef __ANDROID__
 	htmlview_jni_focus(id);
 #endif
 	return 0;
@@ -319,12 +497,19 @@ int ModApiHTMLView::l_focus(lua_State *L)
 int ModApiHTMLView::l_shared_set(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string key = readParam<std::string>(L, 1);
+#ifdef __ANDROID__
 	const char *val = nullptr;
 	if (!lua_isnil(L, 2))
 		val = luaL_checkstring(L, 2);
 	htmlview_jni_shared_set(key, val);
+#else
+	std::lock_guard<std::mutex> lock(g_mock_mutex);
+	if (lua_isnil(L, 2)) {
+		g_mock_shared.erase(key);
+	} else {
+		g_mock_shared[key] = luaL_checkstring(L, 2);
+	}
 #endif
 	return 0;
 }
@@ -332,8 +517,8 @@ int ModApiHTMLView::l_shared_set(lua_State *L)
 int ModApiHTMLView::l_shared_get(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
-#ifdef __ANDROID__
 	std::string key = readParam<std::string>(L, 1);
+#ifdef __ANDROID__
 	std::string val = htmlview_jni_shared_get(key);
 	if (val.empty())
 		lua_pushnil(L);
@@ -341,7 +526,13 @@ int ModApiHTMLView::l_shared_get(lua_State *L)
 		lua_pushlstring(L, val.c_str(), val.size());
 	return 1;
 #else
-	lua_pushnil(L);
+	std::lock_guard<std::mutex> lock(g_mock_mutex);
+	auto it = g_mock_shared.find(key);
+	if (it == g_mock_shared.end()) {
+		lua_pushnil(L);
+	} else {
+		lua_pushlstring(L, it->second.c_str(), it->second.size());
+	}
 	return 1;
 #endif
 }
@@ -371,6 +562,31 @@ int ModApiHTMLView::l_on_message(lua_State *L)
 	lua_settable(L, -3);
 
 	lua_pop(L, 1);
+
+#ifndef __ANDROID__
+	// If mock view exists, trigger ready callback immediately!
+	if (!clear) {
+		std::lock_guard<std::mutex> lock(g_mock_mutex);
+		if (g_mock_views.find(id) != g_mock_views.end()) {
+			lua_getfield(L, LUA_REGISTRYINDEX, HTMLVIEW_READY_CALLBACKS_RKEY);
+			if (lua_istable(L, -1)) {
+				lua_pushlstring(L, id.c_str(), id.size());
+				lua_gettable(L, -2);
+				if (lua_isfunction(L, -1)) {
+					if (lua_pcall(L, 0, 0, 0) != 0) {
+						errorstream << "Error in htmlview mock ready callback: "
+									<< lua_tostring(L, -1) << std::endl;
+						lua_pop(L, 1);
+					}
+				} else {
+					lua_pop(L, 1);
+				}
+			}
+			lua_pop(L, 1);
+		}
+	}
+#endif
+
 	return 0;
 }
 
@@ -508,83 +724,35 @@ int ModApiHTMLView::l_is_supported(lua_State *L)
 	return 1;
 }
 
-#ifndef __ANDROID__
-static void log_htmlview_unavailable(lua_State *L)
-{
-	static bool warned = false;
-	if (!warned) {
-		warningstream << "htmlview API called on unsupported platform." << std::endl;
-		warned = true;
-	}
-}
-#endif
-
 void ModApiHTMLView::Initialize(lua_State *L, int top)
 {
-		lua_newtable(L);
-		int tbl = lua_gettop(L);
+	lua_newtable(L);
+	int tbl = lua_gettop(L);
 
-#ifndef __ANDROID__
-		auto dummy = [](lua_State *L) -> int {
-			log_htmlview_unavailable(L);
-			return 0;
-		};
-		auto dummy_nil = [](lua_State *L) -> int {
-			log_htmlview_unavailable(L);
-			lua_pushnil(L);
-			return 1;
-		};
-
-		registerFunction(L, "run", dummy, tbl);
-		registerFunction(L, "run_worker", dummy, tbl);
-		registerFunction(L, "run_external", dummy, tbl);
-		registerFunction(L, "run_external_worker", dummy, tbl);
-		registerFunction(L, "stop", dummy, tbl);
-		registerFunction(L, "display", dummy, tbl);
-		registerFunction(L, "send", dummy, tbl);
-		registerFunction(L, "send_json", dummy, tbl);
-		registerFunction(L, "navigate", dummy, tbl);
-		registerFunction(L, "inject", dummy, tbl);
-		registerFunction(L, "pipe", dummy, tbl);
-		registerFunction(L, "capture", dummy, tbl);
-		registerFunction(L, "input", dummy, tbl);
-		registerFunction(L, "state", dummy_nil, tbl);
-		registerFunction(L, "reload", dummy, tbl);
-		registerFunction(L, "focus", dummy, tbl);
-		registerFunction(L, "shared_set", dummy, tbl);
-		registerFunction(L, "shared_get", dummy_nil, tbl);
-		registerFunction(L, "on_message", l_on_message, tbl);
-		registerFunction(L, "on_message_json", l_on_message_json, tbl);
-		registerFunction(L, "on_capture", l_on_capture, tbl);
-		registerFunction(L, "on_ready", l_on_ready, tbl);
-		registerFunction(L, "set_viewport", dummy, tbl);
-		registerFunction(L, "is_supported", l_is_supported, tbl);
-#else
-		registerFunction(L, "run", l_run, tbl);
-		registerFunction(L, "run_worker", l_run_worker, tbl);
-		registerFunction(L, "run_external", l_run_external, tbl);
-		registerFunction(L, "run_external_worker", l_run_external_worker, tbl);
-		registerFunction(L, "stop", l_stop, tbl);
-		registerFunction(L, "display", l_display, tbl);
-		registerFunction(L, "send", l_send, tbl);
-		registerFunction(L, "send_json", l_send_json, tbl);
-		registerFunction(L, "navigate", l_navigate, tbl);
-		registerFunction(L, "inject", l_inject, tbl);
-		registerFunction(L, "pipe", l_pipe, tbl);
-		registerFunction(L, "capture", l_capture, tbl);
-		registerFunction(L, "input", l_input, tbl);
-		registerFunction(L, "state", l_state, tbl);
-		registerFunction(L, "reload", l_reload, tbl);
-		registerFunction(L, "focus", l_focus, tbl);
-		registerFunction(L, "shared_set", l_shared_set, tbl);
-		registerFunction(L, "shared_get", l_shared_get, tbl);
-		registerFunction(L, "on_message", l_on_message, tbl);
-		registerFunction(L, "on_message_json", l_on_message_json, tbl);
-		registerFunction(L, "on_capture", l_on_capture, tbl);
-		registerFunction(L, "on_ready", l_on_ready, tbl);
-		registerFunction(L, "set_viewport", l_set_viewport, tbl);
-		registerFunction(L, "is_supported", l_is_supported, tbl);
-#endif
+	registerFunction(L, "run", l_run, tbl);
+	registerFunction(L, "run_worker", l_run_worker, tbl);
+	registerFunction(L, "run_external", l_run_external, tbl);
+	registerFunction(L, "run_external_worker", l_run_external_worker, tbl);
+	registerFunction(L, "stop", l_stop, tbl);
+	registerFunction(L, "display", l_display, tbl);
+	registerFunction(L, "send", l_send, tbl);
+	registerFunction(L, "send_json", l_send_json, tbl);
+	registerFunction(L, "navigate", l_navigate, tbl);
+	registerFunction(L, "inject", l_inject, tbl);
+	registerFunction(L, "pipe", l_pipe, tbl);
+	registerFunction(L, "capture", l_capture, tbl);
+	registerFunction(L, "input", l_input, tbl);
+	registerFunction(L, "state", l_state, tbl);
+	registerFunction(L, "reload", l_reload, tbl);
+	registerFunction(L, "focus", l_focus, tbl);
+	registerFunction(L, "shared_set", l_shared_set, tbl);
+	registerFunction(L, "shared_get", l_shared_get, tbl);
+	registerFunction(L, "on_message", l_on_message, tbl);
+	registerFunction(L, "on_message_json", l_on_message_json, tbl);
+	registerFunction(L, "on_capture", l_on_capture, tbl);
+	registerFunction(L, "on_ready", l_on_ready, tbl);
+	registerFunction(L, "set_viewport", l_set_viewport, tbl);
+	registerFunction(L, "is_supported", l_is_supported, tbl);
 
 	lua_pushvalue(L, tbl);
 	lua_setglobal(L, "htmlview");
