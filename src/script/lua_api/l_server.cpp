@@ -638,6 +638,40 @@ int ModApiServer::l_create_world(lua_State *L)
 	return 2;
 }
 
+// delete_world(name)
+int ModApiServer::l_delete_world(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	std::string name = luaL_checkstring(L, 1);
+
+	std::string path = porting::path_user + DIR_DELIM "worlds" + DIR_DELIM +
+			sanitizeDirName(name, "world_");
+
+	std::string target_abs = fs::AbsolutePath(path);
+	std::string current_abs = fs::AbsolutePath(getServer(L)->getWorldPath());
+
+	if (target_abs == current_abs) {
+		lua_pushboolean(L, false);
+		lua_pushstring(L, "Cannot delete the currently running world");
+		return 2;
+	}
+
+	if (!fs::PathExists(target_abs)) {
+		lua_pushboolean(L, false);
+		lua_pushstring(L, "World does not exist");
+		return 2;
+	}
+
+	if (fs::RecursiveDelete(target_abs)) {
+		lua_pushboolean(L, true);
+		return 1;
+	} else {
+		lua_pushboolean(L, false);
+		lua_pushstring(L, "Failed to delete world directory recursively");
+		return 2;
+	}
+}
+
 int ModApiServer::l_remove_player(lua_State *L)
 {
 	GET_ENV_PTR_NO_MAP_LOCK;
@@ -1235,6 +1269,7 @@ void ModApiServer::Initialize(lua_State *L, int top)
 	API_FCT(disconnect_player);
 	API_FCT(world_switch);
 	API_FCT(create_world);
+	API_FCT(delete_world);
 	API_FCT(remove_player);
 	API_FCT(unban_player_or_ip);
 	API_FCT(notify_authentication_modified);
