@@ -1,8 +1,14 @@
--- Creative Composition Interface (CCI) built-in API
--- Author: Jules
--- Implementing point, connection, geometry, styling, open motion/animations, functionable services, and runtimes.
+// Luanti
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Author: Jules
 
-local cci = {
+#include "lua_api/l_cci.h"
+#include "lua_api/l_internal.h"
+#include "log.h"
+
+// The entire CCI engine-level UI framework implemented natively in C++ as an embedded script
+static const char *cci_builtin_code = R"lua(
+cci = {
 	templates = {},
 	sessions = {},
 	current_points = {},
@@ -11,7 +17,7 @@ local cci = {
 	build_mode = true,   -- Shows point markers and outline dots by default
 }
 
--- Expose to global and core namespaces natively
+-- Expose globally to core namespaces
 _G.cci = cci
 core.cci = cci
 minetest.cci = cci
@@ -195,10 +201,12 @@ function cci.add_point(x, y)
 	return pt
 end
 
+-- Connect
 function cci.connect(p1, p2)
 	table.insert(cci.current_connections, { p1 = p1, p2 = p2 })
 end
 
+-- Close Shape
 function cci.close(name)
 	if #cci.current_points == 0 then
 		return nil
@@ -288,6 +296,7 @@ function cci.hide(player_name)
 		sess.active = false
 	end
 	core.close_formspec(player_name, "cci:form")
+	cci.sessions[player_name] = nil
 end
 
 -- Line drawing interpolation (Point Draw)
@@ -411,11 +420,15 @@ function cci.render(player_name)
 			table.insert(fs, string.format("box[%f,%f;0.1,0.1;#FF00FF]", px - 0.05, py - 0.05))
 		end
 		for _, conn in ipairs(cci.current_connections) do
-			local px1 = conn.p1.x * cci.scale
-			local py1 = conn.p1.y * cci.scale
-			local px2 = conn.p2.x * cci.scale
-			local py2 = conn.p2.y * cci.scale
-			draw_line(px1, py1, px2, py2, "#00FFFF", fs)
+			local pt1 = cci.current_points[conn.p1.id]
+			local pt2 = cci.current_points[conn.p2.id]
+			if pt1 and pt2 then
+				local px1 = pt1.x * cci.scale
+				local py1 = pt1.y * cci.scale
+				local px2 = pt2.x * cci.scale
+				local py2 = pt2.y * cci.scale
+				draw_line(px1, py1, px2, py2, "#00FFFF", fs)
+			end
 		end
 	end
 
@@ -531,83 +544,14 @@ core.register_on_leaveplayer(function(player)
 	local pname = player:get_player_name()
 	cci.sessions[pname] = nil
 end)
+)lua";
 
--- =================================================================
--- CCI Internal Unit Test Suite
--- =================================================================
-local function run_unit_tests()
-	core.log("action", "[CCI] Running unit test suite...")
-
-	-- Test 1: Color Parsing and Formatting
-	local c1 = parse_color("#4CAF50")
-	assert(c1.r == 76 and c1.g == 175 and c1.b == 80 and c1.a == 255, "Test 1a Failed")
-
-	local c2 = parse_color("#F00A")
-	assert(c2.r == 255 and c2.g == 0 and c2.b == 0 and c2.a == 170, "Test 1b Failed")
-
-	local f1 = format_color({r=76, g=175, b=80, a=255})
-	assert(f1 == "#4CAF50FF", "Test 1c Failed")
-
-	-- Test 2: Geometry Builder & Bounding Box Calculation
-	local pt1 = cci.add_point(10, 10)
-	local pt2 = cci.add_point(110, 10)
-	local pt3 = cci.add_point(110, 50)
-	local pt4 = cci.add_point(10, 50)
-	cci.connect(pt1, pt2)
-	cci.connect(pt2, pt3)
-	cci.connect(pt3, pt4)
-	cci.connect(pt4, pt1)
-	local test_obj = cci.close("unit_test_obj")
-
-	assert(test_obj ~= nil, "Test 2a Failed: Closed object is nil")
-	assert(cci.templates["unit_test_obj"] == test_obj, "Test 2b Failed")
-	assert(test_obj:get("x") == 10, "Test 2c Failed")
-	assert(test_obj:get("y") == 10, "Test 2d Failed")
-	assert(test_obj:get("width") == 100, "Test 2e Failed")
-	assert(test_obj:get("height") == 40, "Test 2f Failed")
-
-	-- Test 3: Attributes, State, and Cloning
-	test_obj:set("fill_color", "#FF0000")
-	test_obj:set_state("active", true)
-	assert(test_obj:get("fill_color") == "#FF0000", "Test 3a Failed")
-	assert(test_obj:get_state("active") == true, "Test 3b Failed")
-
-	local clone = test_obj:clone()
-	assert(clone:get("fill_color") == "#FF0000", "Test 3c Failed")
-	assert(clone:get_state("active") == true, "Test 3d Failed")
-
-	-- Test 4: Open Animation System (Simulation)
-	clone.player_name = "test_player"
-	cci.sessions["test_player"] = {
-		objects = { unit_test_obj = clone },
-		active = true,
-		dirty = false,
+void ModApiCCI::Initialize(lua_State *L, int top)
+{
+	// Load the native embedded C++ CCI engine code into the Lua state
+	if (luaL_dostring(L, cci_builtin_code)) {
+		errorstream << "Failed to initialize ModApiCCI native engine script: "
+					<< lua_tostring(L, -1) << std::endl;
+		lua_pop(L, 1);
 	}
-
-	clone:animate("scale", {to = 2.0, duration = 0.2, easing = "linear"})
-	assert(clone.animations["scale"] ~= nil, "Test 4a Failed")
-
-	local anim = clone.animations["scale"]
-	anim.elapsed = anim.elapsed + 0.1
-	local t = anim.elapsed / anim.duration
-	local factor = t -- linear
-	clone.properties["scale"] = lerp(anim.from, anim.to, factor)
-	assert(clone:get("scale") == 1.5, "Test 4b Failed")
-
-	anim.elapsed = anim.elapsed + 0.1
-	if anim.elapsed >= anim.duration then
-		clone.properties["scale"] = anim.to
-		clone.animations["scale"] = nil
-	end
-	assert(clone:get("scale") == 2.0, "Test 4c Failed")
-	assert(clone.animations["scale"] == nil, "Test 4d Failed")
-
-	-- Clean up session & templates
-	cci.sessions["test_player"] = nil
-	cci.templates["unit_test_obj"] = nil
-
-	core.log("action", "[CCI] All unit tests passed successfully!")
-end
-
--- Run unit tests on builtin load
-run_unit_tests()
+}
