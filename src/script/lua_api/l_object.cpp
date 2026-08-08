@@ -644,15 +644,51 @@ int ObjectRef::l_get_animation_info(lua_State *L)
 	lua_pushnumber(L, dur);
 	lua_setfield(L, -2, "duration");
 
-	lua_pushnil(L);
-	lua_setfield(L, -2, "progress");
-	lua_pushnil(L);
-	lua_setfield(L, -2, "bones");
-
 	std::string mesh;
 	if (auto *prop = sao->accessObjectProperties())
 		mesh = prop->mesh;
 	bool is_gltf = str_ends_with(mesh, ".gltf", true) || str_ends_with(mesh, ".glb", true);
+
+	lua_pushnil(L);
+	lua_setfield(L, -2, "progress");
+
+	lua_newtable(L); // bones array
+	int bones_tbl_idx = lua_gettop(L);
+	if (is_gltf && !mesh.empty()) {
+		std::string full_path = getServer(L)->getMediaPath(mesh);
+		if (!full_path.empty()) {
+			std::string data;
+			if (fs::ReadFile(full_path, data, true)) {
+				try {
+					std::optional<tiniergltf::GlTF> model;
+					if (str_ends_with(full_path, ".glb"))
+						model.emplace(tiniergltf::readGlb(data.data(), data.size()));
+					else
+						model.emplace(tiniergltf::readGlTF(data.data(), data.size()));
+
+					int table_idx = 1;
+					std::unordered_set<size_t> joint_nodes;
+					if (model->skins.has_value()) {
+						for (const auto &skin : *model->skins) {
+							for (size_t node : skin.joints) {
+								joint_nodes.insert(node);
+							}
+						}
+					}
+					for (size_t node_idx : joint_nodes) {
+						if (model->nodes.has_value() && node_idx < model->nodes->size()) {
+							const auto &n = model->nodes->at(node_idx);
+							std::string name = n.name.has_value() ? *n.name : ("bone_" + std::to_string(node_idx));
+							lua_pushstring(L, name.c_str());
+							lua_rawseti(L, bones_tbl_idx, table_idx++);
+						}
+					}
+				} catch (...) {}
+			}
+		}
+	}
+	lua_setfield(L, -2, "bones");
+
 	lua_pushboolean(L, is_gltf);
 	lua_setfield(L, -2, "is_gltf");
 	lua_pushstring(L, is_gltf ? "seconds" : "frames");

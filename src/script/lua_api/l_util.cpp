@@ -396,6 +396,34 @@ int ModApiUtil::l_gltf_inspect(lua_State *L)
 	}
 	lua_setfield(L, -2, "bones");
 
+	// materials
+	lua_newtable(L);
+	if (m.materials.has_value()) {
+		int outm = 1;
+		for (size_t i = 0; i < m.materials->size(); ++i) {
+			const auto &mat = m.materials->at(i);
+			std::string name = mat.name.has_value() ? *mat.name : ("material_" + std::to_string(i));
+			lua_createtable(L, 0, 4);
+			lua_pushinteger(L, (lua_Integer)i);
+			lua_setfield(L, -2, "index");
+			lua_pushlstring(L, name.c_str(), name.size());
+			lua_setfield(L, -2, "name");
+			lua_pushboolean(L, mat.doubleSided);
+			lua_setfield(L, -2, "double_sided");
+
+			std::string alpha_mode = "OPAQUE";
+			if (mat.alphaMode == tiniergltf::Material::AlphaMode::BLEND)
+				alpha_mode = "BLEND";
+			else if (mat.alphaMode == tiniergltf::Material::AlphaMode::MASK)
+				alpha_mode = "MASK";
+			lua_pushlstring(L, alpha_mode.c_str(), alpha_mode.size());
+			lua_setfield(L, -2, "alpha_mode");
+
+			lua_rawseti(L, -2, outm++);
+		}
+	}
+	lua_setfield(L, -2, "materials");
+
 	// animations
 	lua_newtable(L);
 	if (m.animations.has_value()) {
