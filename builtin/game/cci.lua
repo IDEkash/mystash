@@ -2,7 +2,7 @@
 -- Author: Jules
 -- Implementing point, connection, geometry, styling, open motion/animations, functionable services, and runtimes.
 
-cci = {
+local cci = {
 	templates = {},
 	sessions = {},
 	current_points = {},
@@ -10,6 +10,11 @@ cci = {
 	scale = 0.1,         -- Coordinate multiplier to map e.g. (20, 20) to (2, 2) in formspec
 	build_mode = true,   -- Shows point markers and outline dots by default
 }
+
+-- Expose to global and core namespaces natively
+_G.cci = cci
+core.cci = cci
+minetest.cci = cci
 
 -- Hex color parsing & alpha formatting helpers
 local function parse_color(c)
