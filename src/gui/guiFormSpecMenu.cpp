@@ -2352,12 +2352,24 @@ void GUIFormSpecMenu::parseDrawPoint(parserData* data, const std::string &elemen
 	);
 	spec.ftype = f_DrawPoint;
 
+	// Parse z priority / layer if defined
+	size_t z_pos = properties.find("z=");
+	if (z_pos != std::string::npos) {
+		spec.priority = stoi(properties.substr(z_pos + 2));
+	} else {
+		z_pos = properties.find("z_index=");
+		if (z_pos != std::string::npos) {
+			spec.priority = stoi(properties.substr(z_pos + 8));
+		}
+	}
+
 	GUIDrawPoint *e = new GUIDrawPoint(Environment, data->current_parent, spec.fid,
 		this, name, parsed_points, fill_type, fill_value, texture, radius, properties);
 	e->setNotClipped(true);
 	e->drop();
 
 	m_fields.push_back(spec);
+	sortChildrenByPriorityOf(data->current_parent);
 }
 
 void GUIFormSpecMenu::parseBackgroundColor(parserData* data, const std::string &element)
@@ -5358,4 +5370,47 @@ double GUIFormSpecMenu::calculateImgsize(const parserData &data)
 	// Try to use the preferred imgsize, but if that's bigger than the maximum
 	// size, use the maximum size.
 	return std::min(prefer_imgsize, std::min(fitx_imgsize, fity_imgsize));
+}
+
+GUIDrawPoint *GUIFormSpecMenu::getDrawPointByName(const std::string &name)
+{
+	for (const FieldSpec &spec : m_fields) {
+		if (spec.fname == name && spec.ftype == f_DrawPoint) {
+			gui::IGUIElement *e = getElementFromId(spec.fid, true);
+			if (e) {
+				return static_cast<GUIDrawPoint *>(e);
+			}
+		}
+	}
+	return nullptr;
+}
+
+class IGUIElementBridge : public gui::IGUIElement {
+public:
+	void reorderChildrenPublic(
+		std::list<gui::IGUIElement *>::iterator from,
+		std::list<gui::IGUIElement *>::iterator to,
+		const std::vector<gui::IGUIElement *> &neworder) {
+		reorderChildren(from, to, neworder);
+	}
+};
+
+void GUIFormSpecMenu::sortChildrenByPriorityOf(gui::IGUIElement *parent_el)
+{
+	if (!parent_el)
+		return;
+	auto &children_list = const_cast<std::list<gui::IGUIElement *>&>(parent_el->getChildren());
+	std::vector<gui::IGUIElement *> elements;
+	for (auto child : children_list) {
+		elements.push_back(child);
+	}
+	std::stable_sort(elements.begin(), elements.end(),
+			[this] (const gui::IGUIElement *a, const gui::IGUIElement *b) -> bool {
+		const FieldSpec *spec_a = getSpecByID(a->getID());
+		const FieldSpec *spec_b = getSpecByID(b->getID());
+		int priority_a = spec_a ? spec_a->priority : 0;
+		int priority_b = spec_b ? spec_b->priority : 0;
+		return priority_a < priority_b;
+	});
+	static_cast<IGUIElementBridge*>(parent_el)->reorderChildrenPublic(children_list.begin(), children_list.end(), elements);
 }

@@ -28,6 +28,7 @@ class Client;
 class GUIScrollContainer;
 class ISoundManager;
 class JoystickController;
+class GUIDrawPoint;
 
 enum FormspecFieldType {
 	f_Button,
@@ -171,6 +172,9 @@ public:
 		gui::IGUIEnvironment *guienv, JoystickController *joystick, IFormSource *fs_src,
 		TextDest *txt_dest, const std::string &formspecPrepend,
 		ISoundManager *sound_manager);
+
+	GUIDrawPoint *getDrawPointByName(const std::string &name);
+	void sortChildrenByPriorityOf(gui::IGUIElement *parent_el);
 
 	void setFormSpec(const std::string &formspec_string,
 			const InventoryLocation &current_inventory_location)
