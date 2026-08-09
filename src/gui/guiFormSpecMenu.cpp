@@ -2366,6 +2366,80 @@ void GUIFormSpecMenu::parseDrawPoint(parserData* data, const std::string &elemen
 	GUIDrawPoint *e = new GUIDrawPoint(Environment, data->current_parent, spec.fid,
 		this, name, parsed_points, fill_type, fill_value, texture, radius, properties);
 	e->setNotClipped(true);
+
+	// Seamlessly restore/animate from preserved state if exists
+	auto pit = data->preserved_drawpoints.find(name);
+	if (pit != data->preserved_drawpoints.end()) {
+		const auto &prev = pit->second;
+		// If the new element has anim_duration, start a smooth animation from previous state to the new targets!
+		size_t anim_pos = properties.find("anim_duration=");
+		if (anim_pos != std::string::npos) {
+			try {
+				u32 duration = std::stoul(properties.substr(anim_pos + 14));
+				if (duration > 0) {
+					// Save new target properties parsed from properties
+					v2s32 target_pos_offset = e->m_pos_offset;
+					v2f32 target_scale = e->m_scale;
+					float target_rotation = e->m_rotation;
+					video::SColor target_color = e->m_color;
+
+					// Restore old values immediately so we animate from them
+					e->m_pos_offset = prev.pos_offset;
+					e->m_scale = prev.scale;
+					e->m_rotation = prev.rotation;
+					e->m_color = prev.color;
+					e->m_text = prev.text;
+
+					// Smoothly animate towards new target properties
+					e->startAnimation(target_pos_offset, target_scale, target_rotation, target_color, duration);
+				} else {
+					// No valid duration, just restore previous state fully
+					e->m_pos_offset = prev.pos_offset;
+					e->m_scale = prev.scale;
+					e->m_rotation = prev.rotation;
+					e->m_color = prev.color;
+					e->m_text = prev.text;
+					e->m_anim.active = prev.anim_active;
+					e->m_anim.start_time = prev.anim_start_time;
+					e->m_anim.duration = prev.anim_duration;
+					e->m_anim.start_pos = prev.anim_start_pos;
+					e->m_anim.target_pos = prev.anim_target_pos;
+					e->m_anim.start_scale = prev.anim_start_scale;
+					e->m_anim.target_scale = prev.anim_target_scale;
+					e->m_anim.start_rotation = prev.anim_start_rotation;
+					e->m_anim.target_rotation = prev.anim_target_rotation;
+					e->m_anim.start_color = prev.anim_start_color;
+					e->m_anim.target_color = prev.anim_target_color;
+				}
+			} catch (...) {
+				// Fallback to full restore
+				e->m_pos_offset = prev.pos_offset;
+				e->m_scale = prev.scale;
+				e->m_rotation = prev.rotation;
+				e->m_color = prev.color;
+				e->m_text = prev.text;
+			}
+		} else {
+			// No animation requested in the new formspec, just restore the runtime state fully
+			e->m_pos_offset = prev.pos_offset;
+			e->m_scale = prev.scale;
+			e->m_rotation = prev.rotation;
+			e->m_color = prev.color;
+			e->m_text = prev.text;
+			e->m_anim.active = prev.anim_active;
+			e->m_anim.start_time = prev.anim_start_time;
+			e->m_anim.duration = prev.anim_duration;
+			e->m_anim.start_pos = prev.anim_start_pos;
+			e->m_anim.target_pos = prev.anim_target_pos;
+			e->m_anim.start_scale = prev.anim_start_scale;
+			e->m_anim.target_scale = prev.anim_target_scale;
+			e->m_anim.start_rotation = prev.anim_start_rotation;
+			e->m_anim.target_rotation = prev.anim_target_rotation;
+			e->m_anim.start_color = prev.anim_start_color;
+			e->m_anim.target_color = prev.anim_target_color;
+		}
+	}
+
 	e->drop();
 
 	m_fields.push_back(spec);
@@ -3070,6 +3144,34 @@ void GUIFormSpecMenu::regenerateGui(v2u32 screensize)
 			std::string tablename = m_table.first.fname;
 			GUITable *table = m_table.second;
 			mydata.table_dyndata[tablename] = table->getDynamicData();
+		}
+
+		// Preserve draw_point runtime states (transforms, parenting, animations)
+		for (const FieldSpec &field : m_fields) {
+			if (field.ftype == f_DrawPoint) {
+				gui::IGUIElement *e = getElementFromId(field.fid, true);
+				if (e) {
+					GUIDrawPoint *dp = static_cast<GUIDrawPoint *>(e);
+					PreservedDrawPointState state;
+					state.pos_offset = dp->m_pos_offset;
+					state.scale = dp->m_scale;
+					state.rotation = dp->m_rotation;
+					state.color = dp->m_color;
+					state.text = dp->m_text;
+					state.anim_active = dp->m_anim.active;
+					state.anim_start_time = dp->m_anim.start_time;
+					state.anim_duration = dp->m_anim.duration;
+					state.anim_start_pos = dp->m_anim.start_pos;
+					state.anim_target_pos = dp->m_anim.target_pos;
+					state.anim_start_scale = dp->m_anim.start_scale;
+					state.anim_target_scale = dp->m_anim.target_scale;
+					state.anim_start_rotation = dp->m_anim.start_rotation;
+					state.anim_target_rotation = dp->m_anim.target_rotation;
+					state.anim_start_color = dp->m_anim.start_color;
+					state.anim_target_color = dp->m_anim.target_color;
+					mydata.preserved_drawpoints[field.fname] = state;
+				}
+			}
 		}
 
 		// Preserve focus
@@ -5387,11 +5489,8 @@ GUIDrawPoint *GUIFormSpecMenu::getDrawPointByName(const std::string &name)
 
 class IGUIElementBridge : public gui::IGUIElement {
 public:
-	void reorderChildrenPublic(
-		std::list<gui::IGUIElement *>::iterator from,
-		std::list<gui::IGUIElement *>::iterator to,
-		const std::vector<gui::IGUIElement *> &neworder) {
-		reorderChildren(from, to, neworder);
+	std::list<gui::IGUIElement*>& getChildrenMutable() {
+		return Children;
 	}
 };
 
@@ -5399,11 +5498,8 @@ void GUIFormSpecMenu::sortChildrenByPriorityOf(gui::IGUIElement *parent_el)
 {
 	if (!parent_el)
 		return;
-	auto &children_list = const_cast<std::list<gui::IGUIElement *>&>(parent_el->getChildren());
-	std::vector<gui::IGUIElement *> elements;
-	for (auto child : children_list) {
-		elements.push_back(child);
-	}
+	auto &children_list = static_cast<IGUIElementBridge*>(parent_el)->getChildrenMutable();
+	std::vector<gui::IGUIElement *> elements(children_list.begin(), children_list.end());
 	std::stable_sort(elements.begin(), elements.end(),
 			[this] (const gui::IGUIElement *a, const gui::IGUIElement *b) -> bool {
 		const FieldSpec *spec_a = getSpecByID(a->getID());
@@ -5412,5 +5508,8 @@ void GUIFormSpecMenu::sortChildrenByPriorityOf(gui::IGUIElement *parent_el)
 		int priority_b = spec_b ? spec_b->priority : 0;
 		return priority_a < priority_b;
 	});
-	static_cast<IGUIElementBridge*>(parent_el)->reorderChildrenPublic(children_list.begin(), children_list.end(), elements);
+	children_list.clear();
+	for (auto el : elements) {
+		children_list.push_back(el);
+	}
 }

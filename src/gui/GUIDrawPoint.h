@@ -16,6 +16,8 @@ class GUIFormSpecMenu;
 
 class GUIDrawPoint : public gui::IGUIElement
 {
+	friend class GUIFormSpecMenu;
+
 public:
 	struct AnimationState {
 		bool active = false;

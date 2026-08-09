@@ -88,6 +88,27 @@ class GUIFormSpecMenu : public GUIModalMenu
 {
 	friend class GUIDrawPoint;
 
+public:
+	struct PreservedDrawPointState {
+		v2s32 pos_offset;
+		v2f32 scale;
+		float rotation;
+		video::SColor color;
+		std::wstring text;
+		bool anim_active;
+		u32 anim_start_time;
+		u32 anim_duration;
+		v2s32 anim_start_pos;
+		v2s32 anim_target_pos;
+		v2f32 anim_start_scale;
+		v2f32 anim_target_scale;
+		float anim_start_rotation;
+		float anim_target_rotation;
+		video::SColor anim_start_color;
+		video::SColor anim_target_color;
+	};
+
+private:
 	struct ListRingSpec
 	{
 		ListRingSpec() = default;
@@ -425,6 +446,7 @@ private:
 
 		// used to restore table selection/scroll/treeview state
 		std::unordered_map<std::string, GUITable::DynamicData> table_dyndata;
+		std::unordered_map<std::string, PreservedDrawPointState> preserved_drawpoints;
 		std::string type;
 	};
 

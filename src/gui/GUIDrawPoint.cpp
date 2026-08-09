@@ -282,8 +282,8 @@ std::vector<v2s32> GUIDrawPoint::getAbsolutePointsRecursive(int depth) const
 						rel_p.Y = ry;
 					}
 					pt = v2s32(
-						std::round(rel_p.X + p_centroid.X) + parent_dp->m_pos_offset.X,
-						std::round(rel_p.Y + p_centroid.Y) + parent_dp->m_pos_offset.Y
+						std::round(rel_p.X + p_centroid.X),
+						std::round(rel_p.Y + p_centroid.Y)
 					);
 				}
 			}
