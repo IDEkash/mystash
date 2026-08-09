@@ -3150,7 +3150,7 @@ void GUIFormSpecMenu::regenerateGui(v2u32 screensize)
 		for (const FieldSpec &field : m_fields) {
 			if (field.ftype == f_DrawPoint) {
 				gui::IGUIElement *e = getElementFromId(field.fid, true);
-				if (e) {
+				if (e && GUIDrawPoint::s_active_drawpoints.find(e) != GUIDrawPoint::s_active_drawpoints.end()) {
 					GUIDrawPoint *dp = static_cast<GUIDrawPoint *>(e);
 					PreservedDrawPointState state;
 					state.pos_offset = dp->m_pos_offset;

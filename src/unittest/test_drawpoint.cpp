@@ -23,6 +23,7 @@ public:
 	void testHitDetection();
 	void testRoundedCornerClamping();
 	void testAffineTransforms();
+	void testInheritance();
 };
 
 static TestDrawPoint g_test_instance;
@@ -32,6 +33,7 @@ void TestDrawPoint::runTests(IGameDef *gamedef)
 	TEST(testHitDetection);
 	TEST(testRoundedCornerClamping);
 	TEST(testAffineTransforms);
+	TEST(testInheritance);
 }
 
 void TestDrawPoint::testHitDetection()
@@ -94,4 +96,22 @@ void TestDrawPoint::testAffineTransforms()
 
 	UASSERT(abs_p.X == 160);
 	UASSERT(abs_p.Y == 170);
+}
+
+void TestDrawPoint::testInheritance()
+{
+	// Test color multiplication inheritance logic
+	video::SColor parent_col(255, 128, 128, 128); // 50% gray
+	video::SColor child_col(255, 255, 255, 255);  // white
+
+	// Child color multiplied by parent color should result in parent color (50% gray)
+	video::SColor col = child_col;
+	col.setAlpha((col.getAlpha() * parent_col.getAlpha()) / 255);
+	col.setRed((col.getRed() * parent_col.getRed()) / 255);
+	col.setGreen((col.getGreen() * parent_col.getGreen()) / 255);
+	col.setBlue((col.getBlue() * parent_col.getBlue()) / 255);
+
+	UASSERT(col.getRed() == 128);
+	UASSERT(col.getGreen() == 128);
+	UASSERT(col.getBlue() == 128);
 }

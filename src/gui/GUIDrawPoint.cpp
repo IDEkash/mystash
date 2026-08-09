@@ -13,6 +13,9 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+// Define static registry for safe casting
+std::unordered_set<gui::IGUIElement*> GUIDrawPoint::s_active_drawpoints;
+
 GUIDrawPoint::GUIDrawPoint(gui::IGUIEnvironment *env, gui::IGUIElement *parent, s32 id,
 	GUIFormSpecMenu *menu,
 	const std::string &name,
@@ -32,6 +35,9 @@ GUIDrawPoint::GUIDrawPoint(gui::IGUIEnvironment *env, gui::IGUIElement *parent, 
 	m_radius(radius),
 	m_properties(properties)
 {
+	// Insert ourselves into the safe static registry
+	s_active_drawpoints.insert(this);
+
 	// Parse properties
 	m_pressable = (properties.find("pressable=true") != std::string::npos || properties.find("pressable") != std::string::npos);
 	m_hold = (properties.find("hold=true") != std::string::npos || properties.find("hold") != std::string::npos);
@@ -48,6 +54,19 @@ GUIDrawPoint::GUIDrawPoint(gui::IGUIEnvironment *env, gui::IGUIElement *parent, 
 		} else {
 			m_parent_name = properties.substr(parent_pos + 7, comma_pos - (parent_pos + 7));
 		}
+	}
+
+	// Parse custom label text if defined
+	size_t text_pos = properties.find("text=");
+	if (text_pos != std::string::npos) {
+		size_t comma_pos = properties.find(",", text_pos);
+		std::string raw_text;
+		if (comma_pos == std::string::npos) {
+			raw_text = properties.substr(text_pos + 5);
+		} else {
+			raw_text = properties.substr(text_pos + 5, comma_pos - (text_pos + 5));
+		}
+		m_label_text = utf8_to_wide(unescape_string(raw_text));
 	}
 
 	// Parse runtime transform properties if defined with robust try-catch wrapper
@@ -105,9 +124,18 @@ GUIDrawPoint::GUIDrawPoint(gui::IGUIEnvironment *env, gui::IGUIElement *parent, 
 				}
 				core::rect<s32> bbox(min_pt, max_pt);
 				v2s32 center = bbox.getCenter();
-				startAnimation(m_pos_offset, m_scale, m_rotation, m_color, duration);
+
+				// Save targets
+				v2s32 target_pos = m_pos_offset;
+				v2f32 target_scale = m_scale;
+				float target_rot = m_rotation;
+				video::SColor target_col = m_color;
+
+				// Set starting values before animation trigger
 				m_pos_offset = center - bbox.UpperLeftCorner;
 				m_scale = v2f32(0.0f, 0.0f);
+
+				startAnimation(target_pos, target_scale, target_rot, target_col, duration);
 			}
 		} catch (...) {
 			// Ignore anim parsing errors gracefully
@@ -116,6 +144,12 @@ GUIDrawPoint::GUIDrawPoint(gui::IGUIEnvironment *env, gui::IGUIElement *parent, 
 
 	// Generate rounded points and set relative rectangle
 	generateRoundedPoints();
+}
+
+GUIDrawPoint::~GUIDrawPoint()
+{
+	// Remove ourselves from thesafe static registry
+	s_active_drawpoints.erase(this);
 }
 
 std::vector<v2s32> GUIDrawPoint::calculateRoundedPoints(
@@ -252,22 +286,34 @@ std::vector<v2s32> GUIDrawPoint::getAbsolutePointsRecursive(int depth) const
 		transformed.push_back(abs_p);
 	}
 
-	// 3. Recursive parenting
+	// 3. Recursive parenting (without double translation offset bugs)
 	if (!m_parent_name.empty()) {
 		GUIDrawPoint *parent_dp = m_menu->getDrawPointByName(m_parent_name);
-		if (parent_dp) {
+		if (parent_dp && !parent_dp->m_rounded_points.empty()) {
 			std::vector<v2s32> parent_pts = parent_dp->getAbsolutePointsRecursive(depth + 1);
 			if (!parent_pts.empty()) {
-				v2f32 p_centroid(0.0f, 0.0f);
-				for (const auto &p : parent_pts) {
-					p_centroid.X += p.X;
-					p_centroid.Y += p.Y;
+				// 1. Compute parent's untransformed centroid in absolute world space
+				v2f32 p_centroid_local(0.0f, 0.0f);
+				for (const auto &p : parent_dp->m_rounded_points) {
+					p_centroid_local.X += p.X;
+					p_centroid_local.Y += p.Y;
 				}
-				p_centroid.X /= parent_pts.size();
-				p_centroid.Y /= parent_pts.size();
+				p_centroid_local.X /= parent_dp->m_rounded_points.size();
+				p_centroid_local.Y /= parent_dp->m_rounded_points.size();
+
+				v2f32 p_centroid_untransformed = v2f32(parent_dp->AbsoluteRect.UpperLeftCorner.X, parent_dp->AbsoluteRect.UpperLeftCorner.Y) + p_centroid_local;
+
+				// 2. Compute parent's recursively transformed world centroid
+				v2f32 p_centroid_world(0.0f, 0.0f);
+				for (const auto &p : parent_pts) {
+					p_centroid_world.X += p.X;
+					p_centroid_world.Y += p.Y;
+				}
+				p_centroid_world.X /= parent_pts.size();
+				p_centroid_world.Y /= parent_pts.size();
 
 				for (auto &pt : transformed) {
-					v2f32 rel_p(pt.X - p_centroid.X, pt.Y - p_centroid.Y);
+					v2f32 rel_p(pt.X - p_centroid_untransformed.X, pt.Y - p_centroid_untransformed.Y);
 					// Scale by parent
 					rel_p.X *= parent_dp->m_scale.X;
 					rel_p.Y *= parent_dp->m_scale.Y;
@@ -281,9 +327,10 @@ std::vector<v2s32> GUIDrawPoint::getAbsolutePointsRecursive(int depth) const
 						rel_p.X = rx;
 						rel_p.Y = ry;
 					}
+					// Project to parent's world space
 					pt = v2s32(
-						std::round(rel_p.X + p_centroid.X),
-						std::round(rel_p.Y + p_centroid.Y)
+						std::round(rel_p.X + p_centroid_world.X),
+						std::round(rel_p.Y + p_centroid_world.Y)
 					);
 				}
 			}
@@ -291,6 +338,22 @@ std::vector<v2s32> GUIDrawPoint::getAbsolutePointsRecursive(int depth) const
 	}
 
 	return transformed;
+}
+
+video::SColor GUIDrawPoint::getInheritedColor() const
+{
+	video::SColor col = m_color;
+	if (!m_parent_name.empty()) {
+		GUIDrawPoint *parent_dp = m_menu->getDrawPointByName(m_parent_name);
+		if (parent_dp) {
+			video::SColor parent_col = parent_dp->getInheritedColor();
+			col.setAlpha((col.getAlpha() * parent_col.getAlpha()) / 255);
+			col.setRed((col.getRed() * parent_col.getRed()) / 255);
+			col.setGreen((col.getGreen() * parent_col.getGreen()) / 255);
+			col.setBlue((col.getBlue() * parent_col.getBlue()) / 255);
+		}
+	}
+	return col;
 }
 
 void GUIDrawPoint::draw()
@@ -332,6 +395,9 @@ void GUIDrawPoint::draw()
 	if (abs_points.empty())
 		return;
 
+	// Compute fully inherited cascading color/alpha
+	video::SColor draw_color = getInheritedColor();
+
 	// Draw filled polygon inside if not fill_type none
 	if (m_fill_type != "none") {
 		v2s32 min_pt = abs_points[0];
@@ -361,7 +427,7 @@ void GUIDrawPoint::draw()
 		float v_c = (centroid.Y - min_pt.Y) / bbox_h;
 		vertices.push_back(video::S3DVertex(
 			centroid.X, centroid.Y, 0.0f,
-			0.0f, 0.0f, -1.0f, m_color, u_c, v_c
+			0.0f, 0.0f, -1.0f, draw_color, u_c, v_c
 		));
 
 		for (const auto &p : abs_points) {
@@ -369,7 +435,7 @@ void GUIDrawPoint::draw()
 			float v = (p.Y - min_pt.Y) / bbox_h;
 			vertices.push_back(video::S3DVertex(
 				p.X, p.Y, 0.0f,
-				0.0f, 0.0f, -1.0f, m_color, u, v
+				0.0f, 0.0f, -1.0f, draw_color, u, v
 			));
 		}
 
@@ -409,30 +475,31 @@ void GUIDrawPoint::draw()
 		driver->draw2DLine(
 			abs_points[i],
 			abs_points[(i + 1) % abs_points.size()],
-			m_color
+			draw_color
 		);
 	}
 
-	// Draw text if textbox/input enabled
+	// Draw custom label text or typed input text if enabled
+	std::wstring display_text = m_label_text;
 	if (m_input_enabled) {
-		std::wstring display_text = m_text;
+		display_text = m_text;
 		if (Environment->getFocus() == this) {
 			if ((now / 500) % 2 == 0) {
 				display_text += L"|";
 			}
 		}
+	}
 
-		if (!display_text.empty()) {
-			gui::IGUISkin *skin = Environment->getSkin();
-			gui::IGUIFont *font = skin->getFont();
-			if (font) {
-				core::dimension2d<u32> size = font->getDimension(display_text.c_str());
-				v2s32 text_pos(
-					AbsoluteRect.UpperLeftCorner.X + (AbsoluteRect.getWidth() - (s32)size.Width) / 2,
-					AbsoluteRect.UpperLeftCorner.Y + (AbsoluteRect.getHeight() - (s32)size.Height) / 2
-				);
-				font->draw(display_text.c_str(), core::rect<s32>(text_pos, text_pos + v2s32(size.Width, size.Height)), video::SColor(255, 255, 255, 255));
-			}
+	if (!display_text.empty()) {
+		gui::IGUISkin *skin = Environment->getSkin();
+		gui::IGUIFont *font = skin->getFont();
+		if (font) {
+			core::dimension2d<u32> size = font->getDimension(display_text.c_str());
+			v2s32 text_pos(
+				AbsoluteRect.UpperLeftCorner.X + (AbsoluteRect.getWidth() - (s32)size.Width) / 2,
+				AbsoluteRect.UpperLeftCorner.Y + (AbsoluteRect.getHeight() - (s32)size.Height) / 2
+			);
+			font->draw(display_text.c_str(), core::rect<s32>(text_pos, text_pos + v2s32(size.Width, size.Height)), video::SColor(255, 255, 255, 255));
 		}
 	}
 
@@ -488,6 +555,9 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 						}
 					}
 					m_menu->acceptInput(quit_mode_no);
+					if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
+						return true; // Safely abort if deleted on formspec update
+					}
 					for (auto &s : m_menu->m_fields) {
 						if (s.fid == getID()) {
 							s.send = false;
@@ -505,6 +575,9 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 						}
 					}
 					m_menu->acceptInput(quit_mode_no);
+					if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
+						return true; // Safely abort if deleted on formspec update
+					}
 					for (auto &s : m_menu->m_fields) {
 						if (s.fid == getID()) {
 							s.send = false;
@@ -527,6 +600,9 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 					}
 				}
 				m_menu->acceptInput(quit_mode_no);
+				if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
+					return true; // Safely abort if deleted on formspec update
+				}
 				for (auto &s : m_menu->m_fields) {
 					if (s.fid == getID()) {
 						s.send = false;
@@ -548,6 +624,9 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 						}
 					}
 					m_menu->acceptInput(quit_mode_no);
+					if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
+						return true; // Safely abort if deleted on formspec update
+					}
 					for (auto &s : m_menu->m_fields) {
 						if (s.fid == getID()) {
 							s.send = false;
@@ -576,6 +655,9 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 						}
 					}
 					m_menu->acceptInput(quit_mode_no);
+					if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
+						return true; // Safely abort if deleted on formspec update
+					}
 					for (auto &s : m_menu->m_fields) {
 						if (s.fid == getID()) {
 							s.send = false;
@@ -601,6 +683,9 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 							}
 						}
 						m_menu->acceptInput(quit_mode_no);
+						if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
+							return true; // Safely abort if deleted on formspec update
+						}
 						for (auto &s : m_menu->m_fields) {
 							if (s.fid == getID()) {
 								s.send = false;
@@ -641,6 +726,9 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 						}
 					}
 					m_menu->acceptInput(quit_mode_no);
+					if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
+						return true; // Safely abort if deleted on formspec update
+					}
 					for (auto &s : m_menu->m_fields) {
 						if (s.fid == getID()) {
 							s.send = false;
@@ -658,6 +746,9 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 						}
 					}
 					m_menu->acceptInput(quit_mode_no);
+					if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
+						return true; // Safely abort if deleted on formspec update
+					}
 					for (auto &s : m_menu->m_fields) {
 						if (s.fid == getID()) {
 							s.send = false;
@@ -680,6 +771,9 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 					}
 				}
 				m_menu->acceptInput(quit_mode_no);
+				if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
+					return true; // Safely abort if deleted on formspec update
+				}
 				for (auto &s : m_menu->m_fields) {
 					if (s.fid == getID()) {
 						s.send = false;
@@ -701,6 +795,9 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 						}
 					}
 					m_menu->acceptInput(quit_mode_no);
+					if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
+						return true; // Safely abort if deleted on formspec update
+					}
 					for (auto &s : m_menu->m_fields) {
 						if (s.fid == getID()) {
 							s.send = false;
@@ -729,6 +826,9 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 						}
 					}
 					m_menu->acceptInput(quit_mode_no);
+					if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
+						return true; // Safely abort if deleted on formspec update
+					}
 					for (auto &s : m_menu->m_fields) {
 						if (s.fid == getID()) {
 							s.send = false;
@@ -754,13 +854,16 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 							}
 						}
 						m_menu->acceptInput(quit_mode_no);
+						if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
+							return true; // Safely abort if deleted on formspec update
+						}
 						for (auto &s : m_menu->m_fields) {
 							if (s.fid == getID()) {
 								s.send = false;
 								break;
+							}
 						}
 					}
-				}
 				}
 				return true;
 			}
@@ -783,6 +886,9 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 					}
 				}
 				m_menu->acceptInput(quit_mode_no);
+				if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
+					return true; // Safely abort if deleted on formspec update
+				}
 				for (auto &s : m_menu->m_fields) {
 					if (s.fid == getID()) {
 						s.send = false;
@@ -800,6 +906,9 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 				}
 			}
 			m_menu->acceptInput(quit_mode_no);
+			if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
+				return true; // Safely abort if deleted on formspec update
+			}
 			for (auto &s : m_menu->m_fields) {
 				if (s.fid == getID()) {
 					s.send = false;

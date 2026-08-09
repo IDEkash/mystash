@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <string>
+#include <unordered_set>
 #include <IGUIElement.h>
 #include <IGUIEnvironment.h>
 #include <IVideoDriver.h>
@@ -47,7 +48,7 @@ public:
 		float radius,
 		const std::string &properties);
 
-	virtual ~GUIDrawPoint() = default;
+	virtual ~GUIDrawPoint();
 
 	virtual void draw() override;
 	virtual bool OnEvent(const SEvent &event) override;
@@ -63,11 +64,15 @@ public:
 
 	std::vector<v2s32> getAbsolutePoints() const;
 	std::vector<v2s32> getAbsolutePointsRecursive(int depth) const;
+	video::SColor getInheritedColor() const;
 
 	// Static math helpers for production use and unit testing
 	static std::vector<v2s32> calculateRoundedPoints(
 		const std::vector<v2s32> &orig_points, float radius);
 	static bool isPointInsidePolygon(const v2s32 &pt, const std::vector<v2s32> &poly);
+
+	// Static safe registration/cast lookup set
+	static std::unordered_set<gui::IGUIElement*> s_active_drawpoints;
 
 private:
 	void generateRoundedPoints();
@@ -91,6 +96,7 @@ private:
 	bool m_draggable = false;
 
 	std::wstring m_text;
+	std::wstring m_label_text;
 
 	// Transformation and parenting states
 	v2s32 m_pos_offset = v2s32(0, 0);
