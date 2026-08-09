@@ -44,6 +44,57 @@ GUIDrawPoint::GUIDrawPoint(gui::IGUIEnvironment *env, gui::IGUIElement *parent, 
 	generateRoundedPoints();
 }
 
+std::vector<v2s32> GUIDrawPoint::calculateRoundedPoints(
+	const std::vector<v2s32> &orig_points, float radius)
+{
+	if (orig_points.size() < 3 || radius <= 0.0f) {
+		return orig_points;
+	}
+
+	std::vector<v2s32> rounded_points;
+	size_t n = orig_points.size();
+
+	for (size_t i = 0; i < n; ++i) {
+		v2s32 B = orig_points[i];
+		v2s32 A = orig_points[(i + n - 1) % n];
+		v2s32 C = orig_points[(i + 1) % n];
+
+		v2f32 v1(A.X - B.X, A.Y - B.Y);
+		v2f32 v2(C.X - B.X, C.Y - B.Y);
+
+		float len1 = v1.getLength();
+		float len2 = v2.getLength();
+
+		if (len1 < 0.001f || len2 < 0.001f) {
+			rounded_points.push_back(B);
+			continue;
+		}
+
+		v2f32 hat1 = v1 / len1;
+		v2f32 hat2 = v2 / len2;
+
+		// Clamp radius to half the edge length to prevent overshooting
+		float r = std::min(radius, std::min(len1 / 2.0f, len2 / 2.0f));
+
+		if (r <= 0.0f) {
+			rounded_points.push_back(B);
+			continue;
+		}
+
+		v2f32 Q1 = v2f32(B.X, B.Y) + hat1 * r;
+		v2f32 Q2 = v2f32(B.X, B.Y) + hat2 * r;
+
+		const int steps = 8;
+		for (int s = 0; s <= steps; ++s) {
+			float t = (float)s / steps;
+			float omt = 1.0f - t;
+			v2f32 P = Q1 * (omt * omt) + v2f32(B.X, B.Y) * (2.0f * omt * t) + Q2 * (t * t);
+			rounded_points.push_back(v2s32(std::round(P.X), std::round(P.Y)));
+		}
+	}
+	return rounded_points;
+}
+
 void GUIDrawPoint::generateRoundedPoints()
 {
 	if (m_orig_points.empty())
@@ -73,52 +124,7 @@ void GUIDrawPoint::generateRoundedPoints()
 		rel_orig.push_back(p - bbox.UpperLeftCorner);
 	}
 
-	if (rel_orig.size() < 3 || m_radius <= 0.0f) {
-		m_rounded_points = rel_orig;
-		return;
-	}
-
-	m_rounded_points.clear();
-	size_t n = rel_orig.size();
-
-	for (size_t i = 0; i < n; ++i) {
-		v2s32 B = rel_orig[i];
-		v2s32 A = rel_orig[(i + n - 1) % n];
-		v2s32 C = rel_orig[(i + 1) % n];
-
-		v2f32 v1(A.X - B.X, A.Y - B.Y);
-		v2f32 v2(C.X - B.X, C.Y - B.Y);
-
-		float len1 = v1.getLength();
-		float len2 = v2.getLength();
-
-		if (len1 < 0.001f || len2 < 0.001f) {
-			m_rounded_points.push_back(B);
-			continue;
-		}
-
-		v2f32 hat1 = v1 / len1;
-		v2f32 hat2 = v2 / len2;
-
-		// Clamp radius to half the edge length to prevent overshooting
-		float r = std::min(m_radius, std::min(len1 / 2.0f, len2 / 2.0f));
-
-		if (r <= 0.0f) {
-			m_rounded_points.push_back(B);
-			continue;
-		}
-
-		v2f32 Q1 = v2f32(B.X, B.Y) + hat1 * r;
-		v2f32 Q2 = v2f32(B.X, B.Y) + hat2 * r;
-
-		const int steps = 8;
-		for (int s = 0; s <= steps; ++s) {
-			float t = (float)s / steps;
-			float omt = 1.0f - t;
-			v2f32 P = Q1 * (omt * omt) + v2f32(B.X, B.Y) * (2.0f * omt * t) + Q2 * (t * t);
-			m_rounded_points.push_back(v2s32(std::round(P.X), std::round(P.Y)));
-		}
-	}
+	m_rounded_points = calculateRoundedPoints(rel_orig, m_radius);
 }
 
 void GUIDrawPoint::draw()
@@ -245,20 +251,25 @@ void GUIDrawPoint::draw()
 	gui::IGUIElement::draw();
 }
 
-bool GUIDrawPoint::isPointInside(const v2s32 &pt) const
+bool GUIDrawPoint::isPointInsidePolygon(const v2s32 &pt, const std::vector<v2s32> &poly)
 {
-	if (m_rounded_points.size() < 3)
+	if (poly.size() < 3)
 		return false;
 
 	bool inside = false;
-	int n = m_rounded_points.size();
+	int n = poly.size();
 	for (int i = 0, j = n - 1; i < n; j = i++) {
-		if (((m_rounded_points[i].Y > pt.Y) != (m_rounded_points[j].Y > pt.Y)) &&
-			(pt.X < (m_rounded_points[j].X - m_rounded_points[i].X) * (pt.Y - m_rounded_points[i].Y) / (float)(m_rounded_points[j].Y - m_rounded_points[i].Y) + m_rounded_points[i].X)) {
+		if (((poly[i].Y > pt.Y) != (poly[j].Y > pt.Y)) &&
+			(pt.X < (poly[j].X - poly[i].X) * (pt.Y - poly[i].Y) / (float)(poly[j].Y - poly[i].Y) + poly[i].X)) {
 			inside = !inside;
 		}
 	}
 	return inside;
+}
+
+bool GUIDrawPoint::isPointInside(const v2s32 &pt) const
+{
+	return isPointInsidePolygon(pt, m_rounded_points);
 }
 
 bool GUIDrawPoint::OnEvent(const SEvent &event)

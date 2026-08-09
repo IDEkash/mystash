@@ -33,6 +33,11 @@ public:
 	virtual bool OnEvent(const SEvent &event) override;
 	virtual const wchar_t *getText() const override;
 
+	// Static math helpers for production use and unit testing
+	static std::vector<v2s32> calculateRoundedPoints(
+		const std::vector<v2s32> &orig_points, float radius);
+	static bool isPointInsidePolygon(const v2s32 &pt, const std::vector<v2s32> &poly);
+
 private:
 	void generateRoundedPoints();
 	bool isPointInside(const v2s32 &pt) const;

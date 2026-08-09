@@ -4105,6 +4105,10 @@ void GUIFormSpecMenu::acceptInput(FormspecQuitMode quitmode)
 
 					if (e)
 						fields[name] = std::to_string(e->getFrameIndex() + 1);
+				} else if (s.ftype == f_DrawPoint) {
+					IGUIElement *e = getElementFromId(s.fid, true);
+					if (e)
+						fields[name] = wide_to_utf8(e->getText());
 				} else {
 					IGUIElement *e = getElementFromId(s.fid, true);
 					if (e)
