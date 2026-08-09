@@ -5,6 +5,7 @@ set(gui_SRCS
 	${CMAKE_CURRENT_SOURCE_DIR}/guiAnimatedImage.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/guiBackgroundImage.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/guiBox.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/GUIDrawPoint.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/guiButton.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/guiButtonImage.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/guiButtonItemImage.cpp

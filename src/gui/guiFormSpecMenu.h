@@ -40,6 +40,7 @@ enum FormspecFieldType {
 	f_ItemImage,
 	f_HyperText,
 	f_AnimatedImage,
+	f_DrawPoint,
 	f_Unknown
 };
 
@@ -84,6 +85,8 @@ public:
 
 class GUIFormSpecMenu : public GUIModalMenu
 {
+	friend class GUIDrawPoint;
+
 	struct ListRingSpec
 	{
 		ListRingSpec() = default;
@@ -471,6 +474,7 @@ private:
 	void parseItemImageButton(parserData* data, const std::string &element);
 	void parseTabHeader(parserData* data, const std::string &element);
 	void parseBox(parserData* data, const std::string &element);
+	void parseDrawPoint(parserData* data, const std::string &element);
 	void parseBackgroundColor(parserData* data, const std::string &element);
 	void parseListColors(parserData* data, const std::string &element);
 	void parseTooltip(parserData* data, const std::string &element);

@@ -40,6 +40,7 @@
 #include "guiAnimatedImage.h"
 #include "guiBackgroundImage.h"
 #include "guiBox.h"
+#include "GUIDrawPoint.h"
 #include "guiButton.h"
 #include "guiButtonImage.h"
 #include "guiButtonItemImage.h"
@@ -2292,6 +2293,73 @@ void GUIFormSpecMenu::parseBox(parserData* data, const std::string &element)
 	m_fields.push_back(spec);
 }
 
+void GUIFormSpecMenu::parseDrawPoint(parserData* data, const std::string &element)
+{
+	std::vector<std::string> parts;
+	if (!precheckElement("draw_point", element, 4, 6, parts))
+		return;
+
+	std::string name = parts[0];
+	std::string points_str = parts[1];
+	std::string fill_type = parts[2];
+	std::string fill_value = parts[3];
+	float radius = 0.0f;
+	std::string properties = "";
+
+	if (parts.size() >= 5 && !parts[4].empty()) {
+		radius = stof(parts[4]);
+		if (data->real_coordinates) {
+			radius *= (float)imgsize.X;
+		} else {
+			radius *= spacing.X;
+		}
+	}
+	if (parts.size() >= 6) {
+		properties = parts[5];
+	}
+
+	// Parse points
+	std::vector<std::string> point_strings = split(points_str, ' ');
+	std::vector<v2s32> parsed_points;
+	for (const std::string &pt_str : point_strings) {
+		std::string_view trimmed = trim(pt_str);
+		if (trimmed.empty()) continue;
+		std::vector<std::string> v_pos = split(std::string(trimmed), ',');
+		if (v_pos.size() < 2) continue;
+		v2s32 pos;
+		if (data->real_coordinates) {
+			pos = getRealCoordinateBasePos(v_pos);
+		} else {
+			pos = getElementBasePos(&v_pos);
+		}
+		parsed_points.push_back(pos);
+	}
+
+	if (parsed_points.empty()) {
+		return;
+	}
+
+	video::ITexture *texture = nullptr;
+	if (fill_type == "image" && !fill_value.empty()) {
+		texture = m_tsrc->getTexture(fill_value);
+	}
+
+	FieldSpec spec(
+		name,
+		L"",
+		L"",
+		258 + m_fields.size()
+	);
+	spec.ftype = f_DrawPoint;
+
+	GUIDrawPoint *e = new GUIDrawPoint(Environment, data->current_parent, spec.fid,
+		this, name, parsed_points, fill_type, fill_value, texture, radius, properties);
+	e->setNotClipped(true);
+	e->drop();
+
+	m_fields.push_back(spec);
+}
+
 void GUIFormSpecMenu::parseBackgroundColor(parserData* data, const std::string &element)
 {
 	std::vector<std::string> parts;
@@ -2939,6 +3007,7 @@ const std::unordered_map<std::string, std::function<void(GUIFormSpecMenu*, GUIFo
 		{"set_focus",              &GUIFormSpecMenu::parseSetFocus},
 		{"model",                  &GUIFormSpecMenu::parseModel},
 		{"allow_close",            &GUIFormSpecMenu::parseAllowClose},
+		{"draw_point",             &GUIFormSpecMenu::parseDrawPoint},
 };
 
 
