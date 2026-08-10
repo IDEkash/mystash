@@ -2371,12 +2371,14 @@ void GUIFormSpecMenu::parseDrawPoint(parserData* data, const std::string &elemen
 	auto pit = data->preserved_drawpoints.find(name);
 	if (pit != data->preserved_drawpoints.end()) {
 		const auto &prev = pit->second;
-		// If the new element has anim_duration, start a smooth animation from previous state to the new targets!
+
 		size_t anim_pos = properties.find("anim_duration=");
+		bool has_new_anim = false;
 		if (anim_pos != std::string::npos) {
 			try {
 				u32 duration = std::stoul(properties.substr(anim_pos + 14));
 				if (duration > 0) {
+					has_new_anim = true;
 					// Save new target properties parsed from properties
 					v2s32 target_pos_offset = e->m_pos_offset;
 					v2f32 target_scale = e->m_scale;
@@ -2392,51 +2394,38 @@ void GUIFormSpecMenu::parseDrawPoint(parserData* data, const std::string &elemen
 
 					// Smoothly animate towards new target properties
 					e->startAnimation(target_pos_offset, target_scale, target_rotation, target_color, duration);
-				} else {
-					// No valid duration, just restore previous state fully
-					e->m_pos_offset = prev.pos_offset;
-					e->m_scale = prev.scale;
-					e->m_rotation = prev.rotation;
-					e->m_color = prev.color;
-					e->m_text = prev.text;
-					e->m_anim.active = prev.anim_active;
-					e->m_anim.start_time = prev.anim_start_time;
-					e->m_anim.duration = prev.anim_duration;
-					e->m_anim.start_pos = prev.anim_start_pos;
-					e->m_anim.target_pos = prev.anim_target_pos;
-					e->m_anim.start_scale = prev.anim_start_scale;
-					e->m_anim.target_scale = prev.anim_target_scale;
-					e->m_anim.start_rotation = prev.anim_start_rotation;
-					e->m_anim.target_rotation = prev.anim_target_rotation;
-					e->m_anim.start_color = prev.anim_start_color;
-					e->m_anim.target_color = prev.anim_target_color;
 				}
 			} catch (...) {
-				// Fallback to full restore
+				// Ignore anim parsing errors gracefully
+			}
+		}
+
+		if (!has_new_anim) {
+			// If an animation was already active, continue it smoothly!
+			if (prev.anim_active) {
 				e->m_pos_offset = prev.pos_offset;
 				e->m_scale = prev.scale;
 				e->m_rotation = prev.rotation;
 				e->m_color = prev.color;
 				e->m_text = prev.text;
+				e->m_anim.active = prev.anim_active;
+				e->m_anim.start_time = prev.anim_start_time;
+				e->m_anim.duration = prev.anim_duration;
+				e->m_anim.start_pos = prev.anim_start_pos;
+				e->m_anim.target_pos = prev.anim_target_pos;
+				e->m_anim.start_scale = prev.anim_start_scale;
+				e->m_anim.target_scale = prev.anim_target_scale;
+				e->m_anim.start_rotation = prev.anim_start_rotation;
+				e->m_anim.target_rotation = prev.anim_target_rotation;
+				e->m_anim.start_color = prev.anim_start_color;
+				e->m_anim.target_color = prev.anim_target_color;
+			} else {
+				// No animation active or requested. Keep the newly parsed coordinates/scale/rotation/color!
+				// But we still restore the textbox text if input is enabled so typing is preserved!
+				if (e->m_input_enabled) {
+					e->m_text = prev.text;
+				}
 			}
-		} else {
-			// No animation requested in the new formspec, just restore the runtime state fully
-			e->m_pos_offset = prev.pos_offset;
-			e->m_scale = prev.scale;
-			e->m_rotation = prev.rotation;
-			e->m_color = prev.color;
-			e->m_text = prev.text;
-			e->m_anim.active = prev.anim_active;
-			e->m_anim.start_time = prev.anim_start_time;
-			e->m_anim.duration = prev.anim_duration;
-			e->m_anim.start_pos = prev.anim_start_pos;
-			e->m_anim.target_pos = prev.anim_target_pos;
-			e->m_anim.start_scale = prev.anim_start_scale;
-			e->m_anim.target_scale = prev.anim_target_scale;
-			e->m_anim.start_rotation = prev.anim_start_rotation;
-			e->m_anim.target_rotation = prev.anim_target_rotation;
-			e->m_anim.start_color = prev.anim_start_color;
-			e->m_anim.target_color = prev.anim_target_color;
 		}
 	}
 

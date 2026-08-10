@@ -286,7 +286,7 @@ std::vector<v2s32> GUIDrawPoint::getAbsolutePointsRecursive(int depth) const
 		transformed.push_back(abs_p);
 	}
 
-	// 3. Recursive parenting (without double translation offset bugs)
+	// 3. Recursive parenting (applying parent transform to child absolute coordinates)
 	if (!m_parent_name.empty()) {
 		GUIDrawPoint *parent_dp = m_menu->getDrawPointByName(m_parent_name);
 		if (parent_dp && !parent_dp->m_rounded_points.empty()) {
