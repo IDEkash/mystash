@@ -620,6 +620,47 @@ void Client::handleCommand_SwitchWorld(NetworkPacket *pkt)
 	g_gamecallback->worldSwitch(worldname);
 }
 
+void Client::handleCommand_CCIStyle(NetworkPacket *pkt)
+{
+	CCIStyle style;
+	*pkt >> style.name;
+	u16 num_points;
+	*pkt >> num_points;
+	for (u16 i = 0; i < num_points; ++i) {
+		std::string p_name;
+		v2f p_pos;
+		*pkt >> p_name >> p_pos;
+		style.points[p_name] = p_pos;
+	}
+	u16 num_shapes;
+	*pkt >> num_shapes;
+	for (u16 i = 0; i < num_shapes; ++i) {
+		CCIConnection conn;
+		*pkt >> conn.p1 >> conn.p2 >> conn.bend;
+		style.shape.push_back(conn);
+	}
+	*pkt >> style.fill_color >> style.has_fill >> style.opacity;
+	*pkt >> style.has_image;
+	if (style.has_image) {
+		*pkt >> style.image.texture >> style.image.position >> style.image.size;
+	}
+	m_cci_manager->registerStyle(style);
+}
+
+void Client::handleCommand_CCICreate(NetworkPacket *pkt)
+{
+	CCIInstance instance;
+	*pkt >> instance.name >> instance.style_name >> instance.position >> instance.layer;
+	m_cci_manager->registerInstance(instance);
+}
+
+void Client::handleCommand_CCIDestroy(NetworkPacket *pkt)
+{
+	std::string name;
+	*pkt >> name;
+	m_cci_manager->destroyInstance(name);
+}
+
 void Client::handleCommand_MovePlayerRel(NetworkPacket *pkt)
 {
 	v3f added_pos;

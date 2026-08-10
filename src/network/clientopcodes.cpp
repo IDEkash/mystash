@@ -116,6 +116,9 @@ const ToClientCommandHandler toClientCommandTable[TOCLIENT_NUM_MSG_TYPES] =
 		{ "TOCLIENT_SET_FOG_BOUNDARY",        TOCLIENT_STATE_CONNECTED, &Client::handleCommand_SetFogBoundary }, // 0x66,
 		{ "TOCLIENT_SET_LOOK_DIRECTION",      TOCLIENT_STATE_CONNECTED, &Client::handleCommand_SetLookDirection }, // 0x67,
 		{ "TOCLIENT_SWITCH_WORLD",            TOCLIENT_STATE_CONNECTED, &Client::handleCommand_SwitchWorld }, // 0x68,
+		{ "TOCLIENT_CCI_STYLE",               TOCLIENT_STATE_CONNECTED, &Client::handleCommand_CCIStyle }, // 0x69,
+		{ "TOCLIENT_CCI_CREATE",              TOCLIENT_STATE_CONNECTED, &Client::handleCommand_CCICreate }, // 0x6a,
+		{ "TOCLIENT_CCI_DESTROY",             TOCLIENT_STATE_CONNECTED, &Client::handleCommand_CCIDestroy }, // 0x6b,
 	};
 
 const static ServerCommandFactory null_command_factory = { nullptr, 0, false };

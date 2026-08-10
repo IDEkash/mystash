@@ -7,6 +7,7 @@
 #include "irr_v3d.h"
 #include "map.h"
 #include "hud_element.h" // HudElementStat
+#include "cci_ui.h"
 #include "gamedef.h"
 #include "content/subgames.h"
 #include "network/peerhandler.h"
@@ -322,6 +323,7 @@ public:
 
 	// Envlock and conlock should be locked when using scriptapi
 	inline ServerScripting *getScriptIface() { return m_script.get(); }
+	inline CCIManager *getCCIManager() { return &m_cci_manager; }
 
 	// actions: time-reversed list
 	// Return value: success/failure
@@ -373,6 +375,11 @@ public:
 	Map &getMap();
 	ServerEnvironment & getEnv() { return *m_env; }
 	v3f findSpawnPos();
+
+	void SendCCIStyle(session_t peer_id, const CCIStyle &style);
+	void SendCCICreate(session_t peer_id, const CCIInstance &instance);
+	void SendCCIDestroy(session_t peer_id, const std::string &instance_name);
+	void SendCCIStylesAndInstances(session_t peer_id);
 
 	u32 hudAdd(RemotePlayer *player, HudElement *element);
 	bool hudRemove(RemotePlayer *player, u32 id);
@@ -737,6 +744,8 @@ private:
 	std::unordered_map<std::string, Translations> server_translations;
 
 	ModIPCStore m_ipcstore;
+
+	CCIManager m_cci_manager;
 
 	/*
 		Threads

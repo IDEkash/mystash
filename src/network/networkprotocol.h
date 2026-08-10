@@ -725,7 +725,22 @@ enum ToClientCommand : u16
 			u8[len] world name
 		*/
 
-		TOCLIENT_NUM_MSG_TYPES = 0x69,
+		TOCLIENT_CCI_STYLE = 0x69,
+		/*
+			CCIStyle data
+		*/
+
+		TOCLIENT_CCI_CREATE = 0x6a,
+		/*
+			CCIInstance data
+		*/
+
+		TOCLIENT_CCI_DESTROY = 0x6b,
+		/*
+			CCIInstance name (string)
+		*/
+
+		TOCLIENT_NUM_MSG_TYPES = 0x6c,
 	};
 
 enum ToServerCommand : u16

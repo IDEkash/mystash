@@ -6,6 +6,7 @@
 
 #include "clientenvironment.h"
 #include "gamedef.h"
+#include "cci_ui.h"
 #include "gameparams.h" // ELoginRegister
 #include "inventorymanager.h"
 #include "irrlichttypes.h"
@@ -218,6 +219,9 @@ public:
 		void handleCommand_SetFogBoundary(NetworkPacket *pkt);
 		void handleCommand_Camera(NetworkPacket* pkt);
 		void handleCommand_SwitchWorld(NetworkPacket *pkt);
+		void handleCommand_CCIStyle(NetworkPacket *pkt);
+		void handleCommand_CCICreate(NetworkPacket *pkt);
+		void handleCommand_CCIDestroy(NetworkPacket *pkt);
 
 	void ProcessData(NetworkPacket *pkt);
 
@@ -361,6 +365,7 @@ public:
 	}
 
 	Minimap* getMinimap() { return m_minimap.get(); }
+	CCIManager* getCCIManager() { return m_cci_manager.get(); }
 	void setCamera(Camera* camera) { m_camera = camera; }
 
 	Camera* getCamera () { return m_camera; }
@@ -494,6 +499,7 @@ private:
 	ELoginRegister m_allow_login_or_register = ELoginRegister::Any;
 	Camera *m_camera = nullptr;
 	std::unique_ptr<Minimap> m_minimap;
+	std::unique_ptr<CCIManager> m_cci_manager;
 
 	// Server serialization version
 	u8 m_server_ser_ver;

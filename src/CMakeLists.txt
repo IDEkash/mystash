@@ -427,6 +427,7 @@ set(independent_SRCS
 	debug.cpp
 	face_position_cache.cpp
 	gettext_plural_form.cpp
+	cci_ui.cpp
 	httpfetch.cpp
 	hud_element.cpp
 	inventory.cpp

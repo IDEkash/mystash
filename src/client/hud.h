@@ -15,6 +15,7 @@
 
 class Client;
 class ITextureSource;
+class CCIManager;
 class Inventory;
 class InventoryList;
 class LocalPlayer;
@@ -97,6 +98,7 @@ public:
 	bool hasElementOfType(HudElementType type);
 
 	void drawLuaElements(const v3s16 &camera_offset);
+	void drawCCI(CCIManager *cci_manager);
 
 private:
 	bool calculateScreenPos(const v3s16 &camera_offset, HudElement *e, v2s32 *pos);

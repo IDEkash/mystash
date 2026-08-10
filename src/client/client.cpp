@@ -171,6 +171,7 @@ Client::Client(
 	if (g_settings->getBool("enable_minimap")) {
 		m_minimap = std::make_unique<Minimap>(this);
 	}
+	m_cci_manager = std::make_unique<CCIManager>();
 
 	m_cache_save_interval = g_settings->getU16("server_map_save_interval");
 	m_mesh_grid = { g_settings->getU16("client_mesh_chunk") };

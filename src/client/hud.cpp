@@ -5,6 +5,7 @@
 // Copyright (C) 2010-2013 kwolekr, Ryan Kwolek <kwolekr@minetest.net>
 
 #include "hud.h"
+#include "cci_ui.h"
 #include <string>
 #include <iostream>
 #include <cmath>
@@ -1039,5 +1040,146 @@ void Hud::resizeHotbar() {
 		m_padding = m_hotbar_imagesize / 12;
 		m_screensize = window_size;
 		m_displaycenter = v2s32(m_screensize.X/2,m_screensize.Y/2);
+	}
+}
+
+void Hud::drawCCI(CCIManager *cci_manager)
+{
+	if (!cci_manager)
+		return;
+
+	// 1. Get all active instances
+	const auto &instances_map = cci_manager->getInstances();
+	if (instances_map.empty())
+		return;
+
+	// 2. Sort instances by layer
+	std::vector<CCIInstance> instances;
+	instances.reserve(instances_map.size());
+	for (const auto &pair : instances_map) {
+		instances.push_back(pair.second);
+	}
+	std::sort(instances.begin(), instances.end());
+
+	// 3. Render each instance
+	for (const auto &instance : instances) {
+		const CCIStyle *style = cci_manager->getStyle(instance.style_name);
+		if (!style)
+			continue;
+
+		// 3.1. Generate boundary points for filled rendering
+		std::vector<v2f> border;
+		for (const auto &conn : style->shape) {
+			auto it1 = style->points.find(conn.p1);
+			auto it2 = style->points.find(conn.p2);
+			if (it1 == style->points.end() || it2 == style->points.end())
+				continue;
+
+			v2f p1 = (instance.position + it1->second) * m_scale_factor;
+			v2f p2 = (instance.position + it2->second) * m_scale_factor;
+
+			if (std::abs(conn.bend) < 0.001f) {
+				border.push_back(p1);
+			} else {
+				v2f mid = (p1 + p2) * 0.5f;
+				v2f diff = p2 - p1;
+				v2f normal(-diff.Y, diff.X);
+				v2f control = mid + normal * conn.bend;
+
+				const int samples = 10;
+				for (int i = 0; i <= samples; ++i) {
+					float t = (float)i / samples;
+					v2f pt = (1.0f - t) * (1.0f - t) * p1 + 2.0f * (1.0f - t) * t * control + t * t * p2;
+					border.push_back(pt);
+				}
+			}
+		}
+
+		// 3.2. Render filled region
+		if (style->has_fill && border.size() >= 3) {
+			std::vector<video::S3DVertex> vertices;
+			vertices.reserve(border.size());
+			video::SColor c = style->fill_color;
+			c.setAlpha(style->opacity * 255);
+
+			for (const auto &pt : border) {
+				vertices.emplace_back(pt.X, pt.Y, 0.0f, 0.0f, 0.0f, -1.0f, c, 0.0f, 0.0f);
+			}
+
+			video::SMaterial material;
+			material.ZBuffer = video::ECFN_NEVER;
+			material.ZWriteEnable = video::EZW_OFF;
+			material.MaterialType = video::EMT_TRANSPARENT_VERTEX_ALPHA;
+			driver->setMaterial(material);
+
+			std::vector<u16> indices(vertices.size());
+			for (size_t i = 0; i < vertices.size(); ++i) {
+				indices[i] = i;
+			}
+
+			driver->draw2DVertexPrimitiveList(
+				vertices.data(), vertices.size(), indices.data(),
+				vertices.size() - 2, video::EVT_STANDARD,
+				scene::EPT_TRIANGLE_FAN
+			);
+		}
+
+		// 3.3. Render lines/curves
+		for (const auto &conn : style->shape) {
+			auto it1 = style->points.find(conn.p1);
+			auto it2 = style->points.find(conn.p2);
+			if (it1 == style->points.end() || it2 == style->points.end())
+				continue;
+
+			v2f p1 = (instance.position + it1->second) * m_scale_factor;
+			v2f p2 = (instance.position + it2->second) * m_scale_factor;
+
+			video::SColor line_color = style->fill_color;
+			line_color.setAlpha(style->opacity * 255);
+
+			if (std::abs(conn.bend) < 0.001f) {
+				driver->draw2DLine(v2s32(p1.X, p1.Y), v2s32(p2.X, p2.Y), line_color);
+			} else {
+				v2f mid = (p1 + p2) * 0.5f;
+				v2f diff = p2 - p1;
+				v2f normal(-diff.Y, diff.X);
+				v2f control = mid + normal * conn.bend;
+
+				const int samples = 10;
+				v2f prev_pt = p1;
+				for (int i = 1; i <= samples; ++i) {
+					float t = (float)i / samples;
+					v2f pt = (1.0f - t) * (1.0f - t) * p1 + 2.0f * (1.0f - t) * t * control + t * t * p2;
+					driver->draw2DLine(v2s32(prev_pt.X, prev_pt.Y), v2s32(pt.X, pt.Y), line_color);
+					prev_pt = pt;
+				}
+			}
+		}
+
+		// 3.4. Render image
+		if (style->has_image) {
+			video::ITexture *texture = tsrc->getTexture(style->image.texture);
+			if (texture) {
+				core::dimension2du tex_size = texture->getOriginalSize();
+				v2f img_pos = instance.position + style->image.position;
+				img_pos *= m_scale_factor;
+				f32 w = tex_size.Width * style->image.size * m_scale_factor;
+				f32 h = tex_size.Height * style->image.size * m_scale_factor;
+
+				core::rect<s32> dest_rect(
+					img_pos.X, img_pos.Y,
+					img_pos.X + w, img_pos.Y + h
+				);
+				core::rect<s32> src_rect(0, 0, tex_size.Width, tex_size.Height);
+
+				video::SColor color(style->opacity * 255, 255, 255, 255);
+				video::SColor colors[] = {color, color, color, color};
+
+				draw2DImageFilterScaled(
+					driver, texture, dest_rect, src_rect,
+					nullptr, colors, true
+				);
+			}
+		}
 	}
 }

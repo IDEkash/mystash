@@ -1293,6 +1293,9 @@ PlayerSAO *Server::StageTwoClientInit(session_t peer_id)
 	// Send privileges
 	SendPlayerPrivileges(peer_id);
 
+	// Send CCI styles and instances
+	SendCCIStylesAndInstances(peer_id);
+
 	// Send inventory formspec
 	SendPlayerInventoryFormspec(peer_id);
 
@@ -1496,6 +1499,72 @@ void Server::SendMovement(session_t peer_id)
 	pkt << g_settings->getFloat("movement_speed_sprint_factor");
 
 	Send(&pkt);
+}
+
+void Server::SendCCIStyle(session_t peer_id, const CCIStyle &style)
+{
+	NetworkPacket pkt(TOCLIENT_CCI_STYLE, 0, peer_id);
+	pkt << style.name;
+	pkt << (u16)style.points.size();
+	for (const auto &p : style.points) {
+		pkt << p.first << p.second;
+	}
+	pkt << (u16)style.shape.size();
+	for (const auto &conn : style.shape) {
+		pkt << conn.p1 << conn.p2 << conn.bend;
+	}
+	pkt << style.fill_color << style.has_fill << style.opacity;
+	pkt << style.has_image;
+	if (style.has_image) {
+		pkt << style.image.texture << style.image.position << style.image.size;
+	}
+
+	if (peer_id == PEER_ID_INEXISTENT) {
+		m_clients.sendToAll(&pkt);
+	} else {
+		Send(peer_id, &pkt);
+	}
+}
+
+void Server::SendCCICreate(session_t peer_id, const CCIInstance &instance)
+{
+	NetworkPacket pkt(TOCLIENT_CCI_CREATE, 0, peer_id);
+	pkt << instance.name << instance.style_name << instance.position << instance.layer;
+
+	if (peer_id == PEER_ID_INEXISTENT) {
+		m_clients.sendToAll(&pkt);
+	} else {
+		Send(peer_id, &pkt);
+	}
+}
+
+void Server::SendCCIDestroy(session_t peer_id, const std::string &instance_name)
+{
+	NetworkPacket pkt(TOCLIENT_CCI_DESTROY, 0, peer_id);
+	pkt << instance_name;
+
+	if (peer_id == PEER_ID_INEXISTENT) {
+		m_clients.sendToAll(&pkt);
+	} else {
+		Send(peer_id, &pkt);
+	}
+}
+
+void Server::SendCCIStylesAndInstances(session_t peer_id)
+{
+	// 1. Send all registered styles
+	for (const auto &pair : m_cci_manager.getStyles()) {
+		SendCCIStyle(peer_id, pair.second);
+	}
+
+	// 2. Send all active instances that apply to this player
+	std::string player_name = getPlayerName(peer_id);
+	for (const auto &pair : m_cci_manager.getInstances()) {
+		const auto &inst = pair.second;
+		if (inst.player.empty() || inst.player == player_name) {
+			SendCCICreate(peer_id, inst);
+		}
+	}
 }
 
 void Server::HandlePlayerHPChange(PlayerSAO *playersao, const PlayerHPChangeReason &reason)
