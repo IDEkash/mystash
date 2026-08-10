@@ -196,6 +196,7 @@ public:
 
 	GUIDrawPoint *getDrawPointByName(const std::string &name);
 	void sortChildrenByPriorityOf(gui::IGUIElement *parent_el);
+	u32 getGeneration() const { return m_generation; }
 
 	void setFormSpec(const std::string &formspec_string,
 			const InventoryLocation &current_inventory_location)
@@ -370,6 +371,7 @@ protected:
 	std::map<std::string, TooltipSpec> m_tooltips;
 	std::vector<std::pair<gui::IGUIElement *, TooltipSpec>> m_tooltip_rects;
 	std::vector<std::pair<FieldSpec, GUIScrollBar *>> m_scrollbars;
+	u32 m_generation = 0;
 	std::vector<std::pair<FieldSpec, std::vector<std::string>>> m_dropdowns;
 	std::vector<gui::IGUIElement *> m_clickthrough_elements;
 	std::vector<std::pair<std::string, GUIScrollContainer *>> m_scroll_containers;

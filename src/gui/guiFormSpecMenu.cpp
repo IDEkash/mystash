@@ -2307,18 +2307,22 @@ void GUIFormSpecMenu::parseDrawPoint(parserData* data, const std::string &elemen
 	std::string properties = "";
 
 	if (parts.size() >= 5 && !parts[4].empty()) {
-		radius = stof(parts[4]);
-		if (data->real_coordinates) {
-			radius *= (float)imgsize.X;
-		} else {
-			radius *= spacing.X;
+		try {
+			radius = stof(parts[4]);
+			if (data->real_coordinates) {
+				radius *= (float)imgsize.X;
+			} else {
+				radius *= spacing.X;
+			}
+		} catch (...) {
+			radius = 0.0f;
 		}
 	}
 	if (parts.size() >= 6) {
 		properties = parts[5];
 	}
 
-	// Parse points
+	// Parse points with safety try-catch wrappers
 	std::vector<std::string> point_strings = split(points_str, ' ');
 	std::vector<v2s32> parsed_points;
 	for (const std::string &pt_str : point_strings) {
@@ -2327,12 +2331,16 @@ void GUIFormSpecMenu::parseDrawPoint(parserData* data, const std::string &elemen
 		std::vector<std::string> v_pos = split(std::string(trimmed), ',');
 		if (v_pos.size() < 2) continue;
 		v2s32 pos;
-		if (data->real_coordinates) {
-			pos = getRealCoordinateBasePos(v_pos);
-		} else {
-			pos = getElementBasePos(&v_pos);
+		try {
+			if (data->real_coordinates) {
+				pos = getRealCoordinateBasePos(v_pos);
+			} else {
+				pos = getElementBasePos(&v_pos);
+			}
+			parsed_points.push_back(pos);
+		} catch (...) {
+			// Skip malformed coordinate pair gracefully
 		}
-		parsed_points.push_back(pos);
 	}
 
 	if (parsed_points.empty()) {
@@ -2432,7 +2440,6 @@ void GUIFormSpecMenu::parseDrawPoint(parserData* data, const std::string &elemen
 	e->drop();
 
 	m_fields.push_back(spec);
-	sortChildrenByPriorityOf(data->current_parent);
 }
 
 void GUIFormSpecMenu::parseBackgroundColor(parserData* data, const std::string &element)
@@ -3119,6 +3126,8 @@ void GUIFormSpecMenu::parseElement(parserData* data, const std::string &element)
 
 void GUIFormSpecMenu::regenerateGui(v2u32 screensize)
 {
+	m_generation++;
+
 	// Useless to regenerate without a screensize
 	if ((screensize.X <= 0) || (screensize.Y <= 0)) {
 		return;
@@ -3500,6 +3509,12 @@ void GUIFormSpecMenu::regenerateGui(v2u32 screensize)
 		// Only set previous form name if we purposefully showed a new formspec
 		m_last_formname = m_text_dst->m_formname;
 		m_is_form_regenerated = true;
+	}
+
+	// Sort children by priority once at the very end of regeneration
+	sortChildrenByPriorityOf(this);
+	for (const auto &scroll_it : m_scroll_containers) {
+		sortChildrenByPriorityOf(scroll_it.second);
 	}
 }
 
@@ -5468,7 +5483,7 @@ GUIDrawPoint *GUIFormSpecMenu::getDrawPointByName(const std::string &name)
 	for (const FieldSpec &spec : m_fields) {
 		if (spec.fname == name && spec.ftype == f_DrawPoint) {
 			gui::IGUIElement *e = getElementFromId(spec.fid, true);
-			if (e) {
+			if (e && GUIDrawPoint::s_active_drawpoints.find(e) != GUIDrawPoint::s_active_drawpoints.end()) {
 				return static_cast<GUIDrawPoint *>(e);
 			}
 		}
@@ -5476,19 +5491,18 @@ GUIDrawPoint *GUIFormSpecMenu::getDrawPointByName(const std::string &name)
 	return nullptr;
 }
 
-class IGUIElementBridge : public gui::IGUIElement {
-public:
-	std::list<gui::IGUIElement*>& getChildrenMutable() {
-		return Children;
-	}
-};
-
 void GUIFormSpecMenu::sortChildrenByPriorityOf(gui::IGUIElement *parent_el)
 {
 	if (!parent_el)
 		return;
-	auto &children_list = static_cast<IGUIElementBridge*>(parent_el)->getChildrenMutable();
-	std::vector<gui::IGUIElement *> elements(children_list.begin(), children_list.end());
+
+	std::vector<gui::IGUIElement *> elements;
+	for (auto child : parent_el->getChildren()) {
+		elements.push_back(child);
+	}
+	if (elements.empty())
+		return;
+
 	std::stable_sort(elements.begin(), elements.end(),
 			[this] (const gui::IGUIElement *a, const gui::IGUIElement *b) -> bool {
 		const FieldSpec *spec_a = getSpecByID(a->getID());
@@ -5497,8 +5511,9 @@ void GUIFormSpecMenu::sortChildrenByPriorityOf(gui::IGUIElement *parent_el)
 		int priority_b = spec_b ? spec_b->priority : 0;
 		return priority_a < priority_b;
 	});
-	children_list.clear();
+
+	// Safely and portably reorder child elements via public addChild API
 	for (auto el : elements) {
-		children_list.push_back(el);
+		parent_el->addChild(el);
 	}
 }

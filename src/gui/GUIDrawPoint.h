@@ -114,4 +114,7 @@ private:
 	// Throttling timers to prevent packet flooding
 	u32 m_last_drag_send_time = 0;
 	u32 m_last_hold_send_time = 0;
+
+	// Generation protection to completely prevent deallocated pointer crashes
+	u32 m_creation_generation = 0;
 };

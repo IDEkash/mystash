@@ -38,6 +38,9 @@ GUIDrawPoint::GUIDrawPoint(gui::IGUIEnvironment *env, gui::IGUIElement *parent, 
 	// Insert ourselves into the safe static registry
 	s_active_drawpoints.insert(this);
 
+	// Track creation generation to prevent use-after-free address reuse crashes
+	m_creation_generation = menu->getGeneration();
+
 	// Parse properties
 	m_pressable = (properties.find("pressable=true") != std::string::npos || properties.find("pressable") != std::string::npos);
 	m_hold = (properties.find("hold=true") != std::string::npos || properties.find("hold") != std::string::npos);
@@ -555,8 +558,8 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 						}
 					}
 					m_menu->acceptInput(quit_mode_no);
-					if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
-						return true; // Safely abort if deleted on formspec update
+					if (m_menu->getGeneration() != m_creation_generation) {
+						return true; // Safe abort if deallocated
 					}
 					for (auto &s : m_menu->m_fields) {
 						if (s.fid == getID()) {
@@ -575,8 +578,8 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 						}
 					}
 					m_menu->acceptInput(quit_mode_no);
-					if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
-						return true; // Safely abort if deleted on formspec update
+					if (m_menu->getGeneration() != m_creation_generation) {
+						return true; // Safe abort if deallocated
 					}
 					for (auto &s : m_menu->m_fields) {
 						if (s.fid == getID()) {
@@ -600,8 +603,8 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 					}
 				}
 				m_menu->acceptInput(quit_mode_no);
-				if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
-					return true; // Safely abort if deleted on formspec update
+				if (m_menu->getGeneration() != m_creation_generation) {
+					return true; // Safe abort if deallocated
 				}
 				for (auto &s : m_menu->m_fields) {
 					if (s.fid == getID()) {
@@ -624,8 +627,8 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 						}
 					}
 					m_menu->acceptInput(quit_mode_no);
-					if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
-						return true; // Safely abort if deleted on formspec update
+					if (m_menu->getGeneration() != m_creation_generation) {
+						return true; // Safe abort if deallocated
 					}
 					for (auto &s : m_menu->m_fields) {
 						if (s.fid == getID()) {
@@ -655,8 +658,8 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 						}
 					}
 					m_menu->acceptInput(quit_mode_no);
-					if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
-						return true; // Safely abort if deleted on formspec update
+					if (m_menu->getGeneration() != m_creation_generation) {
+						return true; // Safe abort if deallocated
 					}
 					for (auto &s : m_menu->m_fields) {
 						if (s.fid == getID()) {
@@ -683,8 +686,8 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 							}
 						}
 						m_menu->acceptInput(quit_mode_no);
-						if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
-							return true; // Safely abort if deleted on formspec update
+						if (m_menu->getGeneration() != m_creation_generation) {
+							return true; // Safe abort if deallocated
 						}
 						for (auto &s : m_menu->m_fields) {
 							if (s.fid == getID()) {
@@ -726,8 +729,8 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 						}
 					}
 					m_menu->acceptInput(quit_mode_no);
-					if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
-						return true; // Safely abort if deleted on formspec update
+					if (m_menu->getGeneration() != m_creation_generation) {
+						return true; // Safe abort if deallocated
 					}
 					for (auto &s : m_menu->m_fields) {
 						if (s.fid == getID()) {
@@ -746,8 +749,8 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 						}
 					}
 					m_menu->acceptInput(quit_mode_no);
-					if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
-						return true; // Safely abort if deleted on formspec update
+					if (m_menu->getGeneration() != m_creation_generation) {
+						return true; // Safe abort if deallocated
 					}
 					for (auto &s : m_menu->m_fields) {
 						if (s.fid == getID()) {
@@ -771,8 +774,8 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 					}
 				}
 				m_menu->acceptInput(quit_mode_no);
-				if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
-					return true; // Safely abort if deleted on formspec update
+				if (m_menu->getGeneration() != m_creation_generation) {
+					return true; // Safe abort if deallocated
 				}
 				for (auto &s : m_menu->m_fields) {
 					if (s.fid == getID()) {
@@ -795,8 +798,8 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 						}
 					}
 					m_menu->acceptInput(quit_mode_no);
-					if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
-						return true; // Safely abort if deleted on formspec update
+					if (m_menu->getGeneration() != m_creation_generation) {
+						return true; // Safe abort if deallocated
 					}
 					for (auto &s : m_menu->m_fields) {
 						if (s.fid == getID()) {
@@ -826,8 +829,8 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 						}
 					}
 					m_menu->acceptInput(quit_mode_no);
-					if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
-						return true; // Safely abort if deleted on formspec update
+					if (m_menu->getGeneration() != m_creation_generation) {
+						return true; // Safe abort if deallocated
 					}
 					for (auto &s : m_menu->m_fields) {
 						if (s.fid == getID()) {
@@ -854,8 +857,8 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 							}
 						}
 						m_menu->acceptInput(quit_mode_no);
-						if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
-							return true; // Safely abort if deleted on formspec update
+						if (m_menu->getGeneration() != m_creation_generation) {
+							return true; // Safe abort if deallocated
 						}
 						for (auto &s : m_menu->m_fields) {
 							if (s.fid == getID()) {
@@ -886,8 +889,8 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 					}
 				}
 				m_menu->acceptInput(quit_mode_no);
-				if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
-					return true; // Safely abort if deleted on formspec update
+				if (m_menu->getGeneration() != m_creation_generation) {
+					return true; // Safe abort if deallocated
 				}
 				for (auto &s : m_menu->m_fields) {
 					if (s.fid == getID()) {
@@ -906,8 +909,8 @@ bool GUIDrawPoint::OnEvent(const SEvent &event)
 				}
 			}
 			m_menu->acceptInput(quit_mode_no);
-			if (s_active_drawpoints.find(this) == s_active_drawpoints.end()) {
-				return true; // Safely abort if deleted on formspec update
+			if (m_menu->getGeneration() != m_creation_generation) {
+				return true; // Safe abort if deallocated
 			}
 			for (auto &s : m_menu->m_fields) {
 				if (s.fid == getID()) {
