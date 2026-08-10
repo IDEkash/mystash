@@ -1095,33 +1095,48 @@ void Hud::drawCCI(CCIManager *cci_manager)
 			}
 		}
 
-		// 3.2. Render filled region
+		// 3.2. Render filled region using a safe, crash-free scanline fill algorithm
 		if (style->has_fill && border.size() >= 3) {
-			std::vector<video::S3DVertex> vertices;
-			vertices.reserve(border.size());
+			// Find vertical bounds
+			float min_y = border[0].Y;
+			float max_y = border[0].Y;
+			for (const auto &pt : border) {
+				if (pt.Y < min_y) min_y = pt.Y;
+				if (pt.Y > max_y) max_y = pt.Y;
+			}
+
 			video::SColor c = style->fill_color;
 			c.setAlpha(style->opacity * 255);
 
-			for (const auto &pt : border) {
-				vertices.emplace_back(pt.X, pt.Y, 0.0f, 0.0f, 0.0f, -1.0f, c, 0.0f, 0.0f);
+			// Step scanlines (every 1 pixel)
+			for (int y = (int)std::floor(min_y); y <= (int)std::ceil(max_y); ++y) {
+				std::vector<float> intersects;
+				for (size_t i = 0; i < border.size(); ++i) {
+					v2f p1 = border[i];
+					v2f p2 = border[(i + 1) % border.size()];
+
+					// Check if edge crosses the scanline y
+					if ((p1.Y <= y && p2.Y > y) || (p2.Y <= y && p1.Y > y)) {
+						if (std::abs(p2.Y - p1.Y) > 0.001f) {
+							float t = (y - p1.Y) / (p2.Y - p1.Y);
+							float x = p1.X + t * (p2.X - p1.X);
+							intersects.push_back(x);
+						}
+					}
+				}
+
+				// Sort intersection X coordinates
+				std::sort(intersects.begin(), intersects.end());
+
+				// Draw lines between pairs of intersections
+				for (size_t i = 0; i + 1 < intersects.size(); i += 2) {
+					driver->draw2DLine(
+						v2s32((int)intersects[i], y),
+						v2s32((int)intersects[i+1], y),
+						c
+					);
+				}
 			}
-
-			video::SMaterial material;
-			material.ZBuffer = video::ECFN_NEVER;
-			material.ZWriteEnable = video::EZW_OFF;
-			material.MaterialType = video::EMT_TRANSPARENT_VERTEX_ALPHA;
-			driver->setMaterial(material);
-
-			std::vector<u16> indices(vertices.size());
-			for (size_t i = 0; i < vertices.size(); ++i) {
-				indices[i] = i;
-			}
-
-			driver->draw2DVertexPrimitiveList(
-				vertices.data(), vertices.size(), indices.data(),
-				vertices.size() - 2, video::EVT_STANDARD,
-				scene::EPT_TRIANGLE_FAN
-			);
 		}
 
 		// 3.3. Render lines/curves
