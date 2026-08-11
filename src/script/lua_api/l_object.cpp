@@ -495,6 +495,15 @@ int ObjectRef::l_set_animation(lua_State *L)
 			}
 		}
 
+		float anim_time = -1.0f;
+		lua_getfield(L, opts, "time");
+		if (lua_isnumber(L, -1)) {
+			anim_time = (float)lua_tonumber(L, -1);
+		}
+		lua_pop(L, 1);
+
+		sao->setAnimationTime(anim_time);
+
 		lua_getfield(L, opts, "clip");
 		if (lua_isnumber(L, -1)) {
 			lua_Number n = lua_tonumber(L, -1);
@@ -687,6 +696,50 @@ int ObjectRef::l_get_model_info(lua_State *L)
 	lua_pushnumber(L, is_gltf ? 1.0f : 15.0f);
 	lua_setfield(L, -2, "default_speed");
 
+	// Add dynamic runtime stats for glTF/glb models
+	int bone_count = 0;
+	int animation_clip_count = 0;
+	int material_count = 0;
+
+	if (is_gltf && !mesh.empty()) {
+		std::string full_path = getServer(L)->getMediaPath(mesh);
+		std::string data;
+		if (!full_path.empty() && fs::ReadFile(full_path, data, true)) {
+			try {
+				std::optional<tiniergltf::GlTF> model;
+				if (str_ends_with(full_path, ".glb"))
+					model.emplace(tiniergltf::readGlb(data.data(), data.size()));
+				else
+					model.emplace(tiniergltf::readGlTF(data.data(), data.size()));
+
+				if (model->skins.has_value()) {
+					std::unordered_set<size_t> joint_nodes;
+					for (const auto &skin : *model->skins) {
+						for (size_t node : skin.joints) {
+							joint_nodes.insert(node);
+						}
+					}
+					bone_count = joint_nodes.size();
+				}
+				if (model->animations.has_value()) {
+					animation_clip_count = model->animations->size();
+				}
+				if (model->materials.has_value()) {
+					material_count = model->materials->size();
+				}
+			} catch (...) {}
+		}
+	}
+
+	lua_pushinteger(L, bone_count);
+	lua_setfield(L, -2, "bone_count");
+
+	lua_pushinteger(L, animation_clip_count);
+	lua_setfield(L, -2, "animation_clip_count");
+
+	lua_pushinteger(L, material_count);
+	lua_setfield(L, -2, "material_count");
+
 	return 1;
 }
 
@@ -865,6 +918,125 @@ int ObjectRef::l_get_camera(lua_State *L)
 	return 1;
 }
 
+static void push_camera_modifier(lua_State *L, const PlayerCameraModifier &mod) {
+	lua_createtable(L, 0, 6);
+	push_v3f(L, mod.offset);
+	lua_setfield(L, -2, "offset");
+	push_v3f(L, mod.rotation);
+	lua_setfield(L, -2, "rotation");
+	lua_pushnumber(L, mod.fov);
+	lua_setfield(L, -2, "fov");
+
+	lua_createtable(L, 0, 2);
+	lua_pushnumber(L, mod.shake_intensity);
+	lua_setfield(L, -2, "intensity");
+	lua_pushnumber(L, mod.shake_speed);
+	lua_setfield(L, -2, "speed");
+	lua_setfield(L, -2, "shake");
+
+	push_v3f(L, mod.recoil);
+	lua_setfield(L, -2, "recoil");
+
+	lua_createtable(L, 0, 2);
+	lua_pushnumber(L, mod.sway_intensity);
+	lua_setfield(L, -2, "intensity");
+	lua_pushnumber(L, mod.sway_speed);
+	lua_setfield(L, -2, "speed");
+	lua_setfield(L, -2, "sway");
+}
+
+int ObjectRef::l_set_camera_modifier(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	RemotePlayer *player = getplayer(ref);
+	if (player == nullptr)
+		return 0;
+
+	std::string name = readParam<std::string>(L, 2);
+
+	if (lua_isnoneornil(L, 3)) {
+		player->camera_modifiers.erase(name);
+	} else {
+		luaL_checktype(L, 3, LUA_TTABLE);
+		PlayerCameraModifier mod;
+
+		lua_getfield(L, 3, "offset");
+		if (lua_istable(L, -1) || (lua_isuserdata(L, -1) && !lua_isnil(L, -1))) {
+			mod.offset = read_v3f(L, -1);
+		}
+		lua_pop(L, 1);
+
+		lua_getfield(L, 3, "rotation");
+		if (lua_istable(L, -1) || (lua_isuserdata(L, -1) && !lua_isnil(L, -1))) {
+			mod.rotation = read_v3f(L, -1);
+		}
+		lua_pop(L, 1);
+
+		mod.fov = getfloatfield_default(L, 3, "fov", 0.0f);
+
+		lua_getfield(L, 3, "shake");
+		if (lua_istable(L, -1)) {
+			mod.shake_intensity = getfloatfield_default(L, -1, "intensity", 0.0f);
+			mod.shake_speed = getfloatfield_default(L, -1, "speed", 0.0f);
+		}
+		lua_pop(L, 1);
+
+		lua_getfield(L, 3, "recoil");
+		if (lua_istable(L, -1) || (lua_isuserdata(L, -1) && !lua_isnil(L, -1))) {
+			mod.recoil = read_v3f(L, -1);
+		}
+		lua_pop(L, 1);
+
+		lua_getfield(L, 3, "sway");
+		if (lua_istable(L, -1)) {
+			mod.sway_intensity = getfloatfield_default(L, -1, "intensity", 0.0f);
+			mod.sway_speed = getfloatfield_default(L, -1, "speed", 0.0f);
+		}
+		lua_pop(L, 1);
+
+		player->camera_modifiers[name] = mod;
+	}
+
+	getServer(L)->SendCamera(player->getPeerId(), player);
+	return 0;
+}
+
+int ObjectRef::l_get_camera_modifier(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	RemotePlayer *player = getplayer(ref);
+	if (player == nullptr)
+		return 0;
+
+	std::string name = readParam<std::string>(L, 2);
+	auto it = player->camera_modifiers.find(name);
+	if (it == player->camera_modifiers.end()) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	push_camera_modifier(L, it->second);
+	return 1;
+}
+
+int ObjectRef::l_get_camera_modifiers(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	RemotePlayer *player = getplayer(ref);
+	if (player == nullptr)
+		return 0;
+
+	lua_createtable(L, 0, player->camera_modifiers.size());
+	for (const auto &pair : player->camera_modifiers) {
+		push_camera_modifier(L, pair.second);
+		lua_setfield(L, -2, pair.first.c_str());
+	}
+	return 1;
+}
+
 // send_mapblock(self, pos)
 int ObjectRef::l_send_mapblock(lua_State *L)
 {
@@ -898,6 +1070,123 @@ int ObjectRef::l_set_animation_frame_speed(lua_State *L)
 		lua_pushboolean(L, true);
 	} else {
 		lua_pushboolean(L, false);
+	}
+	return 1;
+}
+
+int ObjectRef::l_set_animation_layers(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	std::vector<ServerAnimationLayer> layers;
+	if (lua_istable(L, 2)) {
+		int len = lua_objlen(L, 2);
+		for (int i = 1; i <= len; ++i) {
+			lua_rawgeti(L, 2, i);
+			if (lua_istable(L, -1)) {
+				ServerAnimationLayer layer;
+
+				lua_getfield(L, -1, "clip");
+				if (lua_isnumber(L, -1)) {
+					layer.clip_type = 1;
+					layer.clip_index = (u16)lua_tonumber(L, -1);
+				} else if (lua_isstring(L, -1)) {
+					layer.clip_type = 2;
+					layer.clip_name = lua_tostring(L, -1);
+				}
+				lua_pop(L, 1);
+
+				lua_getfield(L, -1, "range");
+				if (lua_istable(L, -1)) {
+					layer.range = read_v2f(L, -1);
+				}
+				lua_pop(L, 1);
+
+				layer.speed = getfloatfield_default(L, -1, "speed", 1.0f);
+				layer.blend = getfloatfield_default(L, -1, "blend", 0.1f);
+				layer.loop = getboolfield_default(L, -1, "loop", true);
+				layer.additive = getboolfield_default(L, -1, "additive", false);
+				layer.weight = getfloatfield_default(L, -1, "weight", 1.0f);
+				layer.time = getfloatfield_default(L, -1, "time", -1.0f);
+
+				lua_getfield(L, -1, "bone_mask");
+				if (lua_istable(L, -1)) {
+					int mask_len = lua_objlen(L, -1);
+					for (int j = 1; j <= mask_len; ++j) {
+						lua_rawgeti(L, -1, j);
+						if (lua_isstring(L, -1)) {
+							layer.bone_mask.push_back(lua_tostring(L, -1));
+						}
+						lua_pop(L, 1);
+					}
+				}
+				lua_pop(L, 1);
+
+				layers.push_back(layer);
+			}
+			lua_pop(L, 1);
+		}
+	}
+
+	sao->setAnimationLayers(layers);
+	return 0;
+}
+
+int ObjectRef::l_get_animation_layers(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	const auto &layers = sao->getAnimationLayers();
+	lua_createtable(L, layers.size(), 0);
+	for (size_t i = 0; i < layers.size(); ++i) {
+		const auto &layer = layers[i];
+		lua_createtable(L, 0, 9);
+
+		if (layer.clip_type == 1) {
+			lua_pushinteger(L, layer.clip_index);
+			lua_setfield(L, -2, "clip");
+		} else if (layer.clip_type == 2) {
+			lua_pushstring(L, layer.clip_name.c_str());
+			lua_setfield(L, -2, "clip");
+		}
+
+		push_v2f(L, layer.range);
+		lua_setfield(L, -2, "range");
+
+		lua_pushnumber(L, layer.speed);
+		lua_setfield(L, -2, "speed");
+
+		lua_pushnumber(L, layer.blend);
+		lua_setfield(L, -2, "blend");
+
+		lua_pushboolean(L, layer.loop);
+		lua_setfield(L, -2, "loop");
+
+		lua_pushboolean(L, layer.additive);
+		lua_setfield(L, -2, "additive");
+
+		lua_pushnumber(L, layer.weight);
+		lua_setfield(L, -2, "weight");
+
+		lua_pushnumber(L, layer.time);
+		lua_setfield(L, -2, "time");
+
+		lua_createtable(L, layer.bone_mask.size(), 0);
+		for (size_t j = 0; j < layer.bone_mask.size(); ++j) {
+			lua_pushstring(L, layer.bone_mask[j].c_str());
+			lua_rawseti(L, -2, j + 1);
+		}
+		lua_setfield(L, -2, "bone_mask");
+
+		lua_rawseti(L, -2, i + 1);
 	}
 	return 1;
 }
@@ -1106,6 +1395,20 @@ int ObjectRef::l_get_bone_world_pos(lua_State *L)
 
 	std::string bone = readParam<std::string>(L, 2, "");
 	push_v3f(L, sao->getBoneWorldPos(bone));
+	return 1;
+}
+
+// get_bone_world_rotation(self, bone)
+int ObjectRef::l_get_bone_world_rotation(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ObjectRef *ref = checkObject<ObjectRef>(L, 1);
+	ServerActiveObject *sao = getobject(ref);
+	if (sao == nullptr)
+		return 0;
+
+	std::string bone = readParam<std::string>(L, 2, "");
+	push_v3f(L, sao->getBoneWorldRotation(bone));
 	return 1;
 }
 
@@ -3515,6 +3818,8 @@ luaL_Reg ObjectRef::methods[] = {
 		luamethod(ObjectRef, get_animation_info),
 		luamethod(ObjectRef, get_model_info),
 		luamethod(ObjectRef, set_animation_frame_speed),
+		luamethod(ObjectRef, set_animation_layers),
+		luamethod(ObjectRef, get_animation_layers),
 	luamethod_aliased(ObjectRef, set_bone_position, setboneposition),
 	luamethod_aliased(ObjectRef, set_bone_rotation, setbonerotation),
 	luamethod_aliased(ObjectRef, set_bone_scale, setbonescale),
@@ -3524,6 +3829,7 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod_aliased(ObjectRef, get_bone_rotation, getbonerotation),
 	luamethod_aliased(ObjectRef, get_bone_scale, getbonescale),
 	luamethod_aliased(ObjectRef, get_bone_world_pos, getboneworldpos),
+	luamethod_aliased(ObjectRef, get_bone_world_rotation, getboneworldrotation),
 	luamethod(ObjectRef, set_bone_override),
 	luamethod(ObjectRef, get_bone_override),
 	luamethod(ObjectRef, get_bone_overrides),

@@ -398,6 +398,34 @@ std::string UnitSAO::generateUpdateAnimationCommand() const
 	} else if (m_animation_clip_type == 2) {
 		os << serializeString16(m_animation_clip_name);
 	}
+
+	// Append exact playback/scrubbing time
+	writeF32(os, m_animation_time);
+
+	// Append animation layers
+	writeU8(os, static_cast<u8>(m_animation_layers.size()));
+	for (const auto &layer : m_animation_layers) {
+		writeU8(os, layer.clip_type);
+		if (layer.clip_type == 1) {
+			writeU16(os, layer.clip_index);
+		} else if (layer.clip_type == 2) {
+			os << serializeString16(layer.clip_name);
+		}
+		writeV2F32(os, layer.range);
+		writeF32(os, layer.speed);
+		writeF32(os, layer.blend);
+		u8 flags = 0;
+		if (layer.loop) flags |= 1;
+		if (layer.additive) flags |= 2;
+		writeU8(os, flags);
+		writeF32(os, layer.weight);
+		writeF32(os, layer.time);
+		writeU16(os, static_cast<u16>(layer.bone_mask.size()));
+		for (const auto &bone : layer.bone_mask) {
+			os << serializeString16(bone);
+		}
+	}
+
 	return os.str();
 }
 

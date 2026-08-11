@@ -162,6 +162,120 @@ int LuaCamera::l_get_aspect_ratio(lua_State *L)
 	return 1;
 }
 
+static void push_camera_modifier_csm(lua_State *L, const CameraModifier &mod) {
+	lua_createtable(L, 0, 6);
+	push_v3f(L, mod.offset);
+	lua_setfield(L, -2, "offset");
+	push_v3f(L, mod.rotation);
+	lua_setfield(L, -2, "rotation");
+	lua_pushnumber(L, mod.fov);
+	lua_setfield(L, -2, "fov");
+
+	lua_createtable(L, 0, 2);
+	lua_pushnumber(L, mod.shake_intensity);
+	lua_setfield(L, -2, "intensity");
+	lua_pushnumber(L, mod.shake_speed);
+	lua_setfield(L, -2, "speed");
+	lua_setfield(L, -2, "shake");
+
+	push_v3f(L, mod.recoil);
+	lua_setfield(L, -2, "recoil");
+
+	lua_createtable(L, 0, 2);
+	lua_pushnumber(L, mod.sway_intensity);
+	lua_setfield(L, -2, "intensity");
+	lua_pushnumber(L, mod.sway_speed);
+	lua_setfield(L, -2, "speed");
+	lua_setfield(L, -2, "sway");
+}
+
+int LuaCamera::l_set_modifier(lua_State *L)
+{
+	Camera *camera = getobject(L, 1);
+	if (!camera)
+		return 0;
+
+	std::string name = readParam<std::string>(L, 2);
+
+	if (lua_isnoneornil(L, 3)) {
+		camera->removeModifier(name);
+	} else {
+		luaL_checktype(L, 3, LUA_TTABLE);
+		CameraModifier mod;
+
+		lua_getfield(L, 3, "offset");
+		if (lua_istable(L, -1) || (lua_isuserdata(L, -1) && !lua_isnil(L, -1))) {
+			mod.offset = read_v3f(L, -1);
+		}
+		lua_pop(L, 1);
+
+		lua_getfield(L, 3, "rotation");
+		if (lua_istable(L, -1) || (lua_isuserdata(L, -1) && !lua_isnil(L, -1))) {
+			mod.rotation = read_v3f(L, -1);
+		}
+		lua_pop(L, 1);
+
+		mod.fov = getfloatfield_default(L, 3, "fov", 0.0f);
+
+		lua_getfield(L, 3, "shake");
+		if (lua_istable(L, -1)) {
+			mod.shake_intensity = getfloatfield_default(L, -1, "intensity", 0.0f);
+			mod.shake_speed = getfloatfield_default(L, -1, "speed", 0.0f);
+		}
+		lua_pop(L, 1);
+
+		lua_getfield(L, 3, "recoil");
+		if (lua_istable(L, -1) || (lua_isuserdata(L, -1) && !lua_isnil(L, -1))) {
+			mod.recoil = read_v3f(L, -1);
+		}
+		lua_pop(L, 1);
+
+		lua_getfield(L, 3, "sway");
+		if (lua_istable(L, -1)) {
+			mod.sway_intensity = getfloatfield_default(L, -1, "intensity", 0.0f);
+			mod.sway_speed = getfloatfield_default(L, -1, "speed", 0.0f);
+		}
+		lua_pop(L, 1);
+
+		camera->setModifier(name, mod);
+	}
+
+	return 0;
+}
+
+int LuaCamera::l_get_modifier(lua_State *L)
+{
+	Camera *camera = getobject(L, 1);
+	if (!camera)
+		return 0;
+
+	std::string name = readParam<std::string>(L, 2);
+	auto mods = camera->getModifiers();
+	auto it = mods.find(name);
+	if (it == mods.end()) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	push_camera_modifier_csm(L, it->second);
+	return 1;
+}
+
+int LuaCamera::l_get_modifiers(lua_State *L)
+{
+	Camera *camera = getobject(L, 1);
+	if (!camera)
+		return 0;
+
+	auto mods = camera->getModifiers();
+	lua_createtable(L, 0, mods.size());
+	for (const auto &pair : mods) {
+		push_camera_modifier_csm(L, pair.second);
+		lua_setfield(L, -2, pair.first.c_str());
+	}
+	return 1;
+}
+
 Camera *LuaCamera::getobject(LuaCamera *ref)
 {
 	return ref->m_camera;
@@ -201,6 +315,9 @@ const luaL_Reg LuaCamera::methods[] = {
 	luamethod(LuaCamera, get_look_vertical),
 	luamethod(LuaCamera, get_look_horizontal),
 	luamethod(LuaCamera, get_aspect_ratio),
+	luamethod(LuaCamera, set_modifier),
+	luamethod(LuaCamera, get_modifier),
+	luamethod(LuaCamera, get_modifiers),
 
 	{0, 0}
 };

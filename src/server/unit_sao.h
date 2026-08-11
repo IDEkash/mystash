@@ -61,6 +61,17 @@ public:
 	void clearAnimationClip() override;
 	void getAnimationClip(u8 *clip_type, u16 *clip_index, std::string *clip_name) const override;
 
+	void setAnimationTime(float time) { m_animation_time = time; m_animation_sent = false; }
+	float getAnimationTime() const { return m_animation_time; }
+
+	void setAnimationLayers(const std::vector<ServerAnimationLayer> &layers) {
+		m_animation_layers = layers;
+		m_animation_sent = false;
+	}
+	const std::vector<ServerAnimationLayer> &getAnimationLayers() const {
+		return m_animation_layers;
+	}
+
 	// Bone position
 	void setBoneOverride(const std::string &bone, const BoneOverride &props) override;
 	BoneOverride getBoneOverride(const std::string &bone) override;
@@ -149,6 +160,8 @@ private:
 	std::string m_animation_clip_name;
 	bool m_animation_sent = false;
 	bool m_animation_speed_sent = false;
+	float m_animation_time = -1.0f;
+	std::vector<ServerAnimationLayer> m_animation_layers;
 
 	// Bone positions
 	bool m_bone_override_sent = false;

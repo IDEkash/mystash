@@ -7,6 +7,7 @@
 #include "EMaterialTypes.h"
 #include "IDummyTransformationSceneNode.h"
 #include "irrlichttypes.h"
+#include <AnimatedMeshSceneNode.h>
 
 #include "object_properties.h"
 #include "clientobject.h"
@@ -67,6 +68,20 @@ struct MeshAnimationInfo {
 	TileLayer tile;
 };
 
+struct GenericCAOAnimationLayer {
+	u8 clip_type = 0;
+	u16 clip_index = 0;
+	std::string clip_name;
+	v2f range = v2f(0, 0);
+	float speed = 1.0f;
+	float blend = 0.1f;
+	bool loop = true;
+	bool additive = false;
+	float weight = 1.0f;
+	float time = -1.0f;
+	std::vector<std::string> bone_mask;
+};
+
 /*
 	GenericCAO
 */
@@ -125,6 +140,8 @@ private:
 	u8 m_animation_clip_type = 0;
 	u16 m_animation_clip_index = 0;
 	std::string m_animation_clip_name;
+	float m_animation_time = -1.0f;
+	std::vector<GenericCAOAnimationLayer> m_animation_layers;
 	int m_anim_frame = 0;
 	int m_anim_num_frames = 1;
 	float m_anim_framelength = 0.2f;
@@ -184,6 +201,7 @@ public:
 	const v3f getPosition() const override final;
 
 	v3f getBoneWorldPos(const std::string &bone_name);
+	v3f getBoneWorldRotation(const std::string &bone_name);
 
 	const v3f getVelocity() const override final { return m_velocity; }
 

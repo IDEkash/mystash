@@ -2073,6 +2073,20 @@ void Server::SendCamera(session_t peer_id, Player *player)
 
 	pkt << player->camera_tilt;
 
+	// Send camera modifiers
+	pkt << static_cast<u16>(player->camera_modifiers.size());
+	for (const auto &pair : player->camera_modifiers) {
+		pkt << pair.first; // string
+		pkt << pair.second.offset; // v3f
+		pkt << pair.second.rotation; // v3f
+		pkt << pair.second.fov; // f32
+		pkt << pair.second.shake_intensity; // f32
+		pkt << pair.second.shake_speed; // f32
+		pkt << pair.second.recoil; // v3f
+		pkt << pair.second.sway_intensity; // f32
+		pkt << pair.second.sway_speed; // f32
+	}
+
 	Send(&pkt);
 }
 

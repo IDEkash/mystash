@@ -9,6 +9,18 @@
 #include "util/basic_macros.h"
 #include <string>
 #include <string_view>
+#include <map>
+
+struct PlayerCameraModifier {
+	v3f offset = v3f(0, 0, 0);
+	v3f rotation = v3f(0, 0, 0);
+	f32 fov = 0.0f;
+	f32 shake_intensity = 0.0f;
+	f32 shake_speed = 0.0f;
+	v3f recoil = v3f(0, 0, 0);
+	f32 sway_intensity = 0.0f;
+	f32 sway_speed = 0.0f;
+};
 
 #define PLAYERNAME_SIZE 20
 
@@ -174,6 +186,7 @@ public:
 	bool camera_smooth = false;
 	f32 camera_tilt = 0.0f;
 	bool camera_anti_tilt_controller = false;
+	std::map<std::string, PlayerCameraModifier> camera_modifiers;
 
 	v3f eye_offset_first;
 	v3f eye_offset_third;

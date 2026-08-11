@@ -124,6 +124,12 @@ private:
 	// set_animation_frame_speed(self, frame_speed)
 	static int l_set_animation_frame_speed(lua_State *L);
 
+	// set_animation_layers(self, layers)
+	static int l_set_animation_layers(lua_State *L);
+
+	// get_animation_layers(self)
+	static int l_get_animation_layers(lua_State *L);
+
 	// get_animation(self)
 	static int l_get_animation(lua_State *L);
 
@@ -159,6 +165,9 @@ private:
 
 	// get_bone_world_pos(self, bone)
 	static int l_get_bone_world_pos(lua_State *L);
+
+	// get_bone_world_rotation(self, bone)
+	static int l_get_bone_world_rotation(lua_State *L);
 
 	// set_bone_override(self, bone)
 	static int l_set_bone_override(lua_State *L);
@@ -423,6 +432,15 @@ private:
 
 	// get_camera(self)
 	static int l_get_camera(lua_State *L);
+
+	// set_camera_modifier(self, name, params)
+	static int l_set_camera_modifier(lua_State *L);
+
+	// get_camera_modifier(self, name)
+	static int l_get_camera_modifier(lua_State *L);
+
+	// get_camera_modifiers(self)
+	static int l_get_camera_modifiers(lua_State *L);
 
 	// set_nametag_attributes(self, attributes)
 	static int l_set_nametag_attributes(lua_State *L);

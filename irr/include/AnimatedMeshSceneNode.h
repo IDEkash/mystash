@@ -12,9 +12,30 @@
 #include "Transform.h"
 #include "irr_ptr.h"
 #include "matrix4.h"
+#include <unordered_set>
+#include <string>
+#include <vector>
 
 namespace scene
 {
+
+struct ClientAnimationLayer {
+	f32 start_frame = 0.0f;
+	f32 end_frame = 0.0f;
+	f32 current_frame = 0.0f;
+	f32 speed = 0.0f;
+	f32 weight = 1.0f;
+	bool loop = true;
+	bool additive = false;
+	std::unordered_set<std::string> bone_mask;
+
+	// Blending support
+	bool blend_active = false;
+	f32 blend_start_weight = 0.0f;
+	f32 blend_target_weight = 1.0f;
+	u32 blend_duration_ms = 0;
+	u32 blend_elapsed_ms = 0;
+};
 
 class AnimatedMeshSceneNode : public ISceneNode
 {
@@ -172,6 +193,13 @@ public:
 	//! render mesh ignoring its transformation. Used with ragdolls. (culling is unaffected)
 	void setRenderFromIdentity(bool On);
 
+	void setAnimationLayers(const std::vector<ClientAnimationLayer> &layers) {
+		m_layers = layers;
+	}
+	const std::vector<ClientAnimationLayer> &getAnimationLayers() const {
+		return m_layers;
+	}
+
 private:
 
 	void buildFrameNr(u32 timeMs);
@@ -203,6 +231,7 @@ private:
 	bool Looping;
 	bool ReadOnlyMaterials;
 	bool RenderFromIdentity;
+	std::vector<ClientAnimationLayer> m_layers;
 
 	s32 PassCount;
 	std::function<void(f32)> OnAnimateCallback;
