@@ -5,6 +5,42 @@
 #include "remoteplayer.h"
 #include "serverenvironment.h"
 
+// Read v2f that can be either an array {x, y} or a map {x=..., y=...}
+static v2f read_v2f_any(lua_State *L, int index)
+{
+	v2f v(0.0f, 0.0f);
+	if (lua_istable(L, index)) {
+		// Try reading as array: index 1 and 2
+		lua_rawgeti(L, index, 1);
+		bool has_idx1 = !lua_isnil(L, -1);
+		if (has_idx1) {
+			v.X = (float)lua_tonumber(L, -1);
+		}
+		lua_pop(L, 1);
+
+		lua_rawgeti(L, index, 2);
+		bool has_idx2 = !lua_isnil(L, -1);
+		if (has_idx2) {
+			v.Y = (float)lua_tonumber(L, -1);
+		}
+		lua_pop(L, 1);
+
+		// If not an array, try reading as x and y fields
+		if (!has_idx1 && !has_idx2) {
+			lua_getfield(L, index, "x");
+			if (lua_isnumber(L, -1))
+				v.X = (float)lua_tonumber(L, -1);
+			lua_pop(L, 1);
+
+			lua_getfield(L, index, "y");
+			if (lua_isnumber(L, -1))
+				v.Y = (float)lua_tonumber(L, -1);
+			lua_pop(L, 1);
+		}
+	}
+	return v;
+}
+
 int ModApiCCI::l_cci_register_style(lua_State *L)
 {
 	NO_MAP_LOCK_REQUIRED;
@@ -28,7 +64,7 @@ int ModApiCCI::l_cci_register_style(lua_State *L)
 				// key at -2, value at -1
 				if (lua_type(L, -2) == LUA_TSTRING) {
 					std::string p_name = lua_tostring(L, -2);
-					v2f p_pos = read_v2f(L, -1);
+					v2f p_pos = read_v2f_any(L, -1);
 					style.points[p_name] = p_pos;
 				}
 				lua_pop(L, 1);
@@ -106,7 +142,7 @@ int ModApiCCI::l_cci_register_style(lua_State *L)
 			// position (v2f, optional)
 			lua_getfield(L, img_idx, "position");
 			if (!lua_isnil(L, -1))
-				style.image.position = read_v2f(L, -1);
+				style.image.position = read_v2f_any(L, -1);
 			lua_pop(L, 1);
 
 			// size (float, optional)
@@ -139,7 +175,7 @@ int ModApiCCI::l_cci_create_instance(lua_State *L)
 	// Read position
 	lua_getfield(L, 3, "position");
 	if (lua_istable(L, -1)) {
-		instance.position = read_v2f(L, -1);
+		instance.position = read_v2f_any(L, -1);
 	}
 	lua_pop(L, 1);
 
