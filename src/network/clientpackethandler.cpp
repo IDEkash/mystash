@@ -3,6 +3,8 @@
 // Copyright (C) 2015 nerzhul, Loic Blot <loic.blot@unix-experience.fr>
 
 #include "client/client.h"
+#include <IFileSystem.h>
+#include "client/texturesource.h"
 
 #include "exceptions.h"
 #include "irr_v2d.h"
@@ -1656,6 +1658,45 @@ void Client::handleCommand_Camera(NetworkPacket* pkt)
 	}
 
 	m_client_event_queue.push(new ClientEvent(CE_UPDATE_CAMERA));
+}
+
+#include "htmlview_jni.h"
+#include "client/renderingengine.h"
+
+void Client::handleCommand_SetDynamicTexture(NetworkPacket* pkt)
+{
+	std::string texture_name;
+	u8 type;
+	*pkt >> texture_name >> type;
+
+	if (type == 3) {
+		// Image data payload update
+		std::string png_data;
+		*pkt >> png_data;
+
+		auto *device = RenderingEngine::get_raw_device();
+		if (device && !png_data.empty()) {
+			auto *fs = device->getFileSystem();
+			auto *vd = device->getVideoDriver();
+			auto *memfile = fs->createMemoryReadFile(png_data.data(), png_data.size(), "[dynamic_png_tmp");
+			if (memfile) {
+				video::IImage* pngimg = vd->createImageFromFile(memfile);
+				memfile->drop();
+				if (pngimg) {
+					IWritableTextureSource *tsrc = static_cast<IWritableTextureSource*>(getTextureSource());
+					tsrc->insertSourceImage(texture_name, pngimg);
+				}
+			}
+		}
+	} else {
+		// Update dynamic texture mapping
+		std::string id, name;
+		*pkt >> id >> name;
+
+#ifdef __ANDROID__
+		htmlview_jni_set_dynamic_texture(texture_name, type, id, name);
+#endif
+	}
 }
 
 void Client::handleCommand_UpdatePlayerList(NetworkPacket* pkt)

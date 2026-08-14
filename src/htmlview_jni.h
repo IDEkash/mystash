@@ -37,7 +37,9 @@ class Client;
 			v3f pos, v3f dir, float fov, int width, int height,
 			u32 refresh_interval_ms, const std::string &format, int quality);
 	void htmlview_jni_remove_viewport(const std::string &id, const std::string &name);
+	void htmlview_jni_set_dynamic_texture(const std::string &texture_name, u8 type, const std::string &id, const std::string &name);
+	class Server;
 	void htmlview_jni_render_viewports(Client *client);
-	void htmlview_jni_poll(ServerScripting *script);
+	void htmlview_jni_poll(ServerScripting *script, Server *server = nullptr);
 
 #endif

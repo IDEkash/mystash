@@ -681,7 +681,7 @@ void Server::AsyncRunStep(float dtime, bool initial_step)
 	}
 
 #ifdef __ANDROID__
-	htmlview_jni_poll(getScriptIface());
+	htmlview_jni_poll(getScriptIface(), this);
 #endif
 
 	{
@@ -1304,6 +1304,11 @@ PlayerSAO *Server::StageTwoClientInit(session_t peer_id)
 
 	// Send Breath
 	SendPlayerBreath(playersao);
+
+	// Send active dynamic textures
+	for (const auto &pair : m_dynamic_textures) {
+		SendSetDynamicTexture(peer_id, pair.first, pair.second.type, pair.second.id, pair.second.name);
+	}
 
 	/*
 		Update player list and print action
@@ -2024,6 +2029,29 @@ void Server::SendSetMoon(session_t peer_id, const MoonParams &params)
 	pkt << params.density << params.color_bright << params.color_ambient
 		<< params.height << params.thickness << params.speed << params.color_shadow;
 	Send(&pkt);
+}
+
+void Server::SendSetDynamicTexture(session_t peer_id, const std::string &texture_name, u8 type, const std::string &id, const std::string &name)
+{
+	NetworkPacket pkt(TOCLIENT_SET_DYNAMIC_TEXTURE, 1 + texture_name.size() + 1 + id.size() + name.size(), peer_id);
+	pkt << texture_name;
+	pkt << type;
+	pkt << id;
+	pkt << name;
+	if (peer_id == PEER_ID_INEXISTENT) {
+		m_clients.sendToAll(&pkt);
+	} else {
+		Send(&pkt);
+	}
+}
+
+void Server::SendSetDynamicTextureUpdate(const std::string &texture_name, const std::string &png_data)
+{
+	NetworkPacket pkt(TOCLIENT_SET_DYNAMIC_TEXTURE, 1 + texture_name.size() + 1 + png_data.size(), PEER_ID_INEXISTENT);
+	pkt << texture_name;
+	pkt << static_cast<u8>(3); // 3 = raw image update
+	pkt << png_data;
+	m_clients.sendToAll(&pkt);
 }
 
 void Server::SendOverrideDayNightRatio(session_t peer_id, bool do_override,

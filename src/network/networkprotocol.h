@@ -725,7 +725,15 @@ enum ToClientCommand : u16
 			u8[len] world name
 		*/
 
-		TOCLIENT_NUM_MSG_TYPES = 0x69,
+		TOCLIENT_SET_DYNAMIC_TEXTURE = 0x69,
+		/*
+			string texture_name
+			u8 type
+			string id
+			string name (if viewport)
+		*/
+
+		TOCLIENT_NUM_MSG_TYPES = 0x6a,
 	};
 
 enum ToServerCommand : u16
