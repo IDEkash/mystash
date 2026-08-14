@@ -208,6 +208,45 @@ To display the viewport feed, use the custom `luanti-viewport://` scheme. Since 
 </script>
 ```
 
+### Render to Texture (Dynamic Textures)
+
+Allows mapping an HTMLView instance (pure HTML) or a secondary camera Viewport directly into a dynamic game texture that can be applied to any block or entity.
+
+`htmlview.register_dynamic_texture(texture_name, params)`
+- `texture_name`: string (e.g. `"[dynamic:my_screen"` or `"dynamic_my_screen"`). This can be used directly as a texture in a node's `tiles` or an entity's `textures`.
+- `params`: table (or `nil` to remove the mapping)
+  - `type`: string (`"htmlview"` or `"viewport"`)
+  - `id`: string (HTMLView instance ID)
+  - `name`: string (Viewport name, only required if `type` is `"viewport"`)
+
+**Example usage (secondary camera security screen):**
+
+```lua
+-- 1. Setup the viewport camera
+htmlview.set_viewport("camera_hub", "security_cam_1", {
+    pos = {x=10, y=5, z=15},
+    dir = {x=0, y=-1, z=0},
+    fov = 80,
+    width = 512,
+    height = 512,
+    fps = 30,
+})
+
+-- 2. Link the viewport to a dynamic texture
+htmlview.register_dynamic_texture("security_screen_tex", {
+    type = "viewport",
+    id = "camera_hub",
+    name = "security_cam_1",
+})
+
+-- 3. Apply the texture to a block
+minetest.register_node("mymod:monitor_screen", {
+    description = "CCTV Monitor Screen",
+    tiles = {"security_screen_tex"},
+    groups = {cracky=3},
+})
+```
+
 ---
 
 ## glTF multi-clip animation (Lua)
