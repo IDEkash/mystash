@@ -61,14 +61,14 @@ public:
 	void clearAnimationClip() override;
 	void getAnimationClip(u8 *clip_type, u16 *clip_index, std::string *clip_name) const override;
 
-	void setAnimationTime(float time) { m_animation_time = time; m_animation_sent = false; }
-	float getAnimationTime() const { return m_animation_time; }
+	void setAnimationTime(float time) override { m_animation_time = time; m_animation_sent = false; }
+	float getAnimationTime() const override { return m_animation_time; }
 
-	void setAnimationLayers(const std::vector<ServerAnimationLayer> &layers) {
+	void setAnimationLayers(const std::vector<ServerAnimationLayer> &layers) override {
 		m_animation_layers = layers;
 		m_animation_sent = false;
 	}
-	const std::vector<ServerAnimationLayer> &getAnimationLayers() const {
+	const std::vector<ServerAnimationLayer> &getAnimationLayers() const override {
 		return m_animation_layers;
 	}
 

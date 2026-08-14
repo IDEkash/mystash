@@ -218,7 +218,6 @@ public:
 		void handleCommand_SetFogBoundary(NetworkPacket *pkt);
 		void handleCommand_Camera(NetworkPacket* pkt);
 		void handleCommand_SwitchWorld(NetworkPacket *pkt);
-		void handleCommand_SetDynamicTexture(NetworkPacket* pkt);
 
 	void ProcessData(NetworkPacket *pkt);
 

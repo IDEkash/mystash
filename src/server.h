@@ -470,15 +470,6 @@ public:
 	static u16 getProtocolVersionMin();
 	static u16 getProtocolVersionMax();
 
-	struct ServerDynamicTextureMapping {
-		u8 type = 0; // 1 = htmlview, 2 = viewport
-		std::string id;
-		std::string name;
-	};
-	std::map<std::string, ServerDynamicTextureMapping> m_dynamic_textures;
-	void SendSetDynamicTexture(session_t peer_id, const std::string &texture_name, u8 type, const std::string &id, const std::string &name);
-	void SendSetDynamicTextureUpdate(const std::string &texture_name, const std::string &png_data);
-
 	// Lua files registered for init of async env, pair of modname + path
 	std::vector<std::pair<std::string, std::string>> m_async_init_files;
 	// Identical but for mapgen env
@@ -586,6 +577,7 @@ private:
 	void SendCloudParams(session_t peer_id, const CloudParams &params);
 	void SendOverrideDayNightRatio(session_t peer_id, bool do_override, float ratio);
 	void SendSetLighting(session_t peer_id, const Lighting &lighting);
+
 	void broadcastModChannelMessage(const std::string &channel,
 			const std::string &message, session_t from_peer);
 

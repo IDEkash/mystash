@@ -20,6 +20,7 @@
 #include "client/camera.h"
 #include "client/client.h"
 #include "client/clientmap.h"
+#include "client/texturesource.h"
 #include "constants.h"
 #include "util/base64.h"
 #include "util/png.h"
@@ -51,15 +52,6 @@ struct Viewport {
 
 static std::mutex g_viewport_mutex;
 static std::unordered_map<std::string, std::unordered_map<std::string, std::unique_ptr<Viewport>>> g_viewports;
-
-struct JniDynamicTextureMapping {
-	std::string texture_name;
-	u8 type = 0; // 1 = htmlview, 2 = viewport
-	std::string id;
-	std::string name;
-};
-static std::unordered_map<std::string, JniDynamicTextureMapping> g_dynamic_textures;
-static std::mutex g_dynamic_textures_mutex;
 
 struct HtmlViewMessage {
 	std::string id;
@@ -401,21 +393,6 @@ void htmlview_jni_remove_viewport(const std::string &id, const std::string &name
 	}
 }
 
-void htmlview_jni_set_dynamic_texture(const std::string &texture_name, u8 type, const std::string &id, const std::string &name)
-{
-	std::lock_guard<std::mutex> lock(g_dynamic_textures_mutex);
-	if (type == 0) {
-		g_dynamic_textures.erase(texture_name);
-	} else {
-		JniDynamicTextureMapping mapping;
-		mapping.texture_name = texture_name;
-		mapping.type = type;
-		mapping.id = id;
-		mapping.name = name;
-		g_dynamic_textures[texture_name] = mapping;
-	}
-}
-
 void htmlview_jni_render_viewports(Client *client)
 {
 	std::lock_guard<std::mutex> lock(g_viewport_mutex);
@@ -480,22 +457,6 @@ void htmlview_jni_render_viewports(Client *client)
 						if (vp->image)
 							vp->image->drop();
 						vp->image = img;
-
-						// Check and update client-side dynamic textures
-						{
-							std::lock_guard<std::mutex> tex_lock(g_dynamic_textures_mutex);
-							for (const auto &m_pair : g_dynamic_textures) {
-								const auto &mapping = m_pair.second;
-								if (mapping.type == 2 && mapping.id == pair.first && mapping.name == it->first) {
-									video::IImage *copy_img = driver->createImage(video::ECF_A8R8G8B8, img->getDimension());
-									if (copy_img) {
-										img->copyTo(copy_img);
-										IWritableTextureSource *tsrc = static_cast<IWritableTextureSource*>(client->getTextureSource());
-										tsrc->insertSourceImage(mapping.texture_name, copy_img);
-									}
-								}
-							}
-						}
 					}
 
 					driver->setRenderTarget(0, false, false);
@@ -635,9 +596,8 @@ Java_net_minetest_minetest_HTMLViewManager_nativeGetViewportFrame(
 }
 
 #include "scripting_server.h"
-#include "server.h"
 
-void htmlview_jni_poll(ServerScripting *script, Server *server)
+void htmlview_jni_poll(ServerScripting *script)
 {
 	if (!script)
 		return;
@@ -655,15 +615,6 @@ void htmlview_jni_poll(ServerScripting *script, Server *server)
 	}
 	for (const auto &c : cap_batch) {
 		script->on_htmlview_capture(c.id, c.png_base64);
-
-		if (server) {
-			std::string png_data = base64_decode(c.png_base64);
-			for (const auto &pair : server->m_dynamic_textures) {
-				if (pair.second.type == 1 && pair.second.id == c.id) {
-					server->SendSetDynamicTextureUpdate(pair.first, png_data);
-				}
-			}
-		}
 	}
 	for (const auto &e : event_batch) {
 		if (e.type == HtmlViewEvent::READY)
