@@ -486,7 +486,6 @@ set(common_SRCS
 	raycast.cpp
 		reflowscan.cpp
 		remoteplayer.cpp
-		fogparams.cpp
 		rollback_interface.cpp
 	server.cpp
 	serverenvironment.cpp
