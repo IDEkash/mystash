@@ -614,6 +614,10 @@ end
 
 if (INIT == "game" or INIT == "client") and core.register_on_animation_cycle then
 	core.register_on_animation_cycle(function(obj)
+		if not obj or not obj.is_valid or not obj:is_valid() then
+			M._cycle_watchers[obj] = nil
+			return
+		end
 		local cb = M._cycle_watchers[obj]
 		if type(cb) == "function" then
 			cb(obj)
@@ -624,6 +628,11 @@ end
 if INIT == "game" and core.register_globalstep then
 	core.register_globalstep(function(dtime)
 		local now = core.get_us_time and core.get_us_time() or 0
+		for obj, _ in pairs(M._cycle_watchers) do
+			if not obj or not obj.is_valid or not obj:is_valid() then
+				M._cycle_watchers[obj] = nil
+			end
+		end
 		for obj, w in pairs(M._end_watchers) do
 			if not obj or not obj.is_valid or not obj:is_valid() then
 				M._end_watchers[obj] = nil
@@ -765,6 +774,8 @@ function M.humanoid(object, clips, opts)
 						name = ev_name,
 						from = event.from,
 						to = event.to,
+						blend = event.blend,
+						ctx = event.ctx,
 					}
 					if type(user_on_event) == "function" then
 						user_on_event(animator, object, payload)

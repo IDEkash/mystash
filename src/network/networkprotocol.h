@@ -703,16 +703,6 @@ enum ToClientCommand : u16
 			u8[len] serialized ParticleParameters
 		*/
 
-		TOCLIENT_SET_FOG = 0x65,
-		/*
-			FogParams (see fogparams.h)
-		*/
-
-		TOCLIENT_SET_FOG_BOUNDARY = 0x66,
-		/*
-			FogBoundaryParams (see fogparams.h)
-		*/
-
 		TOCLIENT_SET_LOOK_DIRECTION = 0x67,
 		/*
 			f32 player pitch

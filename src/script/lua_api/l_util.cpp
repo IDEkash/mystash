@@ -32,6 +32,7 @@
 #include "tiniergltf.hpp"
 #include <cstdio>
 #include <cstring>
+#include <set>
 #include <unordered_set>
 
 // only available in zstd 1.3.5+
@@ -370,7 +371,7 @@ int ModApiUtil::l_gltf_inspect(lua_State *L)
 
 	// bones (unique joint nodes across skins)
 	lua_newtable(L);
-	std::unordered_set<size_t> joint_nodes;
+	std::set<size_t> joint_nodes;
 	if (m.skins.has_value()) {
 		for (const auto &skin : *m.skins) {
 			for (size_t node : skin.joints) {

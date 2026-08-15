@@ -27,7 +27,7 @@ Server-side `ObjectRef` methods for controlling the player's camera.
   - `free_look`: boolean (default `false`). If `true`, server-forced orientation updates (via `set_look_vertical` or recoil) are applied additively to the player's current orientation rather than overriding it.
   - `smooth`: boolean (default `false`). If `true`, orientation changes are smoothed on the client (0.05s default window) even if cinematic mode is off.
   - `tilt`: number (default `0`). Sets the camera roll (tilt) in degrees.
-  - `anti_tilt_controller`: boolean (default `false`). If `true`, the player's look and movement controls remain fixed to the screen even when the camera is tilted. If `false`, controls rotate with the camera (tilting 90 degrees right means pushing Forward moves you Right in the world).
+  - `anti_tilt_controller`: boolean (default `true`). If `true`, camera tilt is purely visual and the player's look and movement controls remain normal/fixed (acting as if the camera is not tilted). If `false`, controls rotate with camera tilt.
   - `fov`: number. Sets the Field of View. Set to `0` to reset to client default.
   - `fov_is_multiplier`: boolean (default `false`). If `true`, the `fov` value is treated as a multiplier for the player's base FOV setting.
   - `fov_transition`: number (default `0.0`). Duration in seconds for a smooth FOV transition.
@@ -44,7 +44,7 @@ Server-side `ObjectRef` methods for controlling the player's camera.
 - `transition_time`: number (default `0`).
 
 `ObjectRef:get_fov() -> table`
-- Returns `{fov, is_multiplier, transition_time}`.
+- Returns `{fov, is_multiplier, transition_time}` (also accessible by array indices `1`, `2`, `3` for legacy unpacking).
 
 ---
 
@@ -334,7 +334,7 @@ New methods to query model format details for writing safer, format-agnostic cod
 `core.gltf_inspect(path) -> table | nil, error_string`
 - On success, returns:
   - `meshes`: `{ {index, name, primitives}, ... }`
-  - `bones`: `{ {node, name}, ... }` — joint nodes across all skins. **Order is non-deterministic** (built from a hash set).
+  - `bones`: `{ {node, name}, ... }` — joint nodes across all skins (sorted deterministically by node index).
   - `animations`: `{ {index, name, start, end, duration}, ... }` — same format as `gltf_get_animation_clips`. `start` is always `0.0`.
 - On parse error, returns `nil, error_string`.
 
@@ -407,6 +407,7 @@ player:set_bone_rotation("Head", {x=0, y=-45, z=0}, {interpolation = 0.1})
 
 `ObjectRef:set_bone_override(bone, table)`
 - Sets multiple bone properties at once.
+- Passing a table updates the specified fields while preserving existing overrides for unspecified fields.
 - Passing `nil` as the table clears all overrides for that bone.
 - `table` supports the following fields. Transform fields use a sub-table with a `vec` key:
 
@@ -727,51 +728,6 @@ An accessibility setting that gates the engine's internal joystick-driven speed 
 
 ---
 
-## Fog API (Lua)
-
-Extended volumetric and height-based fog controls.
-
-`core.set_fog(player, params_or_nil)`
-- Sets custom fog parameters for a specific player. Pass `nil` to clear.
-- `params`:
-  - `color`: ColorSpec (default: sky fog color)
-  - `fog_start`: number (`0..0.99`, fraction of view distance; pass a negative value to leave at engine default)
-  - `fog_end`: number (`0..1`, fraction of view distance; pass a negative value to leave at engine default; clamped to ≥ `fog_start` when both are non-negative)
-  - `blend_time`: number (seconds, transition duration; clamped to ≥ `0`)
-  - `max_density`: number (`0..1`, opacity at max height; clamped)
-  - `max_density_height`: number (node-space height for max density)
-  - `zero_density_height`: number (node-space height where fog disappears)
-  - `uniform`: boolean (if true, ignores height density)
-  - `direction`: v3f (up vector for height calculation, default `{x=0,y=1,z=0}`; normalized automatically)
-  - `turbulence`: number (`0..1`, noise factor; clamped)
-  - `speed_density_scale`: number (multiplier for density based on player speed; clamped to ≥ `0`)
-  - `layers`: array of up to **4** extra fog layer tables (excess entries are silently dropped). Each layer supports: `color`, `max_density`, `max_density_height`, `zero_density_height`, `uniform`, `direction`.
-  - `color_transition`: table (dynamic color animation):
-    - `speed`: number (animation speed; clamped to ≥ `0`)
-    - Up to **8** keyframes (excess entries are silently dropped), provided as an array directly in the table or in a `keyframes` sub-array:
-      - `{ time = number(0..1), color = ColorSpec }`
-    - Keyframes are automatically sorted by time after parsing.
-
-`core.set_fog_boundary(player, params_or_nil)`
-- Defines a localized fog zone. Pass `nil` to clear.
-- `params`:
-  - `pos`: v3f (center of the zone)
-  - `radius`: number (node-space size; clamped to ≥ `0`)
-  - `shape`: string (`"sphere"` (default), `"box"`, `"cylinder"`)
-  - `fog`: table (FogParams structure as defined above)
-  - `sound`: table (optional ambient sound inside zone):
-    - `name`: string
-    - `gain`: number (clamped to ≥ `0`)
-    - `fade_in`: number (seconds; clamped to ≥ `0`)
-
-`core.register_biome_atmosphere(biome_id, params)`
-- Registers fog and/or boundary parameters for a specific biome.
-- `biome_id`: integer
-- `params`:
-  - `fog`: table (FogParams)
-  - `boundary`: table (FogBoundaryParams)
-
----
 
 ## World Switching API (Lua)
 
