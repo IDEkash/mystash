@@ -67,8 +67,14 @@ private:
 		// set_fog(player, def)
 		static int l_set_fog(lua_State *L);
 
+		// get_fog(player)
+		static int l_get_fog(lua_State *L);
+
 		// set_fog_boundary(player, def)
 		static int l_set_fog_boundary(lua_State *L);
+
+		// get_fog_boundary(player)
+		static int l_get_fog_boundary(lua_State *L);
 
 		// register_biome_atmosphere(biome_id, def)
 		static int l_register_biome_atmosphere(lua_State *L);

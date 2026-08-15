@@ -702,10 +702,13 @@ void ModApiServer::read_fog_params(lua_State *L, int idx, FogParams &p)
 	lua_pop(L, 1);
 
 	p.fog_start = getfloatfield_default(L, idx, "fog_start", p.fog_start);
+	p.fog_start = getfloatfield_default(L, idx, "start", p.fog_start);
 	p.fog_end = getfloatfield_default(L, idx, "fog_end", p.fog_end);
+	p.fog_end = getfloatfield_default(L, idx, "end", p.fog_end);
 	p.blend_time = getfloatfield_default(L, idx, "blend_time", p.blend_time);
 
 	p.max_density = getfloatfield_default(L, idx, "max_density", p.max_density);
+	p.max_density = getfloatfield_default(L, idx, "density", p.max_density);
 	p.max_density_height = getfloatfield_default(L, idx, "max_density_height", p.max_density_height);
 	p.zero_density_height = getfloatfield_default(L, idx, "zero_density_height", p.zero_density_height);
 	p.uniform = getboolfield_default(L, idx, "uniform", p.uniform);
@@ -732,6 +735,7 @@ void ModApiServer::read_fog_params(lua_State *L, int idx, FogParams &p)
 					read_color(L, -1, &l.color);
 				lua_pop(L, 1);
 				l.max_density = getfloatfield_default(L, -1, "max_density", l.max_density);
+				l.max_density = getfloatfield_default(L, -1, "density", l.max_density);
 				l.max_density_height = getfloatfield_default(L, -1, "max_density_height", l.max_density_height);
 				l.zero_density_height = getfloatfield_default(L, -1, "zero_density_height", l.zero_density_height);
 				l.uniform = getboolfield_default(L, -1, "uniform", l.uniform);
@@ -785,6 +789,108 @@ void ModApiServer::read_fog_params(lua_State *L, int idx, FogParams &p)
 	fog_sanitize(p);
 }
 
+static void push_fog_params(lua_State *L, const FogParams &p)
+{
+	if (!p.active) {
+		lua_pushnil(L);
+		return;
+	}
+	lua_createtable(L, 0, 12);
+	push_ARGB8(L, p.color);
+	lua_setfield(L, -2, "color");
+	lua_pushnumber(L, p.fog_start);
+	lua_setfield(L, -2, "fog_start");
+	lua_pushnumber(L, p.fog_end);
+	lua_setfield(L, -2, "fog_end");
+	lua_pushnumber(L, p.blend_time);
+	lua_setfield(L, -2, "blend_time");
+	lua_pushnumber(L, p.max_density);
+	lua_setfield(L, -2, "max_density");
+	lua_pushnumber(L, p.max_density_height);
+	lua_setfield(L, -2, "max_density_height");
+	lua_pushnumber(L, p.zero_density_height);
+	lua_setfield(L, -2, "zero_density_height");
+	lua_pushboolean(L, p.uniform);
+	lua_setfield(L, -2, "uniform");
+	push_v3f(L, p.direction);
+	lua_setfield(L, -2, "direction");
+	lua_pushnumber(L, p.turbulence);
+	lua_setfield(L, -2, "turbulence");
+	lua_pushnumber(L, p.speed_density_scale);
+	lua_setfield(L, -2, "speed_density_scale");
+
+	lua_createtable(L, p.layers.size(), 0);
+	for (size_t i = 0; i < p.layers.size(); i++) {
+		const auto &l = p.layers[i];
+		lua_createtable(L, 0, 6);
+		push_ARGB8(L, l.color);
+		lua_setfield(L, -2, "color");
+		lua_pushnumber(L, l.max_density);
+		lua_setfield(L, -2, "max_density");
+		lua_pushnumber(L, l.max_density_height);
+		lua_setfield(L, -2, "max_density_height");
+		lua_pushnumber(L, l.zero_density_height);
+		lua_setfield(L, -2, "zero_density_height");
+		lua_pushboolean(L, l.uniform);
+		lua_setfield(L, -2, "uniform");
+		push_v3f(L, l.direction);
+		lua_setfield(L, -2, "direction");
+		lua_rawseti(L, -2, i + 1);
+	}
+	lua_setfield(L, -2, "layers");
+
+	if (p.color_transition.active()) {
+		lua_createtable(L, 0, 2);
+		lua_pushnumber(L, p.color_transition.speed);
+		lua_setfield(L, -2, "speed");
+		lua_createtable(L, p.color_transition.keyframes.size(), 0);
+		for (size_t i = 0; i < p.color_transition.keyframes.size(); i++) {
+			const auto &k = p.color_transition.keyframes[i];
+			lua_createtable(L, 0, 2);
+			lua_pushnumber(L, k.time);
+			lua_setfield(L, -2, "time");
+			push_ARGB8(L, k.color);
+			lua_setfield(L, -2, "color");
+			lua_rawseti(L, -2, i + 1);
+		}
+		lua_setfield(L, -2, "keyframes");
+		lua_setfield(L, -2, "color_transition");
+	}
+}
+
+static void push_fog_boundary_params(lua_State *L, const FogBoundaryParams &b)
+{
+	if (!b.active) {
+		lua_pushnil(L);
+		return;
+	}
+	lua_createtable(L, 0, 5);
+	push_v3f(L, b.pos);
+	lua_setfield(L, -2, "pos");
+	lua_pushnumber(L, b.radius);
+	lua_setfield(L, -2, "radius");
+
+	const char *shape = "sphere";
+	if (b.shape == FogBoundaryShape::Box) shape = "box";
+	else if (b.shape == FogBoundaryShape::Cylinder) shape = "cylinder";
+	lua_pushstring(L, shape);
+	lua_setfield(L, -2, "shape");
+
+	push_fog_params(L, b.fog);
+	lua_setfield(L, -2, "fog");
+
+	if (b.has_sound) {
+		lua_createtable(L, 0, 3);
+		lua_pushstring(L, b.sound_name.c_str());
+		lua_setfield(L, -2, "name");
+		lua_pushnumber(L, b.sound_gain);
+		lua_setfield(L, -2, "gain");
+		lua_pushnumber(L, b.sound_fade_in);
+		lua_setfield(L, -2, "fade_in");
+		lua_setfield(L, -2, "sound");
+	}
+}
+
 // set_fog(player, def)
 int ModApiServer::l_set_fog(lua_State *L)
 {
@@ -802,6 +908,19 @@ int ModApiServer::l_set_fog(lua_State *L)
 	}
 	getServer(L)->setFog(player, p);
 	return 0;
+}
+
+// get_fog(player)
+int ModApiServer::l_get_fog(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	RemotePlayer *player = read_player_or_name(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+	push_fog_params(L, player->getFogParams());
+	return 1;
 }
 
 // set_fog_boundary(player, def)
@@ -854,6 +973,19 @@ int ModApiServer::l_set_fog_boundary(lua_State *L)
 	fog_sanitize(b);
 	getServer(L)->setFogBoundary(player, b);
 	return 0;
+}
+
+// get_fog_boundary(player)
+int ModApiServer::l_get_fog_boundary(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	RemotePlayer *player = read_player_or_name(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+	push_fog_boundary_params(L, player->getFogBoundaryParams());
+	return 1;
 }
 
 // register_biome_atmosphere(biome_id, def)
@@ -1218,7 +1350,9 @@ void ModApiServer::Initialize(lua_State *L, int top)
 	API_FCT(chat_send_player);
 	API_FCT(show_formspec);
 	API_FCT(set_fog);
+	API_FCT(get_fog);
 	API_FCT(set_fog_boundary);
+	API_FCT(get_fog_boundary);
 	API_FCT(register_biome_atmosphere);
 	API_FCT(sound_play);
 	API_FCT(sound_stop);
