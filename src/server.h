@@ -64,8 +64,6 @@ struct ParticleSpawnerParameters;
 struct PlayerHPChangeReason;
 struct RollbackAction;
 struct SkyboxParams;
-struct FogParams;
-struct FogBoundaryParams;
 struct SoundSpec;
 struct StarParams;
 struct SunParams;
