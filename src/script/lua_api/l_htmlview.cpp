@@ -6,6 +6,8 @@
 #include "common/c_converter.h"
 #include "lua_api/l_internal.h"
 #include "cpp_api/s_security.h"
+#include "server.h"
+#include "network/networkprotocol.h"
 
 #include <memory>
 
@@ -498,6 +500,50 @@ int ModApiHTMLView::l_set_viewport(lua_State *L)
 	return 0;
 }
 
+int ModApiHTMLView::l_register_dynamic_texture(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	std::string texture_name = readParam<std::string>(L, 1);
+
+	u8 type = 0;
+	std::string id = "";
+	std::string name = "";
+
+	if (!lua_isnoneornil(L, 2)) {
+		luaL_checktype(L, 2, LUA_TTABLE);
+		std::string type_str = getstringfield_default(L, 2, "type", "");
+		if (type_str == "htmlview") {
+			type = 1;
+		} else if (type_str == "viewport") {
+			type = 2;
+		}
+		id = getstringfield_default(L, 2, "id", "");
+		name = getstringfield_default(L, 2, "name", "");
+	}
+
+	// Update server's dynamic textures list and send to players (if on server side)
+	Server *srv = getServer(L);
+	if (srv) {
+		if (type == 0) {
+			srv->m_dynamic_textures.erase(texture_name);
+		} else {
+			Server::ServerDynamicTextureMapping mapping;
+			mapping.type = type;
+			mapping.id = id;
+			mapping.name = name;
+			srv->m_dynamic_textures[texture_name] = mapping;
+		}
+		// Send updates to all connected players
+		srv->SendSetDynamicTexture(PEER_ID_INEXISTENT, texture_name, type, id, name);
+	}
+
+#ifdef __ANDROID__
+	htmlview_jni_set_dynamic_texture(texture_name, type, id, name);
+#endif
+
+	return 0;
+}
+
 int ModApiHTMLView::l_is_supported(lua_State *L)
 {
 #ifdef __ANDROID__
@@ -559,6 +605,7 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "on_ready", l_on_ready, tbl);
 		registerFunction(L, "set_viewport", dummy, tbl);
 		registerFunction(L, "is_supported", l_is_supported, tbl);
+		registerFunction(L, "register_dynamic_texture", l_register_dynamic_texture, tbl);
 #else
 		registerFunction(L, "run", l_run, tbl);
 		registerFunction(L, "run_worker", l_run_worker, tbl);
@@ -584,6 +631,7 @@ void ModApiHTMLView::Initialize(lua_State *L, int top)
 		registerFunction(L, "on_ready", l_on_ready, tbl);
 		registerFunction(L, "set_viewport", l_set_viewport, tbl);
 		registerFunction(L, "is_supported", l_is_supported, tbl);
+		registerFunction(L, "register_dynamic_texture", l_register_dynamic_texture, tbl);
 #endif
 
 	lua_pushvalue(L, tbl);

@@ -875,3 +875,7 @@ function core.parse_coordinates(x, y, z, relative_to)
 	return rx and ry and rz and vector.new(rx, ry, rz)
 end
 
+local hv = rawget(_G, "htmlview")
+if hv and hv.register_dynamic_texture then
+	core.register_dynamic_texture = hv.register_dynamic_texture
+end
