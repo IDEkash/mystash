@@ -20,6 +20,7 @@
 #include "client/camera.h"
 #include "client/client.h"
 #include "client/clientmap.h"
+#include "client/texturesource.h"
 #include "constants.h"
 #include "util/base64.h"
 #include "util/png.h"

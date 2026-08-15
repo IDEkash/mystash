@@ -150,6 +150,42 @@ void AnimatedMeshSceneNode::buildFrameNr(u32 timeMs)
 	}
 
 	advance(CurrentFrameNr, StartFrame, EndFrame, FramesPerSecond, Looping, timeMs, true);
+
+	// Advance each layer's current_frame
+	for (auto &layer : m_layers) {
+		if (layer.blend_active) {
+			layer.blend_elapsed_ms = std::min(layer.blend_elapsed_ms + timeMs, layer.blend_duration_ms);
+			f32 t = (layer.blend_duration_ms > 0) ? (f32)layer.blend_elapsed_ms / layer.blend_duration_ms : 1.0f;
+			// smoothstep
+			t = t * t * (3.0f - 2.0f * t);
+			layer.weight = layer.blend_start_weight + (layer.blend_target_weight - layer.blend_start_weight) * t;
+			if (layer.blend_elapsed_ms >= layer.blend_duration_ms)
+				layer.blend_active = false;
+		}
+
+		if (std::abs(layer.start_frame - layer.end_frame) < 0.0001f || layer.speed == 0.0f) {
+			layer.current_frame = layer.start_frame;
+		} else {
+			layer.current_frame += timeMs * layer.speed * 0.001f;
+			f32 len = layer.end_frame - layer.start_frame;
+			if (layer.loop && len > 0.0f) {
+				if (layer.speed > 0.0f) {
+					if (layer.current_frame > layer.end_frame) {
+						layer.current_frame = layer.start_frame + fmodf(layer.current_frame - layer.start_frame, len);
+					}
+				} else {
+					if (layer.current_frame < layer.start_frame) {
+						layer.current_frame = layer.end_frame - fmodf(layer.end_frame - layer.current_frame, len);
+					}
+				}
+			} else {
+				if (layer.speed > 0.0f)
+					layer.current_frame = std::min(layer.current_frame, layer.end_frame);
+				else
+					layer.current_frame = std::max(layer.current_frame, layer.start_frame);
+			}
+		}
+	}
 }
 
 void AnimatedMeshSceneNode::OnRegisterSceneNode()
@@ -710,6 +746,56 @@ static SkinnedMesh::SJoint::VariantTransform blendVariantTransform(
 	return a.interpolate(matrixToTransform(std::get<core::matrix4>(to)), weight);
 }
 
+static bool isJointInMask(const SkinnedMesh *mesh, u16 joint_idx, const std::unordered_set<std::string> &mask) {
+	if (mask.empty())
+		return true;
+
+	const auto &joints = mesh->getAllJoints();
+	if (joint_idx >= joints.size())
+		return false;
+
+	const SkinnedMesh::SJoint *joint = joints[joint_idx];
+	while (joint) {
+		if (joint->Name.has_value() && mask.find(*joint->Name) != mask.end()) {
+			return true;
+		}
+		if (joint->ParentJointID.has_value() && *joint->ParentJointID < joints.size()) {
+			joint = joints[*joint->ParentJointID];
+		} else {
+			break;
+		}
+	}
+	return false;
+}
+
+static core::Transform addAdditiveTransform(const core::Transform &base, const core::Transform &layer, const core::Transform &reference, f32 weight) {
+	if (weight <= 0.0f) return base;
+
+	// Translation delta
+	core::vector3df t_delta = layer.translation - reference.translation;
+
+	// Rotation delta
+	core::quaternion r_ref_inv = reference.rotation;
+	r_ref_inv.makeInverse();
+	core::quaternion r_delta = layer.rotation * r_ref_inv;
+	core::quaternion r_delta_weighted;
+	r_delta_weighted.slerp(core::quaternion(), r_delta, weight);
+
+	// Scale delta
+	core::vector3df s_delta(1.0f, 1.0f, 1.0f);
+	if (reference.scale.X != 0.0f) s_delta.X = layer.scale.X / reference.scale.X;
+	if (reference.scale.Y != 0.0f) s_delta.Y = layer.scale.Y / reference.scale.Y;
+	if (reference.scale.Z != 0.0f) s_delta.Z = layer.scale.Z / reference.scale.Z;
+
+	core::Transform result;
+	result.translation = base.translation + t_delta * weight;
+	result.rotation = base.rotation * r_delta_weighted;
+	result.scale.X = base.scale.X * (1.0f + (s_delta.X - 1.0f) * weight);
+	result.scale.Y = base.scale.Y * (1.0f + (s_delta.Y - 1.0f) * weight);
+	result.scale.Z = base.scale.Z * (1.0f + (s_delta.Z - 1.0f) * weight);
+	return result;
+}
+
 void AnimatedMeshSceneNode::animateJoints()
 {
 	if (!Mesh || Mesh->getMeshType() != EAMT_SKINNED)
@@ -729,6 +815,8 @@ void AnimatedMeshSceneNode::animateJoints()
 		return;
 	}
 
+	std::vector<SkinnedMesh::SJoint::VariantTransform> base_transforms;
+
 	if (BlendActive && BlendDurationMs > 0) {
 		f32 weight = std::min(1.f, (f32)BlendElapsedMs / (f32)BlendDurationMs);
 		// smoothstep easing
@@ -739,11 +827,45 @@ void AnimatedMeshSceneNode::animateJoints()
 		assert(from.size() == to.size());
 		for (size_t i = 0; i < to.size(); ++i)
 			to[i] = blendVariantTransform(from[i], to[i], weight);
-		updateJointSceneNodes(to);
-		return;
+		base_transforms = to;
+	} else {
+		base_transforms = skinnedMesh->animateMesh(getFrameNr());
 	}
 
-	updateJointSceneNodes(skinnedMesh->animateMesh(getFrameNr()));
+	// Apply layers!
+	const auto &joints = skinnedMesh->getAllJoints();
+	for (const auto &layer : m_layers) {
+		if (layer.weight <= 0.001f)
+			continue;
+
+		auto layer_transforms = skinnedMesh->animateMesh(layer.current_frame);
+		assert(base_transforms.size() == layer_transforms.size());
+
+		for (size_t i = 0; i < base_transforms.size(); ++i) {
+			if (!isJointInMask(skinnedMesh, i, layer.bone_mask))
+				continue;
+
+			// Blend or apply additively
+			auto &base_vt = base_transforms[i];
+			auto &layer_vt = layer_transforms[i];
+			auto &joint_vt = joints[i]->transform; // reference pose
+
+			core::Transform base_trs = std::holds_alternative<core::Transform>(base_vt) ?
+				std::get<core::Transform>(base_vt) : matrixToTransform(std::get<core::matrix4>(base_vt));
+			core::Transform layer_trs = std::holds_alternative<core::Transform>(layer_vt) ?
+				std::get<core::Transform>(layer_vt) : matrixToTransform(std::get<core::matrix4>(layer_vt));
+			core::Transform ref_trs = std::holds_alternative<core::Transform>(joint_vt) ?
+				std::get<core::Transform>(joint_vt) : matrixToTransform(std::get<core::matrix4>(joint_vt));
+
+			if (layer.additive) {
+				base_transforms[i] = addAdditiveTransform(base_trs, layer_trs, ref_trs, layer.weight);
+			} else {
+				base_transforms[i] = base_trs.interpolate(layer_trs, layer.weight);
+			}
+		}
+	}
+
+	updateJointSceneNodes(base_transforms);
 }
 
 void AnimatedMeshSceneNode::checkJoints()

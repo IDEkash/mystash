@@ -504,6 +504,79 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 		m_camera_position = my_cp;
 	}
 
+	// Update server modifiers from player
+	for (auto it = m_server_modifiers.begin(); it != m_server_modifiers.end(); ) {
+		if (player->camera_modifiers.find(it->first) == player->camera_modifiers.end()) {
+			it = m_server_modifiers.erase(it);
+		} else {
+			++it;
+		}
+	}
+	for (const auto &pair : player->camera_modifiers) {
+		const auto &srv = pair.second;
+		auto &clt = m_server_modifiers[pair.first];
+		clt.offset = srv.offset;
+		clt.rotation = srv.rotation;
+		clt.fov = srv.fov;
+		clt.shake_intensity = srv.shake_intensity;
+		clt.shake_speed = srv.shake_speed;
+		clt.recoil = srv.recoil;
+		clt.sway_intensity = srv.sway_intensity;
+		clt.sway_speed = srv.sway_speed;
+	}
+
+	// Accumulate Camera Modifiers
+	v3f final_offset = v3f(0, 0, 0);
+	v3f final_rotation = v3f(0, 0, 0);
+	f32 final_fov_offset = 0.0f;
+
+	auto accumulate_mods = [&](std::map<std::string, CameraModifier> &mods) {
+		for (auto &pair : mods) {
+			CameraModifier &mod = pair.second;
+
+			// Shake: procedural high-frequency noise
+			if (mod.shake_intensity > 0.0f && mod.shake_speed > 0.0f) {
+				mod.shake_time += frametime * mod.shake_speed;
+				float shake_x = sinf(mod.shake_time) * mod.shake_intensity;
+				float shake_y = cosf(mod.shake_time * 1.5f) * mod.shake_intensity;
+				float shake_z = sinf(mod.shake_time * 2.1f) * mod.shake_intensity;
+				final_offset += v3f(shake_x, shake_y, 0.0f) * 0.1f;
+				final_rotation += v3f(shake_y, shake_x, shake_z) * 5.0f;
+			}
+
+			// Sway: procedural low-frequency sway
+			if (mod.sway_intensity > 0.0f && mod.sway_speed > 0.0f) {
+				mod.sway_time += frametime * mod.sway_speed;
+				float sway_x = sinf(mod.sway_time) * mod.sway_intensity;
+				float sway_y = sinf(mod.sway_time * 0.5f) * mod.sway_intensity;
+				final_offset += v3f(sway_x * 0.1f, sway_y * 0.1f, 0.0f);
+				final_rotation += v3f(sway_y, sway_x, sway_x * 0.5f);
+			}
+
+			final_offset += mod.offset;
+			final_rotation += mod.rotation + mod.recoil;
+			final_fov_offset += mod.fov;
+		}
+	};
+
+	accumulate_mods(m_modifiers);
+	accumulate_mods(m_server_modifiers);
+
+	// Apply final offset (camera-local)
+	if (final_offset.getLengthSQ() > 0.0001f) {
+		v3f rotated_offset = final_offset * BS;
+		rotated_offset = m_headnode->getAbsoluteTransformation().rotateAndScaleVect(rotated_offset);
+		m_camera_position += rotated_offset;
+	}
+
+	// Apply final rotation to direction and up vector
+	if (final_rotation.getLengthSQ() > 0.0001f) {
+		core::matrix4 rot_mat;
+		rot_mat.setRotationDegrees(final_rotation);
+		m_camera_direction = rot_mat.rotateAndScaleVect(m_camera_direction);
+		abs_cam_up = rot_mat.rotateAndScaleVect(abs_cam_up);
+	}
+
 	// Set camera node transformation
 	m_cameranode->setPosition(m_camera_position - intToFloat(m_camera_offset, BS));
 	m_cameranode->setUpVector(abs_cam_up);
@@ -539,6 +612,7 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 		// Set to client's selected FOV
 		m_curr_fov_degrees = m_cache_fov;
 	}
+	m_curr_fov_degrees += final_fov_offset;
 	m_curr_fov_degrees = rangelim(m_curr_fov_degrees, 1.0f, 160.0f);
 
 	// FOV and aspect ratio

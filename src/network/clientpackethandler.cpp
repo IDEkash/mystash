@@ -1635,6 +1635,26 @@ void Client::handleCommand_Camera(NetworkPacket* pkt)
 		*pkt >> player->camera_tilt;
 	}
 
+	if (pkt->getRemainingBytes() >= 2) {
+		u16 count;
+		*pkt >> count;
+		player->camera_modifiers.clear();
+		for (u16 i = 0; i < count; ++i) {
+			std::string name;
+			*pkt >> name;
+			PlayerCameraModifier mod;
+			*pkt >> mod.offset;
+			*pkt >> mod.rotation;
+			*pkt >> mod.fov;
+			*pkt >> mod.shake_intensity;
+			*pkt >> mod.shake_speed;
+			*pkt >> mod.recoil;
+			*pkt >> mod.sway_intensity;
+			*pkt >> mod.sway_speed;
+			player->camera_modifiers[name] = mod;
+		}
+	}
+
 	m_client_event_queue.push(new ClientEvent(CE_UPDATE_CAMERA));
 }
 

@@ -12,6 +12,21 @@
 #include <array>
 #include <vector>
 #include <optional>
+#include <map>
+#include <string>
+
+struct CameraModifier {
+	v3f offset = v3f(0, 0, 0); // node units, camera-local
+	v3f rotation = v3f(0, 0, 0); // degrees (pitch, yaw, roll)
+	f32 fov = 0.0f; // degrees offset
+	f32 shake_intensity = 0.0f;
+	f32 shake_speed = 0.0f;
+	f32 shake_time = 0.0f;
+	v3f recoil = v3f(0, 0, 0); // degrees offset
+	f32 sway_intensity = 0.0f;
+	f32 sway_speed = 0.0f;
+	f32 sway_time = 0.0f;
+};
 
 class LocalPlayer;
 struct MapDrawControl;
@@ -260,4 +275,32 @@ private:
 
 	// Last known light color of the player
 	video::SColor m_player_light_color;
+
+public:
+	void setModifier(const std::string &name, const CameraModifier &mod) {
+		m_modifiers[name] = mod;
+	}
+
+	CameraModifier getModifier(const std::string &name) const {
+		auto it = m_modifiers.find(name);
+		if (it != m_modifiers.end())
+			return it->second;
+		return CameraModifier();
+	}
+
+	std::map<std::string, CameraModifier> getModifiers() const {
+		return m_modifiers;
+	}
+
+	void removeModifier(const std::string &name) {
+		m_modifiers.erase(name);
+	}
+
+	void clearModifiers() {
+		m_modifiers.clear();
+	}
+
+private:
+	std::map<std::string, CameraModifier> m_modifiers;
+	std::map<std::string, CameraModifier> m_server_modifiers;
 };

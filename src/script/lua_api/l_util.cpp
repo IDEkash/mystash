@@ -347,28 +347,219 @@ int ModApiUtil::l_gltf_inspect(lua_State *L)
 
 	const auto &m = *model;
 
-	lua_createtable(L, 0, 3);
+	lua_createtable(L, 0, 6);
+
+	// asset
+	lua_createtable(L, 0, 4);
+	lua_pushstring(L, m.asset.version.c_str());
+	lua_setfield(L, -2, "version");
+	if (m.asset.generator.has_value()) {
+		lua_pushstring(L, m.asset.generator->c_str());
+		lua_setfield(L, -2, "generator");
+	}
+	if (m.asset.minVersion.has_value()) {
+		lua_pushstring(L, m.asset.minVersion->c_str());
+		lua_setfield(L, -2, "min_version");
+	}
+	if (m.asset.copyright.has_value()) {
+		lua_pushstring(L, m.asset.copyright->c_str());
+		lua_setfield(L, -2, "copyright");
+	}
+	lua_setfield(L, -2, "asset");
+
+	// nodes
+	lua_newtable(L);
+	if (m.nodes.has_value()) {
+		for (size_t i = 0; i < m.nodes->size(); ++i) {
+			const auto &node = m.nodes->at(i);
+			std::string name = node.name.has_value() ? *node.name : ("node_" + std::to_string(i));
+			lua_createtable(L, 0, 8);
+			lua_pushinteger(L, i);
+			lua_setfield(L, -2, "index");
+			lua_pushstring(L, name.c_str());
+			lua_setfield(L, -2, "name");
+
+			if (node.camera.has_value()) {
+				lua_pushinteger(L, *node.camera);
+				lua_setfield(L, -2, "camera");
+			}
+			if (node.mesh.has_value()) {
+				lua_pushinteger(L, *node.mesh);
+				lua_setfield(L, -2, "mesh");
+			}
+			if (node.skin.has_value()) {
+				lua_pushinteger(L, *node.skin);
+				lua_setfield(L, -2, "skin");
+			}
+
+			if (node.children.has_value()) {
+				lua_createtable(L, node.children->size(), 0);
+				for (size_t j = 0; j < node.children->size(); ++j) {
+					lua_pushinteger(L, node.children->at(j));
+					lua_rawseti(L, -2, j + 1);
+				}
+				lua_setfield(L, -2, "children");
+			}
+
+			if (const auto *trs = std::get_if<tiniergltf::Node::TRS>(&node.transform)) {
+				// translation
+				lua_createtable(L, 0, 3);
+				lua_pushnumber(L, trs->translation[0]);
+				lua_setfield(L, -2, "x");
+				lua_pushnumber(L, trs->translation[1]);
+				lua_setfield(L, -2, "y");
+				lua_pushnumber(L, trs->translation[2]);
+				lua_setfield(L, -2, "z");
+				lua_setfield(L, -2, "translation");
+
+				// rotation
+				lua_createtable(L, 0, 4);
+				lua_pushnumber(L, trs->rotation[0]);
+				lua_setfield(L, -2, "x");
+				lua_pushnumber(L, trs->rotation[1]);
+				lua_setfield(L, -2, "y");
+				lua_pushnumber(L, trs->rotation[2]);
+				lua_setfield(L, -2, "z");
+				lua_pushnumber(L, trs->rotation[3]);
+				lua_setfield(L, -2, "w");
+				lua_setfield(L, -2, "rotation");
+
+				// scale
+				lua_createtable(L, 0, 3);
+				lua_pushnumber(L, trs->scale[0]);
+				lua_setfield(L, -2, "x");
+				lua_pushnumber(L, trs->scale[1]);
+				lua_setfield(L, -2, "y");
+				lua_pushnumber(L, trs->scale[2]);
+				lua_setfield(L, -2, "z");
+				lua_setfield(L, -2, "scale");
+			} else if (const auto *mat = std::get_if<tiniergltf::Node::Matrix>(&node.transform)) {
+				lua_createtable(L, 16, 0);
+				for (int j = 0; j < 16; ++j) {
+					lua_pushnumber(L, mat->at(j));
+					lua_rawseti(L, -2, j + 1);
+				}
+				lua_setfield(L, -2, "matrix");
+			}
+
+			lua_rawseti(L, -2, i + 1);
+		}
+	}
+	lua_setfield(L, -2, "nodes");
 
 	// meshes
 	lua_newtable(L);
 	if (m.meshes.has_value()) {
-		int outi = 1;
 		for (size_t i = 0; i < m.meshes->size(); ++i) {
 			const auto &mesh = m.meshes->at(i);
 			std::string name = mesh.name.has_value() ? *mesh.name : ("mesh_" + std::to_string(i));
 			lua_createtable(L, 0, 3);
-			lua_pushinteger(L, (lua_Integer)i);
+			lua_pushinteger(L, i);
 			lua_setfield(L, -2, "index");
-			lua_pushlstring(L, name.c_str(), name.size());
+			lua_pushstring(L, name.c_str());
 			lua_setfield(L, -2, "name");
-			lua_pushinteger(L, (lua_Integer)mesh.primitives.size());
+
+			lua_createtable(L, mesh.primitives.size(), 0);
+			for (size_t j = 0; j < mesh.primitives.size(); ++j) {
+				const auto &prim = mesh.primitives[j];
+				lua_createtable(L, 0, 3);
+				lua_pushinteger(L, static_cast<lua_Integer>(prim.mode));
+				lua_setfield(L, -2, "mode");
+				if (prim.indices.has_value()) {
+					lua_pushinteger(L, *prim.indices);
+					lua_setfield(L, -2, "indices");
+				}
+				if (prim.material.has_value()) {
+					lua_pushinteger(L, *prim.material);
+					lua_setfield(L, -2, "material");
+				}
+
+				// attributes
+				lua_createtable(L, 0, 7);
+				if (prim.attributes.position.has_value()) {
+					lua_pushinteger(L, *prim.attributes.position);
+					lua_setfield(L, -2, "POSITION");
+				}
+				if (prim.attributes.normal.has_value()) {
+					lua_pushinteger(L, *prim.attributes.normal);
+					lua_setfield(L, -2, "NORMAL");
+				}
+				if (prim.attributes.tangent.has_value()) {
+					lua_pushinteger(L, *prim.attributes.tangent);
+					lua_setfield(L, -2, "TANGENT");
+				}
+				if (prim.attributes.texcoord.has_value()) {
+					lua_createtable(L, prim.attributes.texcoord->size(), 0);
+					for (size_t ti = 0; ti < prim.attributes.texcoord->size(); ++ti) {
+						lua_pushinteger(L, prim.attributes.texcoord->at(ti));
+						lua_rawseti(L, -2, ti + 1);
+					}
+					lua_setfield(L, -2, "TEXCOORD");
+				}
+				if (prim.attributes.color.has_value()) {
+					lua_createtable(L, prim.attributes.color->size(), 0);
+					for (size_t ci = 0; ci < prim.attributes.color->size(); ++ci) {
+						lua_pushinteger(L, prim.attributes.color->at(ci));
+						lua_rawseti(L, -2, ci + 1);
+					}
+					lua_setfield(L, -2, "COLOR");
+				}
+				if (prim.attributes.joints.has_value()) {
+					lua_createtable(L, prim.attributes.joints->size(), 0);
+					for (size_t ji = 0; ji < prim.attributes.joints->size(); ++ji) {
+						lua_pushinteger(L, prim.attributes.joints->at(ji));
+						lua_rawseti(L, -2, ji + 1);
+					}
+					lua_setfield(L, -2, "JOINTS");
+				}
+				if (prim.attributes.weights.has_value()) {
+					lua_createtable(L, prim.attributes.weights->size(), 0);
+					for (size_t wi = 0; wi < prim.attributes.weights->size(); ++wi) {
+						lua_pushinteger(L, prim.attributes.weights->at(wi));
+						lua_rawseti(L, -2, wi + 1);
+					}
+					lua_setfield(L, -2, "WEIGHTS");
+				}
+				lua_setfield(L, -2, "attributes");
+
+				lua_rawseti(L, -2, j + 1);
+			}
 			lua_setfield(L, -2, "primitives");
-			lua_rawseti(L, -2, outi++);
+
+			lua_rawseti(L, -2, i + 1);
 		}
 	}
 	lua_setfield(L, -2, "meshes");
 
-	// bones (unique joint nodes across skins)
+	// skins (bones)
+	lua_newtable(L);
+	if (m.skins.has_value()) {
+		for (size_t i = 0; i < m.skins->size(); ++i) {
+			const auto &skin = m.skins->at(i);
+			std::string name = skin.name.has_value() ? *skin.name : ("skin_" + std::to_string(i));
+			lua_createtable(L, 0, 4);
+			lua_pushinteger(L, i);
+			lua_setfield(L, -2, "index");
+			lua_pushstring(L, name.c_str());
+			lua_setfield(L, -2, "name");
+			if (skin.skeleton.has_value()) {
+				lua_pushinteger(L, *skin.skeleton);
+				lua_setfield(L, -2, "skeleton");
+			}
+
+			lua_createtable(L, skin.joints.size(), 0);
+			for (size_t j = 0; j < skin.joints.size(); ++j) {
+				lua_pushinteger(L, skin.joints[j]);
+				lua_rawseti(L, -2, j + 1);
+			}
+			lua_setfield(L, -2, "joints");
+
+			lua_rawseti(L, -2, i + 1);
+		}
+	}
+	lua_setfield(L, -2, "skins");
+
+	// Legacy compatibility field: "bones"
 	lua_newtable(L);
 	std::unordered_set<size_t> joint_nodes;
 	if (m.skins.has_value()) {
@@ -396,10 +587,69 @@ int ModApiUtil::l_gltf_inspect(lua_State *L)
 	}
 	lua_setfield(L, -2, "bones");
 
+	// materials
+	lua_newtable(L);
+	if (m.materials.has_value()) {
+		for (size_t i = 0; i < m.materials->size(); ++i) {
+			const auto &mat = m.materials->at(i);
+			std::string name = mat.name.has_value() ? *mat.name : ("material_" + std::to_string(i));
+			lua_createtable(L, 0, 7);
+			lua_pushinteger(L, i);
+			lua_setfield(L, -2, "index");
+			lua_pushstring(L, name.c_str());
+			lua_setfield(L, -2, "name");
+			lua_pushboolean(L, mat.doubleSided);
+			lua_setfield(L, -2, "double_sided");
+
+			std::string alpha_mode = "OPAQUE";
+			if (mat.alphaMode == tiniergltf::Material::AlphaMode::BLEND) alpha_mode = "BLEND";
+			else if (mat.alphaMode == tiniergltf::Material::AlphaMode::MASK) alpha_mode = "MASK";
+			lua_pushstring(L, alpha_mode.c_str());
+			lua_setfield(L, -2, "alpha_mode");
+
+			lua_pushnumber(L, mat.alphaCutoff);
+			lua_setfield(L, -2, "alpha_cutoff");
+
+			// emissiveFactor
+			lua_createtable(L, 3, 0);
+			lua_pushnumber(L, mat.emissiveFactor[0]);
+			lua_rawseti(L, -2, 1);
+			lua_pushnumber(L, mat.emissiveFactor[1]);
+			lua_rawseti(L, -2, 2);
+			lua_pushnumber(L, mat.emissiveFactor[2]);
+			lua_rawseti(L, -2, 3);
+			lua_setfield(L, -2, "emissive_factor");
+
+			if (mat.pbrMetallicRoughness.has_value()) {
+				lua_createtable(L, 0, 4);
+				lua_pushnumber(L, mat.pbrMetallicRoughness->metallicFactor);
+				lua_setfield(L, -2, "metallic_factor");
+				lua_pushnumber(L, mat.pbrMetallicRoughness->roughnessFactor);
+				lua_setfield(L, -2, "roughness_factor");
+
+				// baseColorFactor
+				lua_createtable(L, 4, 0);
+				lua_pushnumber(L, mat.pbrMetallicRoughness->baseColorFactor[0]);
+				lua_rawseti(L, -2, 1);
+				lua_pushnumber(L, mat.pbrMetallicRoughness->baseColorFactor[1]);
+				lua_rawseti(L, -2, 2);
+				lua_pushnumber(L, mat.pbrMetallicRoughness->baseColorFactor[2]);
+				lua_rawseti(L, -2, 3);
+				lua_pushnumber(L, mat.pbrMetallicRoughness->baseColorFactor[3]);
+				lua_rawseti(L, -2, 4);
+				lua_setfield(L, -2, "base_color_factor");
+
+				lua_setfield(L, -2, "pbr_metallic_roughness");
+			}
+
+			lua_rawseti(L, -2, i + 1);
+		}
+	}
+	lua_setfield(L, -2, "materials");
+
 	// animations
 	lua_newtable(L);
 	if (m.animations.has_value()) {
-		int outa = 1;
 		for (size_t ai = 0; ai < m.animations->size(); ++ai) {
 			const auto &anim = m.animations->at(ai);
 			float min_time = std::numeric_limits<float>::infinity();
@@ -423,11 +673,12 @@ int ModApiUtil::l_gltf_inspect(lua_State *L)
 			float duration = max_time - min_time;
 			if (duration < 0.0f)
 				duration = 0.0f;
+
 			std::string name = anim.name.has_value() ? *anim.name : ("animation_" + std::to_string(ai));
-			lua_createtable(L, 0, 5);
-			lua_pushinteger(L, (lua_Integer)ai);
+			lua_createtable(L, 0, 7);
+			lua_pushinteger(L, ai);
 			lua_setfield(L, -2, "index");
-			lua_pushlstring(L, name.c_str(), name.size());
+			lua_pushstring(L, name.c_str());
 			lua_setfield(L, -2, "name");
 			lua_pushnumber(L, 0.0);
 			lua_setfield(L, -2, "start");
@@ -435,7 +686,53 @@ int ModApiUtil::l_gltf_inspect(lua_State *L)
 			lua_setfield(L, -2, "end");
 			lua_pushnumber(L, duration);
 			lua_setfield(L, -2, "duration");
-			lua_rawseti(L, -2, outa++);
+
+			// channels
+			lua_createtable(L, anim.channels.size(), 0);
+			for (size_t ci = 0; ci < anim.channels.size(); ++ci) {
+				const auto &chan = anim.channels[ci];
+				lua_createtable(L, 0, 3);
+				lua_pushinteger(L, chan.sampler);
+				lua_setfield(L, -2, "sampler");
+
+				lua_createtable(L, 0, 2);
+				if (chan.target.node.has_value()) {
+					lua_pushinteger(L, *chan.target.node);
+					lua_setfield(L, -2, "node");
+				}
+				std::string path_str = "translation";
+				if (chan.target.path == tiniergltf::AnimationChannelTarget::Path::ROTATION) path_str = "rotation";
+				else if (chan.target.path == tiniergltf::AnimationChannelTarget::Path::SCALE) path_str = "scale";
+				else if (chan.target.path == tiniergltf::AnimationChannelTarget::Path::WEIGHTS) path_str = "weights";
+				lua_pushstring(L, path_str.c_str());
+				lua_setfield(L, -2, "path");
+				lua_setfield(L, -2, "target");
+
+				lua_rawseti(L, -2, ci + 1);
+			}
+			lua_setfield(L, -2, "channels");
+
+			// samplers
+			lua_createtable(L, anim.samplers.size(), 0);
+			for (size_t si = 0; si < anim.samplers.size(); ++si) {
+				const auto &samp = anim.samplers[si];
+				lua_createtable(L, 0, 3);
+				lua_pushinteger(L, samp.input);
+				lua_setfield(L, -2, "input");
+				lua_pushinteger(L, samp.output);
+				lua_setfield(L, -2, "output");
+
+				std::string interp = "LINEAR";
+				if (samp.interpolation == tiniergltf::AnimationSampler::Interpolation::STEP) interp = "STEP";
+				else if (samp.interpolation == tiniergltf::AnimationSampler::Interpolation::CUBICSPLINE) interp = "CUBICSPLINE";
+				lua_pushstring(L, interp.c_str());
+				lua_setfield(L, -2, "interpolation");
+
+				lua_rawseti(L, -2, si + 1);
+			}
+			lua_setfield(L, -2, "samplers");
+
+			lua_rawseti(L, -2, ai + 1);
 		}
 	}
 	lua_setfield(L, -2, "animations");

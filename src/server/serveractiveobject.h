@@ -12,6 +12,20 @@
 #include "activeobject.h"
 #include "itemgroup.h"
 
+struct ServerAnimationLayer {
+	u8 clip_type = 0; // 0 = none, 1 = index, 2 = name
+	u16 clip_index = 0;
+	std::string clip_name;
+	v2f range = v2f(0, 0);
+	float speed = 1.0f;
+	float blend = 0.1f;
+	bool loop = true;
+	bool additive = false;
+	float weight = 1.0f;
+	float time = -1.0f;
+	std::vector<std::string> bone_mask;
+};
+
 
 /*
 
@@ -64,6 +78,7 @@ public:
 	*/
 	v3f getBasePosition() const { return m_base_position; }
 	virtual v3f getBoneWorldPos(const std::string &bone) { return getBasePosition(); }
+	virtual v3f getBoneWorldRotation(const std::string &bone) { return v3f(0, 0, 0); }
 	void setBasePosition(v3f pos);
 	ServerEnvironment* getEnv(){ return m_env; }
 
@@ -167,6 +182,14 @@ public:
 	{}
 	virtual void setAnimationSpeed(float frame_speed)
 	{}
+
+	virtual void setAnimationTime(float time) {}
+	virtual float getAnimationTime() const { return -1.0f; }
+	virtual void setAnimationLayers(const std::vector<ServerAnimationLayer> &layers) {}
+	virtual const std::vector<ServerAnimationLayer> &getAnimationLayers() const {
+		static const std::vector<ServerAnimationLayer> empty;
+		return empty;
+	}
 	virtual void setBoneOverride(const std::string &bone, const BoneOverride &props)
 	{}
 	virtual BoneOverride getBoneOverride(const std::string &bone)

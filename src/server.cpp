@@ -2026,6 +2026,29 @@ void Server::SendSetMoon(session_t peer_id, const MoonParams &params)
 	Send(&pkt);
 }
 
+void Server::SendSetDynamicTexture(session_t peer_id, const std::string &texture_name, u8 type, const std::string &id, const std::string &name)
+{
+	NetworkPacket pkt(TOCLIENT_SET_DYNAMIC_TEXTURE, 1 + texture_name.size() + 1 + id.size() + name.size(), peer_id);
+	pkt << texture_name;
+	pkt << type;
+	pkt << id;
+	pkt << name;
+	if (peer_id == PEER_ID_INEXISTENT) {
+		m_clients.sendToAll(&pkt);
+	} else {
+		Send(&pkt);
+	}
+}
+
+void Server::SendSetDynamicTextureUpdate(const std::string &texture_name, const std::string &png_data)
+{
+	NetworkPacket pkt(TOCLIENT_SET_DYNAMIC_TEXTURE, 1 + texture_name.size() + 1 + png_data.size(), PEER_ID_INEXISTENT);
+	pkt << texture_name;
+	pkt << static_cast<u8>(3); // 3 = raw image update
+	pkt << png_data;
+	m_clients.sendToAll(&pkt);
+}
+
 void Server::SendOverrideDayNightRatio(session_t peer_id, bool do_override,
 		float ratio)
 {
@@ -2072,6 +2095,20 @@ void Server::SendCamera(session_t peer_id, Player *player)
 	pkt << flags;
 
 	pkt << player->camera_tilt;
+
+	// Send camera modifiers
+	pkt << static_cast<u16>(player->camera_modifiers.size());
+	for (const auto &pair : player->camera_modifiers) {
+		pkt << pair.first; // string
+		pkt << pair.second.offset; // v3f
+		pkt << pair.second.rotation; // v3f
+		pkt << pair.second.fov; // f32
+		pkt << pair.second.shake_intensity; // f32
+		pkt << pair.second.shake_speed; // f32
+		pkt << pair.second.recoil; // v3f
+		pkt << pair.second.sway_intensity; // f32
+		pkt << pair.second.sway_speed; // f32
+	}
 
 	Send(&pkt);
 }

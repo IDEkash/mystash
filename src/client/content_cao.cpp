@@ -408,6 +408,24 @@ v3f GenericCAO::getBoneWorldPos(const std::string &bone_name)
 	return bone->getAbsolutePosition() + intToFloat(camera_offset, BS);
 }
 
+v3f GenericCAO::getBoneWorldRotation(const std::string &bone_name)
+{
+	if (!m_animated_meshnode)
+		return getRotation();
+
+	scene::BoneSceneNode *bone = m_animated_meshnode->getJointNode(bone_name.c_str());
+	if (!bone)
+		return getRotation();
+
+	GenericCAO::updateParentChain();
+	m_animated_meshnode->updateAbsolutePosition();
+
+	core::matrix4 abs_mat = bone->getAbsoluteTransformation();
+	core::vector3df scale = abs_mat.getScale();
+	core::vector3df rot_rad = abs_mat.getRotationRadians(scale);
+	return rot_rad * core::RADTODEG;
+}
+
 bool GenericCAO::isImmortal() const
 {
 	return itemgroup_get(getGroups(), "immortal");
@@ -1462,7 +1480,8 @@ void GenericCAO::updateAnimation()
 		return;
 
 	v2f range = m_animation_range;
-	if (auto *skinned = dynamic_cast<scene::SkinnedMesh *>(m_animated_meshnode->getMesh())) {
+	auto *skinned = dynamic_cast<scene::SkinnedMesh *>(m_animated_meshnode->getMesh());
+	if (skinned) {
 		const scene::SkinnedMesh::AnimationClip *clip = nullptr;
 		if (m_animation_clip_type == 2 && !m_animation_clip_name.empty())
 			clip = skinned->getAnimationClipByName(m_animation_clip_name);
@@ -1482,6 +1501,69 @@ void GenericCAO::updateAnimation()
 	}
 
 	m_animated_meshnode->setAnimation(range.X, range.Y, m_animation_speed, m_animation_loop, m_animation_blend);
+
+	if (m_animation_time >= 0.0f) {
+		m_animated_meshnode->setCurrentFrame(range.X + m_animation_time);
+	}
+
+	// Apply layers to animated meshnode
+	if (skinned) {
+		std::vector<scene::ClientAnimationLayer> applied_layers;
+		applied_layers.reserve(m_animation_layers.size());
+
+		for (const auto &src_layer : m_animation_layers) {
+			scene::ClientAnimationLayer layer;
+			const scene::SkinnedMesh::AnimationClip *clip = nullptr;
+			if (src_layer.clip_type == 2 && !src_layer.clip_name.empty())
+				clip = skinned->getAnimationClipByName(src_layer.clip_name);
+			else if (src_layer.clip_type == 1)
+				clip = skinned->getAnimationClip(src_layer.clip_index);
+			if (!clip && src_layer.clip_type != 0)
+				clip = skinned->getAnimationClip(0);
+
+			if (clip) {
+				if (src_layer.range.X == 0 && src_layer.range.Y == 0) {
+					layer.start_frame = clip->start;
+					layer.end_frame = clip->end;
+				} else {
+					layer.start_frame = clip->start + src_layer.range.X;
+					layer.end_frame = std::min(clip->start + src_layer.range.Y, clip->end);
+				}
+			} else {
+				layer.start_frame = src_layer.range.X;
+				layer.end_frame = src_layer.range.Y;
+			}
+
+			layer.speed = src_layer.speed;
+			layer.loop = src_layer.loop;
+			layer.additive = src_layer.additive;
+
+			// Setup dynamic weight blending for the layer transition
+			layer.blend_active = src_layer.blend > 0.0f;
+			if (layer.blend_active) {
+				layer.blend_start_weight = 0.0f;
+				layer.blend_target_weight = src_layer.weight;
+				layer.blend_duration_ms = static_cast<u32>(src_layer.blend * 1000.0f);
+				layer.blend_elapsed_ms = 0;
+			} else {
+				layer.weight = src_layer.weight;
+			}
+
+			// Initial frame/time setup
+			if (src_layer.time >= 0.0f) {
+				layer.current_frame = layer.start_frame + src_layer.time;
+			} else {
+				layer.current_frame = layer.start_frame;
+			}
+
+			for (const auto &bone : src_layer.bone_mask) {
+				layer.bone_mask.insert(bone);
+			}
+
+			applied_layers.push_back(layer);
+		}
+		m_animated_meshnode->setAnimationLayers(applied_layers);
+	}
 }
 
 void GenericCAO::updateAnimationSpeed()
@@ -1757,6 +1839,39 @@ void GenericCAO::processMessage(const std::string &data)
 		m_animation_clip_type = clip_type;
 		m_animation_clip_index = clip_index;
 		m_animation_clip_name = std::move(clip_name);
+
+		float anim_time = -1.0f;
+		if (canRead(is)) {
+			anim_time = readF32(is);
+		}
+		m_animation_time = anim_time;
+
+		m_animation_layers.clear();
+		if (canRead(is)) {
+			u8 layers_count = readU8(is);
+			for (u8 li = 0; li < layers_count; ++li) {
+				GenericCAOAnimationLayer layer;
+				layer.clip_type = readU8(is);
+				if (layer.clip_type == 1) {
+					layer.clip_index = readU16(is);
+				} else if (layer.clip_type == 2) {
+					layer.clip_name = deSerializeString16(is);
+				}
+				layer.range = readV2F32(is);
+				layer.speed = readF32(is);
+				layer.blend = readF32(is);
+				u8 flags = readU8(is);
+				layer.loop = (flags & 1) != 0;
+				layer.additive = (flags & 2) != 0;
+				layer.weight = readF32(is);
+				layer.time = readF32(is);
+				u16 mask_count = readU16(is);
+				for (u16 mi = 0; mi < mask_count; ++mi) {
+					layer.bone_mask.push_back(deSerializeString16(is));
+				}
+				m_animation_layers.push_back(layer);
+			}
+		}
 
 		if (m_is_local_player) {
 			LocalPlayer *player = m_env->getLocalPlayer();
