@@ -3704,6 +3704,7 @@ void Game::drawScene(ProfilerGraph *graph, RunStats *stats)
 	TimeTaker tt_draw("Draw scene", nullptr, PRECISION_MICRO);
 	this->driver->beginScene(true, true, sky_color);
 
+	const LocalPlayer *player = this->client->getEnv().getLocalPlayer();
 	if (!player)
 		return;
 
