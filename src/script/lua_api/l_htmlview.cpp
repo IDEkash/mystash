@@ -148,17 +148,23 @@ int ModApiHTMLView::l_display(lua_State *L)
 	lua_pop(L, 1);
 
 	lua_getfield(L, 2, "width");
-	if (lua_isnumber(L, -1))
+	if (lua_isnumber(L, -1)) {
 		w = (int)lua_tointeger(L, -1);
-	else if (isStringEqCI(L, -1, "fullscreen"))
+		if (w < 0)
+			w = 0;
+	} else if (isStringEqCI(L, -1, "fullscreen")) {
 		fullscreen = true;
+	}
 	lua_pop(L, 1);
 
 	lua_getfield(L, 2, "height");
-	if (lua_isnumber(L, -1))
+	if (lua_isnumber(L, -1)) {
 		h = (int)lua_tointeger(L, -1);
-	else if (isStringEqCI(L, -1, "fullscreen"))
+		if (h < 0)
+			h = 0;
+	} else if (isStringEqCI(L, -1, "fullscreen")) {
 		fullscreen = true;
+	}
 	lua_pop(L, 1);
 
 	htmlview_jni_display(id, x, y, w, h, visible, fullscreen, safe_area,
@@ -322,7 +328,7 @@ int ModApiHTMLView::l_shared_set(lua_State *L)
 #ifdef __ANDROID__
 	std::string key = readParam<std::string>(L, 1);
 	const char *val = nullptr;
-	if (!lua_isnil(L, 2))
+	if (!lua_isnoneornil(L, 2))
 		val = luaL_checkstring(L, 2);
 	htmlview_jni_shared_set(key, val);
 #endif

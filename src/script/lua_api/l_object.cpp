@@ -3,6 +3,7 @@
 // Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
 
 #include "lua_api/l_object.h"
+#include <set>
 #include <unordered_set>
 #include <cmath>
 #include <lua.h>
@@ -816,27 +817,38 @@ int ObjectRef::l_set_camera(lua_State *L)
 		player->camera_anti_tilt_controller = lua_toboolean(L, -1);
 	lua_pop(L, 1);
 
-	lua_getfield(L, -1, "fov");
+	PlayerFovSpec fov_spec = player->getFov();
+	bool fov_changed = false;
+
+	lua_getfield(L, 2, "fov");
 	if (lua_isnumber(L, -1)) {
-		PlayerFovSpec s = player->getFov();
 		float fov = lua_tonumber(L, -1);
-		if (std::isfinite(fov))
-			s.fov = fov;
-
-		lua_getfield(L, 2, "fov_is_multiplier");
-		if (lua_isboolean(L, -1))
-			s.is_multiplier = lua_toboolean(L, -1);
-		lua_pop(L, 1);
-
-		lua_getfield(L, 2, "fov_transition");
-		if (lua_isnumber(L, -1))
-			s.transition_time = lua_tonumber(L, -1);
-		lua_pop(L, 1);
-
-		if (player->setFov(s))
-			getServer(L)->SendPlayerFov(player->getPeerId());
+		if (std::isfinite(fov)) {
+			fov_spec.fov = fov;
+			fov_changed = true;
+		}
 	}
 	lua_pop(L, 1);
+
+	lua_getfield(L, 2, "fov_is_multiplier");
+	if (lua_isboolean(L, -1)) {
+		fov_spec.is_multiplier = lua_toboolean(L, -1);
+		fov_changed = true;
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, 2, "fov_transition");
+	if (lua_isnumber(L, -1)) {
+		float t = lua_tonumber(L, -1);
+		if (std::isfinite(t)) {
+			fov_spec.transition_time = t;
+			fov_changed = true;
+		}
+	}
+	lua_pop(L, 1);
+
+	if (fov_changed && player->setFov(fov_spec))
+		getServer(L)->SendPlayerFov(player->getPeerId());
 
 	getServer(L)->SendCamera(player->getPeerId(), player);
 	return 0;
@@ -1158,15 +1170,17 @@ int ObjectRef::l_set_bone_override(lua_State *L)
 
 	std::string bone = readParam<std::string>(L, 2);
 
-	BoneOverride props;
 	if (lua_isnoneornil(L, 3)) {
-		sao->setBoneOverride(bone, props);
+		sao->setBoneOverride(bone, BoneOverride());
 		return 0;
 	}
 
+	BoneOverride props = sao->getBoneOverride(bone);
+
 	auto read_prop_attrs = [L](auto &prop) {
 		lua_getfield(L, -1, "absolute");
-		prop.absolute = lua_toboolean(L, -1);
+		if (lua_isboolean(L, -1))
+			prop.absolute = lua_toboolean(L, -1);
 		lua_pop(L, 1);
 
 		lua_getfield(L, -1, "interpolation");
@@ -1368,7 +1382,7 @@ int ObjectRef::l_get_bone_list(lua_State *L)
 
 				lua_newtable(L);
 				int table_idx = 1;
-				std::unordered_set<size_t> joint_nodes;
+				std::set<size_t> joint_nodes;
 				if (model->skins.has_value()) {
 					for (const auto &skin : *model->skins) {
 						for (size_t node : skin.joints) {
@@ -2112,10 +2126,20 @@ int ObjectRef::l_get_fov(lua_State *L)
 
 	const auto &fov_spec = player->getFov();
 
+	lua_createtable(L, 3, 3);
+	setfloatfield(L, -1, "fov", fov_spec.fov);
+	setboolfield(L, -1, "is_multiplier", fov_spec.is_multiplier);
+	setfloatfield(L, -1, "transition_time", fov_spec.transition_time);
+
+	// Array fallback for legacy code unpacking (fov, is_multiplier, transition_time)
 	lua_pushnumber(L, fov_spec.fov);
+	lua_rawseti(L, -2, 1);
 	lua_pushboolean(L, fov_spec.is_multiplier);
+	lua_rawseti(L, -2, 2);
 	lua_pushnumber(L, fov_spec.transition_time);
-	return 3;
+	lua_rawseti(L, -2, 3);
+
+	return 1;
 }
 
 // set_breath(self, breath)

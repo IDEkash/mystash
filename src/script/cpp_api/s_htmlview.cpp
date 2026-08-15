@@ -57,6 +57,7 @@ void ScriptApiHTMLView::on_htmlview_message(const std::string &id, const std::st
 				ok = reader->parse(message.data(), message.data() + message.size(), &root, &errmsg);
 			}
 
+			int top_before = lua_gettop(L);
 			lua_pushnil(L);
 			int nullindex = lua_gettop(L);
 			if (ok) {
@@ -65,9 +66,12 @@ void ScriptApiHTMLView::on_htmlview_message(const std::string &id, const std::st
 					ok = false;
 				}
 			}
-			if (!ok)
+			if (!ok) {
+				lua_settop(L, top_before);
 				lua_pushnil(L);
-			lua_remove(L, nullindex);
+			} else {
+				lua_remove(L, nullindex);
+			}
 
 			lua_pushlstring(L, message.c_str(), message.size());
 			if (!ok)
