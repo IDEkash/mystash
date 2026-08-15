@@ -697,8 +697,10 @@ void ModApiServer::read_fog_params(lua_State *L, int idx, FogParams &p)
 	p.active = true;
 
 	lua_getfield(L, idx, "color");
-	if (!lua_isnil(L, -1))
-		read_color(L, -1, &p.color);
+	if (!lua_isnil(L, -1)) {
+		if (read_color(L, -1, &p.color))
+			p.has_color = true;
+	}
 	lua_pop(L, 1);
 
 	p.fog_start = getfloatfield_default(L, idx, "fog_start", p.fog_start);

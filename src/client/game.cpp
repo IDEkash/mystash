@@ -3843,7 +3843,8 @@ void Game::drawScene(ProfilerGraph *graph, RunStats *stats)
 	if (player) {
 		const FogParams &fp = player->getEffectiveFogParams();
 		if (fp.active) {
-			fog_color_effective = fp.color;
+			if (fp.has_color)
+				fog_color_effective = fp.color;
 			if (fp.fog_start >= 0.0f)
 				fog_start_ratio = fp.fog_start;
 			if (fp.fog_end >= 0.0f)

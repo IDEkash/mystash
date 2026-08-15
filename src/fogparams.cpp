@@ -72,7 +72,7 @@ void fog_serialize(NetworkPacket &pkt, const FogParams &p_in)
 	pkt << VERSION;
 	pkt << p.active;
 
-	pkt << p.color << p.fog_start << p.fog_end << p.blend_time;
+	pkt << p.color << p.has_color << p.fog_start << p.fog_end << p.blend_time;
 	pkt << p.max_density << p.max_density_height << p.zero_density_height;
 	pkt << p.uniform << p.direction;
 	pkt << p.turbulence;
@@ -105,7 +105,7 @@ void fog_deserialize(NetworkPacket &pkt, FogParams &p)
 
 	pkt >> p.active;
 
-	pkt >> p.color >> p.fog_start >> p.fog_end >> p.blend_time;
+	pkt >> p.color >> p.has_color >> p.fog_start >> p.fog_end >> p.blend_time;
 	pkt >> p.max_density >> p.max_density_height >> p.zero_density_height;
 	pkt >> p.uniform >> p.direction;
 	pkt >> p.turbulence;

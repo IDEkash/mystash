@@ -21,7 +21,7 @@ enum class FogBoundaryShape : u8 {
 struct FogColorKeyframe
 {
 	f32 time = 0.0f; // [0..1]
-	video::SColor color {0};
+	video::SColor color {255, 255, 255, 255};
 };
 
 struct FogColorTransition
@@ -34,7 +34,7 @@ struct FogColorTransition
 
 struct FogLayer
 {
-	video::SColor color {0, 255, 255, 255};
+	video::SColor color {255, 255, 255, 255};
 	f32 max_density = 1.0f;
 	f32 max_density_height = 0.0f;
 	f32 zero_density_height = 0.0f;
@@ -47,7 +47,8 @@ struct FogParams
 	bool active = false;
 
 	// Existing fields (kept stable):
-	video::SColor color {0, 255, 255, 255};
+	video::SColor color {255, 255, 255, 255};
+	bool has_color = false;
 	f32 fog_start = -1.0f; // [0..0.99], fraction of viewing range (-1 = default)
 	f32 fog_end = -1.0f;   // [0..1], fraction of viewing range (-1 = default)
 	f32 blend_time = 0.0f; // seconds
