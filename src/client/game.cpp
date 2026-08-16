@@ -3674,6 +3674,7 @@ void Game::drawScene(ProfilerGraph *graph, RunStats *stats)
 
 	const video::SColor fog_color = this->sky->getFogColor();
 	const video::SColor sky_color = this->sky->getSkyColor();
+	const LocalPlayer *player = this->client->getEnv().getLocalPlayer();
 
 	/*
 		Fog
