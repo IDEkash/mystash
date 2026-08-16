@@ -406,6 +406,7 @@ add_custom_target(GenerateVersion
 	WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 
 
+add_subdirectory(unapi)
 add_subdirectory(threading)
 add_subdirectory(content)
 add_subdirectory(database)
@@ -453,6 +454,7 @@ set(independent_SRCS
 	${common_network_SRCS}
 	${content_SRCS}
 	${database_SRCS}
+	${unapi_SRCS}
 	${threading_SRCS}
 	${util_SRCS}
 )
@@ -580,6 +582,7 @@ endif()
 include_directories(
 	${PROJECT_BINARY_DIR}
 	${PROJECT_SOURCE_DIR}
+	${PROJECT_SOURCE_DIR}/unapi
 	${PROJECT_SOURCE_DIR}/script
 )
 include_directories(SYSTEM
