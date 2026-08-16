@@ -214,8 +214,6 @@ public:
 	void handleCommand_MediaPush(NetworkPacket *pkt);
 		void handleCommand_MinimapModes(NetworkPacket *pkt);
 		void handleCommand_SetLighting(NetworkPacket *pkt);
-		void handleCommand_SetFog(NetworkPacket *pkt);
-		void handleCommand_SetFogBoundary(NetworkPacket *pkt);
 		void handleCommand_Camera(NetworkPacket* pkt);
 		void handleCommand_SwitchWorld(NetworkPacket *pkt);
 

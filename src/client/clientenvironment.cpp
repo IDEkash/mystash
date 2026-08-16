@@ -204,8 +204,6 @@ void ClientEnvironment::step(float dtime)
 		lplayer->move(dtime_part, this, &player_collisions);
 	}
 
-	lplayer->stepFog(dtime, this);
-
 	bool player_immortal = false;
 	f32 player_fall_factor = 1.0f;
 	GenericCAO *playercao = lplayer->getCAO();

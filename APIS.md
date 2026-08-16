@@ -727,52 +727,6 @@ An accessibility setting that gates the engine's internal joystick-driven speed 
 
 ---
 
-## Fog API (Lua)
-
-Extended volumetric and height-based fog controls.
-
-`core.set_fog(player, params_or_nil)`
-- Sets custom fog parameters for a specific player. Pass `nil` to clear.
-- `params`:
-  - `color`: ColorSpec (default: sky fog color)
-  - `fog_start`: number (`0..0.99`, fraction of view distance; pass a negative value to leave at engine default)
-  - `fog_end`: number (`0..1`, fraction of view distance; pass a negative value to leave at engine default; clamped to ≥ `fog_start` when both are non-negative)
-  - `blend_time`: number (seconds, transition duration; clamped to ≥ `0`)
-  - `max_density`: number (`0..1`, opacity at max height; clamped)
-  - `max_density_height`: number (node-space height for max density)
-  - `zero_density_height`: number (node-space height where fog disappears)
-  - `uniform`: boolean (if true, ignores height density)
-  - `direction`: v3f (up vector for height calculation, default `{x=0,y=1,z=0}`; normalized automatically)
-  - `turbulence`: number (`0..1`, noise factor; clamped)
-  - `speed_density_scale`: number (multiplier for density based on player speed; clamped to ≥ `0`)
-  - `layers`: array of up to **4** extra fog layer tables (excess entries are silently dropped). Each layer supports: `color`, `max_density`, `max_density_height`, `zero_density_height`, `uniform`, `direction`.
-  - `color_transition`: table (dynamic color animation):
-    - `speed`: number (animation speed; clamped to ≥ `0`)
-    - Up to **8** keyframes (excess entries are silently dropped), provided as an array directly in the table or in a `keyframes` sub-array:
-      - `{ time = number(0..1), color = ColorSpec }`
-    - Keyframes are automatically sorted by time after parsing.
-
-`core.set_fog_boundary(player, params_or_nil)`
-- Defines a localized fog zone. Pass `nil` to clear.
-- `params`:
-  - `pos`: v3f (center of the zone)
-  - `radius`: number (node-space size; clamped to ≥ `0`)
-  - `shape`: string (`"sphere"` (default), `"box"`, `"cylinder"`)
-  - `fog`: table (FogParams structure as defined above)
-  - `sound`: table (optional ambient sound inside zone):
-    - `name`: string
-    - `gain`: number (clamped to ≥ `0`)
-    - `fade_in`: number (seconds; clamped to ≥ `0`)
-
-`core.register_biome_atmosphere(biome_id, params)`
-- Registers fog and/or boundary parameters for a specific biome.
-- `biome_id`: integer
-- `params`:
-  - `fog`: table (FogParams)
-  - `boundary`: table (FogBoundaryParams)
-
----
-
 ## World Switching API (Lua)
 
 Allows automatically leaving the current world and joining another world by name.

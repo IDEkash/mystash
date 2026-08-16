@@ -13,7 +13,7 @@ add_library(tiniergltf::tiniergltf ALIAS tiniergltf)
 set_target_properties(tiniergltf PROPERTIES LINKER_LANGUAGE CXX)
 
 target_include_directories(tiniergltf
-  INTERFACE
+  PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
 	"${JSON_INCLUDE_DIR}" # Set in FindJson.cmake
   "${CMAKE_SOURCE_DIR}/src" # util/base64.h

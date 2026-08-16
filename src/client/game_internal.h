@@ -275,8 +275,6 @@ private:
 	void handleClientEvent_SetSun(ClientEvent *event, CameraOrientation *cam);
 	void handleClientEvent_SetMoon(ClientEvent *event, CameraOrientation *cam);
 	void handleClientEvent_SetStars(ClientEvent *event, CameraOrientation *cam);
-	void handleClientEvent_SetFog(ClientEvent *event, CameraOrientation *cam);
-	void handleClientEvent_SetFogBoundary(ClientEvent *event, CameraOrientation *cam);
 	void handleClientEvent_OverrideDayNightRatio(ClientEvent *event,
 		CameraOrientation *cam);
 	void handleClientEvent_CloudParams(ClientEvent *event, CameraOrientation *cam);

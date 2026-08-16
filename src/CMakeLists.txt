@@ -486,7 +486,6 @@ set(common_SRCS
 	raycast.cpp
 		reflowscan.cpp
 		remoteplayer.cpp
-		fogparams.cpp
 		rollback_interface.cpp
 	server.cpp
 	serverenvironment.cpp
@@ -581,6 +580,7 @@ include_directories(
 	${PROJECT_BINARY_DIR}
 	${PROJECT_SOURCE_DIR}
 	${PROJECT_SOURCE_DIR}/script
+	${PROJECT_SOURCE_DIR}/lib/tiniergltf
 )
 include_directories(SYSTEM
 	${ZLIB_INCLUDE_DIR}
@@ -805,6 +805,7 @@ if(BUILD_SERVER)
 		${LUA_LIBRARY}
 		${LUA_BIT_LIBRARY}
 		lstrpack
+		tiniergltf::tiniergltf
 		sha256
 		${GMP_LIBRARY}
 		${PLATFORM_LIBS}
