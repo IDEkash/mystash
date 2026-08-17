@@ -1,0 +1,9 @@
+set(unapi_SRCS
+	${CMAKE_CURRENT_SOURCE_DIR}/unapi_types.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/unapi_object.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/unapi_hooks.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/unapi_storage.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/unapi_network.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/unapi_registry.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/unapi_foundations.cpp
+	PARENT_SCOPE)
