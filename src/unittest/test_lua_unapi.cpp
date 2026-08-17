@@ -19,6 +19,7 @@ public:
 
 	void runTests(IGameDef *gamedef) override {
 		TEST(testLuaUnapiCoreAndValidations);
+		TEST(testUserRealExampleMod);
 	}
 
 private:
@@ -193,6 +194,73 @@ private:
 		if (status != 0) {
 			std::string err = lua_tostring(L, -1);
 			errorstream << "Lua UNAPI Test Failed:\n" << err << std::endl;
+			lua_close(L);
+			UASSERT(false);
+			return;
+		}
+
+		lua_close(L);
+	}
+
+	void testUserRealExampleMod() {
+		lua_State *L = luaL_newstate();
+		luaL_openlibs(L);
+
+		lua_newtable(L);
+		lua_setglobal(L, "core");
+
+		unapi::UnapiRegistry::get().initializeFoundations();
+		ModApiUnapi::Initialize(L, 0);
+
+		const char *script = R"lua(
+			local unapi = rawget(_G, "unapi") or (core and core.unapi)
+			assert(unapi ~= nil, "unapi must be available")
+
+			local camera = unapi.create("render.camera", "unapi_real_example")
+			local target = unapi.create("render.target", "unapi_real_example")
+			local pass = unapi.create("render.pass", "unapi_real_example")
+			local material = unapi.create("asset.material", "unapi_real_example")
+
+			assert(camera ~= nil and target ~= nil and pass ~= nil and material ~= nil, "creation failed")
+
+			camera:set_property("position", {x = 8, y = 5, z = 8})
+			camera:set_property("rotation", {x = 0, y = 225, z = 0})
+			camera:set_property("fov", 70.0)
+			camera:set_property("enabled", true)
+
+			target:resize(256, 256)
+			assert(target:get_property("width") == 256 and target:get_property("height") == 256, "target resize failed")
+
+			pass:set_property("camera", camera)
+			pass:set_property("target", target)
+			pass:set_property("enabled", true)
+
+			local texture = target:get_property("texture")
+			assert(texture ~= nil, "texture must exist")
+
+			material:set_property("texture", texture)
+			assert(material:get_property("texture") == texture, "material texture binding failed")
+
+			local ok = pass:execute()
+			assert(ok == true, "pass execution failed")
+
+			print("[LUA UNAPI TEST] User real example mod script executed 100% successfully!")
+		)lua";
+
+		lua_getglobal(L, "debug");
+		lua_getfield(L, -1, "traceback");
+		lua_remove(L, -2);
+
+		int errfunc = lua_gettop(L);
+
+		int status = luaL_loadstring(L, script);
+		if (status == 0) {
+			status = lua_pcall(L, 0, 0, errfunc);
+		}
+
+		if (status != 0) {
+			std::string err = lua_tostring(L, -1);
+			errorstream << "User Real Example Test Failed:\n" << err << std::endl;
 			lua_close(L);
 			UASSERT(false);
 			return;

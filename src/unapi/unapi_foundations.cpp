@@ -95,15 +95,37 @@ RenderCamera::RenderCamera() : UnapiObject("render.camera") {
 	});
 }
 
+struct SavedCameraState {
+	v3f pos;
+	v3f target;
+	v3f up;
+	f32 fov {1.0f};
+	f32 near_plane {0.1f};
+	f32 far_plane {1000.0f};
+	f32 aspect {1.777f};
+};
+
 Value RenderCamera::renderView() {
 	if (!m_enabled) return Value(false);
 
 #if IS_CLIENT_BUILD
 	auto driver = RenderingEngine::get_video_driver();
-	auto smgr = RenderingEngine::get_raw_device()->getSceneManager();
+	auto smgr = RenderingEngine::get_raw_device() ? RenderingEngine::get_raw_device()->getSceneManager() : nullptr;
+	SavedCameraState saved;
+	bool camera_saved = false;
+
 	if (driver && smgr) {
 		scene::ICameraSceneNode *cam = smgr->getActiveCamera();
 		if (cam) {
+			saved.pos = cam->getPosition();
+			saved.target = cam->getTarget();
+			saved.up = cam->getUpVector();
+			saved.fov = cam->getFOV();
+			saved.near_plane = cam->getNearValue();
+			saved.far_plane = cam->getFarValue();
+			saved.aspect = cam->getAspectRatio();
+			camera_saved = true;
+
 			cam->setPosition(v3f(m_position.x, m_position.y, m_position.z));
 			cam->setTarget(v3f(m_position.x + m_rotation.x, m_position.y + m_rotation.y, m_position.z + m_rotation.z));
 			cam->setFOV(m_fov * M_PI / 180.0f);
@@ -118,6 +140,23 @@ Value RenderCamera::renderView() {
 	ValueArray hook_args;
 	hook_args.push_back(Value(getHandleId()));
 	HookRegistry::get().executeHooks("render.camera.render", hook_args);
+
+#if IS_CLIENT_BUILD
+	if (driver && smgr && camera_saved) {
+		scene::ICameraSceneNode *cam = smgr->getActiveCamera();
+		if (cam) {
+			cam->setPosition(saved.pos);
+			cam->setTarget(saved.target);
+			cam->setUpVector(saved.up);
+			cam->setFOV(saved.fov);
+			cam->setNearValue(saved.near_plane);
+			cam->setFarValue(saved.far_plane);
+			cam->setAspectRatio(saved.aspect);
+			cam->updateAbsolutePosition();
+		}
+	}
+#endif
+
 	return Value(true);
 }
 
@@ -156,6 +195,9 @@ RenderTargetObject::RenderTargetObject() : UnapiObject("render.target") {
 	m_texture = std::make_shared<RenderTextureObject>();
 	addChild("texture", m_texture);
 
+	m_texture_name = "unapi_rt_" + std::to_string(reinterpret_cast<uintptr_t>(this));
+	std::static_pointer_cast<RenderTextureObject>(m_texture)->setName(m_texture_name);
+
 	registerGetter("width", [](const UnapiObject *obj) {
 		return Value(static_cast<int64_t>(static_cast<const RenderTargetObject*>(obj)->m_width));
 	});
@@ -187,21 +229,67 @@ RenderTargetObject::RenderTargetObject() : UnapiObject("render.target") {
 	});
 }
 
+RenderTargetObject::~RenderTargetObject() {
+#if IS_CLIENT_BUILD
+	auto driver = RenderingEngine::get_video_driver();
+	if (driver) {
+		if (m_irr_render_target) driver->removeRenderTarget(m_irr_render_target);
+		if (m_irr_texture) driver->removeTexture(m_irr_texture);
+	}
+#endif
+}
+
 void RenderTargetObject::resize(int w, int h) {
+	if (w <= 0) w = 1;
+	if (h <= 0) h = 1;
 	m_width = w;
 	m_height = h;
 	if (m_texture) {
 		auto tex = std::static_pointer_cast<RenderTextureObject>(m_texture);
 		tex->setDimensions(w, h);
 	}
+#if IS_CLIENT_BUILD
+	auto driver = RenderingEngine::get_video_driver();
+	if (driver) {
+		if (m_irr_render_target) {
+			driver->removeRenderTarget(m_irr_render_target);
+			m_irr_render_target = nullptr;
+		}
+		if (m_irr_texture) {
+			driver->removeTexture(m_irr_texture);
+			m_irr_texture = nullptr;
+		}
+	}
+#endif
 }
 
 bool RenderTargetObject::bindTarget() {
 #if IS_CLIENT_BUILD
 	auto driver = RenderingEngine::get_video_driver();
 	if (driver) {
-		// Activate offscreen target framebuffer
-		driver->OnResize(core::dimension2du(m_width, m_height));
+		if (m_texture_name.empty()) {
+			m_texture_name = "unapi_rt_" + std::to_string(getHandleId());
+			if (m_texture) {
+				std::static_pointer_cast<RenderTextureObject>(m_texture)->setName(m_texture_name);
+			}
+		}
+
+		if (!m_irr_render_target || !m_irr_texture) {
+			m_irr_texture = driver->addRenderTargetTexture(core::dimension2du(m_width, m_height), m_texture_name.c_str(), video::ECF_A8R8G8B8);
+			m_irr_render_target = driver->addRenderTarget();
+			if (m_irr_render_target && m_irr_texture) {
+				m_irr_render_target->setTexture(m_irr_texture, nullptr);
+			}
+		}
+
+		if (m_irr_render_target) {
+			m_saved_render_target = driver->getCurrentRenderTarget();
+			m_saved_viewport = driver->getViewPort();
+
+			video::SColor clear_col(255, (u32)(m_clear_color.x * 255), (u32)(m_clear_color.y * 255), (u32)(m_clear_color.z * 255));
+			driver->setRenderTargetEx(m_irr_render_target, video::ECBF_COLOR | video::ECBF_DEPTH, clear_col);
+			driver->setViewPort(core::rect<s32>(0, 0, m_width, m_height));
+		}
 	}
 #endif
 	return true;
@@ -211,9 +299,10 @@ bool RenderTargetObject::unbindTarget() {
 #if IS_CLIENT_BUILD
 	auto driver = RenderingEngine::get_video_driver();
 	if (driver) {
-		// Restore default screen target framebuffer
-		driver->setRenderTargetEx(nullptr, video::ECBF_NONE);
-		driver->OnResize(RenderingEngine::getWindowSize());
+		driver->setRenderTargetEx(m_saved_render_target, video::ECBF_NONE);
+		if (m_saved_viewport.getWidth() > 0 && m_saved_viewport.getHeight() > 0) {
+			driver->setViewPort(m_saved_viewport);
+		}
 	}
 #endif
 	return true;

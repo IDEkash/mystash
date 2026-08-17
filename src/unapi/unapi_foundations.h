@@ -5,9 +5,20 @@
 
 #include "unapi_object.h"
 #include "unapi_types.h"
+#include "irrlichttypes.h"
+#include <rect.h>
 #include <memory>
 #include <string>
 #include <vector>
+
+#if IS_CLIENT_BUILD
+namespace irr {
+namespace video {
+	class IRenderTarget;
+	class ITexture;
+}
+}
+#endif
 
 namespace unapi {
 
@@ -70,13 +81,23 @@ private:
 	std::string m_format {"RGBA8"};
 	Vector3f m_clear_color {0, 0, 0};
 	ObjectRefPtr m_texture;
+	std::string m_texture_name;
+
+#if IS_CLIENT_BUILD
+	irr::video::IRenderTarget *m_irr_render_target {nullptr};
+	irr::video::ITexture *m_irr_texture {nullptr};
+	irr::video::IRenderTarget *m_saved_render_target {nullptr};
+	core::rect<s32> m_saved_viewport;
+#endif
 
 public:
 	RenderTargetObject();
+	~RenderTargetObject() override;
 	int getWidth() const { return m_width; }
 	int getHeight() const { return m_height; }
 	void resize(int w, int h);
 	ObjectRefPtr getTexture() const { return m_texture; }
+	const std::string &getTextureName() const { return m_texture_name; }
 	bool bindTarget();
 	bool unbindTarget();
 };
