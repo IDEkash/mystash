@@ -401,6 +401,16 @@ u32 TextureSource::generateTexture(const std::string &name)
 	video::IVideoDriver *driver = RenderingEngine::get_video_driver();
 	sanity_check(driver);
 
+	video::ITexture *driver_tex = driver->getTexture(name.c_str());
+	if (driver_tex) {
+		MutexAutoLock lock(m_textureinfo_cache_mutex);
+		const u32 id = m_textureinfo_cache.size();
+		TextureInfo ti{video::ETT_2D, name, {name}, driver_tex, {}};
+		m_textureinfo_cache.emplace_back(std::move(ti));
+		m_name_to_id[name] = id;
+		return id;
+	}
+
 	std::set<std::string> source_image_names;
 	video::IImage *img = getOrGenerateImage(name, source_image_names);
 
