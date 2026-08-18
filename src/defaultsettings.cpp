@@ -257,7 +257,7 @@ void set_default_settings()
 	settings->setDefault("vsync", "false");
 	settings->setDefault("fov", "72");
 	settings->setDefault("leaves_style", "fancy");
-	settings->setDefault("connected_glass", "false");
+	settings->setDefault("connected_glass", "true");
 	settings->setDefault("smooth_lighting", "true");
 	settings->setDefault("performance_tradeoffs", "false");
 	settings->setDefault("array_texture_max", "65535");
@@ -275,7 +275,7 @@ void set_default_settings()
 	settings->setDefault("cinematic_camera_smoothing", "0.05");
 	settings->setDefault("view_bobbing_amount", "1.0");
 	settings->setDefault("enable_3d_clouds", "true");
-	settings->setDefault("soft_clouds", "false");
+	settings->setDefault("soft_clouds", "true");
 	settings->setDefault("cloud_radius", "12");
 	settings->setDefault("menu_clouds", "true");
 	settings->setDefault("menu_theme", "light");
@@ -317,7 +317,7 @@ void set_default_settings()
 	settings->setDefault("post_processing_texture_bits", "10");
 	settings->setDefault("directional_colored_fog", "true");
 	settings->setDefault("inventory_items_animations", "false");
-	settings->setDefault("mip_map", "false");
+	settings->setDefault("mip_map", "true");
 	settings->setDefault("bilinear_filter", "false");
 	settings->setDefault("trilinear_filter", "false");
 	settings->setDefault("anisotropic_filter", "false");
