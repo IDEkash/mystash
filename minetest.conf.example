@@ -706,7 +706,7 @@
 
 #    Use smooth cloud shading.
 #    type: bool
-# soft_clouds = false
+# soft_clouds = true
 
 ### Filtering and Antialiasing
 
@@ -714,7 +714,7 @@
 #    especially when using a high-resolution texture pack.
 #    Gamma-correct downscaling is not supported.
 #    type: bool
-# mip_map = false
+# mip_map = true
 
 #    Use bilinear filtering when scaling textures.
 #    type: bool
@@ -792,7 +792,7 @@
 
 #    Connects glass if supported by node.
 #    type: bool
-# connected_glass = false
+# connected_glass = true
 
 #    Enable smooth lighting with simple ambient occlusion.
 #    type: bool
