@@ -8,38 +8,13 @@
 #include "render_target_impl.h"
 #include "camera_impl.h"
 #include "material_impl.h"
+#include "shader_impl.h"
 #include <IrrlichtDevice.h>
 #include <IVideoDriver.h>
 #include <ISceneManager.h>
 
 namespace rendering
 {
-
-class IrrlichtShader : public IShader
-{
-public:
-	IrrlichtShader(s32 materialType)
-		: m_material_type(materialType)
-	{
-	}
-
-	virtual ~IrrlichtShader() override = default;
-
-	virtual bool isValid() const override { return m_material_type >= 0; }
-	virtual void bind() override {}
-	virtual void unbind() override {}
-
-	virtual void setUniform(const std::string &name, float value) override {}
-	virtual void setUniform(const std::string &name, int value) override {}
-	virtual void setUniform(const std::string &name, const v2f &vec) override {}
-	virtual void setUniform(const std::string &name, const v3f &vec) override {}
-	virtual void setUniform(const std::string &name, const core::matrix4 &mat) override {}
-
-	s32 getMaterialType() const { return m_material_type; }
-
-private:
-	s32 m_material_type {-1};
-};
 
 class IrrlichtContext : public IRenderContext
 {
